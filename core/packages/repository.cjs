@@ -3,7 +3,8 @@ const fs = require('node:fs/promises'),
   crypto = require('node:crypto');
 const registry = require('../modules.cjs'),
   catalog = require('../services/app-catalog.cjs'),
-  archive = require('../archive.cjs');
+  archive = require('../archive.cjs'),
+  storeCatalog = require('./store-catalog.cjs');
 async function create(root, options = {}) {
   root = path.resolve(root);
   const shell=options.shell||process.env.IZ2S_SHELL||process.env.IZ15_SHELL||'izlauncher';
@@ -11,11 +12,10 @@ async function create(root, options = {}) {
   const compatibilityOptions={...options,shell,shellDescriptor};
   const folder = path.join(root, 'data/imports');
   await fs.mkdir(folder, { recursive: true });
-  async function inspect(name) {
+  async function inspectFromInventory(name, inventory) {
     if (!/^[a-z0-9][a-z0-9._-]{0,95}\.(izm|izs|izp)$/.test(name))
       throw Error('Invalid package name');
-    const inventory = await registry.list(root),
-      m = inventory.modules.find(
+    const m = inventory.modules.find(
         (m) =>
           m.id + '.izm' === name ||
           m.descriptor.legacy?.packageNames?.includes(name),
@@ -70,6 +70,8 @@ async function create(root, options = {}) {
         description: manifest.description,
         kind: manifest.builtin ? 'builtin' : 'gpu-app',
       },
+      resident: require('../../shells/izlauncher/resident/compatibility.cjs').candidate({manifest,effects:manifest.audio?.effects||{}},m.descriptor),
+      residentAudio: require('../../shells/izlauncher/resident/compatibility.cjs').candidate({manifest,effects:manifest.audio?.effects||{}},m.descriptor,{finiteAudio:true}),
       ...compatibility,
       name: m.descriptor.name,
       version: m.descriptor.version,
@@ -81,20 +83,23 @@ async function create(root, options = {}) {
         icon.bytes.toString('base64'),
     };
   }
+  async function inspect(name) {
+    return inspectFromInventory(name, await registry.list(root));
+  }
   async function list() {
     const inventory = await registry.list(root),
       packages = [],
       errors = [...inventory.errors];
     for (const m of inventory.modules)
-      if (m.descriptor.switch)
+      if (m.descriptor.switch && storeCatalog.visible(m.descriptor))
         try {
-          packages.push(await inspect(m.id + '.izm'));
+          packages.push(await inspectFromInventory(m.id + '.izm', inventory));
         } catch (e) {
           errors.push({ file: m.id + '.izm', error: e.message });
         }
     return { packages, errors };
   }
-  async function install(name, destination) {
+  async function install(name, destination, {onProgress} = {}) {
     const p = await inspect(name);
     await registry.verify(root, [p.id]);
     if (!p.supported) throw Error('Module unsupported on this host: ' + p.id);
@@ -105,10 +110,13 @@ async function create(root, options = {}) {
     );
     await fs.mkdir(stage);
     try {
+      const totalBytes=p.files.reduce((n,f)=>n+f.bytes.length,0);let completedBytes=0;
+      if(onProgress)await onProgress({completedBytes,totalBytes});
       for (const f of p.files) {
         const file = path.join(stage, archivePath(f.name));
         await fs.mkdir(path.dirname(file), { recursive: true });
-        await fs.writeFile(file, f.bytes);
+        if(onProgress){const handle=await fs.open(file,'w');try{for(let at=0;at<f.bytes.length;at+=262144){let written=0;const part=f.bytes.subarray(at,at+262144);while(written<part.length){const result=await handle.write(part,written,part.length-written);if(!result.bytesWritten)throw Error('Module file write made no progress');written+=result.bytesWritten;}completedBytes+=part.length;await onProgress({completedBytes,totalBytes});}}finally{await handle.close();}}
+        else await fs.writeFile(file, f.bytes);
       }
       const app = await catalog.readApp(stage);
       if (app.id !== p.id) throw Error('App identity differs');
@@ -138,10 +146,10 @@ async function create(root, options = {}) {
       await fs.rm(stage, { recursive: true, force: true });
     }
   }
-  async function previewApps(cacheRoot) {
+  async function previewApps(cacheRoot, {filter = () => true} = {}) {
     const result = await list(),
       apps = [], packages = [], rejected = [...result.errors];
-    for (const p of result.packages.filter((p) => p.supported).slice(0, 16)) {
+    for (const p of result.packages.filter((p) => p.supported && filter(p)).slice(0, 16)) {
       try {
         await install(p.file, cacheRoot);
         apps.push(await catalog.readApp(path.join(cacheRoot, p.id)));
@@ -174,6 +182,8 @@ function publicPackage(p) {
     icon: p.icon,
     module: p.module,
     supported: p.supported,
+    resident: p.resident,
+    residentAudio: p.residentAudio,
     unsupportedReasons: p.reasons,
   };
 }

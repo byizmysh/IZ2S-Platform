@@ -2,7 +2,9 @@
 #extension GL_GOOGLE_include_directive : require
 layout(local_size_x=1) in;
 #include "launcher-state.glsl"
+#include "load-progress.glsl"
 #include "hb.glsl"
+#include "resilience.glsl"
 #include "focus-layout.glsl"
 #include "focus-library.glsl"
 #include "menu-removal.glsl"
@@ -38,8 +40,10 @@ void launchSelection(){uint count=min(c.library.x,15u);if(c.state.x>=count){c.pi
 #endif
  if(kind!=1u)c.transition.y=1.0;
 }
-void main(){
+void launcherStep(){
  uint pressed=hbPressed();c.motion.x+=FOCUS_DT;c.state.z++;
+ if(loadProgressVisible()&&c.atlas[LOAD_PROGRESS+2u]>=6u){if(c.atlas[LOAD_PROGRESS+5u]>0u)c.atlas[LOAD_PROGRESS+5u]--;else c.atlas[LOAD_PROGRESS]=0u;}
+ if(loadProgressBusy()){c.rows[1]=0u;c.rows[12]=0u;c.rows[13]=0u;c.transition=vec4(0);hbEndFrame();return;}
  if(c.atlas[TOAST]==0x495a4e31u){uint seq=c.atlas[TOAST+1u];if(seq!=c.atlas[TOAST+3u]){c.atlas[TOAST+3u]=seq;c.atlas[TOAST+4u]=floatBitsToUint(TOAST_SECONDS);}else c.atlas[TOAST+4u]=floatBitsToUint(max(0.0,uintBitsToFloat(c.atlas[TOAST+4u])-FOCUS_DT));}
 #ifdef IZ_CALC
  if(c.atlas[CB+7u]==CMAGIC&&c.atlas[CB+1u]==1u){calcInput(pressed);return;}
@@ -85,10 +89,11 @@ streamInput(pressed);return;}}
  if(touch&&c.library.w!=0u&&abs(p.y-c.flow.w)>65.0&&abs(p.x-c.flow.z)<90.0&&p.y>650.0){int step=p.y<c.flow.w?1:-1;c.rows[12]=uint(clamp(int(c.rows[12])+step,0,int(scrollSteps)));c.bag[7]=1u;c.flow.w=p.y;}
  bool tap=!touch&&c.library.w!=0u&&c.bag[7]==0u;
  if(tap&&c.bagMeta.y==0u){
-  if(realCount>0u&&(all(lessThan(abs(p-FOCUS_PREV),vec2(25,38)))||all(lessThan(abs(p-FOCUS_NEXT),vec2(25,38))))){int step=p.x<960.0?-1:1;selected=uint((int(selected)+step+int(count))%int(count));}
-  else if(psCategoryAt(p)>=0){c.rows[0]=uint(psCategoryAt(p));focusRebuild(picker);realCount=focusCount(picker);count=picker?max(realCount,1u):realCount+1u;selected=0u;}
+  vec2 contentPoint=p+vec2(0,scroll);int collection=psCollectionAt(contentPoint);
+  if(psCategoryAt(p)>=0){c.rows[0]=uint(psCategoryAt(p));focusRebuild(picker);realCount=focusCount(picker);count=picker?max(realCount,1u):realCount+1u;selected=0u;}
   else if(psSearchHit(p))c.rows[1]=1u;
-  else if(length((p+vec2(0,scroll))-ADD_CENTER)<=72.0){if(picker)c.piece.x=0;else open=true;selected=0u;}
+  else if(psContentHit(p)&&psExchangeHit(contentPoint)){if(picker)c.piece.x=0;else open=true;selected=0u;}
+  else if(psContentHit(p)&&collection>=0&&collection<int(realCount)){uint target=picker?uint(collection):uint(collection)+1u;if(selected==target)open=true;selected=target;}
   else if(!picker&&all(lessThanEqual(abs(p+vec2(0,scroll)-HERO_CENTER),PS_CARD_HALF))){if(selected==0u)open=true;selected=0u;}
   else if(focusHeroHit(p+vec2(0,scroll))){if(realCount==0u&&focusRawCount(picker)>0u)c.rows[1]=1u;else open=true;}
   else{int first=int(floor(c.flow.x));for(int i=-1;i<7;i++){int index=first+i;if(index<0||index>=int(realCount))continue;vec2 center=focusCardCenter(float(index));if(center.x<500.0||center.x>1870.0)continue;if(focusCardHit(p+vec2(0,scroll),float(index))){uint target=picker?uint(index):uint(index)+1u;if(selected==target)open=true;selected=target;}}}
@@ -101,3 +106,4 @@ streamInput(pressed);return;}}
  c.rows[11]=picker?selected:(selected==0u?realCount:selected-1u);
  c.motion.y=float(c.state.x);c.motion.z=0;hbEndFrame();
 }
+void main(){izNormalizePad();bool run=rsBegin();if(run)launcherStep();c.state.z=rs(6u);rsEnd();}

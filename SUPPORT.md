@@ -1,21 +1,15 @@
-# Platform support
+# IZ2S support
 
-| Host | Status for this candidate |
-| --- | --- |
-| Linux x64 | Implemented; local installation/software checks recorded in the validation notes |
-| Linux ARM64 | Declared target; complete physical ARM64 console/media testing is still required |
-| Windows | Unsupported in this release; no Windows installer or complete host capture/audio/input integration |
-| macOS | Unsupported in this release |
+The panel server supports Linux x64. Linux ARM64 is a declared target whose complete physical configuration is not qualified by the local release checks. Experimental Windows/macOS PC installers and Start entries are included. They require real OS testing; current native engine/shell/hardware session declarations remain Linux-only. See COMPATIBILITY.md and distribution/HOST-TESTING.md.
 
-The web panel and some JavaScript/Electron components may run on other operating
-systems. That alone does not establish support for the complete Switch workflow.
-Building a desktop Electron app is separate from implementing console streaming.
-WSL, Wine and containers are not qualified Windows configurations.
+The common network layer uses Node.js APIs and has no iproute2 or ping dependency. Linux SD identification reads device/mount metadata through an optional host adapter; findmnt is not required. DejaVu fonts are bundled. Host-only checks require Node.js 20.20+ and Python/Pillow, plus OpenSSH for ARM input. Shader compiler/validator checks apply to developer builds. The installer automates runtime dependencies for apt/pacman/dnf systems; other distributions can supply the same portable runtimes and use --no-system-packages. Windows/macOS native port/qualification remains pending; private Node/Python/Pillow bootstrap code is provided for installation/panel tests. This candidate is local and unpublished; see distribution/PORTABILITY.md.
 
-Use Linux x64 for the first public testing candidate. Do not advertise Windows
-or macOS compatibility. ARM input-agent setup and host ARM64 support are separate:
-a working ARM USB keyboard board does not qualify ARM64 media playback.
+Local checks cover packaged resource completeness, both launchers, source hashes, module packaging and dependency resolution, reader storage/layout/import, authenticated settings, ARM package integrity and compiled shader validation. They do not prove successful native FS memory acquisition on every console boot.
 
-This document describes the current implementation, not an upstream library's
-potential platform list. See each package's README for dependencies and actual
-validation limits. No new hardware qualification is implied by packaging.
+The Cardputer ADV 0.21.0 USB test on a Linux PC passed printable characters and workflow keystrokes. Its Switch compatibility issue led to firmware 0.21.1 using a boot keyboard interface and unnumbered eight-byte reports. Firmware 0.21.1 subsequently completed its launch keyboard job on a physical Switch 2: USB boot protocol was selected, report errors remained zero, and the console TCP connection reached the FS acquisition stage. That attempt then failed during native FS memory acquisition; a complete launcher start is not claimed from this check.
+
+If native memory acquisition reports retained resources, restart the console before another attempt. Preserve local diagnostics for troubleshooting, but remove private paths, addresses, keys, file listings and book names before sharing them publicly.
+
+A subsequent physical run completed FS initialization and all 43 IZPSlauncher GPU checks, then lost the local HTTP RPC connection during input initialization. The release disables pooled HTTP sockets in both bundled engines. Local fault checks reproduce a reset with the former pooled client and pass with the updated clients, including rejection without command replay after an unknown outcome. After this change, a physical Switch 2 launch using Cardputer ADV and IZ2S Core completed initialization and reached the running IZPSlauncher frame loop, reporting approximately 60 frames per second. This verifies that launch path; long-running sessions, all modules and every hardware combination are not qualified by that check.
+
+New Windows/macOS setup paths prepare private Node 24, uv-managed Python 3.12 and Pillow 12.0.0, plus an existing or portable Windows SSH client. Their scripts, source-copy policy and interpreter routing can be checked locally, but no Windows/macOS OS result is claimed from Linux checks. The release notes compare the complete current feature set and migration requirements with v0.16.0-rc.5, commit d7a0df16e7e0c68acf78d2f68da8496ef3d9fd6b.

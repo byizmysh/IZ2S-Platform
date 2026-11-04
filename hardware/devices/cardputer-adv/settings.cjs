@@ -1,11 +1,17 @@
+function endpoint(value){
+ const text=String(value||'').trim();
+ let url;
+ try{url=new URL(text.includes('://')?text:'http://'+text);}catch{throw Error('Enter the Cardputer IP address or local hostname, for example 192.168.1.50');}
+ if(url.protocol!=='http:'||url.username||url.password||url.search||url.hash||!['','/'].includes(url.pathname))throw Error('Use the Cardputer IP address or local HTTP address without a path or credentials');
+ return url.origin;
+}
 function validate(value){
  const requirements=[];
- if(value.cardputerApiKeyEnv&&!/^[A-Z_][A-Z0-9_]*$/.test(value.cardputerApiKeyEnv))throw Error('Invalid Cardputer API key environment variable');
- if(value.cardputerEndpoint){const url=new URL(value.cardputerEndpoint);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw Error('Use a plain HTTP(S) Cardputer endpoint without embedded credentials');value.cardputerEndpoint=url.href.replace(/\/$/,'');}
- if(!value.cardputerEndpoint)requirements.push('Set the Cardputer KProx endpoint.');
- if(value.cardputerFirmware!=='kprox')requirements.push('Install KProx firmware on Cardputer ADV and enable its USB keyboard.');
- if(!['on','off'].includes(value.cardputerCapsLock))requirements.push('Confirm the keyboard Caps Lock state on Switch.');
- if(!process.env[value.cardputerApiKeyEnv])requirements.push('Set '+value.cardputerApiKeyEnv+' for the Cardputer API key.');
+ if(value.cardputerEndpoint){
+  value.cardputerEndpoint=endpoint(value.cardputerEndpoint);
+ }else requirements.push('Set the Wi-Fi address shown on the Cardputer screen.');
+ if(!/^[a-f0-9]{64}$/.test(value.cardputerToken||''))requirements.push('Prepare the Cardputer SD card package to pair the device.');
+ if(!['off','on'].includes(value.cardputerCapsLock))requirements.push('Confirm Switch Caps Lock state.');
  return requirements;
 }
-module.exports={validate};
+module.exports={validate,endpoint};

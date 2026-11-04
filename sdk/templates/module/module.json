@@ -1,0 +1,1 @@
+{"format":"izlauncher.module","formatVersion":1,"apiVersion":1,"id":"hello-host","name":"Hello host","version":"1.0.0","author":"Your name","platforms":["linux-x64","linux-arm64"],"requires":{"platformApi":1},"server":{"runtime":"node","entry":"server/entry.cjs"},"dependencies":[],"settingsSchema":[],"license":"MIT"}

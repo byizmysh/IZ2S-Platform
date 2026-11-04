@@ -205,6 +205,8 @@ function inspect(bytes) {
       byName.has(descriptor.server.entry) && descriptor.server.entry.startsWith('server/'),
       'Missing server entry',
     );
+  if (descriptor.server?.settings)
+    assert(byName.has(descriptor.server.settings.entry), 'Missing module settings entry');
   for (const name of descriptor.server?.assets || [])
     assert(byName.has(name), 'Missing server asset: ' + name);
   for (const target of Object.values(descriptor.server?.implementations || {})) {

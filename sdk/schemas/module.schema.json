@@ -212,6 +212,22 @@
               }
             }
           }
+        },
+        "settings": {
+          "type": "object",
+          "required": [
+            "entry"
+          ],
+          "properties": {
+            "entry": {
+              "type": "string",
+              "pattern": "^server/[^\\\\]+$"
+            },
+            "label": {
+              "type": "string",
+              "maxLength": 48
+            }
+          }
         }
       }
     },

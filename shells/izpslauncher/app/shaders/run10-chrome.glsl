@@ -40,9 +40,7 @@ float mouse(vec2 q,float t){
 void menuHeader(vec2 p,inout vec3 col){
  float t=c.motion.x;col=mix(col,INK,focusText(p,vec2(80,65),F_TITLE,1.0));
  // Right aligned below the title; italic shear uses the same lime as the orbit.
- vec2 version=p-vec2(80.0+float(F_TITLE.z)-56.0,65.0+float(F_TITLE.w)+10.0);
- version.x-=.22*(16.0-version.y);
- if(version.x>=-4.0&&version.x<60.0&&version.y>=0.0&&version.y<18.0){const uint chars[4]=uint[4](48u,46u,49u,54u);for(int i=0;i<4;i++){uint ch=chars[i],n=ch-32u;vec2 q=version-vec2(float(i)*14.0,ch==46u?12.0:0.0);col=mix(col,BLUE,focusText(q,vec2(0),ivec4(int(n%32u)*24,F_ASCII.y+int(n/32u)*32,24,32),.75));}}
+ col=mix(col,BLUE,focusText(p,vec2(80.0+float(F_TITLE.z-F_VERSION.z),65.0+float(F_TITLE.w)+10.0),F_VERSION,1.0));
 
  // A full out-and-back walk takes 24 seconds. Ease at the planet and turn.
  float phase=mod(t,24.0)*.261799388,velocity=sin(phase),direction=velocity>=0.0?1.0:-1.0;

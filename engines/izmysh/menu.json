@@ -1,13 +1,38 @@
 {
-  "title": "ns2jb by IZMYSH",
-  "subtitle": "Original IZMYSH bootstrap. Install into the selected empty slot.",
+  "title": "IZ2S Core",
+  "subtitle": "IZ2S connection core. SmileBASIC program: NS2IZM.",
   "defaultAction": "launch",
-  "launchLabel": "Launch",
-  "stopLabel": "Disconnect safely",
   "sourceSetup": true,
-  "notes": [
-    "First setup enters the standard bootstrap.bas (229 lines) into the selected empty slot.",
-    "LIST N:1 and SAVE \"TXT:NS2I\",N use the selected slot 0\u20133; existing NS2/NS2R files are preserved.",
-    "The new copy becomes the Launch source only after you confirm saving."
+  "modes": [
+    {
+      "id": "izlauncher",
+      "name": "IZlauncher",
+      "description": "Run the selected console menu over the IZ2S Core connection.",
+      "modules": true,
+      "menu": "IZlauncher"
+    },
+    {
+      "id": "original",
+      "name": "Core only",
+      "description": "Run the connection core without a console menu. Optional held FS RPC.",
+      "modules": false,
+      "menu": "Original launch progress on PC"
+    }
+  ],
+  "launchLabel": "Launch",
+  "stopLabel": "Stop and return to Launch",
+  "items": [
+    {
+      "id": "launch",
+      "label": "Launch selected mode"
+    },
+    {
+      "id": "settings",
+      "label": "Original settings"
+    },
+    {
+      "id": "logs",
+      "label": "Launch log"
+    }
   ]
 }

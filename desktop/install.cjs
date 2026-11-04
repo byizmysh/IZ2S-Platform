@@ -2,22 +2,20 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const os = require("node:os");
-const displayVersion = require("../package.json").version.split(".").slice(0, 2).join(".");
-
-function desktopEntry({ root, icon, node = process.execPath }) {
-  const quote = (value) =>
-    '"' + value.replace(/[\\"`$]/g, "\\$&").replace(/%/g, "%%") + '"';
-  return `[Desktop Entry]\nVersion=1.0\nType=Application\nName=IZ2S Platform ${displayVersion}\nGenericName=Switch 2 control panel\nComment=Restart the local server and open IZ2S Platform ${displayVersion}\nExec=${quote(node)} ${quote(path.join(root, "start.cjs"))} --restart\nPath=${root}\nIcon=${icon}\nTerminal=false\nStartupNotify=false\nCategories=Game;\nKeywords=IZ2S;IZlauncher;Switch;\n`;
+function desktopEntry({ root, icon }) {
+  const quote = value => '"' + value.replace(/[\\"`$]/g, "\\$&").replace(/%/g, "%%") + '"';
+  return `[Desktop Entry]\nVersion=1.0\nType=Application\nName=IZ2S Platform\nGenericName=Switch 2 control panel\nComment=Open IZ2S Platform in a browser window\nExec=${quote(path.join(root, "start.sh"))}\nPath=${root}\nIcon=${icon}\nTerminal=false\nStartupNotify=false\nCategories=Game;\nKeywords=IZ2S;IZLauncher;IZPSlauncher;Switch;\n`;
 }
 async function install({
   home = os.homedir(),
   dataHome = process.env.XDG_DATA_HOME || path.join(home, ".local/share"),
+  desktopShortcut = true,
 } = {}) {
   const root = path.resolve(__dirname, "..");
   const applications = path.join(dataHome, "applications");
   const icon = path.join(
     dataHome,
-    "icons/hicolor/scalable/apps/iz2s-platform.svg",
+    "icons/hicolor/scalable/apps/izlauncher-run21.svg",
   );
   let desktop = path.join(home, "Desktop");
   try {
@@ -35,12 +33,12 @@ async function install({
   }
   await fs.mkdir(applications, { recursive: true });
   await fs.mkdir(path.dirname(icon), { recursive: true });
-  await fs.mkdir(desktop, { recursive: true });
+  if(desktopShortcut)await fs.mkdir(desktop, { recursive: true });
   await fs.copyFile(path.join(__dirname, "izlauncher.svg"), icon);
   const entry = desktopEntry({ root, icon });
   const files = [
-    path.join(applications, "iz2s-platform.desktop"),
-    path.join(desktop, "iz2s-platform.desktop"),
+    path.join(applications, "izlauncher-run21.desktop"),
+    ...(desktopShortcut?[path.join(desktop,"izlauncher-run21.desktop")]:[]),
   ];
   for (const file of files) {
     await fs.writeFile(file, entry, { mode: 0o755 });
@@ -49,7 +47,7 @@ async function install({
   return { files, icon };
 }
 if (require.main === module)
-  install()
+  install({desktopShortcut:!process.argv.includes('--menu-only')})
     .then((result) => console.log(JSON.stringify(result, null, 2)))
     .catch((error) => {
       console.error(error.message);

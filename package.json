@@ -1,16 +1,22 @@
 {
   "name": "iz2s-platform",
-  "version": "0.16.0-rc.5",
+  "version": "0.21.0",
   "private": true,
-  "description": "Modular Switch 2 host platform prerelease",
+  "description": "IZ2S Platform panel and console launchers",
   "engines": {
-    "node": ">=22"
+    "node": ">=20.20"
   },
   "scripts": {
     "start": "node start.cjs",
-    "preview": "node distribution/preview.cjs",
+    "preview": "node start.cjs --preview",
+    "build:launchers": "node tools/build-launchers.cjs",
+    "build:core": "node tools/build-iz2s-core.cjs",
     "check": "node distribution/verify.cjs",
-    "release": "node distribution/build.cjs"
+    "release": "python3 distribution/release.py"
   },
-  "license": "GPL-2.0-or-later"
+  "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/byizmysh/IZ2S-Platform.git"
+  }
 }

@@ -1,0 +1,1 @@
+{"format":"izlauncher.shell","apiVersion":1,"id":"example-shell","name":"Example shell (template)","version":"1.0.0","entry":"adapter.cjs","platforms":["linux-x64","linux-arm64"],"consoleAbi":1,"requires":["native-rpc","gpu-app/1"]}

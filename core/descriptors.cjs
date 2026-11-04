@@ -49,11 +49,19 @@ function validate(value, kind, id) {
     'Invalid platforms',
   );
   if (kind === 'engine') {
+    if (value.directory !== undefined)
+      assert(typeof value.directory === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]{0,47}$/.test(value.directory),
+        'Invalid engine directory');
+    if (value.runtimeEngine !== undefined)
+      assert(typeof value.runtimeEngine === 'string' && ID.test(value.runtimeEngine) &&
+        value.runtimeEngine !== value.id, 'Invalid shared runtime engine');
     assert(
       value.entry &&
         Array.isArray(value.modes) &&
-        value.modes.includes('original'),
-      'Engine entry and original mode required',
+        value.modes.length>0 &&
+        value.modes.every(mode=>['original','izlauncher'].includes(mode)) &&
+        new Set(value.modes).size===value.modes.length,
+      'Engine entry and a unique supported mode required',
     );
     if (value.installation) {
       assert(
@@ -147,6 +155,7 @@ function moduleDescriptor(v) {
     if(v.server.activation?.exclusiveGroup!==undefined)assert(ID.test(v.server.activation.exclusiveGroup),'Invalid module exclusive group');
     assert(v.server.runtime === 'node', 'Unsupported server runtime');
     relative(v.server.entry);
+    if(v.server.settings!==undefined){assert(v.server.settings&&typeof v.server.settings==='object','Invalid module settings descriptor');relative(v.server.settings.entry);assert(v.server.settings.entry.startsWith('server/'),'Settings entry must be inside server/');if(v.server.settings.label!==undefined)assert(typeof v.server.settings.label==='string'&&v.server.settings.label.length<=48,'Invalid settings label');}
     if(v.server.localPackages!==undefined){
       assert(Array.isArray(v.server.localPackages),'Invalid local package list');
       const ids=new Set();for(const p of v.server.localPackages){
@@ -197,14 +206,16 @@ function scan(root, kind) {
   for (const entry of fs
     .readdirSync(dir, { withFileTypes: true })
     .sort((a, b) => a.name.localeCompare(b.name))) {
-    if (!entry.isDirectory() || !ID.test(entry.name)) continue;
+    if (!entry.isDirectory() || !(kind === 'engine' ? /^[A-Za-z0-9][A-Za-z0-9-]{0,47}$/.test(entry.name) : ID.test(entry.name))) continue;
     try {
       const file = path.join(dir, entry.name, kind + '.json');
       if (!fs.existsSync(file)) continue;
       const bytes = fs.readFileSync(file);
       assert(bytes.length <= 65536, 'Descriptor too large');
-      const descriptor = validate(JSON.parse(bytes), kind, entry.name),
+      const value = JSON.parse(bytes);
+      const descriptor = validate(value, kind, kind === 'engine' && value.directory === entry.name ? value.id : entry.name),
         folder = path.dirname(file);
+      if (kind === 'engine') assert((descriptor.directory || descriptor.id) === entry.name, 'Engine directory differs from descriptor');
       for (const key of ['entry'])
         if (descriptor[key])
           assert(

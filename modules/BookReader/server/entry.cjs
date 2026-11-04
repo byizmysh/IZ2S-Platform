@@ -1,0 +1,1 @@
+const path=require('node:path'),{root}=require('./platform.cjs');module.exports=require(path.join(root,'core/module-adapter.cjs')).create('book-reader',require('../module.json').server.implementations,__dirname);

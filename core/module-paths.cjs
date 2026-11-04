@@ -3,6 +3,17 @@
 const fs = require('node:fs'), path = require('node:path');
 const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
 const DIRECTORY = /^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/;
+const packageDescriptors = new Map();
+function packagedDescriptor(source, stat) {
+  const stamp = [stat.ino, stat.size, stat.mtimeMs, stat.ctimeMs].join(':');
+  const cached = packageDescriptors.get(source);
+  if (cached?.stamp === stamp) return cached.descriptor;
+  const descriptor = require('./archive.cjs').inspect(fs.readFileSync(source)).descriptor;
+  // Keep metadata only. Full verified package bytes belong to modules.cjs.
+  packageDescriptors.set(source, { stamp, descriptor });
+  if (packageDescriptors.size > 64) packageDescriptors.delete(packageDescriptors.keys().next().value);
+  return descriptor;
+}
 function directory(descriptor) {
   const name = descriptor.installationDirectory ?? descriptor.id;
   if (typeof descriptor.id!=='string' || typeof name!=='string' || !ID.test(descriptor.id) || !DIRECTORY.test(name)) throw Error('Invalid module installation directory');
@@ -22,7 +33,7 @@ function discover(root) {
         if(names.length!==1)throw Error('Ambiguous module package');
         const source=path.join(home,names[0]),stat=fs.lstatSync(source),archive=require('./archive.cjs');
         if(!stat.isFile()||stat.isSymbolicLink()||stat.size>archive.MAX_ARCHIVE)throw Error('Invalid module package file');
-        descriptor=archive.inspect(fs.readFileSync(source)).descriptor;
+        descriptor=packagedDescriptor(source,stat);
       } else {
       const stat = fs.lstatSync(file);
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 65536) throw Error('Invalid module descriptor file');

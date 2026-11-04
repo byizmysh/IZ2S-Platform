@@ -1,9 +1,12 @@
 """Small code-native ORBIT FOCUS type atlas and vector app icons."""
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
-import json,zlib
-R=Path(__file__).resolve().parents[1];S=R/'shells/izlauncher/app';FONT='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';MONO='/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf';BOLD='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-labels=[('TITLE','IZlauncher',76),('READY','Ready to open',34),('PLAY','Ready to play',34),('ADD','Add package',62),('BROWSE','Browse your package library',22),('OPEN','Open',23),('LOAD','Load package',23),('ADDSMALL','Add app',20),('LIBRARY','YOUR LIBRARY',17),('PACKAGES','PACKAGE LIBRARY',17),('LOADED','Loaded successfully',19),('SUCCESS','Package loaded',20),('WORKING','Loading package',20),('EMPTY','Press X to add an app',22),('ALL','All',23),('GAMES','Games',23),('TOOLS','Tools',23),('SEARCH','Search',23),('Y','Y',22),('X','X',18),('NORESULTS','No matches',55),('SEARCHHELP','Try another name or filter',22),('FIND','Find an app',27),('DONE','Done',19),('CLEAR','Clear',17),('SPACE','Space',17),('CREDIT','Created by IZMYSH (@byizmysh)',21),('BACK','Back',23),('INSTALL','Load',23),('BROWSEBTN','Browse',23),('ASELECT','A Select',18),('BBACK','B Back',18)]
+import json,zlib,sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from language.fonts import font
+from language.progress_type import paint as progress_type
+R=Path(__file__).resolve().parents[2];S=R/'shells/izlauncher/app';FONT=font();MONO=font('DejaVuSansMono.ttf');BOLD=font('DejaVuSans-Bold.ttf')
+labels=[('TITLE','IZlauncher',76),('VERSION','0.21',20),('READY','Ready to open',34),('PLAY','Ready to play',34),('ADD','Add package',62),('BROWSE','Browse your package library',22),('OPEN','Open',23),('LOAD','Load package',23),('ADDSMALL','Add app',20),('LIBRARY','YOUR LIBRARY',17),('PACKAGES','PACKAGE LIBRARY',17),('LOADED','Loaded successfully',19),('SUCCESS','Package loaded',20),('WORKING','Loading package',20),('EMPTY','Press X to add an app',22),('ALL','All',23),('GAMES','Games',23),('TOOLS','Tools',23),('SEARCH','Search',23),('Y','Y',22),('X','X',18),('NORESULTS','No matches',55),('SEARCHHELP','Try another name or filter',22),('FIND','Find an app',27),('DONE','Done',19),('CLEAR','Clear',17),('SPACE','Space',17),('CREDIT','Created by IZMYSH (@byizmysh)',21),('BACK','Back',23),('INSTALL','Load',23),('BROWSEBTN','Browse',23),('ASELECT','A Select',18),('BBACK','B Back',18)]
 im=Image.new('L',(768,1408));d=ImageDraw.Draw(im);y=2;header=['// ORBIT FOCUS: 2-bit coverage in the original atlas free area.','const uint FOCUS_TYPE=16384u;','const uint FOCUS_WIDTH=768u;']
 for name,text,size in labels:
  f=ImageFont.truetype(BOLD if name=='TITLE' else MONO if name in ('LIBRARY','PACKAGES','READY','PLAY','CREDIT') else FONT,size);b=d.textbbox((0,0),text,font=f);h=b[3]-b[1];tracking=3 if name=='CREDIT' else 2 if name in ('READY','PLAY') else 0
@@ -24,7 +27,12 @@ y+=96
 height=(y+3)//4*4;im=im.crop((0,0,768,height));raw=im.tobytes();packed=bytearray(len(raw)//4)
 for i,v in enumerate(raw):packed[i//4]|=((v*3+127)//255)<<((i%4)*2)
 assert len(packed)+65536<0x1c0000
-(S/'assets/focus-type.deflate').write_bytes(zlib.compress(packed,9));(S/'assets/focus-type.json').write_text(json.dumps({'width':768,'height':height,'bytes':len(packed),'offset':65536}));(S/'shaders/focus-type.glsl').write_text('\n'.join(header)+'\n');im.save(S/'assets/focus-type.png')
+glyphs=Image.new('L',(1024,192));_,progress_header=progress_type(ImageDraw.Draw(glyphs),0)
+glyph_pixels=glyphs.tobytes();glyph_packed=bytearray(len(glyph_pixels)//4)
+for i,v in enumerate(glyph_pixels):glyph_packed[i//4]|=((v*3+127)//255)<<((i%4)*2)
+combined=bytearray(0x60000-65536+len(glyph_packed));combined[:len(packed)]=packed;combined[0x60000-65536:]=glyph_packed
+(S/'shaders/load-progress-type.glsl').write_text(progress_header)
+(S/'assets/focus-type.deflate').write_bytes(zlib.compress(combined,9));(S/'assets/focus-type.json').write_text(json.dumps({'width':768,'height':height,'bytes':len(combined),'offset':65536}));(S/'shaders/focus-type.glsl').write_text('\n'.join(header)+'\n');im.save(S/'assets/focus-type.png')
 # Original vector silhouettes, rendered at 3x for compact antialiased app icons.
 ink='#f2f1e8';design=R/'core/packages/design/icons';design.mkdir(parents=True,exist_ok=True)
 skull=[(27,23),(39,15),(62,15),(75,25),(80,42),(75,59),(66,63),(66,79),(59,85),(41,85),(34,79),(34,63),(25,58),(20,42)]

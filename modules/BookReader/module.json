@@ -1,0 +1,66 @@
+{
+  "format": "izlauncher.module",
+  "formatVersion": 1,
+  "apiVersion": 1,
+  "id": "book-reader",
+  "installationDirectory": "BookReader",
+  "name": "Book Reader",
+  "version": "0.1.0",
+  "moduleVersion": "0.1.0",
+  "author": "IZMYSH",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "requires": {
+    "platformApi": 1,
+    "shell": "izlauncher",
+    "consoleAbi": 1
+  },
+  "switch": {
+    "entry": "switch/app.json",
+    "abi": 1,
+    "files": [
+      "switch/app.comp.spv",
+      "switch/app.comp.spv.deflate",
+      "switch/app.frag.spv",
+      "switch/app.frag.spv.deflate",
+      "switch/app.json",
+      "switch/app.vert.spv",
+      "switch/app.vert.spv.deflate",
+      "switch/assets/data.bin",
+      "switch/assets/font.json",
+      "switch/assets/icon.png",
+      "switch/assets/state.bin",
+      "switch/shaders/abi.glsl",
+      "switch/shaders/app.comp",
+      "switch/shaders/app.frag",
+      "switch/shaders/app.vert",
+      "switch/shaders/draw.glsl",
+      "switch/shaders/hb.glsl",
+      "switch/shaders/labels.glsl",
+      "switch/shaders/pad-merge.glsl",
+      "switch/shaders/reader.glsl"
+    ]
+  },
+  "server": {
+    "runtime": "node",
+    "entry": "server/entry.cjs",
+    "implementations": {
+      "runtime": "modules/book-reader/server/runtime.cjs"
+    },
+    "settings": {
+      "entry": "server/settings.cjs",
+      "label": "Reader settings"
+    },
+    "assets": [
+      "server/settings.html",
+      "server/settings.js",
+      "server/settings.css",
+      "server/import-book.py"
+    ]
+  },
+  "dependencies": [],
+  "settingsSchema": [],
+  "license": "GPL-2.0-or-later"
+}

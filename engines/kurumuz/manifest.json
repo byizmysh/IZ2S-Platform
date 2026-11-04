@@ -2,7 +2,7 @@
   "format": "izlauncher.loader",
   "version": 1,
   "id": "kurumuz",
-  "name": "ns2jb by kurumuz",
+  "name": "ns2jb by kurumoz",
   "revision": "eb2bdec8f3907c5830eb01fb9d55797af7403579",
   "repository": "https://gitlab.com/kurumuz/ns2jb",
   "entrypoint": "run.cjs",
@@ -29,7 +29,7 @@
     "upstreamNativeApps": false,
     "upstreamIzPackages": false,
     "adaptiveMemoryLayout": true,
-    "izMode": true,
+    "izMode": false,
     "receiptRecovery": false
   },
   "consolePort": 39380,
@@ -47,7 +47,6 @@
     "modified": false
   },
   "availableIn": [
-    "izlauncher",
     "original"
   ]
 }

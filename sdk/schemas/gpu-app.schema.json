@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:izlauncher:gpu-app:1",
+  "title": "GPU app ABI 1 compute workgroups extension",
+  "description": "Public additive manifest fields for main compute dispatch. The catalog remains authoritative for the complete app and asset contract.",
+  "$comment": "JSON Schema cannot directly express multiplication of tuple entries. app-catalog.cjs additionally requires computeWorkgroups[0] * computeWorkgroups[1] * computeWorkgroups[2] <= 4096. A schema-only pass does not prove that product bound.",
+  "type": "object",
+  "required": [
+    "format",
+    "abi"
+  ],
+  "properties": {
+    "format": {
+      "const": "hblauncher.gpu-app"
+    },
+    "abi": {
+      "const": 1
+    },
+    "computeWorkgroups": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 65535
+      },
+      "default": [
+        1,
+        1,
+        1
+      ],
+      "description": "Optional main compute XYZ workgroup counts. Product must be <= 4096, enforced by the app catalog. Applies to ordinary main compute and the repeated main compute stage; computeSequence begin and after stay [1,1,1]."
+    }
+  }
+}

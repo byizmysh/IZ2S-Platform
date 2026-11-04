@@ -8,6 +8,7 @@ async function headers(directory) {
   for (const [source, target] of [
     ['state.glsl', 'abi.glsl'],
     ['hb.glsl', 'hb.glsl'],
+    ['pad-merge.glsl', 'pad-merge.glsl'],
     ['draw.glsl', 'draw.glsl'],
   ])
     await fs.copyFile(path.join(__dirname, 'include', source), path.join(directory, target));

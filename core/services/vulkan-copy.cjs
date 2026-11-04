@@ -2,6 +2,7 @@
 // verification. LP64 layouts/constants follow Khronos Vulkan-Headers.
 const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('node:crypto');
 const {journal}=require('./journal.cjs');
+const {parseCompositionRequest,readSupportedCompositeAlpha,selectCompositeAlpha}=require('./vulkan-composition.cjs');
 const check=(ok,msg)=>{if(!ok)throw Error(msg);};
 const struct=(size,type,words={},pointers={})=>{
  const b=Buffer.alloc(size);b.writeUInt32LE(type,0);
@@ -12,6 +13,7 @@ async function main(directory,mode='copy',attempt){
  if(attempt)check(/^[a-z0-9-]+$/.test(attempt),'Invalid attempt label');
  check(mode!=='present','Presentation prototype disabled: no visible image, then disconnect during vkDestroySwapchainKHR. Inspect presentation completion and layer composition before retrying.');
  check(['copy','render','display','inspect'].includes(mode),'Unknown experiment');const present=mode==='display',render=mode==='render'||present;
+ const compositionRequest=parseCompositionRequest(process.env.IZ2S_VULKAN_COMPOSITION);
  const wsi=present||mode==='inspect';
  const byteCount=render?1920*1080*4:65536;
  directory=path.resolve(directory);const rpc=require(path.join(directory,'shared/rpc.cjs'));
@@ -62,7 +64,9 @@ async function main(directory,mode='copy',attempt){
    const window=await call('_ZN2nn2vi5Layer15GetNativeWindowEv',layer);
    await put(0x6100,struct(32,1000062000,{}, {24:window}));await ok('vkCreateViSurfaceNN',instance,p+0x6100,0,p+104);surface=await pointer(104);
    await ok('vkGetPhysicalDeviceSurfaceCapabilitiesKHR',physical,surface,p+0x6200);
-   const c=await rpc.read(p+0x6200,52);report.surface={width:c.readUInt32LE(8),height:c.readUInt32LE(12),minImages:c.readUInt32LE(),maxImages:c.readUInt32LE(4),transform:c.readUInt32LE(40),usage:c.readUInt32LE(48)};
+   const c=await rpc.read(p+0x6200,52),supportedCompositeAlpha=readSupportedCompositeAlpha(c);report.surface={width:c.readUInt32LE(8),height:c.readUInt32LE(12),minImages:c.readUInt32LE(),maxImages:c.readUInt32LE(4),transform:c.readUInt32LE(40),usage:c.readUInt32LE(48),supportedCompositeAlpha,composition:{requested:compositionRequest,supportedMask:supportedCompositeAlpha,selectedMode:null,selectedBit:null}};
+   // Preserve the advertised mask/request even if explicit selection fails.
+   await save();report.surface.composition=selectCompositeAlpha(supportedCompositeAlpha,compositionRequest);
    check(report.surface.width===1920&&report.surface.height===1080,'Independent surface is not 1080p');check((report.surface.usage&17)===17,'Surface cannot render and read back');await save();
    await ok('vkGetPhysicalDeviceSurfaceFormatsKHR',physical,surface,p+144,0);const n=(await rpc.read(p+144,4)).readUInt32LE();check(n>0&&n<=64,'Unexpected format count');
    await ok('vkGetPhysicalDeviceSurfaceFormatsKHR',physical,surface,p+144,p+0x6400);const formats=await rpc.read(p+0x6400,n*8);
@@ -96,7 +100,7 @@ async function main(directory,mode='copy',attempt){
   await call('vkGetDeviceQueue',device,family,0,p+40);const queue=await pointer(40);
   if(present){
    await ok('vkGetPhysicalDeviceSurfaceSupportKHR',physical,family,surface,p+144);check((await rpc.read(p+144,4)).readUInt32LE()===1,'Queue cannot present');
-   await put(0x6600,struct(104,1000001000,{32:report.surface.minImages,36:37,44:1920,48:1080,52:1,56:17,80:report.surface.transform,84:1,88:2,92:1},{24:surface}));
+   await put(0x6600,struct(104,1000001000,{32:report.surface.minImages,36:37,44:1920,48:1080,52:1,56:17,80:report.surface.transform,84:report.surface.composition.selectedBit,88:2,92:1},{24:surface}));
    await ok('vkCreateSwapchainKHR',device,p+0x6600,0,p+112);swapchain=await pointer(112);
    // Destruction crashed in the previous session. Keep this display's complete
    // object graph alive until the application exits; do not replay teardown.

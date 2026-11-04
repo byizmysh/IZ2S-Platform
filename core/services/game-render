@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+// Compatibility executable; diagnostic source and build belong to the SDK.
+require('../../sdk/tools/build-vulkan.cjs').run('game-render',process.argv.slice(2));

@@ -1,0 +1,16 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=1) in;
+#include "layout.glsl"
+layout(set=0,binding=1,std430) buffer State {uint w[];} state;
+layout(push_constant) uniform Slot {uint id;} slot;
+void main(){
+ if(!residentValid()||slot.id>=r.w[2])return;
+ uint p=row(slot.id);r.w[p+7u]=0u;
+ if(slot.id==0u&&state.w[253]!=0u){
+  uint request=state.w[253];state.w[253]=0u;
+  // Menu launch values are one-based app ordinals, matching slots 1..N.
+  r.w[5]=request+1u;
+  state.w[240]=0u;state.w[241]=0u;
+ }else if(slot.id!=0u&&state.w[254]!=0u){state.w[254]=0u;r.w[5]=1u;}
+}

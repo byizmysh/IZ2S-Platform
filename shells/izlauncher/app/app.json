@@ -1,17 +1,1 @@
-{
-  "format": "hblauncher.gpu-app",
-  "abi": 1,
-  "id": "izlauncher",
-  "name": "IZlauncher",
-  "version": "0.16.0-rc.5",
-  "description": "Modular console shell",
-  "icon": "assets/icon.png",
-  "initialState": "assets/state.bin",
-  "data": "assets/data.bin",
-  "shaders": {
-    "vertex": "app.vert.spv.deflate",
-    "fragment": "app.frag.spv.deflate",
-    "compute": "app.comp.spv.deflate"
-  },
-  "shaderEncoding": "deflate"
-}
+{"format":"hblauncher.gpu-app","abi":1,"id":"izlauncher","name":"IZlauncher","version":"0.21.0","description":"Modular console shell","icon":"assets/icon.png","initialState":"assets/state.bin","data":"assets/data.bin","shaders":{"vertex":"app.vert.spv.deflate","fragment":"app.frag.spv.deflate","compute":"app.comp.spv.deflate"},"shaderEncoding":"deflate"}

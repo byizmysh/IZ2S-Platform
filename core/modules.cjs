@@ -27,13 +27,18 @@ async function packageSnapshot(source) {
 }
 async function read(root, id) {
   assert(ID.test(id), 'Invalid module id');
-  const pinned = require('./module-pins.cjs').read(root, id);
-  if (pinned) return describe(root, id, pinned);
-  const source = path.join(modulePaths.home(root, id), id + '.izm'),
+  return readLocated(root, id, modulePaths.home(root, id));
+}
+// A discovered location belongs to this inventory snapshot. Resolving it again
+// for every component would rescan all installed descriptors on the stream loop.
+async function readLocated(root, id, home) {
+  const pinned = require('./module-pins.cjs').read(root, id, home);
+  if (pinned) return describe(root, id, pinned, home);
+  const source = path.join(home, id + '.izm'),
     snapshot = await packageSnapshot(source),
     pkg = snapshot.pkg;
   assert(pkg.descriptor.id === id, 'Module id differs from folder');
-  const folder = path.join(modulePaths.home(root, id), '.versions', pkg.sha256),
+  const folder = path.join(home, '.versions', pkg.sha256),
     key = folder;
   if (!inflight.has(key))
     inflight.set(
@@ -59,10 +64,10 @@ async function read(root, id) {
     );
   await inflight.get(key);
   require('./module-pins.cjs').remember(root, id, pkg);
-  return describe(root, id, pkg);
+  return describe(root, id, pkg, home);
 }
-function describe(root, id, pkg) {
-  const source = path.join(modulePaths.home(root, id), id + '.izm'), folder = path.join(modulePaths.home(root, id), '.versions', pkg.sha256);
+function describe(root, id, pkg, home) {
+  const source = path.join(home, id + '.izm'), folder = path.join(home, '.versions', pkg.sha256);
   const d = pkg.descriptor;
   return {
     id,
@@ -92,7 +97,7 @@ async function list(root = ROOT) {
   const inventory = modulePaths.discover(root);
   errors.push(...inventory.errors);
   for (const item of inventory.items)
-    try { modules.push(await read(root, item.id)); }
+    try { modules.push(await readLocated(root, item.id, item.home)); }
     catch (error) { errors.push({ module: item.id, error: error.message }); }
   return { modules, errors };
 }
@@ -207,8 +212,9 @@ async function activate(root, id, context = {}) {
         ...context,
         root,
         module: m,
-        services: require('../sdk/platform.cjs'),
+        services: require('../sdk/platform.cjs').forModule(root,id),
         dataDirectory: path.join(modulePaths.home(root, id), 'data'),
+        sdStorage: require('./module-storage.cjs').forModule(id),
       })
     : null;
   if (adapter)

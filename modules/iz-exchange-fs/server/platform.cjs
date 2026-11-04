@@ -1,0 +1,1 @@
+const fs=require('node:fs'),path=require('node:path');let root=process.env.IZ2S_ROOT||process.env.IZ15_ROOT||__dirname;while(!fs.existsSync(path.join(root,'core/module-adapter.cjs'))){const parent=path.dirname(root);if(parent===root)throw Error('IZ2S Platform API not found');root=parent;}module.exports={root};

@@ -2,8 +2,10 @@
 const fs = require('node:fs/promises'),
   path = require('node:path');
 async function main() {
+  require('./core/platform/runtime.cjs').configure(__dirname);
   process.env.IZ2S_ROOT = __dirname;
   process.env.IZ15_ROOT = __dirname;
+  process.env.IZ2S_PANEL_INSTANCE = require('node:crypto').randomUUID();
   const root = __dirname,
     args = process.argv.slice(2),
     preview = args.includes('--preview'),
@@ -11,6 +13,7 @@ async function main() {
     restart = args.includes('--restart');
   if (!process.env.HB_FONT)
     for (const font of [
+      path.join(root, 'language/fonts/DejaVuSans.ttf'),
       '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
       '/usr/share/fonts/TTF/DejaVuSans.ttf',
     ])
@@ -40,7 +43,7 @@ async function main() {
         health = await fetch(url.origin + '/health', { signal: AbortSignal.timeout(1500) }).then(
           (r) => r.json(),
         );
-      if (health.version !== 16 || health.pid !== previous.pid || health.preview !== preview)
+      if (health.version !== 21 || health.pid !== previous.pid || health.preview !== preview)
         throw Error('Stale IZ2S Platform window');
       running = true;
     } catch {}
@@ -93,8 +96,9 @@ async function main() {
     pid: process.pid,
     url: window.url,
     preview,
-    version: 16,
+    version: 21,
     started: new Date().toISOString(),
+    workspaceInstance: process.env.IZ2S_PANEL_INSTANCE,
   });
   console.log('IZ2S Platform');
   console.log(window.url);
@@ -103,18 +107,19 @@ async function main() {
       main: true,
       env: { ...process.env, HB_OPEN_PANEL: '1' },
     });
-  let stopping = false;
-  async function finish() {
-    if (stopping) return;
-    stopping = true;
-    await require('./core/host-modules.cjs').close();
-    await manager.stop().catch((e) => console.error(e.message));
-    await window.close();
-    const current=await readJson(stateFile,{});
-    if(current.pid===process.pid)await fs.rm(stateFile, { force: true });
-  }
-  process.once('SIGINT', () => finish().catch(console.error));
-  process.once('SIGTERM', () => finish().catch(console.error));
+  const shutdown = require('./core/session/desktop-shutdown.cjs').createDesktopShutdown({
+    manager,
+    closeModules: () => Promise.all([require('./core/host-modules.cjs').close(), require('./core/module-settings.cjs').close(root)]),
+    closeWindow: () => window.close(),
+    removeState: async () => {
+      const current = await readJson(stateFile, {});
+      if (current.pid === process.pid) await fs.rm(stateFile, { force: true });
+    },
+    onDeferred: () => console.error('Session shutdown remains pending; retaining the panel until its process actually closes.'),
+    onError: error => console.error(error),
+  });
+  process.on('SIGINT', () => shutdown.finish().catch(console.error));
+  process.on('SIGTERM', () => shutdown.finish().catch(console.error));
 }
 if (require.main === module)
   main().catch((e) => {

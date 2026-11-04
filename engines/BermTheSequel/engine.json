@@ -1,0 +1,99 @@
+{
+  "format": "izlauncher.engine",
+  "apiVersion": 1,
+  "id": "bermthesequel",
+  "name": "ns2jb by BermTheSequel",
+  "version": "0.21.0",
+  "entry": "adapter.cjs",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "modes": [
+    "original",
+    "izlauncher"
+  ],
+  "capabilities": {
+    "upstreamGpuMenu": false,
+    "upstreamHeldRpc": true,
+    "upstreamNativeApps": false,
+    "upstreamIzPackages": false,
+    "izMode": true,
+    "receiptRecovery": false,
+    "heldFsRpc": true
+  },
+  "requirements": {
+    "console": "Switch 2",
+    "systemVersion": "23.0.1",
+    "smileBasic": "4.4.9",
+    "saveFreeMiB": 20
+  },
+  "consolePort": 39380,
+  "settingsSchema": [
+    {
+      "key": "rpcMode",
+      "type": "boolean",
+      "label": "Keep RPC active (--rpc)",
+      "default": false,
+      "runtimes": [
+        "original"
+      ],
+      "description": "Keeps FS RPC active in Core only mode. IZlauncher and IZPSlauncher manage their own sessions."
+    },
+    {
+      "key": "fsRpcMode",
+      "type": "boolean",
+      "label": "FS endpoint (--rpc)",
+      "default": false,
+      "runtimes": [
+        "izlauncher"
+      ],
+      "description": "Run the upstream FS acquisition before graphics and retain its endpoint. Requires a fresh console launch."
+    }
+  ],
+  "defaultSettings": {
+    "rpcMode": false,
+    "fsRpcMode": false
+  },
+  "bootstrap": {
+    "file": "upstream/bootstrap.bas",
+    "sha256": "5a2b86da8787318652365b2e4cf710f67ce618d6c21087dfc78716533a510d32",
+    "installSlot": 0,
+    "saveName": "NS2B",
+    "arity": 5
+  },
+  "upstream": {
+    "repository": "https://gitlab.com/BermTheSequel/ns2jb2",
+    "revision": "ee87d8301cb317ff0ee1d49bcedcfea5e1d8b04e",
+    "license": "See upstream notices; not inferred"
+  },
+  "order": 10,
+  "installation": {
+    "kind": "git",
+    "directory": "upstream",
+    "bootstrapPath": "bootstrap.bas",
+    "requiredFiles": [
+      "run.cjs",
+      "rpc.cjs",
+      "dump-firmware.cjs",
+      "bootstrap.bas",
+      "engine/lib/connection.cjs",
+      "engine/lib/native.cjs",
+      "engine/lib/qualify.cjs",
+      "engine/lib/bridge.cjs",
+      "engine/shared/rpc.cjs",
+      "engine/switch2/pipeline.cjs",
+      "engine/check-runtime.cjs",
+      "engine/runtime-files.json",
+      "engine/switch2/ro/test-sm.cjs",
+      "engine/switch2/ro/test-gate.cjs",
+      "engine/switch2/ro/process-test.cjs",
+      "engine/switch2/process/qualify.cjs",
+      "engine/switch2/process/test-function.bin"
+    ],
+    "defaultInstalled": false
+  },
+  "integrationStatus": "Alternative · FS RPC · console menus",
+  "transport": "transport.cjs",
+  "directory": "BermTheSequel"
+}

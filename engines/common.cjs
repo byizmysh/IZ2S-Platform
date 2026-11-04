@@ -16,7 +16,7 @@ function connectSteps({command,bootstrapName='NS2',fromEditor=false,preloaded=fa
 }
 function launchPrefix(name){return [{type:'line',text:'LOAD "TXT:'+name+'"',delayMs:2000},{type:'key',key:'enter',delayMs:2000},{type:'line',text:'RUN',delayMs:3000},{type:'line',text:'REMOVE NSR,&H60000000,&H3FFFFFFF',delayMs:3000}];}
 function izPlan({id,manifest,settings={},options={},bootstrap}){
- const {host,node}=base(options),root=path.resolve(__dirname,'..'),port=Number(options.port??options.consolePort??39395);
+ const {host,node}=base(options),root=path.resolve(__dirname,'..'),port=Number(options.port??options.consolePort??39380);
  if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Port must be 1024..65535');
  const data=startup({root:path.join(__dirname,id),manifest,bootstrap:bootstrap.file,saveName:bootstrap.saveName,arity:bootstrap.arity,runRoot:path.join(root,'data/sessions'),persistent:true,readyPatterns:['IZ launcher runtime is running\\.']});
  Object.assign(data.bootstrap,bootstrap);

@@ -6,6 +6,7 @@ process.on('message', async (message) => {
     try {
       process.env.IZ2S_ROOT = message.root;
       process.env.IZ15_ROOT = message.root;
+      process.env.IZ2S_MODULE_ID = message.id;
       handle = await require('./modules.cjs').activate(message.root, message.id, {
         session: message.session,
         services: require('../sdk/platform.cjs'),

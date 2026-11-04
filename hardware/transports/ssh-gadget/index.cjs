@@ -1,16 +1,17 @@
 const path=require('node:path');
 const {invoke,bundle,plan}=require('../common.cjs');
 function create({root,configuration,mode='ssh'}) {
-  let files;
   const settings = configuration.settings,
     folder =
       mode === 'local'
         ? path.join(root, 'data/state/local-input-service')
         : settings.deviceFolder;
   async function run(action, body, onEvent, timeout = 30000) {
-    if(!files||action==='status'||action==='ensure')files=await bundle(root);
+    // The installed input protocol is independent of the launcher release.
+    // Only explicit installation needs the PC's deployment package.
+    const files = action === 'ensure' ? await bundle(root) : undefined;
     return invoke(
-      'python3',
+      require('../../../core/platform/python.cjs').command(root),
       [path.join(__dirname, 'python-bridge.py'), mode, action],
       {
         input: {
@@ -53,7 +54,6 @@ function create({root,configuration,mode='ssh'}) {
   return {
     adapter: configuration.inputAdapter,
     async install() {
-      files = await bundle(root);
       return JSON.parse(await run('ensure', undefined, undefined, 60000));
     },
     async inspect() {

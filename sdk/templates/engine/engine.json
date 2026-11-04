@@ -1,0 +1,1 @@
+{"format":"izlauncher.engine","apiVersion":1,"id":"example-engine","name":"Example engine (offline)","version":"1.0.0","entry":"adapter.cjs","platforms":["linux-x64","linux-arm64"],"modes":["original"],"consolePort":39425,"capabilities":{},"settingsSchema":[],"defaultSettings":{}}

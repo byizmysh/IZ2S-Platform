@@ -1,14 +1,15 @@
 """IZ launcher: compact 2-bit coverage atlas, packed and compressed on disk."""
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
-import os, json, zlib
+import os, json, zlib, sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from language.fonts import font as resolve_font
 root=Path(__file__).resolve().parent/'shaders'
 width=512
 atlas=Image.new('L',(width,512));draw=ImageDraw.Draw(atlas)
-font=os.environ.get('HB_FONT','/usr/share/fonts/TTF/DejaVuSans.ttf')
-mono='/usr/share/fonts/TTF/DejaVuSansMono.ttf'
-if not Path(mono).exists():mono=font
-labels=[('TITLE','IZlauncher for NS2',52),
+font=resolve_font()
+mono=resolve_font('DejaVuSansMono.ttf')
+labels=[('TITLE','IZlauncher 0.21',48),
  ('NOTITLES','A little room for ideas.',30),('EMPTYHINT','Add an app. Make something small.',18),
  ('SELECT','Open',19),('BACK','Back',19),('EMPTY','App unavailable',30),
  ('DETAIL','Restart the launcher and try again.',18),('CLOSE','Press B to return',18),

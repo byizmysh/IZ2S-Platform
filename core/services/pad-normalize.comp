@@ -1,0 +1,8 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=1) in;
+layout(set=0,binding=0,std430) buffer Input {uint w[];} pad;
+uint izPadRead(uint i){return pad.w[i];}
+void izPadWrite(uint i,uint value){pad.w[i]=value;}
+#include "../../sdk/include/pad-merge.glsl"
+void main(){if(uint(pad.w.length())>=2097152u)izNormalizePad();}

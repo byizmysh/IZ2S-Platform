@@ -5,11 +5,14 @@ layout(location=0) out vec4 outColor;
 #include "launcher-state.glsl"
 #define HB_READONLY
 #include "hb.glsl"
+#include "resilience.glsl"
 #include "launcher-text.glsl"
 #include "iz-draw.glsl"
 #include "focus-layout.glsl"
 #include "focus-library.glsl"
 #include "focus-ui.glsl"
+#include "load-progress.glsl"
+#include "load-progress-draw.glsl"
 #include "run10-chrome.glsl"
 #include "focus-icons.glsl"
 #include "focus-light.glsl"
@@ -66,6 +69,7 @@ vec3 focusSearchDraw(vec2 p,vec3 col){
  return col;
 }
 #include "menu-removal-draw.glsl"
+#include "resilience-draw.glsl"
 void main(){
  vec2 p=gl_FragCoord.xy;
 #ifdef IZ_CONTROLLERS
@@ -126,5 +130,6 @@ void main(){
   if(p.y>886.0&&p.y<916.0&&p.x>1400.0){uint tickCount=min(realCount,16u),selectedTick=min(ordinal,tickCount-1u);float start=1850.0-(float(tickCount-1u)*22.0+36.0);for(uint i=0u;i<tickCount;i++){bool on=i==selectedTick;float x=start+float(i)*22.0+(i>selectedTick?30.0:0.0)+(on?18.0:3.0);float d=on?box(p,vec2(x,901),vec2(18,3),3):length(p-vec2(x,901))-3.0;col=mix(col,on?BLUE:vec3(.29),fill(d));}}
  }
 
- menuFooter(p,col);if(c.rows[1]!=0u)col=focusSearchDraw(p,col);col=menuRemovalDraw(p,col,1008.0);outColor=vec4(notification(p,col)*(1.0-c.transition.x),1);
+ loadProgressDraw(p,col,vec2(80,835),vec2(730,128));
+ menuFooter(p,col);if(c.rows[1]!=0u)col=focusSearchDraw(p,col);col=menuRemovalDraw(p,col,1008.0);outColor=vec4(rsDraw(p,notification(p,col))*(1.0-c.transition.x),1);
 }

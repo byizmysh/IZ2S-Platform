@@ -1,0 +1,28 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=1) in;
+#include "abi.glsl"
+#include "hb.glsl"
+#include "exchange.glsl"
+void main(){
+ uint pressed=hbPressed();c.state.z++;c.game.y=min(c.game.y,max(1u,fxCount())-1u);
+ if(c.game.z!=fx(92u)){c.game.y=0u;c.game.z=fx(92u);}
+ if((pressed&HB_MINUS)!=0u)hbExit();
+ if(!fxBusy()){
+  if((pressed&HB_UP)!=0u&&fxCount()>0u)c.game.y=(c.game.y+fxCount()-1u)%fxCount();
+  if((pressed&HB_DOWN)!=0u&&fxCount()>0u)c.game.y=(c.game.y+1u)%fxCount();
+  if((pressed&HB_A)!=0u)fxRequest(2u,c.game.y);
+  else if((pressed&HB_B)!=0u)fxRequest(3u,0u);
+  else if((pressed&HB_X)!=0u)fxRequest(4u,0u);
+  else if((pressed&HB_Y)!=0u)fxRequest(7u,0u);
+  else if((pressed&HB_R)!=0u){c.game.y=0u;fxRequest(5u,0u);}
+  else if((pressed&HB_L)!=0u){c.game.y=0u;fxRequest(6u,0u);}
+  bool held=hbTouchCount()>0u&&(c.touch[6]&2u)==0u;
+  if(held&&c.game.w==0u){vec2 p=hbTouch(0u)*1.5;
+   if(p.x>=80.0&&p.x<1300.0&&p.y>=286.0&&p.y<886.0){uint row=uint((p.y-286.0)/50.0);if(row<fxCount()){c.game.y=row;fxRequest(2u,row);}}
+   else if(p.x>1400.0&&p.y>840.0&&p.y<930.0)fxRequest(7u,0u);
+   else if(p.y>950.0&&p.x<550.0)fxRequest(3u,0u);
+  }c.game.w=held?1u:0u;
+ }
+ hbEndFrame();
+}

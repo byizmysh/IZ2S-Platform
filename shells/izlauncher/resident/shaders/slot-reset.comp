@@ -1,0 +1,15 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=256) in;
+#include "layout.glsl"
+layout(set=0,binding=1,std430) buffer State {uint w[];} state;
+layout(set=0,binding=2,std430) buffer Private {uint w[];} memory;
+layout(set=0,binding=3,std430) readonly buffer InitialState {uint w[];} initialState;
+layout(set=0,binding=4,std430) readonly buffer InitialPrivate {uint w[];} initialMemory;
+layout(push_constant) uniform Slot {uint id;} slot;
+void main(){
+ if(!residentValid()||slot.id>=r.w[2])return;
+ uint p=row(slot.id),i=gl_GlobalInvocationID.x+gl_GlobalInvocationID.y*gl_NumWorkGroups.x*256u;
+ if(i<r.w[p+1u]&&i<uint(state.w.length())&&!(i>=r.w[p+43u]&&i<r.w[p+44u]))state.w[i]=i<min(r.w[p+36u],uint(initialState.w.length()))?initialState.w[i]:0u;
+ if(i<min(r.w[p+42u],r.w[p+2u])&&i<uint(memory.w.length())&&!(i>=r.w[p+47u]&&i<r.w[p+48u]))memory.w[i]=i<min(r.w[p+37u],uint(initialMemory.w.length()))?initialMemory.w[i]:0u;
+}

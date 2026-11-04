@@ -1,0 +1,24 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=1) in;
+#include "layout.glsl"
+layout(set=0,binding=1,std430) buffer State {uint w[];} state;
+layout(set=0,binding=5,std430) readonly buffer Input {uint w[];} source;
+layout(push_constant) uniform Slot {uint id;} slot;
+void main(){
+ if(!residentValid()||slot.id>=r.w[2])return;
+ uint p=row(slot.id);bool gated=r.w[11]!=0u||r.w[3]!=slot.id;
+ for(uint i=0u;i<16u;i++)state.w[i]=source.w[i];
+ for(uint i=32u;i<196u;i++)state.w[i]=source.w[i];
+ // Copy published input observations only. Never copy host request/response mailboxes.
+ const uint ext=0x7f0000u/4u;
+ for(uint i=0u;i<512u;i++)state.w[ext+i]=source.w[ext+i];
+ for(uint i=3068u;i<3584u;i++)state.w[ext+i]=source.w[ext+i];
+ for(uint i=4096u;i<4096u+2848u;i++)state.w[ext+i]=source.w[ext+i];
+ state.w[RCLK]=r.w[p+45u]!=0u?r.w[16u]:r.w[p+38u];state.w[RCLK+1u]=r.w[p+45u]!=0u?r.w[17u]:r.w[p+39u];state.w[RCLK+2u]=r.w[22]!=0u?RHZ:0u;
+ if(gated){state.w[2]=0u;for(uint i=4u;i<8u;i++)state.w[i]=0u;state.w[34]=0u;
+  for(uint i=0u;i<5u;i++){uint q=ext+160u+i*16u;state.w[q+2u]=0u;for(uint j=4u;j<8u;j++)state.w[q+j]=0u;}
+  state.w[21]=0u;
+ }
+ if(r.w[24]!=0u&&slot.id==0u){state.w[240]=0u;state.w[241]=0u;state.w[253]=0u;state.w[254]=0u;state.w[31]=0u;}
+}

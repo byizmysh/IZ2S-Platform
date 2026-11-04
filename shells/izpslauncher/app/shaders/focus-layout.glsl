@@ -1,7 +1,7 @@
 #include "ps-layout.glsl"
 const uint TOAST=(0x1f0000u)/4u,TOAST_SLOT=(0x1c0000u)/4u;
 const float FOCUS_DT=1.0/60.0,TOAST_SECONDS=4.0;
-const vec2 ADD_CENTER=vec2(156,368),HERO_CENTER=vec2(384,368),ACTION_CENTER=PS_ACTION,FOCUS_PREV=vec2(38,365),FOCUS_NEXT=vec2(1860,580);
+const vec2 ADD_CENTER=PS_EXCHANGE_CENTER,HERO_CENTER=vec2(384,368),ACTION_CENTER=PS_ACTION;
 float focusRailY(float x){return 530.0;}
 vec2 focusCardCenter(float index){return vec2(624.0+(index-c.flow.x)*232.0,368.0);}
 vec2 focusCardLocal(vec2 p,float index){return p-focusCardCenter(index);}

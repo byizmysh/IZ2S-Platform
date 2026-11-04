@@ -2,7 +2,9 @@
 #extension GL_GOOGLE_include_directive : require
 layout(local_size_x=1) in;
 #include "launcher-state.glsl"
+#include "load-progress.glsl"
 #include "hb.glsl"
+#include "resilience.glsl"
 #include "focus-layout.glsl"
 #include "focus-library.glsl"
 #include "menu-removal.glsl"
@@ -31,15 +33,17 @@ void launchSelection(){uint count=min(c.library.x,15u);if(c.state.x>=count){c.pi
  if(kind==2u&&c.atlas[CB+7u]==CMAGIC){calcOpen();return;}
 #endif
 #ifdef IZ_STREAM
- if(kind==8u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(5u);c.atlas[SB+41u]=0u;return;}if(kind==6u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(4u);return;}if(kind==5u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(3u);return;}if(kind==4u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(2u);return;}if(kind==3u&&c.atlas[CB+7u]==CMAGIC){streamOpen();return;}
+ if(kind==9u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(6u);c.atlas[SB+41u]=0u;return;} if(kind==8u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(5u);c.atlas[SB+41u]=0u;return;}if(kind==6u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(4u);return;}if(kind==5u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(3u);return;}if(kind==4u&&c.atlas[CB+7u]==CMAGIC){streamOpen();streamCommand(2u);return;}if(kind==3u&&c.atlas[CB+7u]==CMAGIC){streamOpen();uint command=c.atlas[524288u+c.state.x*32768u+25607u];if(command>0u&&command<=255u)streamCommand(command);return;}
 #endif
 #ifdef IZ_CONTROLLERS
  if(kind==7u&&c.atlas[CB+7u]==CMAGIC){controllerHubOpen();return;}
 #endif
  if(kind!=1u)c.transition.y=1.0;
 }
-void main(){
+void launcherStep(){
  uint pressed=hbPressed();c.motion.x+=FOCUS_DT;c.state.z++;
+ if(loadProgressVisible()&&c.atlas[LOAD_PROGRESS+2u]>=6u){if(c.atlas[LOAD_PROGRESS+5u]>0u)c.atlas[LOAD_PROGRESS+5u]--;else c.atlas[LOAD_PROGRESS]=0u;}
+ if(loadProgressBusy()){c.rows[1]=0u;c.transition=vec4(0);hbEndFrame();return;}
  if(c.atlas[TOAST]==0x495a4e31u){uint seq=c.atlas[TOAST+1u];if(seq!=c.atlas[TOAST+3u]){c.atlas[TOAST+3u]=seq;c.atlas[TOAST+4u]=floatBitsToUint(TOAST_SECONDS);}else c.atlas[TOAST+4u]=floatBitsToUint(max(0.0,uintBitsToFloat(c.atlas[TOAST+4u])-FOCUS_DT));}
 #ifdef IZ_CALC
  if(c.atlas[CB+7u]==CMAGIC&&c.atlas[CB+1u]==1u){calcInput(pressed);return;}
@@ -89,3 +93,4 @@ streamInput(pressed);return;}}
  c.rows[11]=picker?selected:(selected==0u?realCount:selected-1u);
  c.motion.y=float(c.state.x);c.motion.z=0;hbEndFrame();
 }
+void main(){izNormalizePad();bool run=rsBegin();if(run)launcherStep();c.state.z=rs(6u);rsEnd();}

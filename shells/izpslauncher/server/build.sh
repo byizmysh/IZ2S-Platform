@@ -8,7 +8,3 @@ for stage in vert frag comp; do
  "$GLSLANG" -V -Os -g0 --target-env vulkan1.0 "shells/izpslauncher/server/shaders/launcher.$stage" -o "shells/izpslauncher/server/shaders/launcher.$stage.spv"
  "$SPIRV_VAL" --target-env vulkan1.0 "shells/izpslauncher/server/shaders/launcher.$stage.spv"
 done
-if [[ ${1:-} == --check ]]; then
- bash sdk/tools/build-checks.sh
- "$NODE" sdk/tools/launcher-desktop-check.cjs
-fi

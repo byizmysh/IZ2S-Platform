@@ -1,13 +1,23 @@
 {
-  "release": "0.16.0-rc.3",
+  "release": "0.21.0",
   "engines": [
     {
       "id": "izmysh",
-      "repository": "IZMYSH server source",
-      "revision": "IZlauncher standalone server extraction",
-      "bootstrapSha256": "2261f65fb9ec0ed708ce0f0b6da5057168f706e541d956f658a3c2655e9e8c36",
+      "repository": "https://gitlab.com/BermTheSequel/ns2jb2",
+      "revision": "ee87d8301cb317ff0ee1d49bcedcfea5e1d8b04e",
+      "bootstrapSha256": "5a2b86da8787318652365b2e4cf710f67ce618d6c21087dfc78716533a510d32",
       "licenseStatus": "inherited-source-review-required",
-      "notes": "No blanket license inferred. Vendored source files retain their provenance; source tests, caches and Git metadata are not part of this prerelease."
+      "notes": "IZ2S Core (internal ID izmysh): separately maintained host contract, TCP transport and FS pipeline lifecycle, based on the pinned BermTheSequel native implementation. Native ABI, upstream notices and bootstrap provenance retained. Saved BASIC: NS2IZM.",
+      "distribution": "bundled-source"
+    },
+    {
+      "id": "bermthesequel",
+      "repository": "https://gitlab.com/BermTheSequel/ns2jb2",
+      "revision": "ee87d8301cb317ff0ee1d49bcedcfea5e1d8b04e",
+      "bootstrapSha256": "5a2b86da8787318652365b2e4cf710f67ce618d6c21087dfc78716533a510d32",
+      "licenseStatus": "inherited-source-review-required",
+      "notes": "Alternative ns2jb by BermTheSequel. Pinned upstream runtime included; saved BASIC: NS2B.",
+      "distribution": "bundled-source"
     },
     {
       "id": "kurumuz",
@@ -17,23 +27,28 @@
       "licenseStatus": "license-review-required",
       "notes": "Adapter and empty manual folder only. Original repository is fetched on explicit request at the revision above; no upstream server runs during installation.",
       "distribution": "optional-download"
-    },
-    {
-      "id": "pepsipu",
-      "repository": "https://gitlab.com/pepsipu/ns2jb",
-      "revision": "95f5525089273c5fce0b95047f3600f8442e96ae",
-      "bootstrapSha256": "2261f65fb9ec0ed708ce0f0b6da5057168f706e541d956f658a3c2655e9e8c36",
-      "licenseStatus": "license-review-required",
-      "notes": "Adapter and empty manual folder only. Original repository is fetched on explicit request at the revision above; no upstream server runs during installation.",
-      "distribution": "optional-download"
     }
   ],
   "modules": [
     {
       "id": "iz-exchange",
       "version": "1.1.1",
-      "source": "IZ2S Platform local module source",
-      "licenseStatus": "LicenseRef-Upstream-Review",
+      "source": "RUN20 module source migrated to IZ2S; private state excluded",
+      "licenseStatus": "GPL-2.0-or-later; preserve component notices",
+      "externalDependencies": []
+    },
+    {
+      "id": "iz-exchange-fs",
+      "version": "0.1.0",
+      "source": "RUN20 module source migrated to IZ2S; private state excluded",
+      "licenseStatus": "GPL-2.0-or-later; preserve component notices",
+      "externalDependencies": []
+    },
+    {
+      "id": "book-reader",
+      "version": "0.1.0",
+      "source": "RUN20 module source migrated to IZ2S; private state excluded",
+      "licenseStatus": "GPL-2.0-or-later; preserve component notices",
       "externalDependencies": []
     }
   ],
@@ -48,7 +63,7 @@
     "repository": "https://github.com/misshexa66/OunceCake",
     "revision": "6fcf9e80d302ff43c96dd5d912c9b08a11913daf",
     "license": "GPL-2.0",
-    "directory": "modules/iz-exchange/server/ouncecake",
+    "directory": "core/filesystem/ouncecake",
     "modified": false
   },
   "integrationRights": {
@@ -60,5 +75,62 @@
     "scope": "Independently authored IZMYSH code only; explicit component licenses and prior grants remain applicable",
     "notice": "COPYRIGHT",
     "details": "LICENSE-SCOPE.md"
-  }
+  },
+  "cardputerAdv": {
+    "version": "0.21.1",
+    "source": "hardware/agents/cardputer-adv/",
+    "notices": "hardware/agents/cardputer-adv/NOTICE.txt",
+    "recipe": "hardware/agents/cardputer-adv/build.py",
+    "binaryManifest": "hardware/devices/cardputer-adv/firmware/manifest.json"
+  },
+  "superFileBros": {
+    "repository": "https://github.com/byizmysh/super-file-bros",
+    "version": "0.2.0",
+    "edition": "IZ2S integrated interface; the standalone package remains independent",
+    "directory": "tools/fs-rpc-browser"
+  },
+  "bundledFonts": {
+    "name": "DejaVu Fonts",
+    "version": "2.37",
+    "source": "https://dejavu-fonts.github.io/",
+    "license": "Bitstream Vera / DejaVu font license; see language/fonts/LICENSE.txt",
+    "files": "language/fonts/manifest.json"
+  },
+  "installerDownloads": [
+    {
+      "name": "Node.js",
+      "version": "latest-v24.x",
+      "source": "https://nodejs.org/dist/latest-v24.x/",
+      "license": "Node.js MIT and bundled component notices",
+      "distribution": "downloaded privately during setup; official SHA256 list checked"
+    },
+    {
+      "name": "uv",
+      "version": "0.13.7",
+      "source": "https://github.com/astral-sh/uv/releases/tag/0.13.7",
+      "license": "MIT OR Apache-2.0; preserve upstream notices",
+      "distribution": "downloaded privately during Windows/macOS setup; pinned asset SHA256 checked"
+    },
+    {
+      "name": "CPython",
+      "version": "3.12 via uv-managed python-build-standalone",
+      "source": "https://github.com/astral-sh/python-build-standalone",
+      "license": "Python license and bundled runtime component notices",
+      "distribution": "downloaded privately; managed by uv"
+    },
+    {
+      "name": "Pillow",
+      "version": "12.0.0",
+      "source": "https://pypi.org/project/Pillow/12.0.0/",
+      "license": "MIT-CMU and bundled library notices",
+      "distribution": "binary wheel installed in private Python environment"
+    },
+    {
+      "name": "Microsoft Win32-OpenSSH portable client",
+      "version": "10.4.0.0p1-Preview",
+      "source": "https://github.com/PowerShell/Win32-OpenSSH/releases/tag/10.4.0.0p1-Preview",
+      "license": "OpenSSH/OpenBSD and Microsoft component notices",
+      "distribution": "Windows fallback download only if ssh client is absent; pinned asset SHA256; no server service installed"
+    }
+  ]
 }

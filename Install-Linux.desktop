@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Install IZ2S Platform
+Comment=Prepare dependencies and open IZ2S Platform
+Exec=sh -c "cd -- \"\\$(dirname -- \"\\$1\")\" && exec sh ./install.sh --launch" iz2s %k
+Terminal=true
+Categories=Game;

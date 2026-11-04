@@ -1,0 +1,30 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=1) in;
+#include "layout.glsl"
+layout(set=0,binding=1,std430) buffer State {uint w[];} state;
+layout(set=0,binding=2,std430) buffer Private {uint w[];} memory;
+layout(set=0,binding=3,std430) readonly buffer Initial {uint w[];} initialState;
+layout(push_constant) uniform Slot {uint id;} slot;
+void main(){
+ if(!residentValid()||slot.id>=r.w[2])return;
+ uint p=row(slot.id);if(r.w[p+46u]!=1u||uint(state.w.length())<2097152u||(uint(memory.w.length())!=19922944u&&uint(memory.w.length())!=17825792u))return;
+ const uint a=784u/4u;
+ if(state.w[a]==0x44413138u&&state.w[a+1u]==1u&&state.w[a+43u]==0x44313847u&&uint(memory.w.length())==17825792u){
+  bool on=r.w[3]==slot.id;
+  // The session PCM queue stays owned and advances while the game is hidden.
+  // Pause only the guest; the game's after stage writes fresh silence.
+  state.w[a+42u]=on?0u:1u;
+  state.w[a+40u]=on?initialState.w[a+40u]:0u;
+  if(on&&r.w[p+7u]!=0u)state.w[a+13u]=0u;
+  return;
+ }
+ if(uint(memory.w.length())!=19922944u)return;
+ if(state.w[a]!=0x53413134u||state.w[a+1u]!=1u||state.w[a+43u]!=0x41313447u)return;
+ bool on=r.w[3]==slot.id;
+ // Complete an outstanding frame, then keep VM execution paused while only
+ // its existing audio stages advance. Never reset or clear queued PCM here.
+ memory.w[0x380u/4u]=on?0u:1u;
+ state.w[a+40u]=on?initialState.w[a+40u]:0u;
+ if(on&&r.w[p+7u]!=0u){state.w[a+13u]=0u;state.w[a+30u]=0u;state.w[a+31u]=0u;}
+}

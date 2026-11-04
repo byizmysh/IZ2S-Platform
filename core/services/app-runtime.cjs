@@ -1,9 +1,9 @@
 const fs=require('node:fs/promises'),path=require('node:path');
 const catalogTools=require('./app-catalog.cjs');
 const {prepare}=require('./gpu-app.cjs');
+const {write:atomic}=require('./json-write.cjs');
 const check=(v,m)=>{if(!v)throw Error(m);};
-async function atomic(file,value){const temp=file+'.tmp';await fs.writeFile(temp,JSON.stringify(value,null,2));await fs.rename(temp,file);}
-async function create({rpc,menu,directory,prepareApp=prepare,prepareMenu=async()=>{}}){
+async function create({rpc,menu,directory,prepareApp=prepare,prepareMenu=async()=>{},resident=false}){
  const mapped=menu.controls.mapped,cache=new Map(),closings=new WeakMap();let generation=0,refreshSeen=0,menuState=await rpc.read(mapped,1024);
  const builtinHosts=require('../builtin-hosts.cjs').create({context:{rpc,mapped,directory}});
  let catalog,menuData,boundaryFailure=null;const runtime={active:null,report:{session:rpc.a.session,started:new Date().toISOString(),transitions:[],generation:0,resourcesRetained:true}};
@@ -25,15 +25,15 @@ async function create({rpc,menu,directory,prepareApp=prepare,prepareMenu=async()
  }
  async function rescan(state,upload=true){
   const selected=catalog?.apps[state.readUInt32LE(80)]?.id;
-  const next=await catalogTools.scan(menu.catalog.root);await prepareMenu();await builtinHosts.sync(next);
+  const next=await catalogTools.scan(menu.catalog.root);await prepareMenu();if(!resident)await builtinHosts.sync(next);
   const bytes=await catalogTools.raster(next,directory,'catalog-'+(++generation));
   const font=await require('./font-data.cjs').load();check(font.length===catalogTools.ATLAS_BYTES,'Menu type atlas changed size');
-  menuData=Buffer.concat([font,bytes]);check(menuData.length+1024<=menu.controls.bytes,'Catalog exceeds GPU storage');catalog=next;
+  menuData=Buffer.concat([font,bytes]);if(runtime.decorateMenuData)await runtime.decorateMenuData(menuData);check(menuData.length+1024<=Math.min(menu.controls.bytes,0x7e0000),'Catalog exceeds GPU storage or RUN18 checkpoint region');catalog=next;
   let index=selected?catalog.apps.findIndex(a=>a.id===selected):-1;if(index<0)index=Math.min(state.readUInt32LE(80),Math.max(0,catalog.apps.length-1));
   state.writeUInt32LE(index,80);state.writeFloatLE(index,68);state.writeUInt32LE(catalog.apps.length,112);state.writeUInt32LE(catalog.apps.length,1020);state.writeUInt32LE(0,116);
   state.writeFloatLE(0,96);state.writeFloatLE(0,100);state.writeFloatLE(state.readFloatLE(108)+1,108);state.writeUInt32LE(0,1012);state.writeUInt32LE(0,1016);
   refreshSeen=state.readFloatLE(104);menuState=state;
-  if(upload){await rpc.write(mapped+1024,menuData);await rpc.write(mapped,menuState);}
+  if(upload){await require('../packages/progress.cjs').upload(rpc,mapped+1024,menuData,runtime.onUploadProgress);await rpc.write(mapped,menuState);}
   runtime.report.catalog=catalogTools.summary(catalog);runtime.report.generation=generation;await save();
  }
  async function returnToMenu(error){
@@ -60,17 +60,25 @@ async function create({rpc,menu,directory,prepareApp=prepare,prepareMenu=async()
     if(app.manifest.displayOnly||app.manifest.builtin){state.writeUInt32LE(0,1012);state.writeFloatLE(0,960);state.writeFloatLE(0,964);await rpc.write(mapped,state);return menu.commands[0];}
     let gpu=cache.get(app.fingerprint);
     if(!gpu){check(cache.size<64,'This session has retained 64 app versions; start a fresh session to load another');gpu=await prepareApp(rpc,menu,app,directory);check(gpu.scratchRestored,'App preparation failed to restore scratch');check(gpu.ready,'App preparation incomplete');cache.set(app.fingerprint,gpu);}
+    // Native runtimes can restore this launcher after disconnecting the host.
+    // Capture while the common scheduler has joined its graphics worker and
+    // before the app replaces the shared menu storage.
+    let launcherReturn;
+    if(app.manifest.nativeLauncherReturn===true){
+     const bytes=await rpc.read(mapped,0x7f0000);check(bytes.readUInt32LE(0x700004)===0,'Native return snapshot is not the launcher');
+     launcherReturn={session:rpc.a.session,bytes,slot:request-1,controls:menu.controls,commands:[...menu.commands[0]],catalog:catalog.apps.map(a=>({id:a.id,fingerprint:a.fingerprint}))};
+    }
     const bytes=Buffer.concat([app.files.state.bytes,app.files.data.bytes]);
     bytes.writeUInt32LE(0,1012);bytes.writeUInt32LE(0,1016);
     if(app.manifest.transition==='none')bytes.writeFloatLE(0,960);
-    if(app.files.memory){check(gpu.privateStorage?.bytes===app.files.memory.allocationBytes,'App private storage differs');await require('./owned-buffer.cjs').initialize(rpc,gpu.privateStorage.mapped,gpu.privateStorage.bytes,app.files.memory.bytes);}
+    if(app.files.memory){check(gpu.privateStorage?.bytes===app.files.memory.allocationBytes,'App private storage differs');await require('./owned-buffer.cjs').initialize(rpc,gpu.privateStorage.mapped,gpu.privateStorage.bytes,app.files.memory.bytes,app.manifest.memory);}
     await require('./owned-buffer.cjs').initialize(rpc,mapped,menu.controls.bytes,bytes);await audio(app);
     let service;
     if(app.manifest.hostRuntime){
       const match=/^module:([a-z0-9-]+)\/([A-Za-z0-9-]+)$/.exec(app.manifest.hostRuntime);
       check(match,'Invalid application host runtime');
       const component=await require('../components.cjs').get(match[1],match[2]);
-      service=await component.create({rpc,mapped,directory,app});
+      service=await component.create({rpc,mapped,directory,app,sdStorage:require('../module-storage.cjs').forModule(match[1]),...(launcherReturn?{launcherReturn}:{})});
     }
     runtime.active={app,gpu,service};
     runtime.report.active={id:app.id,fingerprint:app.fingerprint};runtime.report.transitions.push({event:'launch',id:app.id,fingerprint:app.fingerprint,time:new Date().toISOString()});await save();

@@ -1,7 +1,7 @@
 // FTP state machine. Transport and storage are injected for console operation/tests.
 const {virtualPath,nativePath,CHUNK}=require('./ftp-native.cjs');
 function clean(s){return String(s).replace(/[\r\n\x00]/g,' ').slice(0,180);}
-function create({transport:t,storage:fs,now=Date.now}){
+function create({transport:t,storage:fs,now=Date.now,readOnly=false,greeting='ftpd-sb ready. /save and /tmp read-write; /rom read-only.'}){
  let listener=null,client=null,busy=false;
  const state={running:false,address:'0.0.0.0',port:0,clients:0,transferring:false,received:0,sent:0,files:0,error:'',activity:'Stopped'};
  function reply(code,message){if(!client)return;const b=Buffer.from(code+' '+clean(message)+'\r\n');client.output=Buffer.concat([client.output,b]);if(client.output.length>65536)throw Error('Control output overflow');}
@@ -11,7 +11,7 @@ function create({transport:t,storage:fs,now=Date.now}){
  async function transfer(kind,arg){if(!client.passive&&!client.data){reply(425,'Use PASV or EPSV first');return;}if(client.transfer){reply(450,'Transfer already active');return;}const value=virtualPath(client.cwd,arg||'.');let x={kind,path:value,offset:0,pending:Buffer.alloc(0),started:now()};
   if(kind==='RETR'){x.file=await fs.openRead(value);x.offset=client.restart;client.restart=0;if(x.offset>x.file.size){await fs.close(x.file);throw Error('Restart offset exceeds file size');}}
   else if(kind==='STOR'||kind==='APPE'){nativePath(value,true);if(client.restart){client.restart=0;throw Error('Upload restart unsupported; use APPE or upload again');}}
-  else{const entries=await fs.list(value);x.pending=Buffer.from(entries.map(e=>kind==='NLST'?e.name:kind==='MLSD'?`type=${e.type==='dir'?'dir':'file'};size=${e.size}; ${e.name}`:`${e.type==='dir'?'drwxr-xr-x':'-rw-r--r--'} 1 ftp ftp ${String(e.size).padStart(12)} Jan 01  1970 ${e.name}`).join('\r\n')+(entries.length?'\r\n':''));}
+  else{const entries=await fs.list(value);x.pending=Buffer.from(entries.map(e=>kind==='NLST'?e.name:kind==='MLSD'?`type=${e.type==='dir'?'dir':'file'};size=${e.size}; ${e.name}`:`${readOnly?(e.type==='dir'?'dr-xr-xr-x':'-r--r--r--'):(e.type==='dir'?'drwxr-xr-x':'-rw-r--r--')} 1 ftp ftp ${String(e.size).padStart(12)} Jan 01  1970 ${e.name}`).join('\r\n')+(entries.length?'\r\n':''));}
   client.transfer=x;state.transferring=true;state.activity=kind+' '+value;reply(150,'Opening binary data connection');
  }
  async function command(line){const split=line.indexOf(' '),verb=(split<0?line:line.slice(0,split)).toUpperCase(),arg=split<0?'':line.slice(split+1);if(!/^[A-Z]{3,5}$/.test(verb)){reply(500,'Invalid command');return;}
@@ -23,6 +23,7 @@ function create({transport:t,storage:fs,now=Date.now}){
   if(verb==='OPTS'){reply(/^UTF8 ON$/i.test(arg)?200:501,'UTF8 ON supported');return;}
   if(verb==='NOOP'){reply(200,'OK');return;}
   if(!client.logged){reply(530,'Log in first');return;}
+  if(readOnly&&['STOR','APPE','DELE','RMD','MKD','RNFR','RNTO'].includes(verb)){reply(550,'Read-only filesystem export');return;}
   if(verb==='ABOR'){const active=!!client.transfer;await dataClose();if(active)reply(426,'Transfer aborted; partial uploads may remain');reply(226,'Abort complete');return;}
   if(client.transfer){reply(450,'Transfer in progress');return;}
   if(verb==='PWD'||verb==='XPWD'){reply(257,'"'+client.cwd.replaceAll('"','""')+'"');return;}
@@ -51,7 +52,7 @@ function create({transport:t,storage:fs,now=Date.now}){
   await dataClose();state.files++;state.activity='Transfer complete';reply(226,'Transfer complete; writes committed');
  }
  return {state,async start(port=5000){if(state.running)return;if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Port must be 1024..65535');state.address=await t.address();listener=await t.listen(port);state.port=listener.port;state.running=true;state.error='';state.activity='Listening';},async stop(){try{await disconnect();}finally{if(listener){await t.close(listener.fd);listener=null;}state.running=false;state.activity='Stopped';}},async pump(){if(!state.running||busy)return;busy=true;try{
-  if(!client){const accepted=await t.accept(listener.fd);if(!accepted)return;client={...accepted,cwd:'/',logged:false,user:'',restart:0,input:Buffer.alloc(0),output:Buffer.alloc(0),last:now(),passive:null,data:null,transfer:null};state.clients=1;reply(220,'ftpd-sb ready. /save and /tmp read-write; /rom read-only.');}
+  if(!client){const accepted=await t.accept(listener.fd);if(!accepted)return;client={...accepted,cwd:'/',logged:false,user:'',restart:0,input:Buffer.alloc(0),output:Buffer.alloc(0),last:now(),passive:null,data:null,transfer:null};state.clients=1;reply(220,greeting);}
   if(now()-client.last>120000){await disconnect();return;}
   if(client.output.length){const n=await t.send(client.fd,client.output);client.output=client.output.subarray(n);if(client.output.length)return;}
   if(client.quitting){await disconnect();return;}

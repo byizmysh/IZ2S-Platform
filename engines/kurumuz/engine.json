@@ -2,7 +2,7 @@
   "format": "izlauncher.engine",
   "apiVersion": 1,
   "id": "kurumuz",
-  "name": "ns2jb by kurumuz",
+  "name": "ns2jb by kurumoz",
   "version": "0.16.0-rc.1",
   "entry": "adapter.cjs",
   "transport": "transport.cjs",
@@ -11,8 +11,7 @@
     "linux-arm64"
   ],
   "modes": [
-    "original",
-    "izlauncher"
+    "original"
   ],
   "capabilities": {
     "upstreamGpuMenu": false,
@@ -20,7 +19,7 @@
     "upstreamNativeApps": false,
     "upstreamIzPackages": false,
     "adaptiveMemoryLayout": true,
-    "izMode": true,
+    "izMode": false,
     "receiptRecovery": false
   },
   "requirements": {
@@ -57,7 +56,7 @@
     "revision": "eb2bdec8f3907c5830eb01fb9d55797af7403579",
     "license": "See upstream notices; not inferred"
   },
-  "order": 3,
+  "order": 20,
   "installation": {
     "kind": "git",
     "directory": "upstream",
@@ -75,5 +74,6 @@
       "engine/switch2/pipeline.cjs"
     ],
     "defaultInstalled": false
-  }
+  },
+  "integrationStatus": "Alternative · source installation required"
 }

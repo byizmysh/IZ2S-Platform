@@ -1,36 +1,26 @@
-const connection = require("./server/lib/connection.cjs");
-const { NativeClient } = require("./server/lib/native.cjs");
-const { qualify } = require("./server/lib/qualify.cjs");
-const { plan } = require("./server/install.cjs");
-const { connectCommand } = require("./server/lib/network.cjs");
-const net = require("node:net");
-function create({ host, port = 39395 } = {}) {
-  if (
-    !net.isIPv4(host || "") ||
-    !Number.isInteger(port) ||
-    port < 1024 ||
-    port > 65535
-  )
-    throw Error("Expected reachable IPv4 address and port");
-  const token = connection.pairingCode(),
-    installation = plan();
-  return {
-    id: "izmysh",
-    rpcClient: require("node:path").join(__dirname, "server/lib/rpc.cjs"),
-    command: connectCommand(host, token, port),
-    protocol: 1,
-    resumable: false,
-    bootstrap: {
-      file: installation.file,
-      saveName: installation.saveName,
-      arity: installation.arity,
-      loaderId: "izmysh",
-      recovery: false,
+'use strict';
+const contract = require('./runtime/contract.cjs');
+const {extendNative} = require('../extend-native.cjs');
+function create(request = {}) {
+  const {host, port, command} = contract.endpoint(request.host, request.port);
+  const selected = contract.options(request.settings);
+  if (request.recovery) throw Error('IZ2S Core does not support NS2R recovery');
+  contract.verify();
+  const wire = require('./upstream/engine/lib/connection.cjs');
+  const native = require('./upstream/engine/lib/native.cjs');
+  const result = {
+    id:'izmysh', command, bootstrap:contract.bootstrap(), protocol:1, resumable:false, preloaded:false,
+    async listen(options = {}) {
+      const link = await wire.listen({...options, host, port});
+      return {connection:link.connection, addresses:{...link.addresses, protocol:1}};
     },
-    listen: (options) => connection.listen({ ...options, host, port, token }),
-    native: (connected) =>
-      new NativeClient(connected.connection, connected.addresses),
-    qualify,
+    native(link) {
+      if (!link?.connection || !link.addresses) throw Error('Expected a connected engine console');
+      return extendNative(new native.NativeClient(link.connection, link.addresses));
+    },
+    qualify:require('./upstream/engine/lib/qualify.cjs').qualify,
   };
+  if (selected.fsRpcMode) result.startRuntime = context => require('./fs-rpc.cjs').start(context);
+  return result;
 }
-module.exports = { create };
+module.exports = {create};

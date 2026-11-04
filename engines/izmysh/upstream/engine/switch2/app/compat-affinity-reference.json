@@ -1,0 +1,48 @@
+{
+  "source": "Captured run3 application modules; SDK pthread affinity imports the nnCompatThin wrapper.",
+  "symbol": "_ZN2nn2os26GetThreadAvailableCoreMaskEv",
+  "gotOffset": 13664136,
+  "import": {
+    "module": "nnSdk",
+    "offset": 6044240,
+    "size": 16,
+    "bytes": "303a009011c647f910223e9120021fd6",
+    "sha256": "b5458fbcf0bb81aa89981a701be7d0fd93bd33fd10ec0ce85aed0916947c6cca",
+    "instructions": [
+      "5c3a50: adrp x16, #0xd07000",
+      "5c3a54: ldr x17, [x16, #0xf88]",
+      "5c3a58: add x16, x16, #0xf88",
+      "5c3a5c: br x17"
+    ]
+  },
+  "target": {
+    "module": "nnCompatThin",
+    "offset": 31088,
+    "size": 76,
+    "bytes": "7f2303d5ff8300d1fd7b01a9fd4300911f2003d561891030e0230091ff0700f9c80d0094e00700b9e0000035e80740f900013fd6fd7b41a900084092ff830091ff0f5fd6e0130091c20d0094",
+    "sha256": "4c2213168d4ce4f3f365bfe62c20674321e57085585e79fe90ca84b2a7167f3e",
+    "instructions": [
+      "7970: pacibsp ",
+      "7974: sub sp, sp, #0x20",
+      "7978: stp x29, x30, [sp, #0x10]",
+      "797c: add x29, sp, #0x10",
+      "7980: nop ",
+      "7984: adr x1, #0x28ab1",
+      "7988: add x0, sp, #8",
+      "798c: str xzr, [sp, #8]",
+      "7990: bl #0xb0b0",
+      "7994: str w0, [sp, #4]",
+      "7998: cbnz w0, #0x79b4",
+      "799c: ldr x8, [sp, #8]",
+      "79a0: blr x8",
+      "79a4: ldp x29, x30, [sp, #0x10]",
+      "79a8: and x0, x0, #7",
+      "79ac: add sp, sp, #0x20",
+      "79b0: retab ",
+      "79b4: add x0, sp, #4",
+      "79b8: bl #0xb0c0"
+    ]
+  },
+  "symbolOffsetFromTarget": 135489,
+  "effect": "The compatibility wrapper ANDs the resolved available-core mask with 7 before returning."
+}

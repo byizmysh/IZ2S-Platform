@@ -1,148 +1,69 @@
 # IZ2S Platform
 
-**0.16.0-rc.5 · Linux x64 / ARM64**
+IZ2S Platform runs a control panel on your PC and manages a SmileBASIC connection to Switch 2. **IZlauncher** and **IZPSlauncher** are the two console menu styles. **IZ2S Core** is the default connection engine; IZMYSH is the developer credit.
 
-IZ2S Platform runs a control panel on your computer. **IZlauncher** is the menu shown on Switch 2 through SmileBASIC. The PC application, ARM input agent, console bootstrap and modules are installed/started separately.
+[Quick guide](READMI.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [Changes since 0.16](RELEASE-NOTES.md) · [Support](SUPPORT.md)
 
-**Read the [detailed FAQ and practical guide](FAQ.md)** for plain-English explanations, folder locations, first setup, backups, Git, safe testing and troubleshooting.
+## Install with one entry file
 
-**Host OS:** Linux only. Windows and macOS are unsupported; ARM64 remains a declared target with incomplete hardware validation. [Support details](SUPPORT.md).
+Extract the **whole** prepared archive into a writable local folder. Open the entry file for your OS:
 
-
-## What’s new in 0.16.0-rc.5
-
-- Fix the empty module library in **IZPSlauncher**. The native process previously rejected every package requiring IZlauncher because it compared the module-format name with the new visual shell ID.
-- IZPSlauncher now explicitly declares the IZlauncher module format it implements. The panel, startup selection and native library evaluate the same selected-shell contract; host and console-ABI checks remain enforced.
-- Add regression checks that reproduce the native IZPSlauncher environment, publish a nonempty console picker and complete a browser-queued load through the package/catalog boundary using local mock storage.
-## Modules for IZ2S Platform
-
-Extend IZlauncher with these separately installed modules:
-
-| Module | What it does | Get it |
+| Computer | Installation | Later launches |
 | --- | --- | --- |
-| **[BlitBun](https://github.com/byizmysh/BlitBun)** | Stream a PC application's video and audio to NS2, with live resolution changes, separate Dock/Handheld profiles and optional forwarding of controllers paired with the console. | [Download and install](https://github.com/byizmysh/BlitBun/releases/latest) |
-| **[VacooTube](https://github.com/byizmysh/VacooTube)** | A YouTube player for NS2 with touch and controller navigation. Browsing, search, playback and settings are controlled entirely from the console after setup; the application runs on the PC in the background. Includes its own bundled BlitBun streaming engine. | [Download and install](https://github.com/byizmysh/VacooTube/releases/latest) |
+| Linux x64 / ARM64 | Open `Install-Linux.desktop`, allow launching if your desktop requests it | IZ2S Platform application shortcut or `start.sh` |
+| Windows x64 | Double-click `Install.cmd` | Start-menu shortcut or the installed `Start.cmd` |
+| macOS Intel / Apple silicon | Double-click `Install.command` | `~/Applications/IZ2S Platform.app` or the installed `Start.command` |
 
-Install IZ2S Platform first, then follow the chosen module's README. Both modules include their PC and console components and can be installed independently: neither requires the other. They are optional downloads and are not bundled with the platform installer.
+Linux installs missing packages through apt, pacman or dnf and may ask for administrator approval. If your desktop will not execute the installer, run `sh install.sh --launch` in its folder. Windows/macOS prepare private Node.js 24, Python 3.12 and Pillow automatically; no npm, Homebrew, Xcode or system Python installation is needed. Windows uses its OpenSSH client or downloads a private portable client for ARM input. The installers create a new per-user installation, add a shortcut and request panel startup. They do not install an ARM-board OS, flash ADV or launch a console session.
 
-## PC control panel
+**Windows/macOS installers are experimental and still require testing on those operating systems. Native console sessions remain enabled only for the declared Linux hosts.** Successful installation or opening the browser does not establish full console compatibility. See the [compatibility table](COMPATIBILITY.md) and [OS-specific FAQ](FAQ.md#installation-and-os-prompts).
 
-Choose a connection engine, prepare your ARM input device and manage the modules available to your console.
+Node.js 24 currently requires Windows 10 or later on x64 and macOS 13.5 or later; Windows targets x64; macOS targets Intel x64 and Apple silicon ARM64. These are runtime minimums, not an IZ2S qualification claim. See the [Node.js platform requirements](https://github.com/nodejs/node/blob/v24.x/BUILDING.md#platform-list).
 
-<table align="center">
-  <tr>
-    <td align="center" width="50%">
-      <a href="docs/images/connection.jpg"><img src="docs/images/connection.jpg" width="420" alt="PC panel showing connection engines and hardware configuration"></a><br>
-      <sub><strong>Connection setup</strong><br>Choose an engine and configure the PC, ARM input device and console.</sub>
-    </td>
-    <td align="center" width="50%">
-      <a href="docs/images/app-library.jpg"><img src="docs/images/app-library.jpg" width="420" alt="PC panel showing module selection in the App library"></a><br>
-      <sub><strong>App library</strong><br>Browse available modules and select what to load on your Switch 2.</sub>
-    </td>
-  </tr>
-</table>
+## What is included
 
-<p align="center"><sub>Panel previews without a connected console. Click either image to enlarge.</sub></p>
+| Component | Purpose |
+| --- | --- |
+| [IZlauncher](shells/izlauncher) / [IZPSlauncher](shells/izpslauncher) 0.21 | Two console menu styles |
+| [IZ2S Core](engines/izmysh/README.md) | Default connection engine; developer IZMYSH |
+| [ns2jb by BermTheSequel](engines/BermTheSequel) | Bundled alternative |
+| [ARM PC](hardware/agents/arm-input/README.md) / [Cardputer ADV](hardware/devices/cardputer-adv/README.txt) | Alternative network-controlled USB keyboard input devices |
+| [Super File Bros.](https://github.com/byizmysh/super-file-bros) | Integrated FS browser with optional external file-manager launch |
+| [File Exchange](modules/iz-exchange/README.md) / [File Exchange FS](modules/iz-exchange-fs/README.md) | Title-owned files and retained FS RPC exports |
+| [Book Reader](modules/BookReader/README.md) | TXT/unencrypted EPUB reader and library settings |
 
-## IZlauncher
-
-**IZlauncher** is the console-side homebrew menu for NS2. Browse loaded apps, filter or search the library, and add available modules using controller or touch controls. The PC panel manages the connection and host components; IZlauncher provides the interface on your Switch 2.
-
-<p align="center">
-  <a href="docs/images/izlauncher.jpg"><img src="docs/images/izlauncher.jpg" width="680" alt="IZlauncher console menu with File Exchange selected, app navigation and search"></a><br>
-  <sub><strong>The console menu</strong> — File Exchange selected, with app navigation, search and the Add app shortcut.</sub>
-</p>
-
-## What is included?
-
-- **File Exchange**, for SmileBASIC title-owned file browsing and FTP.
-- **ns2jb by IZMYSH**, the only preinstalled engine.
-- Adapters for pepsipu and kurumuz. Download their original source explicitly in the panel, or copy it into `engines/<id>/upstream/` and choose **Check manual folder**.
-
-BlitBun and VacooTube are available as [separate module downloads](#modules-for-iz2s-platform). Games and experimental test applications are **not bundled** in this release. Original-engine files are not downloaded by the installer.
-
-## Install and start
-
-Download the installation archive from [Releases](https://github.com/byizmysh/IZ2S-Platform/releases), extract it, open a terminal in the extracted directory, then run:
-
-```sh
-./install.sh --check
-./install.sh
-```
-
-The installer supports Debian/Ubuntu and Arch-based package managers. Missing OS dependencies may require sudo. On Arch, that operation includes a synchronized system upgrade; review the package-manager prompt. Other Linux distributions can install requirements manually and use `--no-system-packages`.
-
-The installer uses Node.js 22+ when available, otherwise downloads a private Node.js 24 runtime and verifies its official SHA256 list. System Node.js stays unchanged. Required base tools are Python 3/Pillow, glslangValidator, spirv-val, Git, curl/CA certificates, tar, xz, SSH client, iproute2, ping and DejaVu Sans. A browser displays the panel.
-
-A new versioned installation is created below `~/.local/share/iz2s-platform/releases/`; the exact path is printed. Existing installation folders are never overwritten. A normal install updates the ordinary IZ2S application-menu shortcut to the installed copy. Start it there or run `start.sh` in that installed folder.
-
-To keep the existing shortcut and all system packages unchanged, when dependencies are already present:
-
-```sh
-./install.sh --prefix "$HOME/iz2s-trial" --no-system-packages --no-desktop
-```
-
-The destination must not exist. A private Node runtime may still be downloaded into it. Installation does not start a console session or type a bootstrap.
-
-## See the interface without installing
-
-```sh
-./preview.sh
-```
-
-This opens a temporary copy with separate settings and an automatically allocated local panel port. Stop it with Ctrl+C. It does not connect Switch. It is a convenience preview, not an OS security sandbox.
+[Super File Bros.](https://github.com/byizmysh/super-file-bros) remains a separate standalone project. [BlitBun](https://github.com/byizmysh/BlitBun), [VacooTube](https://github.com/byizmysh/VacooTube), [emulators and other modules](modules/README.md#additional-modules) are separate packages; installing the platform does not install their host dependencies.
 
 ## Connect the console
 
-Choose **PC + ARM PC**, the enabled default. Install/check the ARM agent through **First-time setup**, connect its USB data/OTG port to Switch, and follow the panel's engine instructions. [Hardware overview](hardware/README.md).
+1. Choose a launcher, engine and input device. The current console profile targets Switch 2 system 23.0.1 and SmileBASIC 4.4.9; check compatibility before using other versions.
+2. Follow **First Setup** to enter and save the selected BASIC program. An upgrade from 0.16 requires this again: the old `NS2I` program is not the current `NS2IZM` bootstrap.
+3. Fully restart Switch 2, open fresh SmileBASIC Direct and follow **Launch**. After a failed or ended native session, restart the console before another attempt.
+4. Enable **FS endpoint (--rpc)** before Launch when you need retained FS access. Super File Bros. opens as an IZ2S tab; choose an external file manager there separately.
 
-Bootstrap installation uses a selected program slot 0–3, default **0**. Existing code in that slot and an existing named save can be overwritten: back up first. Source entry, source checking, Save and Launch are separate steps. After saving, fully restart Switch and open **SmileBASIC → Make a Program → Direct** before a fresh launch. Use current generated commands, not an old START line.
+For ARM, prepare the separate Linux board using the [ARM instructions](hardware/agents/arm-input/README.md). A compatible input API 1 installation does not need replacing for every launcher update. For ADV, use the [firmware/Wi-Fi/USB instructions](hardware/devices/cardputer-adv/README.txt): after setup on the PC, connect its USB **data** cable to Switch 2.
 
-The App library distinguishes a loaded console module from a locally installed PC component. Opening File Exchange starts its FTP listener on the console at port **2121**. Use the console's current IP, anonymous/passive FTP and one simultaneous connection. `/save` and `/tmp` allow writes; `/rom` is read-only. This is not access to the entire console. [File Exchange guide](modules/iz-exchange/README.md).
+## Modules and files
 
-## Where to look next
+Closing a module tab closes its view. Use **Stop** in the sidebar or **Stop module** to stop the module. Its view can be reopened quickly. Console-session Stop is separate.
 
-| Folder | Purpose |
-| --- | --- |
-| `panel/`, `core/` | PC interface and shared session services |
-| `engines/` | Separate connection-engine implementations/adapters |
-| `shells/izlauncher/` | Console menu, renderer and host adapter |
-| `modules/iz-exchange/` | File Exchange console and PC halves |
-| `hardware/`, `packages/` | Device setup, ARM source and deployable archive |
-| `data/` | Private local settings, logs, caches and credentials; keep private |
-| `modules/<id>/data/`, `runtime/` | Private module settings and extra installed programs |
+The shared SD location is `SD:/IZ2S/Homebrew/Modules/<module.id>/`. Opening **SD & console storage** prepares folders for installed modules. Module authors adopt this path explicitly through `context.sdStorage`; old files are not moved automatically. See the [SDK storage contract](sdk/SD-STORAGE.md).
 
-The [FAQ](FAQ.md) explains every major folder and common failure. The [development guide](distribution/README-development.md) explains Git, promotion, containers and VM snapshots. Developer commands require the source repository; they are deliberately absent from the minimal installed runtime.
+FTP exports are read-only. Browser SD operations provide explicit upload, rename and deletion controls; internal console filesystems remain read-only. Windows Explorer and macOS Finder do not provide a general writable view of FS RPC; see the [FAQ](FAQ.md) for their FTP limits. [Book Reader](modules/BookReader/README.md) libraries/settings stay local and are not included in public archives.
 
-This release uses the ordinary bootstrap. Video-only recovery and recovery after the main console session ends are different; the ordinary bootstrap cannot recreate its ended main connection. Host checks do not prove physical Switch/ARM64 behavior. See `LICENSE` and `THIRD_PARTY.json`: inherited license-review notices are retained and must be addressed before public redistribution.
+## Build and local testing
 
-## Project license
-
-Independently authored IZMYSH code is licensed under **GPL-2.0-or-later**.
-See [LICENSE](LICENSE), [COPYRIGHT](COPYRIGHT) and [license scope](LICENSE-SCOPE.md).
-Existing component licenses and prior MIT grants remain applicable; this is not
-a blanket relicensing of third-party material.
-
-## Build from source
-
-The prepared installation archive already contains compiled console shaders. Use the source repository to modify and rebuild the menus:
+A developer build additionally needs glslangValidator, spirv-val and Python/Pillow. Runtime users use the prepared shaders and bundled fonts; no shader compiler is required.
 
 ```sh
-git clone https://github.com/byizmysh/IZ2S-Platform.git
-cd IZ2S-Platform
-git checkout v0.16.0-rc.5
-node shells/izpslauncher/build.cjs
-node shells/izlauncher/server/build-app.cjs
 node distribution/verify.cjs
-node --test distribution/tests/*.test.cjs
+python3 distribution/release.py --rebuild
 ```
 
-Use Node.js 22 or newer. The existing installer guide lists the required Linux tools, Python/Pillow, DejaVu fonts and shader compilers. `node distribution/verify.cjs` validates descriptors, packaged modules, source syntax and documentation links.
+Local installer/SD regression scripts are kept in the working tree; the prepared public package excludes tests. The [local verification record](distribution/LOCAL-CHECKS.md) and [manual acceptance plan](distribution/HOST-TESTING.md) remain included. Documentation, scripts and default UI text use English; translations are kept in the four interface catalogs.
 
-To create an installation archive from a clean, committed source tree:
+The builder works in a temporary copy and produces a Linux tar.gz, a source ZIP and explicitly experimental Windows/macOS ZIPs in `dist/github/`. All contain the complete installation files; the Windows/macOS names do not claim a qualified native console host. Private `data/`, keys, downloaded runtimes, books, logs, tests and session snapshots are excluded. Building does not upload anything. The repository destination is [byizmysh/IZ2S-Platform](https://github.com/byizmysh/IZ2S-Platform).
 
-```sh
-node distribution/build.cjs
-```
+## License
 
-If rebuilding changed tracked shader/font files, review and commit those outputs before packaging. The builder refuses a dirty tree. It writes `dist/iz2s-platform-<version>-file-exchange.tar.gz` and the matching `.sha256` file, with the exact source commit recorded in `release.json` inside the archive. Private settings, downloads and experimental modules are excluded. See the [development guide](distribution/README-development.md) for isolated installation checks and the [release template](distribution/RELEASE-TEMPLATE.md) for the required release sections.
+Preserve [COPYRIGHT](COPYRIGHT), [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [THIRD_PARTY.json](THIRD_PARTY.json) and component notices. Independently authored project code is GPL-2.0-or-later; this does not grant missing upstream permissions. See [Support](SUPPORT.md) for the limits of local and physical-device verification.

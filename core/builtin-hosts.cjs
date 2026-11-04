@@ -14,7 +14,7 @@ function create({ context, load = (id, name) => require('./components.cjs').get(
             const match = /^module:([a-z0-9-]+)\/([A-Za-z0-9-]+)$/.exec(app.manifest.hostRuntime);
             if (!match) throw Error('Invalid built-in host runtime');
             const component = await load(match[1], match[2]);
-            instance = await component.create({ ...context, app });
+            instance = await component.create({ ...context, app, sdStorage: require('./module-storage.cjs').forModule(match[1]) });
             instances.set(key, instance);
           }
           retained.add(key); apps.push(app);

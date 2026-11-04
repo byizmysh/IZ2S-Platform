@@ -1,0 +1,21 @@
+{
+  "device": "M5Stack Cardputer ADV",
+  "version": "0.21.1",
+  "file": "IZ2S-ADV-0.21.bin",
+  "type": "esp32s3-application",
+  "inputApiVersion": 2,
+  "textStorage": "SD content package; execution by named action",
+  "usb": "native-otg-boot-keyboard-8-byte",
+  "install": "M5Launcher SD application",
+  "bytes": 1069328,
+  "sha256": "2401b9b2c26d27de65d2ca72f53ca98259345071adcad1cc06b5d4c30f413ff9",
+  "platformio": "6.2.0",
+  "platform": "espressif32@6.9.0",
+  "arduinoEsp32": "2.0.17",
+  "sources": {
+    "platformio.ini": "d4322ba5e32581eaa48c8e8b670bbebd8f5b031472839a4193a8b628cb2ab663",
+    "patch_usb.py": "f2e225f20df09286873220f3df1a09cace47dd1a798347ce19ce2a5f08682202",
+    "src/main.cpp": "c2bdc4bfeb22a6085a55656a8888fb2c8766d412f5ee36bcde6e683b979b324b",
+    "src/screen.h": "ac55638e7acd9abfcc0bb5a8133b37e06fbbfd33138e448085cf271e2868f3bb"
+  }
+}

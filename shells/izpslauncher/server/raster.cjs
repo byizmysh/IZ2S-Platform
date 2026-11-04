@@ -2,6 +2,6 @@ const fs=require('node:fs/promises'),path=require('node:path'),{execFile}=requir
 async function raster(catalog,directory,label='focus-catalog'){
  await require('../../../core/services/app-catalog.cjs').raster(catalog,directory,label);
  const input=path.join(directory,label+'.json'),output=path.join(directory,label+'.bin');
- await promisify(execFile)('python3',[path.join(__dirname,'hero-text.py'),input,output],{timeout:15000,maxBuffer:65536});await promisify(execFile)('python3',[path.join(__dirname,'ps-covers.py'),input,output],{timeout:15000,maxBuffer:65536});await promisify(execFile)('python3',[path.join(__dirname,'ps-covers.py'),input,output],{timeout:15000,maxBuffer:65536});return fs.readFile(output);
+ await promisify(execFile)(require('../../../core/platform/python.cjs').command(),[path.join(__dirname,'hero-text.py'),input,output],{timeout:15000,maxBuffer:65536});await promisify(execFile)(require('../../../core/platform/python.cjs').command(),[path.join(__dirname,'ps-covers.py'),input,output],{timeout:15000,maxBuffer:65536});return fs.readFile(output);
 }
 module.exports={raster};

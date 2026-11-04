@@ -10,6 +10,9 @@ function request(body) {
         port,
         path: "/",
         method: "POST",
+        // A native request must never use a pooled socket that the server may be closing.
+        // A fresh loopback connection avoids the idle-close race without replaying commands.
+        agent: false,
         headers: {
           authorization: "Bearer " + token,
           "content-type": "application/json",
@@ -34,7 +37,14 @@ function request(body) {
     req.setTimeout(addresses.protocol === 2 ? 250000 : 125000, () =>
       req.destroy(Error("Native request timed out; it was not replayed")),
     );
-    req.on("error", reject);
+    req.on("error", error => {
+      const failure = new Error("Local native RPC connection failed during " + body.command +
+        ": " + error.message + "; request was not replayed", {cause: error});
+      failure.code = error.code;
+      failure.rpcCommand = body.command;
+      failure.requestReplayed = false;
+      reject(failure);
+    });
     req.end(
       JSON.stringify(body, (_, value) =>
         typeof value === "bigint" ? value.toString() : value,

@@ -6,7 +6,7 @@ async function start(root, id, { session } = {}) {
   await require('./modules.cjs').read(root, id);
   const child = fork(path.join(__dirname, 'module-worker.cjs'), [], {
       cwd: root,
-      env: { ...process.env, IZ2S_ROOT:root, IZ15_ROOT: root },
+      env: { ...process.env, IZ2S_ROOT:root, IZ15_ROOT: root, IZ2S_ATTEMPT_ID:session?.id||'' },
       stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
     }),
     row = { id, child, state: 'starting', errors: '' };
@@ -43,6 +43,8 @@ async function start(root, id, { session } = {}) {
 async function stop(id) {
   const row = active.get(id);
   if (!row) return { id, state: 'disposed' };
+  if (row.stopTask) return row.stopTask;
+  row.stopTask = (async () => {
   await new Promise((resolve) => {
     const timer = setTimeout(() => {
       row.child.kill('SIGKILL');
@@ -61,6 +63,8 @@ async function stop(id) {
   });
   active.delete(id);
   return { id, state: 'disposed' };
+  })();
+  return row.stopTask;
 }
 async function close() {
   await Promise.all([...active.keys()].map(stop));

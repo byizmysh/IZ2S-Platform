@@ -1,4 +1,18 @@
-const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process'),root=require('../core/root.cjs');
-let failed=false;function check(name,ready,fix){console.log((ready?'OK   ':'NEED ')+name+(ready?'':' — '+fix));if(!ready)failed=true;}
-function runs(cmd,args){const r=spawnSync(cmd,args,{stdio:'ignore'});return !r.error&&r.status===0;}
-check('Node.js 18.17+ (22+ recommended)',Number(process.versions.node.split('.')[0])>=18,'Install Node.js 18.17+ (22+ recommended)');check('Linux x64/ARM64',process.platform==='linux'&&['x64','arm64'].includes(process.arch),'Use a supported host');check('Python + Pillow',runs('python3',['-c','from PIL import Image']),'Install python3-pil');check('SPIR-V validator',runs('spirv-val',['--version']),'Install spirv-tools');check('GLSL compiler',runs('glslangValidator',['--version']),'Install glslang-tools');const c=require('../core/extensions.cjs').catalog(root);check('Engine descriptors',c.engines.items.length>0&&c.engines.errors.length===0,'Validate engines with sdk/check.cjs');check('IZlauncher',c.shells.items.some(x=>x.id==='izlauncher'),'Install a shell');if(failed)process.exitCode=1;
+// Runtime requirements are separate from developer-only shader build tools.
+const path=require('node:path'),{spawnSync}=require('node:child_process'),root=require('../core/root.cjs');
+function inspect({hostOnly=process.argv.includes('--host-only'),ssh=process.argv.includes('--ssh'),run=spawnSync,version=process.versions.node}={}){
+ const rows=[],parts=version.split('.').map(Number);
+ const check=(name,ready,fix)=>rows.push({name,ready:!!ready,fix});
+ const runs=(program,args)=>{const r=run(program,args,{stdio:'ignore',timeout:15000});return !r.error&&r.status===0;};
+ check('Node.js 20.20+ (installer uses 24)',parts[0]>20||(parts[0]===20&&parts[1]>=20),'Run the installer for this OS');
+ check('Python + Pillow',runs(require('../core/platform/python.cjs').command(root),['-c',"from PIL import Image,ImageDraw,ImageFont,ImageOps;assert hasattr(ImageDraw.ImageDraw,'textbbox') and hasattr(ImageFont.FreeTypeFont,'getlength') and hasattr(ImageOps,'contain')"]),'Run the installer for your OS to prepare Python and Pillow');
+ check('Bundled fonts',runs(require('../core/platform/python.cjs').command(root),['-c',"import sys;sys.path.insert(0,sys.argv[1]);from language.fonts import font;from PIL import ImageFont;ImageFont.truetype(font(),16)",root]),'Restore language/fonts');
+ if(ssh)check('OpenSSH client',runs('ssh',['-V']),'Install the OpenSSH client for ARM input');
+ if(!hostOnly){check('SPIR-V validator',runs('spirv-val',['--version']),'Install spirv-tools for shader builds');check('GLSL compiler',runs('glslangValidator',['--version']),'Install glslang-tools for shader builds');}
+ const catalog=require('../core/extensions.cjs').catalog(root);
+ check('Engine descriptors',catalog.engines.items.length>0&&catalog.engines.errors.length===0,'Restore bundled engine files');
+ check('Console launchers',catalog.shells.items.some(x=>x.id==='izlauncher')&&catalog.shells.items.some(x=>x.id==='izpslauncher'),'Restore both console launchers');
+ return rows;
+}
+if(require.main===module){const rows=inspect();for(const row of rows)console.log((row.ready?'OK   ':'NEED ')+row.name+(row.ready?'':' — '+row.fix));if(rows.some(row=>!row.ready))process.exitCode=1;}
+module.exports={inspect};

@@ -1,0 +1,40 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=1) in;
+#include "abi.glsl"
+#include "hb.glsl"
+#include "reader.glsl"
+void main(){
+ uint pressed=hbPressed();c.state.z++;
+ if(c.atlas[0]!=READER_MAGIC||c.state.z<6u){hbEndFrame();return;}
+ bool held=hbTouchCount()==1u&&(c.touch[6]&2u)==0u,tap=held&&c.bagMeta.z==0u;vec2 p=readerPoint(hbTouch(0u)*1.5),size=readerSize();c.bagMeta.z=held?1u:0u;
+ if(c.game.y==1u&&c.game.w!=readerPage()+1u)readerDecode();
+ if((pressed&HB_MINUS)!=0u||(tap&&p.x<220.0&&p.y<110.0)){c.bagMeta.x=c.bagMeta.x==0u?1u:0u;c.bagMeta.y=0u;hbEndFrame();return;}
+ int move=(pressed&HB_UP)!=0u?-1:(pressed&HB_DOWN)!=0u?1:0;
+ if(c.bagMeta.w>0u)c.bagMeta.w--;vec2 stick=hbStick(false);if(abs(stick.y)>.55&&c.bagMeta.w==0u){move=stick.y>0.0?-1:1;c.bagMeta.w=12u;}
+ if(c.bagMeta.x!=0u){
+  if((pressed&HB_B)!=0u)c.bagMeta.x=0u;
+  else{
+   if(move!=0)c.bagMeta.y=uint((int(c.bagMeta.y)+move+10)%10);
+   bool activate=(pressed&HB_A)!=0u;int direction=(pressed&HB_LEFT)!=0u?-1:1;
+   if((pressed&(HB_LEFT|HB_RIGHT))!=0u&&c.bagMeta.y>=2u&&c.bagMeta.y<=8u)activate=true;
+   if(tap&&p.x<550.0&&p.y>=250.0&&p.y<900.0){c.bagMeta.y=uint((p.y-250.0)/65.0);activate=true;}
+   if(activate){uint row=c.bagMeta.y;if(row==0u)c.bagMeta.x=0u;else if(row==1u){c.game.y=0u;c.bagMeta.x=0u;}else if(row==9u)hbExit();else{c.rows[2]=direction<0?0u:1u;readerRequest(2u,row-2u);}}
+  }
+  hbEndFrame();return;
+ }
+ if(c.game.y==0u){
+  uint count=c.atlas[13];if(count==0u){if((pressed&HB_B)!=0u)hbExit();hbEndFrame();return;}
+  if(move!=0)c.game.z=uint((int(c.game.z)+move+int(count))%int(count));
+  bool choose=(pressed&HB_A)!=0u;
+  uint visible=min(12u,max(1u,uint((size.y-300.0)/104.0))),start=c.game.z/visible*visible;
+  if(tap&&p.y>=230.0&&p.y<230.0+float(visible)*104.0){uint index=start+uint((p.y-230.0)/104.0);if(index<count){c.game.z=index;choose=true;}}
+  if(choose)readerRequest(1u,c.game.z);if((pressed&HB_B)!=0u)hbExit();
+ }else{
+  int delta=(pressed&(HB_LEFT|HB_L))!=0u?-1:(pressed&(HB_RIGHT|HB_R|HB_A))!=0u?1:0;
+  if(tap&&p.y>120.0){if(p.x<size.x*.28)delta=-1;else if(p.x>size.x*.72)delta=1;else{c.bagMeta.x=1u;c.bagMeta.y=0u;}}
+  if((pressed&HB_B)!=0u)c.game.y=0u;
+  if(delta!=0){uint previous=readerPage();c.game.x=uint(clamp(int(previous)+delta,0,int(readerPageCount())-1));if(c.game.x!=previous){readerDecode();readerRequest(3u,c.rows[0]);}}
+ }
+ hbEndFrame();
+}

@@ -1,0 +1,29 @@
+IZ2S Cardputer ADV application 0.21
+
+Application source follows the IZ2S repository license (see root LICENSE).
+The binary is built from src/main.cpp and the pinned platformio.ini dependencies.
+The build recipe is build.py. Credentials are loaded from SD and are not compiled in.
+
+Third-party projects used by the binary:
+M5Cardputer 1.1.1 — Copyright M5Stack Technology CO LTD, MIT.
+https://github.com/m5stack/M5Cardputer
+M5Unified 0.2.29 — Copyright M5Stack, MIT.
+https://github.com/m5stack/M5Unified
+M5GFX 0.2.36 / LovyanGFX — Copyright lovyan03, MIT/BSD-2-Clause (individual files).
+https://github.com/m5stack/M5GFX
+ArduinoJson 6.21.5 — Copyright Benoit Blanchon, MIT.
+https://github.com/bblanchon/ArduinoJson
+Arduino-IRremote 4.7.1 — MIT; transitive M5Cardputer dependency.
+https://github.com/Arduino-IRremote/Arduino-IRremote
+Arduino-ESP32 2.0.17 — LGPL-2.1, component-specific notices apply.
+https://github.com/espressif/arduino-esp32/tree/2.0.17
+ESP-IDF — Apache-2.0 and component-specific licenses; bundled with Arduino-ESP32.
+https://github.com/espressif/esp-idf
+TinyUSB — Copyright Ha Thach, MIT; bundled with Arduino-ESP32.
+https://github.com/hathach/tinyusb
+
+Original copyright and license texts are provided alongside this file in licenses/.
+Full component sources and per-file notices can be obtained from the linked projects
+and the versions fetched by the reproducible PlatformIO recipe.
+
+IZ2S 0.21.1 applies the included patch_usb.py to Arduino-ESP32 2.0.17 USBHID.cpp and USBHIDKeyboard.cpp: boot keyboard interface, single eight-byte report without Report ID, and report completion diagnostics. The upstream Apache-2.0/LGPL notices remain applicable.

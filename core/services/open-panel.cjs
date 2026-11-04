@@ -1,16 +1,19 @@
-// Open only the loopback panel after its listener is ready; never start capture.
+// The panel uses a normal browser window; module UIs belong to its workspace.
 const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
-function openPanel(url,{env=process.env,launch=spawn,exists=fs.existsSync,main=false}={}){
- const u=new URL(url);
- if(u.protocol!=='http:'||u.hostname!=='127.0.0.1'||u.pathname!=='/'||!/^#[a-f0-9]{48}$/.test(u.hash))throw Error('Invalid local panel URL');
- if(env.HB_OPEN_PANEL==='0')return false;
- const chrome=[env.HB_CHROME,'/usr/bin/google-chrome-stable','/usr/bin/google-chrome','/usr/bin/chromium','/usr/bin/chromium-browser'].find(p=>p&&exists(p));
- if(!chrome){
-  if(!main){console.error('Chrome was not found. Open the capture link manually.');return false;}
-  const child=launch('xdg-open',[u.href],{env,detached:true,stdio:'ignore'});
-  child.once('error',error=>console.error('Could not open the panel: '+error.message));child.unref();return true;
- }
- const child=launch(chrome,['--user-data-dir='+(env.HB_BROWSER_PROFILE||path.resolve(__dirname,'../../data/state/browser-profile')),main?'--new-window':'--new-tab',u.href],{env,detached:true,stdio:'ignore'});
- child.once('error',error=>console.error('Could not open PC Screen: '+error.message));child.unref();return true;
+const {browserCommand}=require('../platform/desktop.cjs');
+function openPanel(url,{env=process.env,launch=spawn,exists=fs.existsSync,main=false,...options}={}) {
+  const u=new URL(url);
+  if(u.protocol!=='http:'||u.hostname!=='127.0.0.1'||u.username||u.password)throw Error('Invalid local panel URL');
+  if(env.HB_OPEN_PANEL==='0')return false;
+  if(!main){
+    const session=require('../session-workspace.cjs').current();if(session){session.open(u.href).catch(error=>console.error('Module tab: '+error.message));return true;}
+    const root=env.IZ2S_ROOT||env.IZ15_ROOT||path.resolve(__dirname,'../..'),moduleId=env.IZ2S_MODULE_ID||env.IZ15_MODULE_ID;
+    const id=moduleId?'module-'+moduleId:'interface-'+require('node:crypto').createHash('sha256').update(u.origin).digest('hex').slice(0,16);
+    require('../workspace.cjs').register(root,{id,title:moduleId||'Module',url:u.href,moduleId,ownerPid:process.pid}).catch(error=>console.error('Module tab: '+error.message));return true;
+  }
+  if(u.pathname!=='/'||!/^#[a-f0-9]{48}$/.test(u.hash))throw Error('Invalid local panel URL');
+  const [program,args]=browserCommand(u.href,{env,exists,...options});
+  const child=launch(program,args,{env,detached:true,stdio:'ignore',shell:false});
+  child.once('error',error=>console.error('Could not open IZ2S: '+error.message));child.unref();return true;
 }
-module.exports={openPanel};
+module.exports={openPanel,browserCommand};

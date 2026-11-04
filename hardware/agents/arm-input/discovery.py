@@ -19,7 +19,9 @@ PROTOCOL = 'izlauncher.discovery'
 def interfaces():
     rows = []
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        for _, name in socket.if_nameindex():
+        # Read sysfs instead of opening AF_NETLINK, which the service disallows.
+        for interface in Path('/sys/class/net').iterdir():
+            name = interface.name
             if name == 'lo' or re.match(r'^(docker|podman|veth|virbr|vnet|vmnet|lxc|br-|tun|wg|tailscale)', name):
                 continue
             try:

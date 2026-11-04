@@ -118,7 +118,11 @@ function create({
       if (row.inputJob) cancelInput(row).catch(() => {});
     }
     row.status = 'failed';
-    row.error = redact(error.message);
+    const diagnostic = await require('../core/session/failure-report.cjs').inspect(row.runDirectory, error.message, {directFs:true});
+    row.error = redact(diagnostic.message);
+    if (diagnostic.stage) row.failedStage = diagnostic.stage;
+    if (diagnostic.report) row.failureReport = diagnostic.report;
+    if (diagnostic.resourcesRetained) row.resourcesRetained = true;
     row.completed = new Date().toISOString();
     row.needsRestart = true;
     await ledger.append(row.id, 'error', row.error);
@@ -167,6 +171,7 @@ function create({
           path.join(root, 'tools') + path.delimiter + (process.env.PATH || ''),
         ...plan.env,
         HB_PORT: String(settings.consolePort),
+        IZ2S_ATTEMPT_ID: row.id,
       },
       detached: process.platform === 'linux',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -183,6 +188,8 @@ function create({
       )
         return;
       const folder = line.match(/^Run folder: ([^\r\n]+)$/);
+      const peer = line.match(/^Console peer: ([0-9.]+)$/);
+      if (peer && require('node:net').isIPv4(peer[1])) row.consoleAddress = peer[1];
       if (folder && !sent) {
         const directory = path.resolve(folder[1]),
           roots = [
@@ -237,6 +244,11 @@ function create({
         row.connectedAt = new Date().toISOString();
         await persist();
         await log('ready', 'The selected upstream loader is running');
+        if (!row.filesPageRequested) {
+          row.filesPageRequested = true;
+          void require('../core/rpc-browser.cjs').onSessionReady(root, {...row}, {preview})
+            .catch(error => ledger.append(row.id, 'desktop', 'Files page: ' + error.message).catch(() => {}));
+        }
       }
       if (matches(plan.lifecycle?.completedPatterns, line)) {
         completed = true;
@@ -284,7 +296,8 @@ function create({
             return fail(
               Error(
                 redact(
-                  stderr.trim().split('\n').at(-1) ||
+                  stderr.trim().split('\n').find(line => /^(?:[\w.]+)?Error:/.test(line.trim())) ||
+                    stderr.trim().split('\n')[0] ||
                     'Loader stopped (' + (signal || code) + ')',
                 ),
               ),
@@ -349,6 +362,7 @@ function create({
         kind,
         loaderId: loader.manifest?.id || plan.loaderId,
         upstream: true,
+        consoleAddress: settings.consoleAddress,
         status: 'starting',
         created: new Date().toISOString(),
         selectedModules: [],
@@ -567,7 +581,7 @@ function create({
         required: !source.preloaded,
         preloaded: source.preloaded,
       },
-      version: 16,
+      version: 21,
       preview,
       setupWizard: source.setupAvailable,
       hardStopAvailable: true,
@@ -630,9 +644,9 @@ function create({
         throw Error('Only failed or cancelled attempts can be removed');
       if (row.runDirectory) {
         const directory = path.resolve(row.runDirectory),
-          allowed = require('../engines/index.cjs').create(root).IDS.flatMap((loader) => [
-            path.join(root, 'engines', loader, 'data/sessions'),
-            path.join(root, 'engines', loader, 'upstream/runs'),
+          allowed = require('../engines/index.cjs').create(root).list().flatMap((loader) => [
+            path.join(loader.folder, 'data/sessions'),
+            path.join(loader.folder, 'upstream/runs'),
           ]);
         if (
           ![...allowed, path.join(root, 'data/sessions')].includes(
@@ -648,7 +662,7 @@ function create({
       await ledger.removeFailure(id, current?.id);
       if (last?.id === id) last = null;
     },
-    historyLog: (id) => ledger.recent(id),
+    historyLog: (id) => ledger.all(id),
     dismiss: () => (notice = null),
   };
 }

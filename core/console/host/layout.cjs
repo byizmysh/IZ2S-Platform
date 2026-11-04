@@ -2,7 +2,7 @@
 const OFFSET=0x7f0000, SIZE=8192, MAGIC=0x48425344, VERSION=1;
 const FIELD={magic:0,version:4,sequence:8,flags:12,error:16,padId:20,style:24,motionCount:28,
  pad:64,motion:128,keyboard:320,mouse:384,network:448,ir:480,padSources:640,
- request:2048,response:4096};
+ request:2048,response:4096,padSweepHeader:12272,padSweep:12288};
 const FLAGS={pad:1,motion:2,keyboard:4,mouse:8,network:16,joyMouse:32,padSources:64};
 const OP={vibrate:1,nfc:2,udp:3,haptics:4};
 const STATUS={ok:0,unsupported:1,invalid:2,native:3,timeout:4};

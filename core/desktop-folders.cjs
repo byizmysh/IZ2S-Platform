@@ -28,7 +28,12 @@ async function resolve(root, { kind, id }) {
       folder = profile.folder; break;
     }
     case 'input': folder = path.join(root, 'hardware/agents/arm-input'); break;
-    case 'shell': folder = path.join(root, 'shells/izlauncher'); break;
+    case 'shell': {
+      const shellId = identifier(id || 'izlauncher');
+      const shell = require('./descriptors.cjs').scan(root, 'shell').items.find(item => item.id === shellId);
+      if (!shell) throw Error('Unknown shell');
+      folder = shell.folder; break;
+    }
     case 'history': folder = path.join(root, 'data/state/attempts'); break;
     case 'session': {
       const row = await require('./session/ledger.cjs').createLedger(root).read(id);
@@ -47,11 +52,14 @@ async function resolve(root, { kind, id }) {
   if (!inside(folder)) throw Error('Folder escapes the platform');
   return folder;
 }
-async function open(root, request, { launch = spawn } = {}) {
+async function open(root, request, { launch = spawn, ...options } = {}) {
+  if (request.kind === 'rpc-browser') return require('./rpc-browser.cjs').open(root, request, {launch});
+  // Retain access from an already running panel while its live FS owner stays up.
+  if (request.kind === 'dolphin-rpc') return require('./dolphin-rpc.cjs').open(root, request, {launch});
   const folder = await resolve(root, request);
-  const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer.exe' : 'xdg-open';
+  const [command,args] = require('./platform/desktop.cjs').folderCommand(folder,options);
   await new Promise((accept, reject) => {
-    const child = launch(command, [folder], { detached: true, stdio: 'ignore' });
+    const child = launch(command, args, { detached: true, stdio: 'ignore' });
     child.once('error', reject);
     child.once('spawn', () => { child.unref(); accept(); });
   });

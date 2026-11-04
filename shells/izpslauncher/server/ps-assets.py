@@ -3,13 +3,14 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import json,zlib
 from ps_fonts import font
+from language.progress_type import paint as progress_type
 root=Path(__file__).resolve().parent.parent
 regular=font()
 light=font('DejaVuSans-ExtraLight.ttf')
 bold=font('DejaVuSans-Bold.ttf')
 italic=font('DejaVuSans-Oblique.ttf')
 labels=[
-('BRAND','IZPSlauncher',29,bold),('SIGNATURE','by IZMYSH',14,italic),
+('BRAND','IZPSlauncher 0.21',29,bold),('SIGNATURE','by IZMYSH',14,italic),
 ('ALL','All',20,regular),('GAMES','Games',20,regular),('TOOLS','Applications',20,regular),('SEARCH','Search',20,regular),
 ('CLOCK','15:35',32,light),('DATE','YOUR LIBRARY. YOUR RULES.',12,regular),('NEWS','What’s New',36,regular),
 ('EXCHANGE','IZ Exchange',20,regular),('EXCHANGESUB','APPLICATION LIBRARY',12,bold),('HOME','Home',13,regular),
@@ -40,6 +41,11 @@ for key,text,size,face in labels:
  if y+h+4>=2048:raise ValueError('Type atlas full')
  d.text((-b[0],y-b[1]),text,font=f,fill=255)
  lines.append(f'const ivec4 PS_{key}=ivec4(0,{y},{w},{h});');y+=h+10
+# The progress card uses proportional type instead of the search keyboard's
+# fixed-width glyph cells. Both weights fit in the existing reserved atlas.
+y,progress_header=progress_type(d,y)
+if y>2048:raise ValueError('Progress typography exceeds the shell atlas')
+(root/'app/shaders/load-progress-type.glsl').write_text(progress_header)
 pixels=im.tobytes();packed=bytearray(len(pixels)//4)
 for n,v in enumerate(pixels):packed[n//4]|=((v*3+127)//255)<<((n%4)*2)
 # Original UI type is used by module overlays and search keyboard.

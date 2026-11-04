@@ -1,18 +1,47 @@
 {
-  "id": "file-exchange",
-  "modules": [
-    "iz-exchange"
-  ],
-  "preinstalledEngines": [
-    "izmysh"
-  ],
-  "optionalEngines": [
-    "pepsipu",
-    "kurumuz"
-  ],
-  "nodeMajor": 24,
+  "id": "iz2s-platform",
+  "repository": "https://github.com/byizmysh/IZ2S-Platform",
+  "version": "0.21.0",
   "shells": [
     "izlauncher",
     "izpslauncher"
-  ]
+  ],
+  "preinstalledEngines": [
+    "izmysh",
+    "bermthesequel"
+  ],
+  "optionalEngines": [
+    "kurumuz"
+  ],
+  "modules": [
+    "iz-exchange",
+    "iz-exchange-fs",
+    "book-reader"
+  ],
+  "moduleDirectories": [
+    "iz-exchange",
+    "iz-exchange-fs",
+    "BookReader"
+  ],
+  "hostPlatforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "inputDevices": [
+    "ARM PC",
+    "Cardputer ADV"
+  ],
+  "installerPlatforms": [
+    "linux-x64",
+    "linux-arm64",
+    "win32-x64",
+    "darwin-x64",
+    "darwin-arm64"
+  ],
+  "experimentalInstallerPlatforms": [
+    "win32-x64",
+    "darwin-x64",
+    "darwin-arm64"
+  ],
+  "publicationStatus": "local-test-candidate"
 }

@@ -1,9 +1,244 @@
 'use strict';
+// BEGIN WORKSPACE TABS
+globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke}) {
+  const tabs=document.getElementById('workspace-tabs'),home=document.getElementById('workspace-home'),panes=document.getElementById('workspace-tools'),dock=document.getElementById('workspace-dock');
+  const rows=new Map(),records=new Map(),seen=new Map(),modules=new Map(),moduleViews=new Set(),closed=new Map();
+  let active='home',snapshot,available=true;
+  const el=(tag,text,className)=>{const node=document.createElement(tag);if(text)node.textContent=text;if(className)node.className=className;return node;};
+  const action=(label,fn,className)=>{const button=el('button',label,className);button.type='button';button.onclick=()=>Promise.resolve().then(fn).catch(error=>notice(error.message));return button;};
+  const icon=name=>{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),use=document.createElementNS(svg.namespaceURI,'use');svg.setAttribute('aria-hidden','true');use.setAttribute('href','#'+name);svg.append(use);return svg;};
+  const label=(node,text)=>{if(node.dataset.sourceText!==text){node.dataset.sourceText=text;node.textContent=text;}};
+  const statusText=record=>record.pending?'Stopping…':record.opening?'Opening…':record.state==='running'?'Running':record.state==='retained'?'Restart console required':record.state==='stopped'?'Stopped':'Unavailable';
+  const moduleTitle=id=>{const module=modules.get(id);return module?.name+([...modules.values()].filter(item=>item.name===module?.name).length>1?' · '+(module.version||id):'');};
+  try{for(const [id,value] of JSON.parse(sessionStorage.getItem('iz2s.closedTools')||'[]'))closed.set(id,value);}catch{}
+  const remember=()=>{try{sessionStorage.setItem('iz2s.closedTools',JSON.stringify([...closed]));}catch{}};
+  const mainWrap=el('div',null,'workspace-tab'),mainTab=action('Overview',()=>select('home'),'workspace-tab-label');
+  mainWrap.dataset.tabId='home';mainTab.setAttribute('role','tab');mainTab.id='workspace-tab-home';mainTab.setAttribute('aria-controls','workspace-home');mainWrap.append(mainTab);tabs.append(mainWrap);
+  function selection() {
+    mainWrap.classList.toggle('active',active==='home');mainTab.setAttribute('aria-selected',String(active==='home'));mainTab.tabIndex=active==='home'?0:-1;
+    for(const [id,row]of rows){const selected=id===active;row.pane.hidden=!selected;row.tab.classList.toggle('active',selected);row.button.setAttribute('aria-selected',String(selected));row.button.tabIndex=selected?0:-1;}
+    for(const row of dock.children){const record=records.get(row.dataset.workspaceId),selected=row.dataset.workspaceId===active||(active.startsWith('module-info-')&&record?.kind==='module'&&record.moduleId===active.slice(12));row.classList.toggle('active',selected);const button=row.querySelector('button');if(selected)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');}
+    tabs.hidden=rows.size===0;document.body.classList.toggle('workspace-active',active!=='home');
+  }
+  function select(id) {
+    if(id!=='home'&&!rows.has(id))return;
+    active=id;home.hidden=id!=='home';panes.hidden=id==='home';selection();
+    onSelect?.(id==='home'?{id:'home',title:'Overview'}:{id,title:rows.get(id).title});
+  }
+  function close(id) {
+    const row=rows.get(id);if(!row)return;
+    const order=['home',...rows.keys()],previous=order[Math.max(0,order.indexOf(id)-1)];
+    const record=records.get(id);if(record)closed.set(id,record.requestId);
+    remember();row.pane.remove();row.tab.remove();rows.delete(id);if(active===id)select(previous);else selection();renderDock();
+  }
+  function make(id,title) {
+    if(rows.has(id)){const row=rows.get(id);row.title=title;label(row.button,title);row.button.title=title;row.dismiss.setAttribute('aria-label','Close view: '+title);return row;}
+    const tab=el('div',null,'workspace-tab'),button=action(title,()=>select(id),'workspace-tab-label'),dismiss=action('×',()=>close(id),'workspace-close'),pane=el('section',null,'workspace-pane');
+    tab.dataset.tabId=id;button.setAttribute('role','tab');button.id='workspace-tab-'+id;button.setAttribute('aria-controls','workspace-pane-'+id);button.title=title;
+    dismiss.setAttribute('aria-label','Close view: '+title);dismiss.title='Close view; the module keeps running';
+    pane.id='workspace-pane-'+id;pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby',button.id);pane.hidden=true;tab.append(button,dismiss);tabs.append(tab);panes.append(pane);
+    const row={tab,button,dismiss,pane,title};rows.set(id,row);selection();return row;
+  }
+  function shareLanguage(frame) {
+    const language=globalThis.RUN21_LANGUAGE?.id;
+    if(language)frame.contentWindow?.postMessage({type:'iz2s:workspace-language',language},new URL(frame.src).origin);
+  }
+  function renderRecord(record) {
+    const row=make(record.id,record.title),ready=record.state==='running',retained=record.state==='retained';
+    if(!row.content){
+      row.toolbar=el('div',null,'workspace-tool-bar');row.status=el('span',null,'workspace-status');row.status.setAttribute('role','status');
+      row.reload=action('Reload view',async()=>{const current=records.get(record.id);if(current?.state==='running'){if(row.frame)row.frame.src=row.frame.src;}else await startRecord(record.id);},'secondary');
+      row.stop=action('Stop module',()=>stopRecord(record.id),'workspace-stop');
+      const controls=el('div',null,'workspace-tool-actions');controls.append(action('Close view',()=>close(record.id),'secondary'),row.reload,row.stop);row.toolbar.append(row.status,controls);
+      row.content=el('div',null,'workspace-content');row.pane.replaceChildren(row.toolbar,row.content);
+    }
+    label(row.status,statusText(record));row.status.dataset.state=record.state;
+    label(row.reload,ready?'Reload view':'Start / open');row.reload.disabled=!!record.pending||!!record.opening||retained||(!available&&!ready)||(!ready&&!!snapshot?.preview);
+    label(row.stop,record.pending?'Stopping…':record.kind==='settings'?'Stop settings':'Stop module');row.stop.disabled=!!record.pending||!!record.opening||retained||record.state==='stopped'||(!record.moduleId&&record.kind!=='files')||!available||!!snapshot?.preview;
+    const signature=record.url+'|'+record.state;
+    if(row.signature===signature)return row;
+    row.signature=signature;row.content.replaceChildren();row.frame=null;
+    if(!ready)row.content.append(el('p',retained?'This module could not confirm native cleanup. Restart the console before starting it again.':'The interface is stopped. Use Start / open to return.','workspace-empty'));
+    else{
+      const frame=el('iframe'),target=new URL(record.url);if(record.kind==='files')target.searchParams.set('embedded','1');
+      frame.name='iz2s-workspace';frame.title=record.title;frame.src=target.href;frame.referrerPolicy='no-referrer';
+      frame.setAttribute('allow','fullscreen; display-capture; gamepad; clipboard-write');
+      frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-downloads allow-modals allow-popups allow-pointer-lock');
+      frame.onload=()=>shareLanguage(frame);row.frame=frame;row.content.append(frame);
+    }
+    return row;
+  }
+  async function startRecord(id) {
+    const record=records.get(id);if(!record||record.pending||record.opening||!available)return;
+    const previousClose=closed.get(id);
+    record.opening=true;renderDock();if(rows.has(id))renderRecord(record);
+    try{const result=await api('/api/workspace/open',{id});if(result.tab&&records.get(id)?.requestId===record.requestId){const dismissed=closed.get(id)!==previousClose;if(dismissed){closed.set(id,result.tab.requestId);remember();}openRequest(result.tab,!dismissed);}}
+    finally{const current=records.get(id);if(current){current.opening=false;if(rows.has(id))renderRecord(current);}renderDock();}
+  }
+  async function stopRecord(id) {
+    const record=records.get(id);if(!record||record.pending||record.opening||!available)return;
+    record.pending=true;renderDock();if(rows.has(id))renderRecord(record);
+    try{const result=await api('/api/workspace/stop',{id});if(!records.has(id)||records.get(id).requestId!==record.requestId)return;const current=result.tab||records.get(id);if(!result.tab)current.state='stopped';records.set(id,{...current,title:record.title,pending:true});if(rows.has(id))renderRecord(records.get(id));}
+    finally{const current=records.get(id);if(current){current.pending=false;if(rows.has(id))renderRecord(current);}renderDock();}
+  }
+  function openRequest(record,force=false) {
+    if(!record||!/^[-a-z0-9]{1,80}$/.test(record.id))throw Error('Invalid module tab');
+    const url=new URL(record.url);if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.username||url.password)throw Error('Module interface must be local');
+    const previous=records.get(record.id);record={...record,...(record.kind==='files'?{title:'Super File Bros.'}:{}),pending:previous?.pending,opening:previous?.opening};
+    records.set(record.id,record);const fresh=seen.get(record.id)!==record.requestId;seen.set(record.id,record.requestId);
+    if(force||fresh&&!record.opening&&closed.get(record.id)!==record.requestId&&record.state!=='stopped'){closed.delete(record.id);remember();renderRecord(record);select(record.id);}
+    else if(rows.has(record.id))renderRecord(record);
+    renderDock();
+  }
+  function dockRow(id,title,status,callback,kind) {
+    const row=el('div',null,'workspace-dock-row'),open=action('',callback,'workspace-dock-open'),text=el('span',null,'workspace-dock-text');
+    row.dataset.workspaceId=id;open.title=title;text.append(el('span',title,'workspace-dock-name'));open.append(icon(kind==='files'?'i-folder':'i-grid'),text);row.append(open,el('small',status,'workspace-dock-state'));return {row,open};
+  }
+  function renderDock() {
+    const stamp=JSON.stringify([available,!!snapshot?.preview,[...records.values()].map(r=>[r.id,r.title,r.url,r.requestId,r.state,r.pending,r.opening,r.moduleId]),[...moduleViews].map(id=>[id,moduleTitle(id),snapshot?.installed,snapshot?.moduleStates])]);
+    if(dock.dataset.stamp===stamp){selection();return;}dock.dataset.stamp=stamp;dock.replaceChildren();
+    for(const record of records.values()){
+      const {row,open}=dockRow(record.id,record.title,statusText(record),()=>['running','retained'].includes(record.state)?openRequest(record,true):startRecord(record.id),record.kind),stop=action('Stop',()=>stopRecord(record.id),'workspace-dock-stop');
+      stop.setAttribute('aria-label','Stop '+record.title);stop.title='Stop '+record.title;stop.disabled=!!record.pending||!!record.opening||['stopped','retained'].includes(record.state)||(!record.moduleId&&record.kind!=='files')||!available||!!snapshot?.preview;open.disabled=!!record.pending||!!record.opening;row.append(stop);dock.append(row);
+    }
+    for(const id of moduleViews){
+      const module=modules.get(id);if(!module||[...records.values()].some(record=>record.moduleId===id&&record.kind==='module'))continue;
+      const loaded=snapshot?.installed?.some(item=>(typeof item==='string'?item:item.id)===id),running=snapshot?.moduleStates?.some(item=>item.id===id&&item.state==='running');
+      dock.append(dockRow('module-info-'+id,moduleTitle(id),running?'Running':loaded?'Loaded on console':'Not running',()=>openModule(id),'module').row);
+    }
+    dock.hidden=!dock.childElementCount;document.getElementById('workspace-dock-title').hidden=dock.hidden;selection();
+  }
+  function moduleContent(id) {
+    const module=modules.get(id),row=rows.get('module-info-'+id);if(!module||!row)return;
+    row.pane.replaceChildren();row.pane.classList.add('workspace-module-details');
+    const loaded=snapshot?.installed?.some(item=>(typeof item==='string'?item:item.id)===id),running=snapshot?.moduleStates?.some(item=>item.id===id&&item.state==='running'),toolbar=el('div',null,'workspace-tool-bar'),controls=el('div',null,'workspace-tool-actions'),status=el('span',row.modulePending?'Operation in progress…':running?'Running':loaded?'Loaded on console':'Not running','workspace-status');
+    status.dataset.state=running?'running':'stopped';status.setAttribute('role','status');row.pane.setAttribute('aria-busy',String(!!row.modulePending));toolbar.append(status,controls);
+    const taskButton=(title,fn,disabled=false)=>{const button=action(title,async()=>{if(row.modulePending)return;row.modulePending=true;moduleContent(id);try{await fn();}finally{row.modulePending=false;if(rows.has('module-info-'+id))moduleContent(id);}},'secondary');button.disabled=disabled||!!row.modulePending;controls.append(button);};
+    if(module.switch)taskButton(loaded?'Remove from console':'Load on console',()=>invoke(loaded?'/api/unload':'/api/load',{ids:[id]}),!available||!snapshot?.connected||!!snapshot?.preview||!!(snapshot?.platform?.residentGraphics&&snapshot?.active));
+    if(module.server&&!module.switch)taskButton(running?'Stop module':'Start module',()=>invoke(running?'/api/module/stop':'/api/module/start',{id}),!available||!!snapshot?.preview);
+    if(module.server?.settings)taskButton(module.server.settings.label||'Settings',async()=>{const result=await api('/api/module/settings',{id});openRequest(result.tab,true);},!available||!!snapshot?.preview);
+    const content=el('div',null,'workspace-module-copy');content.append(el('h1',module.name),el('p',module.description||'','subtitle'));
+    if(module.switch)content.append(el('p','This module runs on the console. Use this tab to load or remove it.','hint'));
+    row.pane.append(toolbar,content);
+  }
+  function openModule(id) {
+    if(!modules.has(id))throw Error('Module is no longer installed');
+    const record=[...records.values()].find(record=>record.moduleId===id&&record.kind==='module');if(record){openRequest(record,true);return rows.get(record.id);}
+    const row=make('module-info-'+id,moduleTitle(id));moduleViews.add(id);moduleContent(id);select('module-info-'+id);renderDock();return row;
+  }
+  function updateModules(state) {
+    const stamp=JSON.stringify([state.moduleCatalog,state.moduleStates,state.installed,state.connected,state.preview,state.platform?.residentGraphics]);
+    const ended=snapshot?.connected&&(!state.connected||snapshot.active?.id!==state.active?.id);
+    snapshot=state;if(updateModules.stamp===stamp&&!ended)return;updateModules.stamp=stamp;
+    if(ended)for(const id of [...moduleViews]){moduleViews.delete(id);close('module-info-'+id);}
+    modules.clear();for(const module of state.moduleCatalog||[])modules.set(module.id,module);
+    for(const id of moduleViews){if(!modules.has(id)){close('module-info-'+id);moduleViews.delete(id);}else if(rows.has('module-info-'+id)){make('module-info-'+id,moduleTitle(id));moduleContent(id);}}
+    for(const [id,record]of records)if(rows.has(id))renderRecord(record);renderDock();
+  }
+  function setAvailable(value){if(available===value)return;available=value;for(const [id,record]of records)if(rows.has(id))renderRecord(record);for(const id of moduleViews)if(rows.has('module-info-'+id))moduleContent(id);renderDock();}
+  function sync(entries){
+    const present=new Set(entries.map(entry=>entry.id));
+    for(const id of [...records.keys()])if(!present.has(id)){
+      records.delete(id);seen.delete(id);closed.delete(id);close(id);
+    }
+    remember();for(const entry of entries)openRequest(entry);renderDock();
+  }
+  tabs.addEventListener('keydown',event=>{
+    if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+    const buttons=[...tabs.querySelectorAll('[role=tab]')],index=buttons.indexOf(document.activeElement);if(index<0)return;event.preventDefault();
+    const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next].click();buttons[next].focus();
+  });
+  window.addEventListener('run21:languagechange',()=>{for(const row of rows.values())if(row.frame)shareLanguage(row.frame);});
+  window.addEventListener('message',event=>{if(event.data?.type!=='iz2s:workspace-ready')return;for(const row of rows.values())if(row.frame&&event.source===row.frame.contentWindow&&event.origin===new URL(row.frame.src).origin)shareLanguage(row.frame);});
+  select('home');return{select,openRequest,openModule,updateModules,sync,close,setAvailable};
+}};
+// END WORKSPACE TABS
+// BEGIN GENERATED RUN21_CATALOG
+const RUN21_CATALOG = (function createPolicy() {
+  const hidden = new Set([
+    'cpu-mailbox-lab',
+    'cpu-mailbox-lab-v2',
+    'cpu-mailbox-lab-v3',
+    'ims-driver-cache-probe',
+    'ims-music-packed-lab',
+    'izbrowser-check-20261101',
+    'izbrowser-offline-v2-20261101',
+    'izbrowser-offline-v3-20261101',
+    'izbrowser-offline-v4-20261101',
+    'izbrowser-wifi-20261101',
+    'izdoom-native18',
+    'izdoom-prime18',
+    'izdoom-wide18',
+    'izoff-012',
+    'izsonic-transfer18',
+    'ns1-core-constructor-check',
+    'ns1-memory-budget-check',
+    'ns1-memory-budget-extended-check',
+    'ns1-native-cached-memory-check',
+    'ns1-paged-core-check',
+    'ns1-paged-core-current-check',
+    'ns1-paged-kernel-check',
+    'ns1-paged-kernel-current-check',
+    'ns1-runtime-check',
+    'ns1-runtime-tls-check',
+    'ns1-vulkan-capabilities-check',
+    'ns1-vulkan-memory-check',
+    'ns1-vulkan-pool-check',
+    'ps2-cpu-interpreter-check',
+    'ps2-cpu-lightweight-check',
+  ]);
+  const hiddenEngines = new Set(['pepsipu', 'izmysh-resume']);
+  const izEngines = new Set(['izmysh', 'bermthesequel']);
+  const izVariants = new Set(['izlauncher', 'izpslauncher']);
+
+  function visible(descriptor) {
+    return !hidden.has(descriptor.id);
+  }
+
+  function engineAvailable(loader, variant) {
+    if (!loader || hiddenEngines.has(loader.id) || loader.supported === false) return false;
+    const declared = Array.isArray(loader.availableIn) ? loader.availableIn
+      : Array.isArray(loader.modes) ? loader.modes : null;
+    if (variant === 'original') return !declared || declared.includes('original');
+    if (!izVariants.has(variant) || !izEngines.has(loader.id)) return false;
+    // Older APIs declared only the common IZLauncher transport mode.
+    return !declared || declared.some(mode => izVariants.has(mode));
+  }
+
+  function normalizeSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return snapshot;
+    const result = {...snapshot};
+    if (Array.isArray(snapshot.library)) result.library = snapshot.library.filter(visible);
+    if (Array.isArray(snapshot.moduleCatalog)) result.moduleCatalog = snapshot.moduleCatalog.filter(visible);
+    if (snapshot.platform && Array.isArray(snapshot.platform.loaders)) {
+      result.platform = {
+        ...snapshot.platform,
+        loaders: snapshot.platform.loaders.filter(loader => !hiddenEngines.has(loader.id)).map(loader => ({
+          ...loader,
+          availableIn: ['original', 'izlauncher', 'izpslauncher'].filter(variant => engineAvailable(loader, variant)),
+        })),
+      };
+    }
+    // Active sessions, installed apps, jobs, loaderId and connection state stay intact.
+    return result;
+  }
+
+  return {visible, engineAvailable, normalizeSnapshot};
+})();
+// END GENERATED RUN21_CATALOG
+if (new URLSearchParams(location.search).get('ui-preview') === 'files') {
+  document.documentElement.lang = 'en';
+  document.title = 'Filesystem · IZ2S preview';
+  document.getElementById('panel-startup').hidden = true;
+  document.getElementById('manual-files-document').hidden = false;
+} else {
 const $ = (id) => document.getElementById(id),
   key = location.hash.slice(1),
   selection = new Set();
 let hardStopping = false;
+let stopTask = null, pendingStart = false, actionGeneration = 0;
 let state = null,
+  serverUnavailable = false,
   step = 'launch',
   busy = false,
   timer = null,
@@ -20,6 +255,17 @@ let state = null,
   backendNotice = '';
 const startupSelection = new Set();
 let startupStamp = '';
+// The manual-input design is a local UI preview, separate from session settings.
+let inputDesign = 'arm', manualDesignStage = 1;
+const advSetup = globalThis.IZ2S_ADV_SETUP.create({document, changed:()=>{if(state)renderWizard();}, openSetup:()=>chooseStep('bootstrap')});
+let workspaceReady = false;
+const workspace = globalThis.IZ2S_WORKSPACE.create({document,api,notice,invoke:act,onSelect:tab=>{
+  const selected=document.querySelector('.view:not([hidden])')?.id||'setup';
+  const title=tab.id==='home'?({setup:'Connection',apps:'App library',history:'Failed attempts'}[selected]||'IZ2S'):tab.title;
+  document.querySelectorAll('.sidebar [data-view]').forEach(button=>{const current=tab.id==='home'&&button.dataset.view===selected;button.classList.toggle('active',current);if(current)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
+  $('view-title').textContent=title;document.title=title+' · IZ2S Platform';
+}});
+const manualDesignConfirmed = new Set();
 try {
   for (const id of JSON.parse(
     (localStorage.getItem('iz2s.startupModules') ?? localStorage.getItem('iz15.startupModules')) || '[]',
@@ -41,7 +287,7 @@ try {
     (localStorage.getItem('iz2s.startupEnabled') ?? localStorage.getItem('iz15.startupEnabled')) === '1';
 } catch {}
 const words = {
-  server: ['Server', 'i-server'],
+  server: ['Server x64 PC', 'i-server'],
   arm: ['ARM PC', 'i-arm'],
   usb: ['ARM Type C - Switch', 'i-usb'],
   lan: ['Console', 'i-lan'],
@@ -52,6 +298,14 @@ const element = (tag, className, text) => {
   if (text !== undefined) e.textContent = text;
   return e;
 };
+function setText(node, value) {
+  const text = String(value ?? '');
+  if (node.textContent !== text) node.textContent = text;
+}
+function placeChild(parent, child, index) {
+  if (parent.children[index] !== child)
+    parent.insertBefore(child, parent.children[index] || null);
+}
 function folderButton(kind, id, text = 'Open folder') {
   const button = element('button', 'quiet folder-button');
   button.type = 'button';
@@ -59,31 +313,40 @@ function folderButton(kind, id, text = 'Open folder') {
   button.append(element('span', '', text));
   button.setAttribute('aria-label', text);
   button.title = text;
-  button.disabled = !!state?.preview;
+  button.disabled = serverUnavailable || !!state?.preview;
   button.onclick = async event => {
     event.preventDefault();
     event.stopPropagation();
+    button.dataset.pending = 'true';
     button.disabled = true;
     try { await api('/api/folder/open', { kind, ...(id ? { id } : {}) }); }
     catch (error) { notice(error.message); }
-    finally { button.disabled = !!state?.preview; }
+    finally { delete button.dataset.pending; renderLocalActionAvailability(); }
   };
   return button;
 }
 const date = (value) =>
-  value ? new Date(value).toLocaleString('en-GB', { hour12: false }) : '';
-async function api(route, data) {
-  const res = await fetch(route, {
-    method: data === undefined ? 'GET' : 'POST',
-    headers: {
-      'x-iz-key': key,
-      ...(data === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    ...(data === undefined ? {} : { body: JSON.stringify(data) }),
-  });
-  const result = await res.json();
-  if (!res.ok) throw Error(result.error || 'The server did not respond');
-  return result;
+  value ? new Date(value).toLocaleString(globalThis.RUN21_LANGUAGE?.locale || 'en-GB', { hour12: false }) : '';
+async function api(route, data, options = {}) {
+  // Only status reads have a deadline; actions may still be running on the server.
+  const controller = data === undefined && options.timeoutMs > 0 ? new AbortController() : null;
+  const deadline = controller ? setTimeout(() => controller.abort(), options.timeoutMs) : null;
+  try {
+    const res = await fetch(route, {
+      method: data === undefined ? 'GET' : 'POST',
+      headers: {
+        'x-iz-key': key,
+        ...(data === undefined ? {} : { 'content-type': 'application/json' }),
+      },
+      ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+    const result = await res.json();
+    if (!res.ok) throw Error(result.error || 'The server did not respond');
+    return result;
+  } finally {
+    if (deadline !== null) clearTimeout(deadline);
+  }
 }
 function notice(message, type = 'error', identity = message) {
   if (identity === dismissed) return;
@@ -96,26 +359,67 @@ function notice(message, type = 'error', identity = message) {
   $('toast').querySelector('.toast-symbol').textContent =
     type === 'success' ? '✓' : '!';
 }
-async function act(route, data) {
+async function act(route, data = {}) {
+  if (route === '/api/stop') return stopSession();
+  if (inputDesign === 'own' && !['/api/stop', '/api/hard-stop', '/api/dismiss'].includes(route)) {
+    notice('This is a manual input preview. Changes are not sent to the device.');
+    return;
+  }
   if (busy) return;
+  const generation = ++actionGeneration;
   busy = true;
+  pendingStart = route === '/api/start';
   renderControls();
   try {
     const result = await api(route, data);
-    await poll();
-    return result;
+    if (generation === actionGeneration) await poll();
+    return generation === actionGeneration ? result : undefined;
   } catch (e) {
-    notice(e.message);
+    if (generation === actionGeneration) notice(e.message);
   } finally {
-    busy = false;
-    renderControls();
+    if (generation === actionGeneration) {
+      busy = false;
+      pendingStart = false;
+      renderControls();
+    }
   }
 }
+function stopSession() {
+  if (stopTask) return stopTask;
+  // STOP bypasses queued server work. Keep it reachable during a pending
+  // launch, and ignore that request's eventual UI result after cancellation.
+  actionGeneration++;
+  busy = true;
+  pendingStart = false;
+  $('screen-ready').checked = false;
+  document.querySelectorAll('.up-ready,.up-source-ready').forEach(input => {input.checked = false;});
+  stopTask = Promise.resolve().then(async () => {
+    try {
+      const result = await api('/api/stop', {});
+      await poll();
+      return result;
+    } catch (error) {notice(error.message);}
+    finally {stopTask = null; busy = false; renderControls();}
+  });
+  renderControls();
+  return stopTask;
+}
 function switchView(id) {
+  if (!['setup', 'apps', 'history'].includes(id)) return;
+  workspace.select('home');
+  const previous = document.querySelector('.view:not([hidden])')?.id;
+  if (inputDesign === 'own' && id !== 'setup') {
+    inputDesign = 'arm';
+    if (state) { renderDevices(); renderControls(); }
+  }
   document.querySelectorAll('.view').forEach((e) => (e.hidden = e.id !== id));
   document
-    .querySelectorAll('[data-view]')
-    .forEach((e) => e.classList.toggle('active', e.dataset.view === id));
+    .querySelectorAll('.sidebar [data-view]')
+    .forEach((e) => {const current=e.dataset.view===id;e.classList.toggle('active',current);if(current)e.setAttribute('aria-current','page');else e.removeAttribute('aria-current');});
+  const title = { setup: 'Connection', apps: 'App library', history: 'Failed attempts' }[id] || 'IZ2S Platform';
+  $('view-title').textContent = title;
+  document.title = title + ' · IZ2S Platform';
+  if (previous !== id) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 }
 function chooseStep(value) {
   step = value;
@@ -139,6 +443,7 @@ function deliveryDirty() {
   );
 }
 function renderControls() {
+  document.querySelectorAll('.segmented button,[data-step]').forEach(button=>button.setAttribute('aria-pressed',String(button.classList.contains('selected'))));
   if(state?.platform)renderArmSetup(state.platform);
   renderPlatformControls();
   const setup = state?.active?.kind === 'bootstrap' ? state.active.setup : null,
@@ -146,7 +451,17 @@ function renderControls() {
     active = !!state?.active,
     ready = !!state?.checks.ready,
     ack = $('screen-ready').checked,
-    initial = !active || reboot;
+    initial = !active || reboot,
+    retryRequired = false;
+  const engineAllowed = !state?.platform || RUN21_CATALOG.engineAvailable(
+    state.platform.loaders.find(loader => loader.id === state.platform.loaderId),
+    state.platform.variant,
+  );
+  const residentLaunch=initial&&(step==='launch'||reboot)&&state?.platform?.residentGraphics===true&&['izlauncher','izpslauncher'].includes(state?.platform?.variant);
+  const startupIds=$('preload-enabled').checked?[...startupSelection]:[];
+  const residentBad=residentLaunch?startupIds.map(id=>state.library.find(p=>p.id===id)).filter(p=>!residentEligibility(p)?.compatible):[];
+  const residentAudioCount=startupIds.map(id=>(state?.library||[]).find(p=>p.id===id)).filter(p=>residentEligibility(p)?.code==='finite-audio-candidate').length;
+  const residentIssue=residentLaunch?(residentAudioCount>1?'Select one qualified game for retained audio.':(state.library.some(p=>!residentEligibility(p))?'Restart the panel to enable module compatibility checks.':residentBad.length?'Remove incompatible apps from the retained set: '+residentBad.map(p=>p?.name||'unknown module').join(', ')+'.':!startupIds.length?'Select at least one compatible app at startup.':'')):'';
   $('recovery-option').hidden =
     step !== 'bootstrap' || !initial || !state?.recoverySetupAvailable;
   $('recovery-enabled').disabled =
@@ -159,7 +474,7 @@ function renderControls() {
   $('preload-clear').disabled = busy || !initial;
   document
     .querySelectorAll('#preload-list input')
-    .forEach((e) => (e.disabled = busy || !initial || e.dataset.unavailable === 'true'));
+    .forEach((e) => (e.disabled = busy || !initial || e.dataset.unavailable === 'true' || (e.dataset.residentUnavailable === 'true'&&!e.checked)));
   $('preload-count').textContent = startupSelection.size + ' selected';
   $('start').disabled =
     busy ||
@@ -169,17 +484,31 @@ function renderControls() {
     !ack ||
     !!state?.preview ||
     !state?.setupWizard ||
+    !engineAllowed ||
+    !!residentIssue ||
     deliveryDirty();
   $('start-label').textContent =
     reboot || step === 'launch'
-      ? 'Load IZlauncher'
+      ? 'Load ' + selectedShellName()
       : 'Install ' +
         ($('recovery-enabled').checked && state?.recoverySetupAvailable
           ? state?.platform?.delivery?.recoveryBootstrapName || 'NS2R'
           : state?.platform?.delivery?.baseBootstrapName || 'NS2');
-  $('start').hidden = !initial;
-  $('gate-message').textContent = deliveryDirty()
-    ? 'Save the loading settings before launch.'
+  $('start').hidden = !initial || retryRequired;
+  $('retry').hidden = !retryRequired;
+  $('session-confirmation').hidden = retryRequired;
+  $('retry').textContent = state?.lastAttempt?.kind === 'bootstrap'
+    ? 'Restart First Setup' : 'Return to Launch';
+  $('gate-message').textContent = retryRequired
+    ? state.lastAttempt.kind === 'bootstrap'
+      ? 'Return to setup, then confirm the screen before continuing.'
+      : 'Return to the form, then confirm the screen before loading.'
+    : !engineAllowed
+    ? 'Choose IZ2S Core or ns2jb by BermTheSequel, or use Core only.'
+    : deliveryDirty()
+    ? 'Saving session settings…'
+    : residentIssue
+      ? residentIssue
     : state?.emergencyInputPending
       ? 'Check the ARM PC connection. Press red STOP to retry input cancellation.'
       : !state?.setupWizard
@@ -193,16 +522,16 @@ function renderControls() {
               : !ack
                 ? 'Confirm the console screen to continue'
                 : 'All checks passed · ready to start';
-  $('hard-stop').hidden = !active && !busy && !state?.emergencyInputPending;
+  $('hard-stop').hidden = !state?.emergencyInputPending && !state?.active?.stopTimedOut;
   $('hard-stop').disabled = hardStopping || !state?.hardStopAvailable;
-  $('stop').hidden = !active;
-  $('stop').disabled = busy || state?.active?.status === 'stopping';
+  $('stop').hidden = !active && !pendingStart && !stopTask;
+  $('stop').disabled = !!stopTask || state?.active?.status === 'stopping';
   $('stop').textContent =
-    state?.active?.status === 'stopping'
+    stopTask || state?.active?.status === 'stopping'
       ? 'Disconnecting…'
       : state?.active?.kind === 'bootstrap'
         ? 'Cancel setup'
-        : 'Disconnect safely';
+        : 'Stop and return to Launch';
   $('screen-ready').disabled = !initial || busy;
   $('screen-ready').parentElement.hidden = !initial;
   document
@@ -226,7 +555,7 @@ function renderControls() {
           !state?.connections ||
           !!state?.connections?.locked ||
           !!state?.preview ||
-          e.dataset.unavailable === 'true'),
+          e.dataset.unavailable === 'true' || e.dataset.fixed === 'true'),
     );
   const hidDisabled = busy || !ready || !!state?.preview || !state?.setupWizard;
   $('verify-source').disabled = hidDisabled || !$('review-ready').checked;
@@ -244,6 +573,9 @@ function renderControls() {
   $('retry').disabled = busy;
   $('restart-setup').disabled = busy;
   $('edit-readings').disabled = busy;
+  renderManualInputDesign();
+  advSetup.render({state,step,busy,serverUnavailable,manual:inputDesign==='own'});
+  renderServerAvailability();
 }
 function renderWizard() {
   if (state?.platform && !state.platform.izModules) {
@@ -263,19 +595,9 @@ function renderWizard() {
   const setup = row?.kind === 'bootstrap' ? row.setup : null,
     stage = setup?.stage || 'prepare',
     show = step === 'bootstrap' || !!setup;
-  for (const id of [
-    'wizard-review',
-    'wizard-values',
-    'wizard-results',
-    'wizard-save',
-    'wizard-saved',
-  ])
-    $(id).hidden = true;
-  $('wizard-steps').hidden = !show;
+  $('wizard-results').hidden = !setup?.comparison || !['mismatch', 'save'].includes(stage);
+  $('wizard-steps').hidden = !show || state.platform?.configuration?.inputAdapter === 'cardputer-wifi';
   renderInstallationSlot();
-  const failed =
-    !row && ['failed', 'cancelled'].includes(state.lastAttempt?.status);
-  $('retry').hidden = !failed;
   const source =
       setup ||
       ($('recovery-enabled').checked && state.recoverySetupAvailable
@@ -364,6 +686,27 @@ function renderWizard() {
     $('screen-label').textContent = state.platform?.delivery?.preloaded
       ? 'After a full restart, the bootstrap is loaded in slot 0 and Direct is open; RUN and REMOVE have not been executed.'
       : 'I fully restarted the Switch and opened fresh SmileBASIC Direct.';
+  }
+  if (state.platform?.configuration?.inputAdapter === 'cardputer-wifi') {
+    const capsOn = state.platform.profiles?.[state.platform.configurationId]?.cardputerCapsLock === 'on';
+    const brief = {
+      prepare:capsOn
+        ? 'Open SmileBASIC Direct. Use an empty slot, English (US), Caps Lock on.'
+        : 'Open SmileBASIC Direct. Use an empty slot, English (US), Caps Lock off.',
+      typing:'ADV is entering the preloaded source. Keep SmileBASIC open.',
+      review:'Check the source on Switch 2, then save it.',
+      checking:'ADV is entering the optional source check.',
+      values:'Enter the six numbers shown on Switch 2.',
+      mismatch:'The readings differ. Check the source or enter the readings again.',
+      save:'Save the bootstrap on Switch 2.',
+      saving:'Wait for saving to finish on Switch 2.',
+      save_confirmation:'Confirm the saved file on Switch 2.',
+      reboot:'Fully restart Switch 2 and open fresh SmileBASIC Direct.',
+    };
+    $('step-description').textContent = show ? brief[stage] || brief.prepare : 'ADV: Wi-Fi on, USB to Switch 2. Restart Switch 2 and open fresh Direct.';
+    $('screen-label').textContent = show && stage !== 'reboot'
+      ? 'ADV is connected to Switch 2. Direct is open; slot ' + sourceSlot + ' is empty; English (US), Caps Lock ' + (capsOn ? 'on.' : 'off.')
+      : 'ADV is connected to Switch 2. Switch 2 was fully restarted; fresh Direct is open.';
   }
   const stamp = (row?.id || 'none') + ':' + stage;
   if (stamp !== setupStamp) {
@@ -527,11 +870,11 @@ function renderConsoleConnections(card, preference, locked, supported) {
     }
   }
   const active = preference.paths?.find(
-    (p) => p.ready && p.mode === preference.activeMode,
+    (p) => p.ready && !p.pending && p.address && p.mode === preference.activeMode,
   );
-  editor.querySelector('summary').textContent = active
+  setText(editor.querySelector('summary'), active
     ? networkName(active.mode) + ' · ' + active.address + ' · Edit'
-    : modes.map(networkName).join(' + ') + ' · Auto / manual';
+    : modes.map(networkName).join(' + ') + ' · Auto / manual');
   for (const form of editor.querySelectorAll('form')) {
     const mode = form.dataset.mode,
       input = form.querySelector('input'),
@@ -548,7 +891,7 @@ function renderConsoleConnections(card, preference, locked, supported) {
       e.dataset.unavailable = String(!supported);
       e.disabled = locked || !supported;
     });
-    status.textContent = !supported
+    setText(status, !supported
       ? 'Restart Platform to enable both connections'
       : !enabled
         ? 'Not selected'
@@ -561,12 +904,12 @@ function renderConsoleConnections(card, preference, locked, supported) {
                 (Number.isFinite(path.latencyMs)
                   ? ' · ' + path.latencyMs.toFixed(2) + ' ms'
                   : '')
-              : 'Unavailable';
+              : 'Unavailable');
     status.title = path?.error || (lastKnown?'Verified '+lastKnown.verifiedAt+'; current connection not confirmed':'');
-    status.classList.toggle('available', !!path?.ready && enabled);
+    status.classList.toggle('available', !!path?.ready && !path?.pending && enabled);
     status.classList.toggle(
       'active',
-      mode === preference.activeMode && !!path?.ready,
+      mode === preference.activeMode && !!path?.ready && !path?.pending,
     );
   }
   card.querySelector('.console-paths')?.remove();
@@ -581,7 +924,7 @@ function renderArmSetup(meta) {
   for(const [id,value] of Object.entries(fields)) if(document.activeElement!==$(id) && !$(id).dataset.edited) $(id).value=value;
   const ready=state.checks.items.find(x=>x.id==='arm')?.ready;
   $('arm-setup-status').textContent=ready?'Input device ready · setup guide remains available':'Install the input package before the first connection';
-  const locked=busy||!!meta.locked||!!state.preview;
+  const locked=serverUnavailable||busy||!!meta.locked||!!state.preview;
   panel.querySelectorAll('input,button').forEach(e=>{if(!['arm-method-ssh','arm-method-manual','arm-package-download'].includes(e.id))e.disabled=locked;});
   $('arm-install-target').textContent='Target folder: '+(meta.configuration.inputDirectory||'/opt/iz2s/arm-input')+' · service: iz2s-discovery.service';
   $('arm-install').disabled ||= !$('arm-install-confirm').checked;
@@ -612,35 +955,205 @@ function renderDeviceDetail(container, row) {
   }
   const extended = detail.length > 70 || detail.includes('\n');
   const first = detail.split(/\.(?:\s|$)|\n/)[0];
-  container.querySelector('.detail-text').textContent = extended
+  setText(container.querySelector('.detail-text'), extended
     ? (first.length <= 55 ? first.replace(/[.;]$/, '') + '.' : row.pending ? 'Waiting for connection.' : row.ready ? 'Ready.' : 'Setup required.')
-    : detail;
+    : detail);
   container.querySelector('.detail-help').hidden = !extended;
-  container.querySelector('.detail-tooltip').textContent = detail;
+  setText(container.querySelector('.detail-tooltip'), detail);
 }
 document.addEventListener('click', (event) => {
   if (!event.target.closest('.detail-help')) document.querySelectorAll('.detail-help[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
+  document.querySelectorAll('.device-picker[open]').forEach(picker => {
+    if (!picker.contains(event.target)) picker.open = false;
+  });
+  const files = $('connection-files');
+  if (files.open && !files.contains(event.target)) files.open = false;
 });
+$('connection-files').addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    $('connection-files').open = false;
+    $('connection-files').querySelector('summary').focus();
+  }
+});
+function renderDevicePicker(card, row) {
+  if (!['server', 'arm'].includes(row.id)) return;
+  const meta = state.platform,
+    architecture = meta.host?.architecture,
+    serverName = architecture === 'arm64' ? 'Server ARM64PC' : architecture === 'x64' ? 'Server x64 PC' : 'Server',
+    inputName = inputDesign === 'own' ? 'Your input device' : meta.configuration.inputAdapter === 'ssh-gadget' ? 'ARM PC' : meta.configuration.hardware?.input?.name || 'ARM PC',
+    choices = row.id === 'server'
+      ? [
+          { id: 'x64', name: 'Server x64 PC', note: architecture === 'x64' ? 'Current server' : 'Start IZ2S on an x64 PC', available: architecture === 'x64' },
+          { id: 'arm64', name: 'Server ARM64PC', note: architecture === 'arm64' ? 'Current server' : 'Start IZ2S on an ARM64 PC', available: architecture === 'arm64' },
+        ]
+      : [
+          { id: 'arm', name: 'ARM PC', note: 'USB keyboard input', available: !state.active && !busy },
+          { id: 'cardputer', name: 'Cardputer ADV', note: 'Wi-Fi → USB keyboard', available: !state.active && !busy },
+          ...(state.preview ? [{ id: 'own', name: 'Manual input · preview', note: 'Interface demonstration only', available: !state.active && !busy }] : []),
+        ];
+  let picker = card.querySelector('.device-picker');
+  if (!picker) {
+    picker = element('details', 'device-picker');
+    const summary = element('summary');
+    summary.setAttribute('aria-label', row.id === 'server' ? 'Server device' : 'Choose an input device');
+    const label = element('span', 'device-picker-label'), chevron = element('span', 'device-picker-chevron', '⌄');
+    chevron.setAttribute('aria-hidden', 'true');
+    summary.append(label, chevron);
+    const options = element('div', 'device-picker-options');
+    options.setAttribute('role', 'group');
+    options.setAttribute('aria-label', row.id === 'server' ? 'Server devices' : 'Input devices');
+    picker.append(summary, options);
+    picker.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { picker.open = false; summary.focus(); }
+    });
+    picker.addEventListener('toggle', () => {
+      if (picker.open) document.querySelectorAll('.device-picker[open]').forEach(other => {
+        if (other !== picker) other.open = false;
+      });
+    });
+    card.querySelector('h3').after(picker);
+  }
+  card.querySelector('h3').hidden = true;
+  setText(picker.querySelector('.device-picker-label'), row.id === 'server' ? serverName : inputName);
+  const stamp = JSON.stringify([choices, inputDesign, meta.configurationId]);
+  if (picker.dataset.choices === stamp) return;
+  picker.dataset.choices = stamp;
+  const options = picker.querySelector('.device-picker-options');
+  options.replaceChildren();
+  for (const choice of choices) {
+    const button = element('button', 'device-picker-option');
+    button.type = 'button';
+    button.disabled = !choice.available;
+    button.setAttribute('aria-label', choice.name + ' · ' + choice.note);
+    const selected = row.id === 'server' ? choice.available : choice.id === (inputDesign === 'own' ? 'own' : meta.configurationId === 'pc-cardputer-adv' ? 'cardputer' : 'arm');
+    button.setAttribute('aria-pressed', String(selected));
+    const text = element('span');
+    text.append(element('strong', '', choice.name), element('small', '', choice.note));
+    button.append(text, element('span', 'device-picker-mark', selected ? '✓' : ''));
+    button.onclick = async () => {
+      if (row.id === 'arm') {
+        if (choice.id !== 'own') {
+          inputDesign = 'arm';
+          const configurationId = choice.id === 'cardputer' ? 'pc-cardputer-adv'
+            : meta.configuration.inputAdapter === 'ssh-gadget' ? meta.configurationId : 'pc-arm';
+          if (configurationId !== meta.configurationId) await act('/api/launch-settings', {configurationId});
+        } else inputDesign = choice.id;
+        manualDesignStage = 1;
+        manualDesignConfirmed.clear();
+        $('manual-fs-preview').checked = state.platform.loaderSettings?.fsRpcMode === true;
+        renderDevices();
+        renderControls();
+      }
+      picker.open = false;
+      picker.querySelector('summary').focus();
+    };
+    options.append(button);
+  }
+}
+function renderManualInputDesign() {
+  const meta = state?.platform;
+  if (!meta) return;
+  if (state.active || state.emergencyInputPending || !meta.izModules) inputDesign = 'arm';
+  const shown = inputDesign === 'own', wasShown = !$('manual-input-design').hidden;
+  $('manual-input-design').hidden = !shown;
+  if (shown) $('iz-flow').hidden = true;
+  else if (wasShown) {
+    $('iz-flow').hidden = !meta.izModules;
+    renderEngineInstall();
+  }
+  const arm = $('device-arm'), usb = $('device-usb');
+  if (usb) usb.hidden = shown;
+  $('devices').style.setProperty('--device-count', state.checks.items.filter(row => !shown || row.id !== 'usb').length);
+  if (arm) {
+    arm.classList.toggle('manual-preview', shown);
+    let note = $('manual-device-description');
+    if (!note) {
+      note = element('p', 'manual-device-description', 'Your input method · Connection is not checked.');
+      note.id = 'manual-device-description';
+      arm.querySelector('.device-heading').append(note);
+    }
+    note.hidden = !shown;
+    const row = state.checks.items.find(item => item.id === 'arm');
+    if (row) renderDevicePicker(arm, row);
+  }
+  document.querySelector('.network-caption').hidden = shown;
+  $('hardware-options').hidden = shown;
+  if (!shown) return;
+  $('arm-setup').hidden = true;
+  $('cardputer-setup').hidden = true;
+  $('engine-install').hidden = true;
+  $('installation-options').hidden = true;
+  $('recheck').disabled = true;
+  document.querySelectorAll('.transport-choice input,.transport-choice button,.address-form input,.address-form select,.address-form button,.detected-peer')
+    .forEach(control => { control.disabled = true; });
+  document.querySelectorAll('[data-variant],[data-loader]').forEach(button => { button.disabled = true; });
+  const withFiles = $('manual-fs-preview').checked, total = withFiles ? 7 : 6;
+  document.querySelector('.manual-design-steps').style.setProperty('--manual-step-count', total);
+  if (manualDesignStage > total) manualDesignStage = total;
+  $('manual-files-step').hidden = !withFiles;
+  const stages = {
+    1: ['Preparation', 'This previews the manual input interface. Buttons only change the preview stage.'],
+    2: ['Confirm manual input', 'The panel does not read or verify the entered data.', 'I checked that the manually entered data is correct.'],
+    3: ['Verification', 'Follow the selected engine instructions to verify the result yourself.'],
+    4: ['Confirm save', 'This switch records your confirmation in the preview.', 'I checked that the data was saved correctly.'],
+    5: ['Continue', 'The next preview stage. No commands are sent to the device.'],
+    6: ['Confirm result', 'You verify the result. This preview cannot confirm the device state.', 'I checked the result and it is correct.'],
+    7: ['Filesystem', 'Open an empty file manager preview in another tab. Device connections and file reads are disabled.'],
+  };
+  const [title, description, confirmation] = stages[manualDesignStage];
+  setText($('manual-stage-counter'), 'STAGE ' + manualDesignStage + ' / ' + total);
+  setText($('manual-stage-title'), title);
+  setText($('manual-stage-description'), description);
+  $('manual-confirm-row').hidden = !confirmation;
+  setText($('manual-confirm-label'), confirmation || '');
+  $('manual-stage-confirm').checked = manualDesignConfirmed.has(manualDesignStage);
+  $('manual-next').disabled = !!confirmation && !manualDesignConfirmed.has(manualDesignStage);
+  $('manual-next').hidden = manualDesignStage === 7;
+  $('manual-files-link').hidden = manualDesignStage !== 7;
+  setText($('manual-next'), manualDesignStage === total ? 'Return to the beginning' : 'Next stage');
+  setText($('manual-engine-folder'), meta.loaders.find(loader => loader.id === meta.loaderId)?.folder || 'Find this path in Files → Engine.');
+  document.querySelectorAll('[data-manual-stage]').forEach(button => {
+    const selected = Number(button.dataset.manualStage) === manualDesignStage;
+    button.classList.toggle('selected', selected);
+    if (selected) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+  });
+}
+document.querySelectorAll('[data-manual-stage]').forEach(button => {
+  button.onclick = () => { manualDesignStage = Number(button.dataset.manualStage); renderManualInputDesign(); };
+});
+$('manual-fs-preview').onchange = renderManualInputDesign;
+$('manual-stage-confirm').onchange = () => {
+  if ($('manual-stage-confirm').checked) manualDesignConfirmed.add(manualDesignStage);
+  else manualDesignConfirmed.delete(manualDesignStage);
+  renderManualInputDesign();
+};
+$('manual-next').onclick = () => {
+  if (inputDesign !== 'own' || state?.active || state?.emergencyInputPending || $('manual-next').disabled) return;
+  if (manualDesignStage !== 7) { manualDesignStage = manualDesignStage === 6 ? ($('manual-fs-preview').checked ? 7 : 1) : manualDesignStage + 1; renderManualInputDesign(); }
+};
+$('manual-exit').onclick = () => { inputDesign = 'arm'; renderDevices(); renderControls(); };
 function renderDevices() {
   const config = state.connections;
   for(const card of [...$('devices').children])if(!state.checks.items.some(row=>card.id==='device-'+row.id))card.remove();
   $('devices').style.setProperty('--device-count',state.checks.items.length);
-  for (const row of state.checks.items) {
+  for (const [index, row] of state.checks.items.entries()) {
+    const deviceInfo = words[row.id] || [row.label || 'Device', document.getElementById(row.icon)?.tagName.toLowerCase() === 'symbol' ? row.icon : 'i-server'];
     let card = $('device-' + row.id);
-    const preference = config?.devices[row.id];
+    const preference = config?.devices?.[row.id];
     if (!card) {
       card = element('article', 'device');
       card.id = 'device-' + row.id;
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
         use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-      use.setAttribute('href', '#' + words[row.id][1]);
+      use.setAttribute('href', '#' + deviceInfo[1]);
       svg.setAttribute('aria-hidden', 'true');
       svg.append(use);
       const heading = element('div', 'device-heading');
       heading.append(
         svg,
         element('span', 'state'),
-        element('h3', '', words[row.id][0]),
+        element('h3', '', deviceInfo[0]),
         element('p', 'device-detail'),
         element('p', 'device-ping'),
       );
@@ -650,7 +1163,7 @@ function renderDevices() {
         group.setAttribute('role', 'group');
         group.setAttribute(
           'aria-label',
-          words[row.id][0] + ' network connection',
+          deviceInfo[0] + ' network connection',
         );
         for (const mode of ['lan', 'wifi']) {
           const button = element(
@@ -711,7 +1224,7 @@ function renderDevices() {
           );
         const input = element(row.id === 'server' ? 'select' : 'input');
         input.id = 'address-' + row.id;
-        input.setAttribute('aria-label', words[row.id][0] + ' IP address');
+        input.setAttribute('aria-label', deviceInfo[0] + ' IP address');
         if (row.id !== 'server') {
           input.type = 'text';
           input.inputMode = 'decimal';
@@ -752,24 +1265,51 @@ function renderDevices() {
         card.append(fixed);
       }
     }
-    $('devices').append(card);
-    card.querySelector('h3').textContent=row.label||words[row.id][0];
+    placeChild($('devices'), card, index);
+    setText(card.querySelector('h3'), row.label || deviceInfo[0]);
+    renderDevicePicker(card, row);
     card.classList.toggle('ready', row.ready);
-    card.querySelector('.state').textContent = row.ready
+    card.classList.toggle('pending', !!row.pending);
+    setText(card.querySelector('.state'), row.ready
       ? row.pending
-        ? 'AUTO'
+        ? 'WAITING'
         : '✓ READY'
       : state.preview
         ? 'PREVIEW'
-        : '○ WAITING';
+        : '○ WAITING');
     renderDeviceDetail(card.querySelector('.device-detail'), row);
     const ping = card.querySelector('.device-ping');
-    ping.hidden = !Number.isFinite(row.latencyMs);
-    ping.textContent = Number.isFinite(row.latencyMs)
+    ping.hidden = false;
+    setText(ping, Number.isFinite(row.latencyMs)
       ? 'Last ping · ' + row.latencyMs.toFixed(2) + ' ms'
-      : '';
+      : '\u00a0');
     if (preference) {
       const locked = busy || !!config.locked || !!state.preview;
+      const cardputer = row.id === 'arm' && state.platform.configuration.inputAdapter === 'cardputer-wifi';
+      const addressEditor = card.querySelector('.address-editor');
+      addressEditor.hidden = cardputer;
+      let cardputerAddress = card.querySelector('.cardputer-address');
+      if (cardputer && !cardputerAddress) {
+        cardputerAddress = element('button', 'cardputer-address quiet');
+        cardputerAddress.type = 'button';
+        cardputerAddress.onclick = () => {
+          $('hardware-options').open = true;
+          $('hardware-options').querySelector('[name="cardputerEndpoint"]')?.focus();
+        };
+        card.append(cardputerAddress);
+      }
+      if (cardputerAddress) cardputerAddress.hidden = !cardputer;
+      card.querySelectorAll('[data-transport]').forEach(button => { button.hidden = cardputer && button.dataset.transport !== 'wifi'; button.dataset.fixed = String(cardputer); });
+      if (cardputer) {
+        const wifi = card.querySelector('[data-transport="wifi"]');
+        wifi.classList.add('selected');
+        wifi.setAttribute('aria-pressed', 'true');
+        wifi.disabled = true;
+        const settings = state.platform.profiles?.[state.platform.configurationId] || {};
+        setText(cardputerAddress, (settings.cardputerEndpoint || 'http://iz2s-adv.local') + ' · Edit');
+        cardputerAddress.disabled = locked;
+        continue;
+      }
       if (row.id === 'lan') {
         renderConsoleConnections(
           card,
@@ -800,15 +1340,15 @@ function renderDevices() {
           ? preference.mode === 'wifi'
             ? 'i-wifi'
             : 'i-lan'
-          : words[row.id][1];
+          : deviceInfo[1];
       card.querySelector('use').setAttribute('href', '#' + icon);
       const editor = card.querySelector('.address-editor'),
         input = $('address-' + row.id);
-      editor.querySelector('summary').textContent = preference.address
+      setText(editor.querySelector('summary'), preference.address
         ? (preference.automatic ? 'Auto · ' : '') +
           preference.address +
           ' · Edit'
-        : 'Auto / manual · ' + networkName(preference.mode);
+        : 'Auto / manual · ' + networkName(preference.mode));
       if (document.activeElement !== input) {
         if (row.id === 'server') {
           const options = preference.options.filter(
@@ -947,20 +1487,31 @@ function renderDevices() {
           (id) =>
             (state.checks.items.find(row=>row.id===id)?.label||words[id][0]) +
             ' ' +
-            (modes[id].modes || [modes[id].mode]).map(networkName).join(' + '),
+            (id === 'arm' && state.platform.configuration.inputAdapter === 'cardputer-wifi' ? ['wifi'] : modes[id].modes || [modes[id].mode]).map(networkName).join(' + '),
         )
         .join('  ·  ')
     : 'Restart Platform to enable connection choices.';
   $('network-help').textContent = config?.locked
     ? 'Connections are locked for this session. Stop it before changing networks.'
+    : state.platform.configuration.inputAdapter === 'cardputer-wifi'
+      ? 'Cardputer receives commands over Wi-Fi and types on Switch over USB. Use the IP shown on its screen.'
     : config?.discovery?.ambiguous
       ? 'Several ARM services found. Choose the required device, or enter its IP.'
       : 'Automatic discovery uses your local network. Manual addresses take priority.';
 }
 
+function residentEligibility(pkg) {
+  return state?.platform?.residentFiniteAudio ? pkg?.residentAudio : pkg?.resident;
+}
+function selectedShellName() {
+  return state?.platform?.shells?.find(shell => shell.id === state.platform.variant)?.name ||
+    (state?.platform?.variant === 'izpslauncher' ? 'IZPSlauncher' : 'IZlauncher');
+}
+
 function renderStartupModules() {
+  const resident=state.platform?.residentGraphics===true&&['izlauncher','izpslauncher'].includes(state.platform?.variant);
   const stamp = JSON.stringify(
-    state.library.map((p) => [p.id, p.name, p.version, p.icon, p.supported]),
+    [resident,state.platform?.residentFiniteAudio,state.library.map((p) => [p.id, p.name, p.version, p.icon, p.supported,p.resident,p.residentAudio])],
   );
   if (stamp === startupStamp) return;
   startupStamp = stamp;
@@ -969,6 +1520,7 @@ function renderStartupModules() {
     if (!valid.has(id)) startupSelection.delete(id);
   $('preload-list').replaceChildren();
   for (const pkg of state.library) {
+    const eligibility=residentEligibility(pkg);
     const label = element('label', 'preload-item'),
       input = element('input'),
       image = element('img'),
@@ -976,7 +1528,9 @@ function renderStartupModules() {
     input.type = 'checkbox';
     input.checked = startupSelection.has(pkg.id);
     input.dataset.unavailable = String(pkg.supported === false);
-    input.disabled = pkg.supported === false;
+    input.dataset.residentUnavailable=String(resident&&eligibility?.compatible!==true);
+    input.disabled = pkg.supported === false || (resident&&eligibility?.compatible!==true&&!input.checked);
+    if(resident&&eligibility?.compatible!==true)label.title=eligibility?.userReason||'Restart the panel to check compatibility.';
     input.setAttribute('aria-label', 'Load ' + pkg.name + ' at startup');
     input.addEventListener('change', () => {
       input.checked
@@ -991,6 +1545,7 @@ function renderStartupModules() {
       element('strong', '', pkg.name),
       element('small', '', pkg.version),
     );
+    if(resident)text.append(element('small','',eligibility?.userReason||'Compatibility has not been checked.'));
     label.append(input, image, text);
     $('preload-list').append(label);
   }
@@ -1021,6 +1576,7 @@ function renderLibrary() {
   if (stamp !== packageStamp) {
     packageStamp = stamp;
     $('library').replaceChildren();
+    if(!state.library.length){const empty=element('div','empty');empty.append(element('h2','','No modules installed'),element('p','','Open the Modules folder and add an IZM package.'));$('library').append(empty);}
     $('module-host-actions').dataset.stamp = '';
     for (const pkg of state.library) {
       const card = element('article', 'app-card'),
@@ -1074,9 +1630,9 @@ function renderLibrary() {
                   pkg.contents.moduleDependencies.join(', ') +
                   '.'
                 : '') +
-              (pkg.contents.externalDependencies.length
+              ((pkg.contents.externalDependencies || []).length
                 ? ' Downloaded separately: ' +
-                  pkg.contents.externalDependencies.join(', ') +
+                  (pkg.contents.externalDependencies || []).join(', ') +
                   '.'
                 : ''),
           ),
@@ -1084,11 +1640,26 @@ function renderLibrary() {
         details.onclick = (e) => e.stopPropagation();
         card.append(details);
       }
-      card.append(folderButton('module', pkg.module?.id || pkg.id, 'Open module folder'));
+      const actions=element('div','module-actions');card.append(actions);
+      if(pkg.module?.server?.settings){
+        const configure=element('button','secondary module-configure',pkg.module.server.settings.label||'Settings');
+        configure.dataset.unavailable=String(pkg.supported===false);
+        configure.type='button';configure.disabled=serverUnavailable||state.preview===true||pkg.supported===false;
+        configure.title='Configure this module before launch; preferences are kept between sessions';
+        configure.onclick=async()=>{
+          configure.dataset.pending='true';configure.disabled=true;
+          try{if(!workspaceReady)throw Error('Reopen IZ2S to enable module tabs.');const value=await api('/api/module/settings',{id:pkg.module.id});workspace.openRequest(value.tab,true);}
+          catch(error){notice(error.message);}finally{delete configure.dataset.pending;renderLocalActionAvailability();}
+        };
+        actions.append(configure);
+      }
+      const openModule=element('button','secondary','Open module');openModule.type='button';openModule.onclick=()=>workspace.openModule(pkg.module?.id||pkg.id);actions.append(openModule);
+      actions.append(folderButton('module', pkg.module?.id || pkg.id, 'Open module folder'));
       const unload=element('button','secondary module-unload','Remove from console');
       unload.type='button';unload.title='Unload this module from the console menu. The PC package remains available.';
       unload.onclick=async()=>{if(!window.confirm('Remove '+pkg.name+' from the console menu? You can load it again from this PC.'))return;selection.delete(pkg.id);await act('/api/unload',{ids:[pkg.id]});};
-      card.append(unload);
+      actions.append(unload);
+      card.append(element('small','app-memory',''));
       $('library').append(card);
     }
   }
@@ -1098,90 +1669,202 @@ function renderLibrary() {
     card.classList.toggle('installed', loaded);
     card.dataset.installed = String(loaded);
     card.querySelector('img').title = loaded ? 'Loaded on console' : 'Not loaded on console';
+    const retained=state.residentMemory?.apps?.find(app=>app.id===card.dataset.appId),memoryLabel=card.querySelector('.app-memory');
+    if(memoryLabel){memoryLabel.hidden=!retained;setText(memoryLabel,retained?(state.connected?'Retained in RAM':'Previously retained')+' · '+(retained.bufferBytes/1048576).toFixed(1)+' MiB':'');}
     const unload=card.querySelector('.module-unload'),pending=state.jobs.some(job=>job.packageId===card.dataset.appId&&['queued','loading','publishing'].includes(job.status));
-    unload.hidden=!loaded;unload.disabled=busy||state.preview||!state.connected||pending;
-    unload.textContent=pending?'Operation queued…':'Remove from console';
+    unload.hidden=!loaded;unload.disabled=busy||state.preview||!state.connected||pending||!!(state.platform?.residentGraphics&&state.active);
+    setText(unload,pending?'Operation queued…':'Remove from console');
   }
-  const hostList = $('module-host-actions'),
-    hostStamp = JSON.stringify([packageStamp, state.moduleCatalog, state.hostModules, state.moduleStates]);
-  if (hostList.dataset.stamp !== hostStamp) {
-    const drafts = new Map([...document.querySelectorAll('.module-host-actions .local-source')].map(input => [input.dataset.runtime, input.value]));
-    hostList.dataset.stamp = hostStamp;
-    for (const target of document.querySelectorAll('.module-host-actions')) target.replaceChildren();
-    for (const module of state.moduleCatalog || []) {
-      const card = [...$('library').children].find(item => item.dataset.appId === module.id),
-        target = card?.querySelector('.module-host-actions') || hostList;
-      for (const pkg of module.server?.localPackages || []) {
-        const record = state.hostModules?.[pkg.id];
-        if (record?.installed) continue;
-        const box = element('details', 'local-module module-setup'),
-          summary = element('summary', '', 'PC setup'),
-          text = element('div'),
-          button = element('button', 'secondary', pkg.importSource ? 'Import local runtime' : 'Install on this PC');
-        text.append(element('p', 'hint', pkg.importSource
-          ? 'Choose the local game folder. Saved games stay in the original installation.'
-          : record?.missingFiles?.length ? 'Local runtime files are missing. Reinstall this component.'
-          : 'External component is downloaded separately from the IZM package.'));
-        button.dataset.unavailable = String(record?.supported === false);
-        button.disabled = busy || state.preview || record?.supported === false;
-        button.onclick = () => act('/api/install-host', { id: pkg.id });
-        if (pkg.importSource) {
-          const input = element('input', 'local-source');
-          input.type = 'text';
-          input.dataset.runtime = pkg.id;
-          input.value = drafts.get(pkg.id) || '';
-          input.placeholder = 'Absolute runtime folder';
-          input.setAttribute('aria-label', module.name + ' runtime folder');
-          text.append(input);
-          button.disabled ||= !input.value.trim();
-          input.oninput = () => { button.disabled = busy || state.preview || record?.supported === false || !input.value.trim(); };
-          button.onclick = () => act('/api/install-host', { id: pkg.id, source: input.value.trim() });
-        }
-        box.append(summary, text, button);
-        target.append(box);
-      }
-      if (module.server && !module.switch) {
-        const box = element('div', 'local-module'),
-          running = state.moduleStates?.some(item => item.id === module.id),
-          button = element('button', 'secondary', running ? 'Stop' : 'Start');
-        box.append(element('strong', '', module.name), button);
-        button.disabled = busy || state.preview;
-        button.onclick = () => act(running ? '/api/module/stop' : '/api/module/start', { id: module.id });
-        target.append(box);
-      }
-    }
-  }
-  for (const target of document.querySelectorAll('.module-host-actions')) target.hidden = !target.childElementCount;
-  $('app-count').textContent = state.library.length;
+  renderModuleHostActions();
+  setText($('app-count'), state.library.length);
   const libraryConnection = $('library-connection');
   libraryConnection.classList.toggle('online', !!state.connected);
   const connectionLabel = state.connected ? 'Switch 2 connected' : 'Switch 2 not connected';
   if (libraryConnection.querySelector('span').textContent !== connectionLabel)
     libraryConnection.querySelector('span').textContent = connectionLabel;
-  $('library-note').textContent = state.connected
+  $('library-note').textContent = state.platform?.residentGraphics && state.active
+    ? 'Compatible apps remain in memory for this session. '+(state.residentMemory?'Session memory: '+(state.residentMemory.usedBytes/1048576).toFixed(1)+' / '+(state.residentMemory.budgetBytes/1048576).toFixed(0)+' MiB. ':'')+'Add apps from the menu while the PC is available. Select the full set before a retained-audio session.'
+    : state.connected
     ? 'Switch 2 connected · ' + selection.size + ' selected'
-    : 'Connect Switch 2 and start IZlauncher to load apps.';
-  $('jobs').replaceChildren();
-  for (const job of state.jobs.slice(-6).reverse()) {
-    const row = element('div', 'job ' + job.status);
-    row.append(
-      element('strong', '', job.name),
-      element('span', '', ['complete','ready'].includes(job.status) ? (job.operation==='remove'?'Removed from console':'Loaded') : job.status),
-    );
-    if (job.error) row.title = job.error;
-    $('jobs').append(row);
-  }
+    : 'Connect Switch 2 and start ' + selectedShellName() + ' to load apps.';
+  renderJobs();
   const url = state.streamUrl;
   try {
     const u = new URL(url);
     if (u.hostname !== '127.0.0.1' || u.protocol !== 'http:') throw Error();
     $('stream-link').href = url;
     $('stream-link').hidden = !state.connected;
+    $('stream-link').onclick=async event=>{event.preventDefault();try{if(!workspaceReady)throw Error('Reopen IZ2S to enable module tabs.');const result=await api('/api/workspace/attach',{url});workspace.openRequest(result.tab,true);}catch(error){notice(error.message);}};
   } catch {
     $('stream-link').hidden = true;
   }
 }
+function renderModuleHostActions() {
+  const hostList = $('module-host-actions'),
+    targets = [...document.querySelectorAll('.module-host-actions')],
+    existing = new Map(targets.flatMap(target => [...target.children].map(row => [row.dataset.hostActionKey, row]))),
+    desired = new Map(targets.map(target => [target, []])),
+    cards = new Map([...$('library').children].map(card => [card.dataset.appId, card]));
+  for (const module of state.moduleCatalog || []) {
+    const target = cards.get(module.id)?.querySelector('.module-host-actions') || hostList;
+    for (const pkg of module.server?.localPackages || []) {
+      const record = state.hostModules?.[pkg.id];
+      if (record?.installed) continue;
+      const key = 'runtime:' + module.id + ':' + pkg.id;
+      let box = existing.get(key);
+      if (!box) {
+        box = element('details', 'local-module module-setup'); box.dataset.hostActionKey = key;
+        const text = element('div', 'module-setup-body');
+        text.append(element('p', 'hint'));
+        box.append(element('summary', '', 'PC setup'), text, element('button', 'secondary'));
+      }
+      const text = box.querySelector('.module-setup-body'), button = box.querySelector('button');
+      setText(text.querySelector('.hint'), pkg.importSource
+        ? 'Choose the local game folder. Saved games stay in the original installation.'
+        : record?.missingFiles?.length ? 'Local runtime files are missing. Reinstall this component.'
+        : 'External component is downloaded separately from the IZM package.');
+      let input = box.querySelector('.local-source');
+      if (pkg.importSource) {
+        if (!input) {
+          input = element('input', 'local-source'); input.type = 'text'; input.dataset.runtime = pkg.id;
+          input.placeholder = 'Absolute runtime folder'; text.append(input);
+        }
+        input.setAttribute('aria-label', module.name + ' runtime folder');
+        input.oninput = () => {
+          button.disabled = serverUnavailable || busy || state.preview || state.hostModules?.[pkg.id]?.supported === false || !input.value.trim();
+        };
+      } else if (input) { input.remove(); input = null; }
+      button.type = 'button';
+      setText(button, pkg.importSource ? 'Import local runtime' : 'Install on this PC');
+      button.dataset.unavailable = String(record?.supported === false);
+      button.disabled = serverUnavailable || busy || state.preview || record?.supported === false || (!!input && !input.value.trim());
+      button.onclick = () => act('/api/install-host', {id:pkg.id, ...(input ? {source:input.value.trim()} : {})});
+      desired.get(target).push(box);
+    }
+    if (module.server && !module.switch) {
+      const key = 'host:' + module.id;
+      let box = existing.get(key);
+      if (!box) {
+        box = element('div', 'local-module'); box.dataset.hostActionKey = key;
+        box.append(element('strong'), element('button', 'secondary'));
+      }
+      const button = box.querySelector('button'), running = state.moduleStates?.some(item => item.id === module.id);
+      setText(box.querySelector('strong'), module.name);
+      setText(button, running ? 'Stop' : 'Start');
+      button.type = 'button'; button.disabled = serverUnavailable || busy || state.preview;
+      button.onclick = () => act(running ? '/api/module/stop' : '/api/module/start', {id:module.id});
+      desired.get(target).push(box);
+    }
+  }
+  const retained = new Set([...desired.values()].flat());
+  for (const target of targets) {
+    for (const row of [...target.children]) if (!retained.has(row)) row.remove();
+    desired.get(target).forEach((row, index) => placeChild(target, row, index));
+    target.hidden = !target.childElementCount;
+  }
+}
+function renderJobs() {
+  const container = $('jobs'), existing = new Map([...container.children].map(row => [row.dataset.jobId, row]));
+  const rank = job => ['loading', 'publishing'].includes(job.status) ? 0 : job.status === 'queued' ? 1 : 2;
+  const jobs = [...state.jobs].sort((a, b) => rank(a) - rank(b) || b.created.localeCompare(a.created)).slice(0, 8);
+  const retained = new Set(jobs.map(job => job.id));
+  for (const [id, row] of existing) if (!retained.has(id)) row.remove();
+  jobs.forEach((job, index) => {
+    let row = existing.get(job.id);
+    if (!row) {
+      row = element('div', 'job'); row.dataset.jobId = job.id;
+      const progress = element('progress'); progress.max = 100;
+      row.append(element('strong'), element('span', 'job-status'), progress, element('small', 'job-detail'));
+    }
+    const className = 'job ' + job.status + (job.progress ? ' with-progress' : '');
+    if (row.className !== className) row.className = className;
+    setText(row.querySelector('strong'), job.name);
+    setText(row.querySelector('.job-status'), ['complete', 'ready'].includes(job.status)
+      ? job.operation === 'remove' ? 'Removed from console' : 'Loaded' : job.status);
+    const progress = row.querySelector('progress'), detail = row.querySelector('.job-detail');
+    progress.hidden = detail.hidden = !job.progress;
+    if (job.progress) {
+      progress.setAttribute('aria-label', 'Loading ' + job.name);
+      if (Number.isFinite(job.progress.percent)) {
+        if (!progress.hasAttribute('value') || progress.value !== job.progress.percent) progress.value = job.progress.percent;
+      } else if (progress.hasAttribute('value')) progress.removeAttribute('value');
+      const labels = {verify:'Checking files', prepare:'Preparing on PC', graphics:'Preparing graphics', install:'Installing on PC', transfer:'Updating console menu', ready:'Ready in menu', failed:'Load failed'};
+      let text = labels[job.progress.phase] || job.progress.label || job.status;
+      if (Number.isFinite(job.progress.totalBytes) && job.progress.totalBytes > 0) {
+        const size = n => ((Number.isFinite(n) ? n : 0) / 1048576).toFixed(1) + ' MiB';
+        text += ' · ' + size(job.progress.completedBytes) + ' of ' + size(job.progress.totalBytes) + ' · remaining ' + size(job.progress.remainingBytes);
+      }
+      if (Number.isFinite(job.progress.percent)) text += ' · ' + job.progress.percent + '%';
+      setText(detail, text);
+    }
+    row.title = job.error || '';
+    placeChild(container, row, index);
+  });
+}
 let historyStamp = '';
+let savedLogAttempt = null;
+let savedLogGeneration = 0;
+function logTime(value) {
+  return new Date(value).toLocaleTimeString(globalThis.RUN21_LANGUAGE?.locale || 'en-GB', {
+    hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit',
+    fractionalSecondDigits: 3,
+  });
+}
+function logMessage(event) {
+  const owner = [event.source, event.stream].filter(Boolean).join('/');
+  const elapsed = Number.isFinite(event.elapsedMs) ? ` +${event.elapsedMs}ms` : '';
+  const pid = event.pid ? ` pid=${event.pid}` : '';
+  return (owner ? `[${owner}${pid}${elapsed}] ` : '') + event.message;
+}
+async function downloadSessionLog(id) {
+  try {
+    const value = await api('/api/log?id=' + encodeURIComponent(id));
+    const text = value.events.map((e) => e.at + '  ' + logMessage(e)).join('\n');
+    const url = URL.createObjectURL(new Blob([text + '\n'], { type: 'text/plain;charset=utf-8' }));
+    const link = element('a');
+    link.href = url;
+    link.download = 'IZ2S-session-' + id + '.log';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) { notice(e.message); }
+}
+function invalidateSavedLog() {
+  savedLogGeneration++;
+  savedLogAttempt = null;
+  $('download-saved-log').disabled = true;
+  $('log-dialog').setAttribute('aria-busy', 'false');
+}
+$('log-dialog').addEventListener('close', () => {
+  if (!$('log-dialog').open) invalidateSavedLog();
+});
+$('log-dialog').addEventListener('cancel', invalidateSavedLog);
+async function openSavedLog(attempt) {
+  const generation = ++savedLogGeneration,
+    dialog = $('log-dialog'),
+    download = $('download-saved-log'),
+    created = date(attempt.created);
+  savedLogAttempt = null;
+  download.disabled = true;
+  setText($('saved-log-title'), 'Session log' + (created ? ' · ' + created : ''));
+  setText($('saved-log-attempt'),
+    (attempt.kind === 'bootstrap' ? 'Bootstrap installation' : 'Launcher session') + ' · ' + attempt.id);
+  setText($('saved-log'), 'Loading saved log…');
+  dialog.setAttribute('aria-busy', 'true');
+  if (!dialog.open) dialog.showModal();
+  try {
+    const value = await api('/api/log?id=' + encodeURIComponent(attempt.id));
+    if (generation !== savedLogGeneration || !dialog.open) return;
+    setText($('saved-log'), value.events.map((event) => event.at + '  ' + logMessage(event)).join('\n') ||
+      'No further details were recorded.');
+    savedLogAttempt = attempt.id;
+    download.disabled = false;
+  } catch (error) {
+    if (generation !== savedLogGeneration || !dialog.open) return;
+    setText($('saved-log'), 'Could not load this log: ' + error.message);
+  } finally {
+    if (generation === savedLogGeneration && dialog.open) dialog.setAttribute('aria-busy', 'false');
+  }
+}
 function renderHistory() {
   const stamp = JSON.stringify(state.history);
   $('fail-count').textContent = state.history.length;
@@ -1217,19 +1900,7 @@ function renderHistory() {
     );
     const view = element('button', '', 'View log'),
       remove = element('button', 'delete', 'Delete log');
-    view.addEventListener('click', async () => {
-      try {
-        const value = await api(
-          '/api/log?id=' + encodeURIComponent(attempt.id),
-        );
-        $('saved-log').textContent =
-          value.events.map((e) => date(e.at) + '  ' + e.message).join('\n') ||
-          'No further details were recorded.';
-        $('log-dialog').showModal();
-      } catch (e) {
-        notice(e.message);
-      }
-    });
+    view.addEventListener('click', () => openSavedLog(attempt));
     remove.addEventListener('click', () =>
       act('/api/delete', { id: attempt.id }),
     );
@@ -1238,45 +1909,112 @@ function renderHistory() {
   }
 }
 function renderActivity() {
-  const list = state.log.filter((e) => e.type !== 'detail').slice(-60),
+  const list = state.log.filter((e) => $('log-details').checked || e.type !== 'detail').slice(-250),
     stamp = JSON.stringify(list),
     log = $('log');
+  $('download-session-log').disabled = !(state.active || state.lastAttempt)?.id;
   if (log.dataset.stamp === stamp) return;
-  const previous = log.scrollTop;
   logWriting = true;
   log.dataset.stamp = stamp;
-  $('log-count').textContent = list.length + ' events';
-  log.replaceChildren();
-  for (const item of list) {
-    const row = element('div', 'log-row ' + item.type);
-    row.append(
-      element('time', '', new Date(item.at).toLocaleTimeString('en-GB')),
-      element('span', '', item.message),
-    );
-    log.append(row);
+  setText($('log-count'), list.length + ' events');
+  const existing = new Map([...log.children].map(row => [row.dataset.logKey, row])), occurrences = new Map();
+  const entries = list.map(item => {
+    const signature = JSON.stringify(item), ordinal = occurrences.get(signature) || 0;
+    occurrences.set(signature, ordinal + 1);
+    return {item, key:signature + ':' + ordinal};
+  });
+  const retained = new Set(entries.map(entry => entry.key));
+  if (!list.length) retained.add('empty');
+  for (const [key, row] of existing) if (!retained.has(key)) row.remove();
+  entries.forEach(({item, key}, index) => {
+    let row = existing.get(key);
+    if (!row) {
+      row = element('div', 'log-row ' + item.type); row.dataset.logKey = key;
+      row.append(element('time', '', logTime(item.at)), element('span', '', logMessage(item)));
+    }
+    placeChild(log, row, index);
+  });
+  if (!list.length) {
+    if (!existing.has('empty')) {
+      const empty = element('p', 'hint', 'No active attempt. Device checks do not send console commands.');
+      empty.dataset.logKey = 'empty'; placeChild(log, empty, 0);
+    }
   }
-  if (!list.length)
-    log.append(
-      element(
-        'p',
-        'hint',
-        'No active attempt. Device checks do not send console commands.',
-      ),
-    );
-  log.scrollTop = logFollow ? log.scrollHeight : previous;
   requestAnimationFrame(() => {
-    log.scrollTop = logFollow ? log.scrollHeight : previous;
+    if (logFollow && log.clientHeight) log.scrollTop = log.scrollHeight;
     logWriting = false;
   });
 }
 
+function renderConnectionStatus() {
+  const stopping = state?.active?.status === 'stopping';
+  const connectionMode = serverUnavailable
+    ? ['disconnected', 'Server unavailable']
+    : state?.simulated
+      ? ['preview', 'Simulated devices']
+      : state?.preview
+        ? ['preview', 'Design preview']
+        : stopping
+          ? ['checking', 'Stopping…']
+          : state?.active && state?.link?.state === 'waiting-for-dock'
+            ? ['connecting', 'Reconnecting…']
+            : state?.active?.kind === 'bootstrap'
+              ? ['checking', 'Setup in progress…']
+              : state?.connected
+                ? ['connected', 'Console connected']
+                : state?.active
+                  ? ['connecting', 'Connecting…']
+                  : ['disconnected', 'Not connected'];
+  setText($('mode'), connectionMode[1]);
+  $('mode').dataset.state = connectionMode[0];
+  $('mode').classList.toggle('preview', !serverUnavailable && !!state?.preview);
+  $('connection').classList.toggle('online', !serverUnavailable && !!state?.connected && !stopping);
+  $('connection').classList.toggle('working', !serverUnavailable && (!!state?.active && (!state?.connected || stopping)));
+  const text = connectionMode[1];
+  if ($('connection').lastChild.textContent !== text)
+    $('connection').lastChild.textContent = text;
+}
+function renderLocalActionAvailability() {
+  for (const control of document.querySelectorAll('.folder-button,[data-folder],.module-configure'))
+    control.disabled = serverUnavailable || !!state?.preview || control.dataset.pending === 'true' || control.dataset.unavailable === 'true';
+}
+function renderServerAvailability() {
+  workspace.setAvailable(!serverUnavailable);
+  document.querySelector('.nav-dot').hidden=serverUnavailable||!state?.connected;
+  renderLocalActionAvailability();
+  $('panel-main').classList.toggle('server-unavailable', serverUnavailable);
+  if (!serverUnavailable) return;
+  renderConnectionStatus();
+  for (const card of document.querySelectorAll('#devices > .device')) {
+    setText(card.querySelector('.state'), 'UNVERIFIED');
+    setText(card.querySelector('.device-ping'), 'Server unavailable');
+  }
+  const libraryConnection = $('library-connection');
+  libraryConnection.classList.remove('online');
+  setText(libraryConnection.querySelector('span'), 'Server unavailable · device status is outdated');
+  setText($('library-note'), 'Reconnect to the server to refresh device and transfer status.');
+  setText($('gate-message'), 'Server unavailable · waiting for a fresh status update.');
+  $('delivery-rpc-status').dataset.state = 'unavailable';
+  setText($('delivery-rpc-label'), 'RPC status unavailable');
+  $('console-mode-state').hidden = true;
+  $('application-recovery').hidden = true;
+  $('stream-link').hidden = true;
+  if (state?.active) setText($('progress-title'), 'Session status unavailable');
+  $('dolphin-open').disabled = true;
+  setText($('dolphin-status'), 'Server unavailable · FS status cannot be checked.');
+  document.querySelectorAll('#start,#load,#retry,#engine-download,#engine-rescan,#arm-install,#hardware-form button,.module-host-actions button,.module-unload,.module-configure,.folder-button,[data-folder],[data-variant],[data-loader],.address-form button,.transport-choice button,.transport-choice input,.detected-peer,.up-start,.up-save,.up-confirm')
+    .forEach(control => { control.disabled = true; });
+}
 function render() {
+  const attempt = state.active;
+  workspace.updateModules(state);
   renderPlatform();
   const ended = state.lastAttempt;
   if (ended && ended.id !== finishedAttempt) {
     finishedAttempt = ended.id;
     requestId = null;
     $('screen-ready').checked = false;
+    document.querySelectorAll('.up-ready,.up-source-ready').forEach(input => {input.checked = false;});
   }
   renderDevices();
   renderStartupModules();
@@ -1284,32 +2022,26 @@ function render() {
   renderHistory();
   renderActivity();
   renderWizard();
-  $('mode').textContent = state.simulated
-    ? 'SIMULATED DEVICES'
-    : state.preview
-      ? 'DESIGN PREVIEW'
-      : state.connected
-        ? 'CONSOLE CONNECTED'
-        : 'LOCAL CONTROL';
-  $('mode').classList.toggle('preview', state.preview);
-  $('connection').classList.toggle('online', state.connected);
-  $('connection').lastChild.textContent =
-    state.link?.state === 'waiting-for-dock'
-      ? 'Reconnecting…'
-      : state.connected
-        ? 'Console connected'
-        : state.active?.kind === 'bootstrap'
-          ? 'Setup in progress'
-          : state.active
-            ? 'Connecting…'
-            : 'Not connected';
-  const attempt = state.active || state.lastAttempt;
+  renderManualInputDesign();
+  renderConnectionStatus();
+  const applicationRecovery = state.applicationRecovery;
+  $('application-recovery').hidden = !applicationRecovery;
+  if (applicationRecovery) {
+    const labels = {
+      'waiting-for-client': 'Waiting for the console app to reconnect.',
+      'waiting-for-network': 'Connection lost. Waiting for the app to reconnect.',
+      connected: 'App state restored. Control connection is checked separately.',
+      stopped: 'App recovery channel stopped.',
+    };
+    $('application-recovery').textContent = labels[applicationRecovery.state] || 'App recovery state is unknown.';
+  }
   $('progress-box').hidden = !attempt;
   $('progress-title').textContent = attempt
     ? {
-        starting: 'Preparing launcher',
+        starting: attempt.inputActive?'Entering launch commands…':state.link?.state==='connected'||attempt.launchStage==='initializing'?'Console connected · preparing launcher':attempt.launchStage==='waiting-console'?'Input complete · waiting for console':'Preparing launcher',
         typing: 'Entering bootstrap.bas',
         running: 'Launcher is running',
+        offline: 'Connection lost · launcher retained',
         stopping: 'Stopping safely…',
         complete: 'Setup complete',
         review: 'Source entered · awaiting your review',
@@ -1327,14 +2059,22 @@ function render() {
     $('progress-value').textContent =
       attempt.progress.line + ' / ' + attempt.progress.total + ' lines';
   } else {
-    if (['complete', 'running'].includes(attempt?.status))
+    if (['complete', 'running', 'offline'].includes(attempt?.status))
       $('progress').value = 229;
     else $('progress').removeAttribute('value');
     $('progress-value').textContent = '';
   }
   $('progress-note').textContent =
-    attempt?.kind === 'bootstrap'
+    attempt?.status==='starting'&&(state.link?.state==='connected'||attempt.launchStage==='initializing')
+      ? 'The console connection is established. FS RPC and graphics initialization are running; follow the session log below.'
+    : attempt?.status==='starting'&&attempt.launchStage==='waiting-console'
+      ? 'The input device finished its job. If SmileBASIC shows no text, check the USB keyboard connection and firmware. If the text is present, check the console screen and network.'
+    : attempt?.kind === 'bootstrap'
       ? 'Source entry uses the original HID timings. Console execution and save results require your confirmation.'
+      : attempt?.status === 'offline'
+        ? state.platform?.residentGraphics
+          ? 'The app set remains in memory until STOP. New modules require the control connection to be restored.'
+          : 'A loaded local app may continue without Wi-Fi. Host commands and return to the launcher require a connection. STOP ends this retained session.'
       : state.connected
         ? 'You can close this window. Your console session will keep running.'
         : attempt?.status === 'failed'
@@ -1352,10 +2092,10 @@ function render() {
     if (notificationKey === backendNotice) $('toast').hidden = true;
     backendNotice = '';
   }
+  renderServerAvailability();
 }
 let platformMenuStamp = '',
-  configurationStamp = '',
-  loaderFieldsStamp = '';
+  configurationStamp = '';
 const upstreamSteps = { izmysh: 'launch' };
 function fieldsFor(schema) {
   if (Array.isArray(schema)) return schema;
@@ -1389,7 +2129,11 @@ function buildFields(container, schema, values) {
         ? 'checkbox'
         : field.type === 'number'
           ? 'number'
-          : 'text';
+          : field.type === 'password' ? 'password' : 'text';
+    if (input.type === 'checkbox') {
+      input.classList.add('panel-switch');
+      input.setAttribute('role', 'switch');
+    }
     input.autocomplete = 'off';
     const value = values?.[id] ?? field.default ?? '';
     if (input.type === 'checkbox') input.checked = !!value;
@@ -1414,21 +2158,56 @@ function fieldValues(container) {
 function upstreamPanel(id) {
   return document.querySelector('[data-upstream-panel="' + id + '"]');
 }
+function renderAutomaticRpcStatus(meta) {
+  const loader = meta.loaders.find(item => item.id === meta.loaderId);
+  const status = $('delivery-rpc-status'),
+    automatic = meta.izModules && loader?.settingsSchema?.some(item => item.key === 'rpcMode'),
+    dirty = deliveryDirty(),
+    fs = state.active ? state.fsRpc : null;
+  status.hidden = !automatic;
+  if (!automatic) {
+    setText($('delivery-rpc-note'), dirty ? 'Saving session settings…' : 'Applies to First Setup and Launch.');
+    return;
+  }
+  status.dataset.state = fs?.state || 'automatic';
+  setText($('delivery-rpc-label'), fs?.state === 'ready'
+    ? 'Native + FS RPC · Active'
+    : fs?.state === 'starting' ? 'FS RPC · Connecting'
+    : fs?.state === 'failed' ? 'FS RPC · Unavailable' : 'Native RPC · Automatic');
+  const note = dirty ? 'Saving session settings…'
+    : fs?.state === 'ready' ? 'FS endpoint is active for this session.'
+    : fs?.state === 'starting' ? 'Waiting for the FS endpoint.'
+    : fs?.state === 'failed' ? fs.error || 'FS endpoint is unavailable for this session.'
+    : state.active ? 'Session settings are locked until this session ends.'
+    : meta.loaderSettings?.fsRpcMode ? 'FS endpoint is enabled for the next session. Applies to First Setup and Launch.'
+    : 'Native RPC is automatic. Enable FS endpoint before starting a session.';
+  setText($('delivery-rpc-note'), note);
+}
 function renderPlatform() {
   const meta = state?.platform;
   if (!meta) return;
+  const shellId = meta.izModules ? meta.variant || 'izlauncher' : null;
+  const shellName = meta.shells?.find(item => item.id === shellId)?.name || (meta.izModules ? 'IZlauncher' : 'Core only');
+  for (const button of document.querySelectorAll('[data-folder="shell"]')) {
+    button.hidden = !shellId;
+    button.querySelector('span').textContent = shellName + ' folder';
+    button.setAttribute('aria-label', shellName + ' folder');
+    button.title = 'Open the selected shell folder';
+  }
+  $('footer-shell').textContent = shellName;
   const locked = busy || meta.locked,
     selected = meta.loaderId;
+  const engineChoices = meta.loaders.filter(loader => meta.variant === 'original' || RUN21_CATALOG.engineAvailable(loader, meta.variant));
   const inventoryStamp = JSON.stringify(
-    meta.loaders.map((l) => [l.id, l.name]),
+    engineChoices.map((l) => [l.id, l.name, l.integrationStatus]),
   );
   const tabs = document.querySelector('.loader-tabs');
-  tabs.hidden = meta.loaders.length < 2;
-  tabs.style.setProperty('--engine-count', meta.loaders.length);
+  tabs.hidden = !engineChoices.length;
+  tabs.style.setProperty('--engine-count', engineChoices.length);
   if (tabs.dataset.inventory !== inventoryStamp) {
     tabs.dataset.inventory = inventoryStamp;
     tabs.replaceChildren();
-    meta.loaders.forEach((loader, i) => {
+    engineChoices.forEach((loader, i) => {
       const b = element('button');
       b.type = 'button';
       b.dataset.loader = loader.id;
@@ -1437,27 +2216,10 @@ function renderPlatform() {
         element('span', '', String(i + 1).padStart(2, '0')),
         element('strong', '', loader.name),
       );
+      b.append(element('small', 'engine-integration-status', loader.integrationStatus || ''));
       b.onclick = () => act('/api/launch-settings', { loaderId: loader.id });
       tabs.append(b);
     });
-  }
-  let hardwareSearch=$('hardware-search');if(!hardwareSearch){hardwareSearch=element('input');hardwareSearch.id='hardware-search';hardwareSearch.type='search';hardwareSearch.placeholder='Find a configuration…';hardwareSearch.setAttribute('aria-label','Search hardware configurations');$('launch-configuration').before(hardwareSearch);hardwareSearch.oninput=()=>{for(const option of $('launch-configuration').options)option.hidden=!option.textContent.toLowerCase().includes(hardwareSearch.value.toLowerCase());};}
-  hardwareSearch.hidden = meta.configurations.length < 7;
-  hardwareSearch.disabled = locked;
-  const profileSelect = $('launch-configuration'),
-    profileStamp = JSON.stringify(
-      meta.configurations.map((p) => [p.id, p.name, p.selectable, p.unavailableReason]),
-    );
-  if (profileSelect.dataset.inventory !== profileStamp) {
-    profileSelect.dataset.inventory = profileStamp;
-    profileSelect.replaceChildren();
-    for (const p of meta.configurations) {
-      const o = element('option', '', p.name);
-      o.value = p.id;
-      o.disabled = p.selectable === false;
-      o.title = p.unavailableReason || '';
-      profileSelect.append(o);
-    }
   }
   const shellSelect = $('launch-runtime'),
     shellStamp = JSON.stringify((meta.shells || []).map((p) => [p.id, p.name]));
@@ -1466,7 +2228,7 @@ function renderPlatform() {
     shellSelect.replaceChildren();
     for (const v of [
       ...(meta.shells || []),
-      { id: 'original', name: 'Original' },
+      { id: 'original', name: 'Core only' },
     ]) {
       const b = element('button', '', v.name);
       b.type = 'button';
@@ -1480,10 +2242,12 @@ function renderPlatform() {
   document.querySelector('[data-view=apps]').disabled = !meta.izModules;
   document.querySelector('[data-view=apps]').title = meta.izModules
     ? ''
-    : 'IZM modules are available in IZlauncher mode';
+    : 'Select IZlauncher or IZPSlauncher to use IZM modules';
   if (!meta.izModules && !$('apps').hidden) switchView('setup');
   $('iz-flow').hidden = !meta.izModules;
   const label = meta.loaders.find((l) => l.id === selected)?.name || selected;
+  setText($('engine-folder-name'), label);
+  setText($('engine-folder-path'), meta.loaders.find(loader => loader.id === selected)?.folder || 'Folder path is unavailable. Use the Engine button above.');
   const errors = $('extension-errors');
   if (errors) {
     errors.hidden = !meta.extensionErrors?.length;
@@ -1492,7 +2256,7 @@ function renderPlatform() {
       .join(' · ');
   }
   $('delivery-summary').textContent = label;
-  document.querySelector('[data-variant=original]').textContent = 'Original';
+  document.querySelector('[data-variant=original]').textContent = 'Core only';
   const deliverySchema = (
     meta.loaders.find((l) => l.id === selected)?.settingsSchema || []
   ).filter(
@@ -1502,17 +2266,33 @@ function renderPlatform() {
       f.key !== 'mode' &&
       f.key !== 'basicArity',
   );
-  const deliveryStamp = JSON.stringify([
-    selected,
-    deliverySchema,
-    meta.loaderSettings,
-  ]);
-  if (
-    $('delivery-options').dataset.stamp !== deliveryStamp &&
-    !$('delivery-options').contains(document.activeElement)
-  ) {
-    buildFields($('delivery-fields'), deliverySchema, meta.loaderSettings);
-    $('delivery-options').dataset.stamp = deliveryStamp;
+  const deliveryForm = $('delivery-options'),
+    deliverySchemaStamp = JSON.stringify([selected, deliverySchema]),
+    deliveryStamp = JSON.stringify(meta.loaderSettings);
+  if (deliveryForm.dataset.schema !== deliverySchemaStamp) {
+    buildFields($('delivery-fields'), deliverySchema.map(field => field.key === 'fsRpcMode'
+      ? {...field, description: '', help: ''} : field), meta.loaderSettings);
+    const fsInput = $('delivery-fields').querySelector('[name=fsRpcMode]');
+    if (fsInput) {
+      fsInput.setAttribute('aria-describedby', 'delivery-rpc-note');
+    }
+    deliveryForm.dataset.schema = deliverySchemaStamp;
+    delete deliveryForm.dataset.stamp;
+  }
+  if (deliveryForm.dataset.stamp !== deliveryStamp) {
+    for (const input of $('delivery-fields').querySelectorAll('input,select')) {
+      const field = deliverySchema.find(item => (item.id || item.key || item.name) === input.name),
+        saved = meta.loaderSettings?.[input.name] ?? field?.default ?? '',
+        value = input.type === 'checkbox' ? !!saved : saved,
+        draft = input.type === 'checkbox' ? input.checked : input.value;
+      // Preserve an unsaved edit when another panel updates the saved settings.
+      if (input.dataset.savedValue === undefined || String(draft) === input.dataset.savedValue) {
+        if (input.type === 'checkbox') input.checked = value;
+        else input.value = value;
+      }
+      input.dataset.savedValue = String(value);
+    }
+    deliveryForm.dataset.stamp = deliveryStamp;
   }
   $('delivery-options').hidden = !meta.izModules || !deliverySchema.length;
   $('delivery-options')
@@ -1521,21 +2301,23 @@ function renderPlatform() {
   $('launch-runtime').hidden = false;
   document.querySelectorAll('[data-loader]').forEach((button) => {
     button.classList.toggle('selected', button.dataset.loader === selected);
+    const entry = meta.loaders.find(loader => loader.id === button.dataset.loader);
+    const available = RUN21_CATALOG.engineAvailable(entry, meta.variant);
+    const integrationStatus = button.querySelector('.engine-integration-status');
+    if (integrationStatus) {
+      const installing = button.dataset.loader === selected && state.active?.kind === 'bootstrap';
+      integrationStatus.textContent = installing && state.active.progress
+        ? 'Slot ' + (state.active.setup?.sourceSlot ?? 0) + ' · ' + state.active.progress.line + '/' + state.active.progress.total
+        : available ? entry?.integrationStatus || '' : 'Core only mode';
+    }
     button.setAttribute(
       'aria-selected',
       String(button.dataset.loader === selected),
     );
-    const available =
-      meta.loaders.find((l) => l.id === button.dataset.loader)?.supported !==
-        false &&
-      (
-        meta.loaders.find((l) => l.id === button.dataset.loader)
-          ?.availableIn || ['izlauncher', 'original']
-      ).includes(meta.variant);
     button.disabled = locked || !available;
     button.classList.toggle('unavailable', !available);
     button.setAttribute('aria-disabled', String(locked || !available));
-    button.title = available ? '' : 'Available in Original mode';
+    button.title = available ? '' : 'Available in Core only mode';
   });
   document.querySelectorAll('[data-variant]').forEach((button) => {
     button.classList.toggle(
@@ -1544,8 +2326,6 @@ function renderPlatform() {
     );
     button.disabled = locked;
   });
-  $('launch-configuration').value = meta.configurationId;
-  $('launch-configuration').disabled = locked;
   const configuration = meta.configurations.find(
       (c) => c.id === meta.configurationId,
     ),
@@ -1569,8 +2349,6 @@ function renderPlatform() {
   $('hardware-form')
     .querySelectorAll('input,select,button')
     .forEach((e) => (e.disabled = locked));
-  const hw=meta.configuration.hardware;
-  if(hw){let summary=$('hardware-topology');if(!summary){summary=element('p','hint');summary.id='hardware-topology';$('configuration-note').after(summary);}summary.textContent=hw.deviceCount+' devices · '+(hw.combined?'Server + input: '+hw.server.name:'Server: '+hw.server.name+' → Input: '+hw.input.name)+' → Console: '+hw.console.name;}
   renderArmSetup(meta);
   const needs = meta.configuration.setupRequired;
   $('configuration-note').textContent =
@@ -1596,7 +2374,7 @@ function renderPlatform() {
         title = element('div'),
         tabs = element('div', 'segmented');
       title.append(
-        element('span', 'eyebrow', 'LOADER / ' + id.toUpperCase()),
+        element('span', 'eyebrow', 'CONNECTION CORE'),
         element('h2', '', loader.menu?.title || loader.name || id),
       );
       for (const value of loader.menu?.sourceSetup === false
@@ -1629,19 +2407,28 @@ function renderPlatform() {
         ),
       );
       const fields = element('form', 'configuration-form loader-settings'),
-        fieldBox = element('div'),
-        save = element('button', 'secondary', 'Save loader settings');
+        fieldBox = element('div');
       fieldBox.className = 'loader-fields';
-      save.type = 'submit';
-      fields.append(fieldBox, save);
+      fields.append(fieldBox);
       fields.oninput = () => {
         panel.querySelector('.up-ready').checked = false;
         renderPlatformControls();
       };
-      fields.onsubmit = (e) => {
-        e.preventDefault();
-        act('/api/launch-settings', { loaderSettings: fieldValues(fieldBox) });
+      const saveSettings = async () => {
+        const meta = state?.platform;
+        if (busy || meta?.locked || meta?.loaderId !== id || !fieldsDirty(fieldBox, meta.loaderSettings)) return;
+        const loaderSettings = {...meta.loaderSettings, ...fieldValues(fieldBox)};
+        const result = await act('/api/launch-settings', {loaderSettings});
+        if (state?.platform?.loaderId !== id) return;
+        if (result?.ok) state.platform.loaderSettings = loaderSettings;
+        // Restore confirmed settings after an error; a draft is never presented
+        // as the settings that the next launch will actually use.
+        buildFields(fieldBox, (loader.settingsSchema || []).filter(field => !field.runtimes || field.runtimes.includes('original')), state.platform.loaderSettings);
+        delete panel.dataset.fieldsStamp;
+        renderPlatformControls();
       };
+      fields.onchange = saveSettings;
+      fields.onsubmit = event => {event.preventDefault(); void saveSettings();};
       panel.append(fields);
       const note = element('p', 'subtitle up-description'),
         source = element('button', 'quiet up-source', 'Download source .bas');
@@ -1685,7 +2472,7 @@ function renderPlatform() {
           'secondary up-confirm',
           'Source saved · continue',
         ),
-        stop = element('button', 'soft-stop up-stop', 'Disconnect safely'),
+        stop = element('button', 'soft-stop up-stop', 'Stop and return to Launch'),
         hard = element('button', 'hard-stop up-hard', '! STOP'),
         status = element('span', 'hint up-status');
       start.onclick = () =>
@@ -1765,7 +2552,7 @@ function renderPlatform() {
   for (const row of state.checks.items) {
     const card = $('device-' + row.id);
     if (card && words[row.id])
-      card.querySelector('h3').textContent = row.label || words[row.id][0];
+      setText(card.querySelector('h3'), row.label || words[row.id][0]);
   }
   renderPlatformControls();
   renderEngineInstall();
@@ -1797,10 +2584,10 @@ function renderEngineInstall() {
     'Download the engine source from its published repository, or add it manually. The engine runs only when you launch a session.';
   $('engine-install-folder').textContent =
     'Manual installation: copy the complete repository into engines/' +
-    meta.loaderId + '/upstream/, then choose Check manual folder.';
+    (selectedEngine?.directory || meta.loaderId) + '/upstream/, then choose Check manual folder.';
   $('engine-install-folder').title = meta.engineInstallation?.folder || '';
-  $('engine-download').disabled = busy || meta.locked || state.preview;
-  $('engine-rescan').disabled = busy || meta.locked;
+  $('engine-download').disabled = serverUnavailable || busy || meta.locked || state.preview;
+  $('engine-rescan').disabled = serverUnavailable || busy || meta.locked;
   if (missing) {
     $('iz-flow').hidden = true;
     $('installation-options').hidden = true;
@@ -1812,6 +2599,16 @@ function renderPlatformControls() {
   renderInstallationSlot();
   const meta = state?.platform;
   if (!meta) return;
+  const locked = serverUnavailable || busy || meta.locked;
+  document.querySelectorAll('[data-variant]').forEach(button => { button.disabled = locked; });
+  document.querySelectorAll('[data-loader]').forEach(button => {
+    const available = RUN21_CATALOG.engineAvailable(meta.loaders.find(loader => loader.id === button.dataset.loader), meta.variant);
+    button.disabled = locked || !available;
+    button.setAttribute('aria-disabled', String(locked || !available));
+  });
+  document.querySelectorAll('#delivery-options input,#delivery-options select,#delivery-options button,#hardware-form input,#hardware-form select,#hardware-form button')
+    .forEach(control => { control.disabled = locked; });
+  renderAutomaticRpcStatus(meta);
   for (const panel of document.querySelectorAll('[data-upstream-panel]')) {
     const id = panel.dataset.upstreamPanel,
       phase = upstreamSteps[id] || 'launch',
@@ -1852,6 +2649,11 @@ function renderPlatformControls() {
         : preloaded
           ? 'After a full restart, the bootstrap is loaded in slot 0 and Direct is open; RUN and REMOVE have not been executed.'
           : 'After a full restart, SmileBASIC Direct is open; RUN and REMOVE have not been executed.';
+    if (meta.configuration?.inputAdapter === 'cardputer-wifi' &&
+        meta.profiles?.[meta.configurationId]?.cardputerCapsLock === 'on') {
+      const label = panel.querySelector('.up-ready-label');
+      label.textContent = label.textContent.replace('Caps Lock off.', 'Caps Lock on.');
+    }
     panel.querySelector('.up-description').textContent =
       phase === 'launch'
         ? preloaded
@@ -1867,11 +2669,12 @@ function renderPlatformControls() {
     const start = panel.querySelector('.up-start');
     start.textContent =
       phase === 'launch' ? 'Launch' : 'Enter source';
-    start.hidden = !!active;
+    start.hidden = !!active || pendingStart || !!stopTask;
     start.disabled =
       busy ||
       dirty ||
       !!state.preview ||
+      !RUN21_CATALOG.engineAvailable(meta.loaders.find(loader => loader.id === id), meta.variant) ||
       !state.checks.ready ||
       !panel.querySelector('.up-ready').checked ||
       (sourceRequired && !panel.querySelector('.up-source-ready').checked) ||
@@ -1881,9 +2684,9 @@ function renderPlatformControls() {
     panel.querySelector('.up-save').disabled = busy;
     panel.querySelector('.up-confirm').hidden = stage !== 'save_confirmation';
     panel.querySelector('.up-confirm').disabled = busy;
-    panel.querySelector('.up-stop').hidden = !active;
+    panel.querySelector('.up-stop').hidden = !active && !pendingStart && !stopTask;
     panel.querySelector('.up-stop').disabled =
-      busy || active?.status === 'stopping';
+      !!stopTask || active?.status === 'stopping';
     panel.querySelector('.up-hard').hidden =
       !active && !state.emergencyInputPending;
     panel.querySelector('.up-hard').disabled = hardStopping;
@@ -1898,11 +2701,18 @@ function renderPlatformControls() {
       : state.emergencyInputPending
         ? 'Input cancellation needs confirmation.'
         : dirty
-          ? 'Save the loader settings before connecting.'
-          : state.checks.ready
-            ? 'Ready to launch.'
-            : 'Configure the connections to continue.';
+          ? 'Saving session settings…'
+          : state.preview
+            ? 'Preview · device commands disabled'
+            : !state.checks.ready
+              ? 'Configure the connections to continue.'
+              : !panel.querySelector('.up-ready').checked
+                ? 'Confirm the console screen to continue'
+                : sourceRequired && !panel.querySelector('.up-source-ready').checked
+                  ? 'Confirm the saved SmileBASIC program to continue.'
+                  : 'Ready to launch.';
   }
+  renderServerAvailability();
 }
 document
   .querySelectorAll('[data-loader]')
@@ -1918,29 +2728,127 @@ document
       (button.onclick = () =>
         act('/api/launch-settings', { variant: button.dataset.variant })),
   );
-$('launch-configuration').onchange = (e) =>
-  act('/api/launch-settings', { configurationId: e.target.value });
 $('hardware-form').onsubmit = (e) => {
   e.preventDefault();
+  const profile=fieldValues($('hardware-fields'));
+  if(profile.cardputerEndpoint){
+    const address=profile.cardputerEndpoint.trim();
+    profile.cardputerEndpoint=address.includes('://')?address:'http://'+address;
+  }
   act('/api/launch-settings', {
     configurationId: state.platform.configurationId,
-    profile: fieldValues($('hardware-fields')),
+    profile,
   });
 };
 
-async function poll() {
+let polling = null;
+let initialRenderComplete = false;
+let dolphinAutoAttempt = null;
+let dolphinOpening = false;
+let dolphinMessage = '';
+function dolphinReady() {
+  return !serverUnavailable && !!state?.connected && state?.active?.status === 'running' && state?.fsRpc?.state === 'ready' && !state?.preview;
+}
+function renderDolphin() {
+  const button = $('dolphin-open'), status = $('dolphin-status');
+  if (!button || !status) return;
+  const ready = dolphinReady();
+  button.disabled = !ready || dolphinOpening;
+  button.title = ready ? 'Open Super File Bros. inside IZ2S. Choose a file manager there when needed.' : 'Available after FS RPC connects';
+  setText(status, serverUnavailable ? 'Server unavailable · FS status cannot be checked.' : dolphinOpening ? 'Opening Super File Bros. tab…' : ready
+    ? dolphinMessage || 'FS RPC is connected. Open the Super File Bros. tab.'
+    : state?.fsRpc?.state === 'starting' ? 'Waiting for FS RPC to connect.'
+    : 'Available when FS RPC is connected.');
+}
+async function openDolphin(automatic = false) {
+  if (!dolphinReady() || dolphinOpening) return;
+  if (!workspaceReady) {if(!automatic)notice('Reopen IZ2S to enable module tabs.');return;}
+  const attemptId = state.active.id;
+  dolphinOpening = true;
+  renderDolphin();
   try {
-    state = await api('/api/state');
-    render();
-  } catch (e) {
-    $('connection').lastChild.textContent = 'Server unavailable';
-    $('connection').classList.remove('online');
-    $('start').disabled = true;
-    $('load').disabled = true;
-    notice(
-      'The local server is unavailable. Reopen Platform to reconnect this window.',
-    );
+    const request = {attemptId, automatic};
+    let result;
+    try { result = await api('/api/rpc/open', request); }
+    catch (error) {
+      // The session owner can predate this UI update; its folder route loads lazily.
+      if (!/Unknown action|Not found/.test(error.message)) throw error;
+      result = await api('/api/folder/open', {kind: 'rpc-browser', ...request});
+    }
+    if(result.tab)workspace.openRequest(result.tab,!automatic);
+    dolphinMessage = result.skipped ? '' : 'Super File Bros. tab is open.';
+  } catch (error) {
+    dolphinMessage = error.message;
+    notice('Super File Bros.: ' + error.message);
+  } finally {
+    dolphinOpening = false;
+    renderDolphin();
   }
+}
+if ($('dolphin-open')) $('dolphin-open').onclick = () => openDolphin();
+let fsRpcLogProof = {id: null, state: null, checked: 0};
+async function readFsRpcProof(snapshot) {
+  // A panel already open during an update can keep serving its previous API.
+  // Read that session's persisted proof instead of restarting a live FS owner.
+  if (snapshot.fsRpc !== undefined || snapshot.platform?.loaderId !== 'bermthesequel') return;
+  const id = snapshot.active?.id;
+  if (!id) return;
+  if (fsRpcLogProof.id !== id) fsRpcLogProof = {id, state: null, checked: 0};
+  if (fsRpcLogProof.state !== 'ready' && Date.now() - fsRpcLogProof.checked > 10000) {
+    fsRpcLogProof.checked = Date.now();
+    try {
+      const result = await api('/api/log?id=' + encodeURIComponent(id), undefined, {timeoutMs: 15000});
+      const messages = (result.events || []).map(event => event.message || '');
+      if (messages.some(message => message === 'FS RPC ready (--rpc): native FS execution verified; endpoint retained.'))
+        fsRpcLogProof.state = 'ready';
+      else if (messages.includes('Preparing held FS RPC before graphics.')) fsRpcLogProof.state = 'starting';
+    } catch { /* The ordinary connection state still controls availability. */ }
+  }
+  if (fsRpcLogProof.state) snapshot.fsRpc = {state: fsRpcLogProof.state, source: 'session-proof-log'};
+}
+function poll() {
+  if (polling) return polling;
+  if (!initialRenderComplete) {
+    $('startup-retry').disabled = true;
+    setText($('startup-message'), 'Connecting to the local server.');
+  }
+  polling = (async () => {
+    try {
+      state = RUN21_CATALOG.normalizeSnapshot(await api('/api/state', undefined, {timeoutMs: 15000}));
+      await readFsRpcProof(state);
+      try {const tools=await api('/api/workspace',undefined,{timeoutMs:5000});workspaceReady=true;workspace.sync(tools.tabs||[]);} catch {workspaceReady=false;}
+      if (serverUnavailable && notificationKey === 'server-unavailable') $('toast').hidden = true;
+      serverUnavailable = false;
+      render();
+      renderDolphin();
+      if (!initialRenderComplete) {
+        initialRenderComplete = true;
+        $('panel-sidebar').hidden = false;
+        $('panel-main').hidden = false;
+        $('panel-startup').hidden = true;
+      }
+      if (workspaceReady && dolphinReady() && dolphinAutoAttempt !== state.active.id) {
+        dolphinAutoAttempt = state.active.id;
+        dolphinMessage = '';
+        void openDolphin(true);
+      }
+    } catch (e) {
+      serverUnavailable = true;
+      if (!initialRenderComplete) {
+        setText($('startup-message'), 'The local server is unavailable. Try again or reopen IZ2S.');
+        $('startup-retry').hidden = false;
+        $('startup-retry').disabled = false;
+        return;
+      }
+      renderServerAvailability();
+      notice(
+        'The local server is unavailable. Displayed device data is outdated; the panel will retry automatically.',
+        'error',
+        'server-unavailable',
+      );
+    }
+  })().finally(() => { polling = null; });
+  return polling;
 }
 document
   .querySelectorAll('[data-view]')
@@ -1958,6 +2866,7 @@ $('recovery-enabled').addEventListener('change', () => {
 });
 $('screen-ready').addEventListener('change', renderControls);
 $('recheck').addEventListener('click', () => act('/api/check', {}));
+$('startup-retry').addEventListener('click', () => poll());
 $('start').addEventListener('click', () => {
   requestId ||= crypto.randomUUID();
   act('/api/start', {
@@ -1968,7 +2877,10 @@ $('start').addEventListener('click', () => {
     moduleIds: $('preload-enabled').checked ? [...startupSelection] : [],
   });
 });
-$('stop').addEventListener('click', () => act('/api/stop', {}));
+$('stop').addEventListener('click', async () => {
+  const result=await act('/api/stop', {});
+  if(result?.ok){requestId=null;pendingSetup=null;$('screen-ready').checked=false;chooseStep('launch');}
+});
 $('load').addEventListener('click', () =>
   act('/api/load', { ids: [...selection] }),
 );
@@ -2012,7 +2924,11 @@ async function setupAction(action, extra = {}) {
   if (result) pendingSetup = null;
   return result;
 }
-async function retrySetup() {
+async function retrySetup(targetStep) {
+  const previousKind = (state?.active || state?.lastAttempt)?.kind;
+  const nextStep = typeof targetStep === 'string' ? targetStep
+    : previousKind === 'bootstrap' ? 'bootstrap'
+    : previousKind === 'launch' ? 'launch' : step;
   const result = await act('/api/retry', {});
   if (result?.ok) {
     requestId = null;
@@ -2027,7 +2943,7 @@ async function retrySetup() {
     $('check-lines').checked = false;
     $('saved-ready').checked = false;
     for (let i = 0; i < 6; i++) $('metric-' + i).value = '';
-    chooseStep('bootstrap');
+    chooseStep(nextStep);
   }
 }
 $('verify-source').addEventListener('click', () =>
@@ -2050,8 +2966,8 @@ $('save-source').addEventListener('click', () => setupAction('save'));
 $('confirm-saved').addEventListener('click', () =>
   setupAction('saved', { savedConfirmed: $('saved-ready').checked }),
 );
-$('retry').addEventListener('click', retrySetup);
-$('restart-setup').addEventListener('click', retrySetup);
+$('retry').addEventListener('click', () => retrySetup());
+$('restart-setup').addEventListener('click', () => retrySetup('bootstrap'));
 for (const id of [
   'review-ready',
   'check-lines',
@@ -2080,6 +2996,14 @@ $('log').addEventListener('scroll', () => {
     logFollow =
       $('log').scrollHeight - $('log').scrollTop - $('log').clientHeight < 40;
 });
+$('log-details').addEventListener('change', renderActivity);
+$('download-session-log').addEventListener('click', () => {
+  const id = (state.active || state.lastAttempt)?.id;
+  if (id) downloadSessionLog(id);
+});
+$('download-saved-log').addEventListener('click', () => {
+  if (savedLogAttempt) downloadSessionLog(savedLogAttempt);
+});
 document.querySelector('.activity').addEventListener('toggle', (event) => {
   if (event.target.open && logFollow)
     $('log').scrollTop = $('log').scrollHeight;
@@ -2105,14 +3029,20 @@ $('delivery-options').oninput = () => {
   $('screen-ready').checked = false;
   renderControls();
 };
-$('delivery-options').onsubmit = (e) => {
-  e.preventDefault();
-  act('/api/launch-settings', {
-    loaderSettings: {
-      ...state.platform.loaderSettings,
-      ...fieldValues($('delivery-fields')),
-    },
-  });
+$('delivery-options').onsubmit = e => e.preventDefault();
+$('delivery-options').onchange = async () => {
+  if (!deliveryDirty() || busy || state.platform.locked) return;
+  const loaderId = state.platform.loaderId,
+    loaderSettings = {...state.platform.loaderSettings, ...fieldValues($('delivery-fields'))};
+  const result = await act('/api/launch-settings', {loaderSettings});
+  if (result?.ok && state.platform.loaderId === loaderId)
+    state.platform.loaderSettings = loaderSettings;
+  // A failed save restores the last confirmed value instead of leaving a draft.
+  for (const input of $('delivery-fields').querySelectorAll('input,select'))
+    delete input.dataset.savedValue;
+  delete $('delivery-options').dataset.stamp;
+  renderPlatform();
+  renderControls();
 };
 
 $('install-slot').onchange = () => {
@@ -2127,31 +3057,62 @@ $('engine-rescan').onclick = () => act('/api/engine/rescan', {});
 
 for(const id of ['arm-setup-address','arm-setup-user','arm-setup-key']) $(id).oninput=()=>{$(id).dataset.edited='true';};
 $('arm-install-confirm').onchange=()=>{if(state?.platform)renderArmSetup(state.platform);};
-for(const mode of ['ssh','manual']) $('arm-method-'+mode).onclick=()=>{for(const item of ['ssh','manual']){$('arm-method-'+item).classList.toggle('selected',mode===item);$('arm-'+item+'-pane').hidden=mode!==item;}};
+for(const mode of ['ssh','manual']) $('arm-method-'+mode).onclick=()=>{for(const item of ['ssh','manual']){$('arm-method-'+item).classList.toggle('selected',mode===item);$('arm-method-'+item).setAttribute('aria-pressed',String(mode===item));$('arm-'+item+'-pane').hidden=mode!==item;}};
 $('arm-install-form').onsubmit=async(event)=>{
   event.preventDefault();
   $('arm-install-result').textContent='Installing the verified package over SSH…';
   const result=await act('/api/input/install',{address:$('arm-setup-address').value.trim(),user:$('arm-setup-user').value.trim(),identity:$('arm-setup-key').value.trim(),confirm:$('arm-install-confirm').checked});
   if(result?.ok){$('arm-install-result').textContent=result.keyboard?'Installed. Check the console USB connection before launch.':'Installed. Connect/configure the board’s USB keyboard gadget, then check again.';for(const id of ['arm-setup-address','arm-setup-user','arm-setup-key'])delete $(id).dataset.edited;}else $('arm-install-result').textContent='Installation was not confirmed. Check the error above, or use the manual package.';
 };
-$('arm-check').onclick=()=>act('/api/check');
+$('arm-check').onclick=()=>act('/api/check', {});
 $('arm-package-download').onclick=async()=>{try{const response=await fetch('/api/input-package',{headers:{'x-iz-key':key}});if(!response.ok)throw Error((await response.json()).error);const url=URL.createObjectURL(await response.blob()),link=element('a');link.href=url;link.download='iz2s-arm-input.tar.gz';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){notice(error.message);}};
 
+
+window.addEventListener('run21:languagechange', () => {
+  if (!state) return;
+  historyStamp = '';
+  $('log').dataset.stamp = '';
+  renderHistory();
+  renderActivity();
+});
 
 for (const placeholder of document.querySelectorAll('[data-folder]')) {
   const button = folderButton(placeholder.dataset.folder, null, placeholder.textContent.trim());
   button.id = placeholder.id;
+  button.dataset.folder = placeholder.dataset.folder;
   button.className += ' ' + placeholder.className;
   button.onclick = async event => {
     event.preventDefault();
     event.stopPropagation();
     const kind = placeholder.dataset.folder;
     const id = kind === 'configuration' ? state?.platform?.configurationId
-      : ['engine', 'engine-source'].includes(kind) ? state?.platform?.loaderId : undefined;
+      : ['engine', 'engine-source'].includes(kind) ? state?.platform?.loaderId
+      : kind === 'shell' ? state?.platform?.variant || 'izlauncher' : undefined;
+    button.dataset.pending = 'true';
     button.disabled = true;
     try { await api('/api/folder/open', { kind, ...(id ? { id } : {}) }); }
     catch (error) { notice(error.message); }
-    finally { button.disabled = !!state?.preview; }
+    finally { delete button.dataset.pending; renderLocalActionAvailability(); }
   };
   placeholder.replaceWith(button);
 }
+
+async function downloadCardputerPackage() {
+  const response=await fetch('/api/cardputer/package',{headers:{'x-iz-key':key}});
+  if(!response.ok)throw Error((await response.json()).error);
+  const url=URL.createObjectURL(await response.blob()),link=element('a');link.href=url;link.download='iz2s-cardputer-adv-sd.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('cardputer-install').onclick=async()=>{
+  $('cardputer-setup-result').textContent='Copying to the ADV SD card…';
+  const result=await act('/api/cardputer/install',{});
+  $('cardputer-setup-result').textContent=result?.verified?'Copied. Start IZ2S-ADV-0.21.bin from M5Launcher.':'Copy failed. Open M5Launcher USB storage and mount its SD card.';
+};
+$('cardputer-file').onclick=async()=>{
+  const result=await act('/api/cardputer/prepare',{});
+  if(result?.ok){try{await downloadCardputerPackage();$('cardputer-setup-result').textContent='Extract the ZIP to the SD card, then start IZ2S-ADV-0.21.bin in M5Launcher.';}catch(error){notice(error.message);}}
+};
+$('cardputer-check').onclick=()=>act('/api/check',{});
+$('adv-usb-check').onclick=()=>act('/api/check',{});
+$('adv-address').onclick=()=>{$('hardware-options').open=true;$('hardware-options').querySelector('[name="cardputerEndpoint"]')?.focus();};
+
+} // Ordinary panel; the standalone files preview above never starts polling.

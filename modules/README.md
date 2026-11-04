@@ -1,34 +1,17 @@
-# Modules
+# Bundled IZ2S modules
 
-Each `modules/<id>/` folder belongs to one application/integration. **File Exchange** is the only module bundled in the prepared public release; the test project contains additional apps. A new experimental folder is not automatically added to the release profile.
+- **[File Exchange](iz-exchange/README.md)** (`iz-exchange`): SmileBASIC title folders and FTP.
+- **[File Exchange FS](iz-exchange-fs/README.md)** (`iz-exchange-fs`): installed-game exports through a retained FS RPC endpoint; requires File Exchange.
+- **[Book Reader](BookReader/README.md)** (`book-reader`, directory `BookReader`): English TXT/EPUB reading and prelaunch library settings.
 
-## What belongs in one folder?
+Source and compiled console assets are included. The panel builds the portable IZM archives before a fresh start. Other modules can be installed here separately. Per-module `data/`, books, reading positions, installed runtimes and previous versions stay private and are excluded from the release.
 
-| Path | Purpose |
-| --- | --- |
-| `module.json` | Identity, requirements, entry points and declared file inventory |
-| `switch/` | Console interface/logic and resources |
-| `server/` | PC-side integration and optional installers |
-| `<id>.izm` | Generated portable ZIP-based package |
-| `runtime/` | Extra downloaded programs or compiled helpers; private/local |
-| `data/` | Private application preferences/profile |
-| `.versions/<hash>/` | Verified snapshot kept fixed for a session |
+The common console SD directory is `SD:/IZ2S/Homebrew/Modules/<module.id>/`, independent of this PC installation directory. See [SDK storage guidance](../sdk/SD-STORAGE.md). Existing module data is not moved automatically.
 
-The package can contain a console part, a server part or both. Only `switch.files` goes to Switch. A small integration package does not contain an entire external game or Electron runtime. Read that module's README for its extra requirements.
+## Additional modules
 
-## Add, change and use a module
+- **[VacooTube](https://github.com/byizmysh/VacooTube):** use its own installation instructions and release packages.
+- **[BlitBun](https://github.com/byizmysh/BlitBun):** use its own installation instructions and release packages.
+- **Emulators and other modules:** obtain a compatible package from its developer and follow its installation guide. They are not included in the platform archive. Check the module's host OS, runtime and console requirements before installation.
 
-Place a valid `<id>.izm` in the matching folder. In a source checkout, edit the owned source and rebuild its package:
-
-```sh
-./tools/node sdk/pack.cjs modules/iz-exchange
-./tools/node sdk/check.cjs
-```
-
-A module's README is part of the package/checksum inventory, so documentation changes need repacking too. Normal startup also publishes valid source changes. Select/load modules in the App library and open their tiles on Switch. Installing an optional PC runtime is a separate action inside its card.
-
-An active console session keeps its verified version until it ends. Do not edit `.versions/` or session copies directly. End the session safely and use a fresh activation for updated code. The host process is ordinary user code, not a security sandbox.
-
-The experimental display name **Thomas & Friends™: Race On!** retains module ID `grand-theft-auto-5` and its GTA integration. A display-name change does not rename its dependency/component IDs.
-
-[File Exchange](iz-exchange/README.md) · [Module format and developer contract](../sdk/README.md) · [FAQ](../FAQ.md#modules-and-file-exchange) · [Main README](../README.md).
+[Super File Bros.](https://github.com/byizmysh/super-file-bros) is integrated into IZ2S and also distributed as an independent standalone project.

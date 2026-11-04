@@ -6,9 +6,16 @@ const path = require("node:path");
 
 // Stage programs share one native connection through this local, serialized
 // bridge. Its address and token exist only in the current launch directory.
-async function serve(native, directory) {
+async function serve(native, directory, options = {}) {
   const token = crypto.randomBytes(32).toString("hex");
   const queue = require('./request-queue.cjs').create();
+  // Opt-in only in a future explicitly configured original host. No existing
+  // host is activated or restarted by loading this source. This is dispatch
+  // fencing, not native ownership/installation attestation.
+  const admission = options.admission ? require('./admission-gate.cjs').create({
+    drain: () => queue.idle(), verifyRelease: options.admission.verifyRelease,
+  }) : null;
+  const controlToken = admission ? crypto.randomBytes(32).toString('hex') : null;
   const statistics = {
     requests: 0,
     completed: 0,
@@ -45,9 +52,11 @@ async function serve(native, directory) {
     );
     await fs.rename(file + ".tmp", file);
   }
-  const enqueue = (task, info = { command: "keepalive" }) => {
+  const enqueue = (task, info = { command: "keepalive" }, headers) => {
+    const ticket = admission?.admit(headers);
     const queuedAt=performance.now();
     return queue.enqueue(async () => {
+      ticket?.beforeDispatch();
       const row = {
         ...info,
         queueWaitMs: performance.now()-queuedAt,
@@ -86,7 +95,9 @@ async function serve(native, directory) {
         count.milliseconds += row.milliseconds;
         await save(row);
       }
-    },{priority:info.priority||'normal'});
+    },{priority:info.priority||'normal'}).catch(error => {
+      ticket?.failed(); throw error;
+    }).finally(() => ticket?.finish());
   };
   async function handle(request) {
     const { command } = request;
@@ -158,10 +169,11 @@ async function serve(native, directory) {
     throw Error("Unknown bridge command");
   }
   const server = http.createServer(async (req, res) => {
+    const control = admission && req.url === '/admission-control';
     if (
       req.method !== "POST" ||
-      req.url !== "/" ||
-      req.headers.authorization !== "Bearer " + token
+      (!control && req.url !== "/") ||
+      req.headers.authorization !== "Bearer " + (control ? controlToken : token)
     ) {
       res.writeHead(403).end();
       return;
@@ -176,6 +188,24 @@ async function serve(native, directory) {
         parts.push(part);
       }
       const request = JSON.parse(Buffer.concat(parts));
+      if (control) {
+        // Capabilities/control tokens are deliberately absent from progress,
+        // error statistics, connection.json and ordinary status responses.
+        const actions = new Set(['acquire', 'begin', 'try-begin', 'end', 'release', 'retain', 'status', 'verify-cleanup']);
+        if (!request || !actions.has(request.action)) throw Error('Unknown admission control action');
+        if (request.action !== 'status') res.once('close', () => {
+          if (!res.writableFinished) admission.retain({});
+        });
+        const result = request.action === 'status' ? admission.inspect() :
+          await admission[request.action === 'verify-cleanup' ? 'verifyCleanupPermit' : request.action === 'try-begin' ? 'tryBegin' : request.action](request);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(result)); return;
+      }
+      if (admission && request.command !== 'status') res.once('close', () => {
+        if (!res.writableFinished && (admission.inspect().phase !== 'open' ||
+          req.headers['x-iz-admission'] !== undefined || req.headers['x-iz-admission-permit'] !== undefined))
+          admission.retain({});
+      });
       const info = { command: request.command };
       if(request.priority!==undefined){
         if(request.priority!=='audio'||!['call-address','write-call'].includes(request.command))throw Error('Invalid native request priority');
@@ -195,7 +225,8 @@ async function serve(native, directory) {
         );
       const result = await (request.command === "status"
         ? handle(request)
-        : enqueue(() => handle(request), info));
+        : enqueue(() => handle(request), info, req.headers));
+      if (admission && request.command === 'status') result.admission = admission.inspect();
       res.setHeader("Content-Type", "application/json");
       res.end(
         JSON.stringify(result, (_, value) =>
@@ -216,6 +247,7 @@ async function serve(native, directory) {
   let lastActivity = 0;
   let heartbeatPending = false;
   const heartbeat = setInterval(() => {
+    if (admission && admission.inspect().phase !== 'open') return;
     if (heartbeatPending) return;
     heartbeatPending = true;
     enqueue(async () => {
@@ -235,11 +267,20 @@ async function serve(native, directory) {
   return {
     port: server.address().port,
     token,
+    ...(admission ? {admission: Object.freeze({
+      acquire: admission.acquire, begin: admission.begin, end: admission.end,
+      release: admission.release, retain: admission.retain, inspect: admission.inspect,
+      sealForShutdown: admission.sealForShutdown, verifyShutdownSeal: admission.verifyShutdownSeal,
+      beginShutdownCleanup: admission.beginShutdownCleanup, endShutdownCleanup: admission.endShutdownCleanup,
+      channel: Object.freeze({url: 'http://127.0.0.1:' + server.address().port + '/admission-control',
+        token: controlToken, authorityId: admission.inspect().authorityId}),
+    })} : {}),
     keepAwake(value) {
       activity = value;
     },
     async close() {
       clearInterval(heartbeat);
+      admission?.close();
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
       await queue.idle();

@@ -28,7 +28,7 @@ async function start({launchStage, watchAuxiliary, closeSession}, directory) {
   const catalog = JSON.parse(
     await require('node:fs/promises').readFile(path.join(directory, 'app-runtime.json')),
   );
-  if (catalog.catalog.apps.some((app) => Object.keys(app.effects || {}).length)) {
+  if (process.env.IZ18_RESIDENT_GRAPHICS!=='1'&&catalog.catalog.apps.some((app) => Object.keys(app.effects || {}).length)) {
     const effects = launchStage(
       'core/console/audio/game-audio.cjs',
       [directory],

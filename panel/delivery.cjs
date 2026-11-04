@@ -9,17 +9,18 @@ function selected({ root, id, settings = {}, host, port, recovery = false }) {
     throw Error('Unknown IZlauncher loading method');
   const meta = engines.list().find((e) => e.id === id);
   if (!meta.bootstrapDescriptor) throw Error('This engine has no bootstrap');
+  const resumable=meta.capabilities?.receiptRecovery===true;
   return {
     id,
-    protocol: 1,
-    resumable: false,
+    protocol: resumable?2:1,
+    resumable,
     bootstrap: {
-      file: path.join(root, 'engines', id, meta.bootstrap),
+      file: path.join(meta.folder, meta.bootstrap),
       sourceSlot: meta.bootstrapDescriptor.installSlot,
-      saveName: id === 'izmysh' ? 'NS2' : meta.bootstrapDescriptor.saveName,
+      saveName: meta.bootstrapDescriptor.saveName,
       arity: meta.bootstrapDescriptor.arity,
       loaderId: id,
-      recovery: false,
+      recovery: meta.bootstrapDescriptor.recovery===true,
     },
   };
 }
@@ -62,21 +63,6 @@ function create({
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
     }
-    // Preserve the already-installed NS2R when migrating the first IZlauncher layout.
-    if (id === 'izmysh')
-      try {
-        return {
-          ...JSON.parse(
-            await fs.readFile(
-              path.join(root, 'data/state/bootstrap-profile.json'),
-              'utf8',
-            ),
-          ),
-          recovery: false,
-        };
-      } catch (e) {
-        if (e.code !== 'ENOENT') throw e;
-      }
     return { recovery: false };
   }
   function installation(recovery = false) {
@@ -86,27 +72,11 @@ function create({
       bootstrap: {
         ...value.bootstrap,
         sourceSlot: installSlot,
-        saveName: id === 'izmysh' ? 'NS2I' : value.bootstrap.saveName,
       },
     };
   }
   async function connectionBootstrapName(recovery = false) {
-    const value = transport(recovery),
-      saved = await profile(),
-      target = installation(recovery).bootstrap;
-    // A newly typed copy becomes the launch target only after SAVE confirmation.
-    if (
-      id === 'izmysh' &&
-      saved.userConfirmed === true &&
-      saved.consoleReadback === false &&
-      Number.isInteger(saved.sourceSlot) &&
-      saved.sourceSlot >= 0 &&
-      saved.sourceSlot <= 3 &&
-      saved.recovery !== true &&
-      saved.name === target.saveName
-    )
-      return saved.name;
-    return value.bootstrap.saveName;
+    return transport(recovery).bootstrap.saveName;
   }
   async function sourcePlan(_root, recovery = false) {
     const value = installation(recovery);
@@ -136,6 +106,20 @@ function create({
       ].join('\n');
     },
   };
+  async function preload(onEvent) {
+    if (!input.stagePlans) return;
+    const value = installation(false), slot = value.bootstrap.sourceSlot;
+    const checks = (await sourcePlan(root, false)).commands.map(text => ({type:'line',text,delayMs:2000}));
+    const save = [{type:'line',text:slots.commands(value.bootstrap.saveName,slot).save,delayMs:2000}];
+    const editor = [{type:'key',key:'f4',delayMs:2000}];
+    const command = 'V=START(' + [configuration.settings.consolePort,...configuration.settings.consoleHost.split('.')].join(',') + ')';
+    await input.stagePlans({
+      bootstrap:{steps:[{type:'line',text:'LIST '+slot+':1',delayMs:2000}],sourceFile:value.bootstrap.file},
+      'verify-editor':{steps:[...editor,...checks]}, 'verify-direct':{steps:checks},
+      'save-editor':{steps:[...editor,...save]}, 'save-direct':{steps:save},
+      connect:{steps:require('../engines/common.cjs').connectSteps({command,bootstrapName:value.bootstrap.saveName})},
+    }, onEvent);
+  }
   async function perform(
     action,
     requestId,
@@ -146,6 +130,7 @@ function create({
     const value =
         action === 'connect' ? transport(recovery) : installation(recovery),
       steps = [];
+    await preload(onEvent);
     if (action === 'connect') {
       const directory = await fs.realpath(runDirectory),
         runs = await fs.realpath(path.join(root, 'data/sessions'));

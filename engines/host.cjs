@@ -1,11 +1,11 @@
 // The selected acquisition transport feeds one qualified IZlauncher runtime.
-// Upstream FS demos and their separate GPU menus are not started here.
+// An engine may explicitly retain its FS endpoint before graphics starts.
 const fs = require('node:fs/promises'),
   path = require('node:path');
 const { chooseHost } = require('./izmysh/server/lib/network.cjs');
 const { serve } = require('./izmysh/server/lib/bridge.cjs');
 const { saveJson } = require('../core/session/ledger.cjs');
-async function main() {
+async function main({admission} = {}) {
   const root = path.resolve(__dirname, '..'),
     id = process.env.IZ15_LOADER || 'izmysh';
   if (
@@ -14,7 +14,7 @@ async function main() {
   )
     throw Error('Unknown acquisition loader');
   const host = await chooseHost(process.argv.slice(2)),
-    port = Number(process.env.HB_PORT || 39395),
+    port = Number(process.env.HB_PORT || 39380),
     settings = JSON.parse(process.env.IZ15_LOADER_SETTINGS || '{}');
   const transport = process.env.IZ15_ENGINE_FOLDER
     ? require(
@@ -27,6 +27,13 @@ async function main() {
         settings,
       });
   const workspace = path.join(root, 'data/sessions');
+  if (admission !== undefined) {
+    if (!admission || typeof admission.verifyRelease !== 'function' ||
+        !path.isAbsolute(admission.clientModule || '') ||
+        !/^[0-9a-f]{64}$/.test(admission.clientModuleSha256 || '') ||
+        typeof transport.startRuntime !== 'function')
+      throw Error('Native admission requires explicit original-host verifier, pinned client and FS runtime');
+  }
   await fs.mkdir(workspace, { recursive: true, mode: 0o700 });
   const directory = await fs.mkdtemp(path.join(workspace, 'launcher-'));
   const record = {
@@ -38,6 +45,7 @@ async function main() {
   };
   let native,
     bridge,
+    endpoint,
     stateWrites = Promise.resolve(),
     actualProtocol = transport.protocol,
     actualResumable = transport.resumable;
@@ -122,7 +130,9 @@ async function main() {
     // Preserve an in-flight operation during HOME; never replay an uncertain call.
     connected.connection.timeout = 120000;
     record.homeResumeGraceMs = 120000;
-    bridge = await serve(native, directory);
+    bridge = await serve(native, directory, admission ? {
+      admission: {verifyRelease: admission.verifyRelease},
+    } : {});
     bridge.keepAwake(record.qualification.activity);
     await fs.mkdir(path.join(directory, 'shared'));
     await fs.copyFile(
@@ -142,8 +152,31 @@ async function main() {
       }),
       { mode: 0o600 },
     );
+    if (transport.startRuntime) {
+      console.log('Preparing held FS RPC before graphics.');
+      let fsAdmission;
+      if (admission) {
+        fsAdmission = await require('../core/session/native-admission-config.cjs').provision({
+          directory, bridge,
+          addresses: {...native.addresses, session: path.basename(directory), target: 'switch2'},
+          clientModule: admission.clientModule, clientModuleSha256: admission.clientModuleSha256,
+        });
+        record.nativeAdmission = {enabled: true, scope: 'sdk-dispatch-with-requested-fs-binding',
+          fsRuntimeProvisioned: true, fsRuntimeFencingVerified: false, kernelLeaseGranted: false, helperAttested: false};
+      }
+      endpoint = await transport.startRuntime({directory, ...(fsAdmission ? {admission: fsAdmission} : {})});
+      if (admission) {
+        const proof = endpoint.state?.nativeAdmission;
+        if (!proof || proof.authorityId !== bridge.admission.channel.authorityId ||
+            proof.session !== path.basename(directory) || proof.outerDispatchFenced !== true ||
+            proof.nestedSdkScoped !== true || proof.runtimeConfirmed !== true)
+          throw Error('FS runtime did not confirm the original host admission binding');
+        record.nativeAdmission.fsRuntimeFencingVerified = true;
+      }
+      record.fsRpc = endpoint.state;
+    }
     console.log('Qualified native session ready for graphics inspection.');
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
       const socket = connected.connection.socket;
       const done = () => {
         process.removeListener('SIGINT', done);
@@ -154,6 +187,7 @@ async function main() {
       socket.once('close', done);
       process.once('SIGINT', done);
       process.once('SIGTERM', done);
+      endpoint?.done.then(() => reject(Error('Held FS endpoint exited')), reject);
       if (socket.destroyed || connected.connection.error) done();
     });
     if (native.connection.error)
@@ -165,23 +199,43 @@ async function main() {
         at: new Date().toISOString(),
       });
   } catch (error) {
+    // An enabled child's initialization may already have reached native code.
+    // The original authority keeps its parent alive instead of replay/cleanup.
+    bridge?.admission?.retain({});
     record.error = error.stack;
     throw error;
   } finally {
     try {
-      await bridge?.close();
+      await require('../core/session/native-owner-host.cjs').finish({
+        directory, session: path.basename(directory), bridge, record,
+        reason: record.disconnect || record.error || 'host-stopped',
+        onRetain: async status => {
+          state({state: 'offline', reason: status.reason, resourcesRetained: true,
+            nativeOwnerPhase: status.phase, at: new Date().toISOString()});
+          await stateWrites;
+          console.log('Native application owner retained: host cleanup parked until joined-clean proof.');
+        },
+        ...(admission ? {prepareCleanup: async ({admissionCleanup}) => {
+          if (typeof endpoint?.close !== 'function') throw Error('Admitted FS endpoint cleanup is unavailable');
+          await endpoint.close({admissionCleanup});
+        }} : {}),
+        cleanup: async ({bridgeAlreadyClosing, endpointAlreadyClosed}) => {
+          try {
+            try { if (!endpointAlreadyClosed) await endpoint?.close(); }
+            finally { if (!bridgeAlreadyClosing) await bridge?.close(); }
+          } finally {
+            await native?.stop();
+          }
+        },
+      });
     } finally {
-      try {
-        await native?.stop();
-      } finally {
-        await stateWrites;
-        record.completed = new Date().toISOString();
-        await fs.writeFile(
-          path.join(directory, 'result.json'),
-          JSON.stringify(record, null, 2),
-          { mode: 0o600 },
-        );
-      }
+      await stateWrites;
+      record.completed = new Date().toISOString();
+      await fs.writeFile(
+        path.join(directory, 'result.json'),
+        JSON.stringify(record, null, 2),
+        { mode: 0o600 },
+      );
     }
   }
 }

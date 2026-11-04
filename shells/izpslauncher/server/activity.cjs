@@ -10,7 +10,7 @@ async function raster(events,apps,directory,label='activity'){
  await fs.mkdir(directory,{recursive:true});
  const input=path.join(directory,label+'.json'),output=path.join(directory,label+'.bin');
  await fs.writeFile(input,JSON.stringify({events:events.slice(0,MAX_EVENTS),apps:apps.map(a=>({id:a.id,name:a.name}))}));
- await promisify(execFile)('python3',[path.join(__dirname,'ps-activity.py'),input,output],{timeout:15000,maxBuffer:65536});
+ await promisify(execFile)(require('../../../core/platform/python.cjs').command(),[path.join(__dirname,'ps-activity.py'),input,output],{timeout:15000,maxBuffer:65536});
  const bytes=await fs.readFile(output);if(bytes.length!==128+TEXT_BYTES||bytes.readUInt32LE()!==MAGIC)throw Error('Invalid activity atlas');
  return {header:bytes.subarray(0,128),text:bytes.subarray(128)};
 }

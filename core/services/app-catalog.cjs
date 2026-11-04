@@ -22,11 +22,14 @@ async function readApp(directory,{validate=true}={}){
  check(m.shaderEncoding===undefined||m.shaderEncoding==='deflate','Unsupported shader encoding');
  check(m.service===undefined,'Unsupported host service');
  check(m.hostRuntime===undefined||/^module:[a-z0-9-]+\/[A-Za-z0-9-]+$/.test(m.hostRuntime),'Invalid module host runtime');
- check(m.builtin===undefined||(/^[a-z0-9][a-z0-9-]{0,47}$/.test(m.builtin)&&Number.isInteger(m.shellContribution?.scene)&&m.shellContribution.scene>=2&&m.shellContribution.scene<=8),'Invalid shell contribution scene');
+ check(m.shellContribution?.launchCommand===undefined||(m.builtin&&m.shellContribution.scene===3&&Number.isInteger(m.shellContribution.launchCommand)&&m.shellContribution.launchCommand>=1&&m.shellContribution.launchCommand<=255),'Invalid stream launch command');
+ check(m.builtin===undefined||(/^[a-z0-9][a-z0-9-]{0,47}$/.test(m.builtin)&&Number.isInteger(m.shellContribution?.scene)&&m.shellContribution.scene>=2&&m.shellContribution.scene<=9),'Invalid shell contribution scene');
  // Separate package identities may share the same validated built-in behavior.
  if(m.builtin)check(!m.displayOnly&&!m.shaders&&!m.memory&&!m.computeSequence,'Invalid built-in manifest');
  require('../console/host/runtime.cjs').validateManifest(m.sdk);
  const files={},hash=crypto.createHash('sha256');hash.update(manifestAsset.bytes);
+ // Optional main-compute grid; absence preserves the ABI 1 single-workgroup default.
+ if(m.computeWorkgroups!==undefined){const grid=m.computeWorkgroups;check(Array.isArray(grid)&&grid.length===3&&grid.every(v=>Number.isInteger(v)&&v>=1&&v<=65535)&&grid.reduce((n,v)=>n*v,1)<=4096,'Invalid compute workgroups');}
  if(m.computeSequence!==undefined){check(m.computeSequence&&Number.isInteger(m.computeSequence.repeat)&&m.computeSequence.repeat>=1&&m.computeSequence.repeat<=512,'Invalid compute sequence repeat');check(typeof m.computeSequence.begin==='string'&&typeof m.computeSequence.after==='string','Invalid compute sequence shaders');}
  const stages=m.displayOnly===true||m.builtin?[]:[['vertex',0,m.shaders?.vertex],['fragment',4,m.shaders?.fragment],['compute',5,m.shaders?.compute]];
  if(m.computeSequence)stages.push(['computeBegin',5,m.computeSequence.begin],['computeAfter',5,m.computeSequence.after]);
@@ -53,9 +56,9 @@ async function readApp(directory,{validate=true}={}){
  files.data=await asset(root,m.data,7*1024*1024);hash.update(files.data.bytes);
  }
  if(m.memory!==undefined){
-  check(m.memory&&Number.isInteger(m.memory.bytes)&&m.memory.bytes>=4096&&m.memory.bytes<=32*1024*1024&&m.memory.bytes%4096===0,'Invalid private GPU memory size');
+  const privateLimit=require('./private-memory-profile.cjs').validate(m.memory);
   check(m.memory.encoding===undefined||m.memory.encoding==='deflate','Unsupported private memory encoding');
-  const item=await asset(root,m.memory.initial,32*1024*1024);hash.update(item.bytes);
+  const item=await asset(root,m.memory.initial,privateLimit);hash.update(item.bytes);
   const bytes=m.memory.encoding==='deflate'?inflateSync(item.bytes,{maxOutputLength:m.memory.bytes}):item.bytes;
   check(bytes.length<=m.memory.bytes,'Private GPU memory image exceeds allocation');files.memory={...item,bytes,allocationBytes:m.memory.bytes};
  }
@@ -65,7 +68,7 @@ async function readApp(directory,{validate=true}={}){
  const webp=icon.toString('ascii',0,4)==='RIFF'&&icon.toString('ascii',8,12)==='WEBP';
  check(png||webp,'Icon must be a PNG or WebP');
  if(png)check(icon.readUInt32BE(16)>0&&icon.readUInt32BE(16)<=4096&&icon.readUInt32BE(20)>0&&icon.readUInt32BE(20)<=4096,'Icon dimensions exceed 4096');
- if(validate)await run('python3',['-c','from PIL import Image; import sys; im=Image.open(sys.argv[1]); assert 0<im.width<=4096 and 0<im.height<=4096; im.verify()',files.icon.file],{timeout:10000,maxBuffer:65536});
+ if(validate)await run(require('../platform/python.cjs').command(),['-c','from PIL import Image; import sys; im=Image.open(sys.argv[1]); assert 0<im.width<=4096 and 0<im.height<=4096; im.verify()',files.icon.file],{timeout:10000,maxBuffer:65536});
  const effects={},effectData={};
  check(m.audio===undefined||(m.audio.sampleRate===48000&&m.audio.channels===2&&m.audio.format==='s16le'),'Unsupported audio format');
  for(const [id,name] of Object.entries(m.audio?.effects||{})){
@@ -89,12 +92,13 @@ function summary(catalog){return {root:catalog.root,apps:catalog.apps.map(a=>({i
 async function raster(catalog,directory,label='catalog'){
  const input=path.join(directory,label+'.json'),output=path.join(directory,label+'.bin');
  const labels=[];
+ const language=await require('../../language/node.cjs').current();
  for(const [i,a] of catalog.apps.entries()){
   const icon=path.join(directory,label+'-icon-'+i+'.png');await fs.writeFile(icon,a.files.icon.bytes);
-  labels.push({name:a.name,description:a.description,icon,transition:a.manifest.transition,displayOnly:a.manifest.displayOnly===true,builtin:a.manifest.builtin,scene:a.manifest.shellContribution?.scene});
+  labels.push({name:language.t(a.name),searchName:a.name,description:language.t(a.description),icon,transition:a.manifest.transition,displayOnly:a.manifest.displayOnly===true,builtin:a.manifest.builtin,scene:a.manifest.shellContribution?.scene,launchCommand:a.manifest.shellContribution?.launchCommand});
  }
  await fs.writeFile(input,JSON.stringify(labels,null,2));
- await run('python3',[path.join(__dirname,'catalog-assets.py'),input,output],{timeout:15000,maxBuffer:65536});
+ await run(require('../platform/python.cjs').command(),[path.join(__dirname,'catalog-assets.py'),input,output],{timeout:15000,maxBuffer:65536,env:{...process.env,...(language.font?{HB_FONT:language.font}:{})}});
  const bytes=await fs.readFile(output);check(bytes.length===MAX_APPS*SLOT_BYTES,'Invalid catalog raster');return bytes;
 }
 module.exports={ROOT,MAX_APPS,SLOT_BYTES,ATLAS_BYTES,asset,readApp,scan,summary,raster};

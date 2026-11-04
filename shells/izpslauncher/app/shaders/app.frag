@@ -5,11 +5,14 @@ layout(location=0) out vec4 outColor;
 #include "launcher-state.glsl"
 #define HB_READONLY
 #include "hb.glsl"
+#include "resilience.glsl"
 #include "launcher-text.glsl"
 #include "iz-draw.glsl"
+#include "load-progress.glsl"
 #include "focus-layout.glsl"
 #include "focus-library.glsl"
 #include "focus-ui.glsl"
+#include "load-progress-draw.glsl"
 #include "run10-chrome.glsl"
 #include "focus-icons.glsl"
 #include "focus-light.glsl"
@@ -67,6 +70,7 @@ vec3 focusSearchDraw(vec2 p,vec3 col){
 }
 #include "ps-draw.glsl"
 #include "ps-removal.glsl"
+#include "resilience-draw.glsl"
 void main(){
  vec2 p=gl_FragCoord.xy;
 #ifdef IZ_CONTROLLERS
@@ -87,5 +91,5 @@ void main(){
  video=streamDraw(p);
  outColor=vec4(c.atlas[SB+41u]==1u?notification(p,video):video,1);return;}
 #endif
- vec3 col=psMenu(p);if(c.rows[1]!=0u)col=focusSearchDraw(p,col);col=psRemovalDraw(p,col);outColor=vec4(notification(p,col)*(1.0-c.transition.x),1);
+ vec3 col=psMenu(p);if(c.rows[1]!=0u)col=focusSearchDraw(p,col);col=psRemovalDraw(p,col);col=rsDraw(p,notification(p,col));outColor=vec4(col*(1.0-c.transition.x),1);
 }

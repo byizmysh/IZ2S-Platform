@@ -16,15 +16,15 @@ async function createConnections({
   settings,
   run,
   interfaces = () => os.networkInterfaces(),
-  isWireless = (name) =>
-    fs.stat('/sys/class/net/' + name + '/wireless').then(
-      () => true,
-      () => false,
-    ),
+  isWireless = require('../platform/network.cjs').isWireless,
+  routeSource = require('../platform/network.cjs').routeSource,
+  networkEnabled = !!run,
   discover = network.discover,
 }) {
   const file = path.join(root, 'data/state/connections.json'),historyFile=path.join(root,'data/state/console-addresses.json');
-  const storedHistory=await readJson(historyFile,{});let consoleHistory=[],historySave=Promise.resolve();
+  const storedHistory=await readJson(historyFile,{});
+  let consoleHistory = [], historySave = Promise.resolve(), historyInFlight = null;
+  let historyRevision = 0, savedHistoryRevision = 0, historyRetryAt = 0;
   for(const row of Array.isArray(storedHistory.observations)?storedHistory.observations:[]){if(!network.privateIP(row?.address)||!modes.includes(row.mode)||!Number.isFinite(Date.parse(row.verifiedAt)))continue;consoleHistory=consoleHistory.filter(old=>old.mode!==row.mode&&old.address!==row.address);consoleHistory.push({address:row.address,mode:row.mode,verifiedAt:row.verifiedAt});}
   const saved = await readJson(file, {}),
     preferences = {};
@@ -191,21 +191,14 @@ async function createConnections({
       ).flat();
       defaultDevice = null;
       errors = [];
-      if (run) {
+      if (networkEnabled) {
         try {
-          const routes = JSON.parse(
-            (
-              await run('ip', ['-json', 'route', 'show', 'default'], {
-                timeout: 1500,
-              })
-            ).stdout,
-          );
-          defaultDevice =
-            routes
-              .sort((a, b) => (a.metric || 0) - (b.metric || 0))
-              .find((r) => hosts.some((h) => h.name === r.dev))?.dev || null;
+          const target = preferences.lan.addresses[selectedMode('lan')] ||
+            modeAddress('arm', selectedMode('arm')) || '192.0.2.1';
+          const source = await routeSource(target);
+          defaultDevice = hosts.find(host => host.address === source)?.name || null;
         } catch {
-          /* NIC discovery still works without iproute2. */
+          // A directly connected LAN can work without a default route.
         }
         try {
           const result = await discover({
@@ -238,7 +231,7 @@ async function createConnections({
       dualConsoleSupported: true,
       inventoryAvailable: peers.some((p) => p.kind === 'input'),
       discovery: {
-        enabled: !!run,
+        enabled: networkEnabled,
         port: network.PORT,
         errors,
         ambiguous:
@@ -319,6 +312,32 @@ async function createConnections({
     sync();
     return snapshot();
   }
+  function saveHistory(force = false) {
+    if (historyInFlight) return historyInFlight;
+    if (historyRevision === savedHistoryRevision || (!force && Date.now() < historyRetryAt))
+      return historySave;
+    const pending = (async () => {
+      do {
+        const revision = historyRevision;
+        const record = {version: 1, observations: consoleHistory.map(row => ({...row}))};
+        try {
+          await saveJson(historyFile, record);
+        } catch (error) {
+          historyRetryAt = Date.now() + 10000;
+          throw error;
+        }
+        savedHistoryRevision = revision;
+        historyRetryAt = 0;
+        // Coalesce observations received during the write into the next save.
+      } while (savedHistoryRevision !== historyRevision);
+    })().finally(() => {
+      if (historyInFlight === pending) historyInFlight = null;
+    });
+    historyInFlight = historySave = pending;
+    // Observations may be fire-and-forget; callers/flush still see the rejection.
+    pending.catch(() => {});
+    return pending;
+  }
   // Called only after an engine has qualified the incoming native session.
   function observeConsole(ip, mode = 'unknown') {
     if (!network.privateIP(ip)) return;
@@ -336,11 +355,9 @@ async function createConnections({
     activeConsoleMode = modes.includes(mode) ? mode : null;
     if(modes.includes(mode)){
       const before=consoleHistory.find(row=>row.mode===mode&&row.address===ip);
-      if(!before){consoleHistory=consoleHistory.filter(row=>row.mode!==mode&&row.address!==ip);consoleHistory.push({address:ip,mode,verifiedAt:new Date().toISOString()});
-        const record={version:1,observations:consoleHistory.map(row=>({...row}))};historySave=historySave.catch(()=>{}).then(()=>saveJson(historyFile,record));historySave.catch(()=>{});
-      }
+      if(!before){consoleHistory=consoleHistory.filter(row=>row.mode!==mode&&row.address!==ip);consoleHistory.push({address:ip,mode,verifiedAt:new Date().toISOString()});historyRevision++;}
     }
-    sync();return historySave;
+    sync();return saveHistory();
   }
   sync();
   return {
@@ -350,7 +367,7 @@ async function createConnections({
     candidates,
     reportPaths,
     observeConsole,
-    flush:()=>historySave,
+    flush:()=>saveHistory(true),
     mode: selectedMode,
     observed: (id) => snapshot().devices[id].observedMode,
   };

@@ -3,7 +3,9 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime
 import json, struct, sys
-from ps_fonts import font
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from language.fonts import font
+def t(text): return str(text)
 
 source=json.loads(Path(sys.argv[1]).read_text())
 events=source['events'][:6]
@@ -31,10 +33,10 @@ for i,event in enumerate(events):
     index=next((n for n,a in enumerate(apps) if a['id']==event['packageId']),0xffffffff)
     kind={'installed':1,'updated':2,'removed':4}.get(event['type'],3)
     struct.pack_into('<II',header,16+i*16,index,kind)
-    name=apps[index]['name'] if index!=0xffffffff else event.get('name','Module')
+    name=t(apps[index]['name'] if index!=0xffffffff else event.get('name','Module'))
     version=event.get('version','')
-    action={1:'Installed',2:'Updated',3:'Added to menu',4:'Removed from console'}[kind]
-    if version and kind!=4:action+=(' to ' if kind==2 else ' · v')+version
+    action=t({1:'Installed',2:'Updated',3:'Added to menu',4:'Removed from console'}[kind])
+    if version and kind!=4:action+=' · v'+version
     at=datetime.fromisoformat(event['at'].replace('Z','+00:00')).astimezone()
     when=f'{at.day} {months[at.month-1]} {at.year} · {at:%H:%M}'
     y=i*64

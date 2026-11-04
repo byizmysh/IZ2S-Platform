@@ -17,7 +17,7 @@ function create(ROOT = require('../core/root.cjs')) {
       bootstrap: d.bootstrap?.file,
       bootstrapDescriptor: d.bootstrap,
       availableIn: [
-        'original',
+        ...(d.modes.includes('original') ? ['original'] : []),
         ...scan(ROOT, 'shell')
           .items.filter((shell) => d.modes.includes('izlauncher'))
           .map((shell) => shell.id),
@@ -94,8 +94,8 @@ function create(ROOT = require('../core/root.cjs')) {
           ),
           a = pinned.load(),
           plan = await a.plan(settings, options);
-        const cache = path.join(ROOT, 'data/extensions', pinned.fingerprint),
-          folder = await pinned.materialize(path.join(cache, 'engines', id)),
+        const cache = path.join(ROOT, 'bootstrap-chain/runtime/extensions', pinned.fingerprint),
+          folder = await pinned.materializeEngineTree(path.join(cache, 'engines')),
           af = require('node:fs/promises');
         for (const shared of ['common.cjs', 'extend-native.cjs', 'index.cjs']) {
           await af.copyFile(
@@ -113,17 +113,19 @@ function create(ROOT = require('../core/root.cjs')) {
           } catch (e) {
             if (e.code !== 'EEXIST') throw e;
           }
-        const relocate = (value) =>
-          typeof value === 'string' &&
-          (value === d.folder || value.startsWith(d.folder + path.sep))
-            ? folder + value.slice(d.folder.length)
-            : Array.isArray(value)
-              ? value.map(relocate)
-              : value && typeof value === 'object'
-                ? Object.fromEntries(
-                    Object.entries(value).map(([k, v]) => [k, relocate(v)]),
-                  )
-                : value;
+        function relocate(value) {
+          if (typeof value === 'string') {
+            const member = pinned.members.find(member =>
+              value === member.folder || value.startsWith(member.folder + path.sep));
+            return member
+              ? path.join(cache, 'engines', member.directory || member.id) + value.slice(member.folder.length)
+              : value;
+          }
+          if (Array.isArray(value)) return value.map(relocate);
+          if (value && typeof value === 'object')
+            return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, relocate(v)]));
+          return value;
+        }
         Object.assign(plan, relocate(plan));
         plan.extensionFingerprint = pinned.fingerprint;
         plan.env = {
@@ -132,7 +134,8 @@ function create(ROOT = require('../core/root.cjs')) {
           IZ15_ROOT: ROOT,
           IZ15_ENGINE_DIGEST: pinned.fingerprint,
           IZ15_ENGINE_FOLDER: folder,
-          IZ15_ENGINE_WORKSPACE: path.join(folder, 'upstream'),
+          IZ15_ENGINE_WORKSPACE: path.join(cache, 'engines',
+            pinned.members.find(member => member.id === (d.runtimeEngine || id)).directory || d.runtimeEngine || id, 'upstream'),
         };
         if (plan.bootstrap)
           Object.assign(plan.bootstrap, {

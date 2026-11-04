@@ -11,6 +11,7 @@ void psActivityPanel(vec2 p,inout vec3 col){
  uint count=psActivityCount();float height=psActivityHeight();
  psLabel(p,col,vec2(PS_LEFT,688),PS_ACTIVITY,PS_MUTED);
  psPanel(p,col,vec2(740,PS_BODY_TOP+height*.5),vec2(460,height*.5),16,.20);
+ if(loadProgressVisible()){loadProgressDraw(p,col,PS_PROGRESS_ORIGIN,PS_PROGRESS_SIZE);return;}
  if(count==0u){
   vec2 at=vec2(332,760);col=mix(col,PS_MUTED,line(length(p-at)-10.0,.9)*.7);
   float hand=min(stroke(p,at,at+vec2(0,-5)),stroke(p,at,at+vec2(4,2)));col=mix(col,PS_MUTED,fill(hand-.8)*.7);

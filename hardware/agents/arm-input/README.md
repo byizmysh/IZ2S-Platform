@@ -1,5 +1,9 @@
 # IZ2S ARM Input · 1.0.0
 
+## Host and device compatibility
+
+The input board remains Linux regardless of the PC server OS. Windows/macOS PC installers are experimental; full native console sessions are currently declared for Linux only. See the platform compatibility matrix before testing another host. A PC installer can prepare its own SSH client; it cannot provide board firmware, SSH trust or a USB gadget driver.
+
 ## Before you install
 
 Install this package on the ARM board, not on Switch and not as the PC server. A normal PC application installation only supplies the files; board deployment is a separate explicit action. The board must already have Linux, SSH and a working USB keyboard gadget. Installation can configure this package and its discovery service, but does not repair every board OS or enable its USB driver.

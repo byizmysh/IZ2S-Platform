@@ -18,6 +18,11 @@ uint hbButtons(){
  }
  return buttons;
 }
+#ifndef HB_READONLY
+uint izPadRead(uint i){return i<16u?c.raw[i/4u][i%4u]:c.atlas[i-256u];}
+void izPadWrite(uint i,uint value){if(i<16u)c.raw[i/4u][i%4u]=value;else c.atlas[i-256u]=value;}
+#include "pad-merge.glsl"
+#endif
 uint hbPressed(){return hbButtons()&~c.state.y;}
 bool hbConnected(){return (c.raw[2].x&1u)!=0u;}
 vec2 hbStick(bool right){ivec2 raw=right?ivec2(c.raw[1].zw):ivec2(c.raw[1].xy);vec2 s=clamp(vec2(raw)/32767.0,-1.0,1.0);float n=length(s);return n<=.15?vec2(0):s/n*min(1.0,(n-.15)/.85);}

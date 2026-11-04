@@ -1,0 +1,29 @@
+name: Verify and package IZ2S
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y python3-pil glslang-tools spirv-tools
+      - name: Build clean release and verify its runtime
+        run: python3 distribution/release.py --rebuild
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iz2s-platform
+          if-no-files-found: error
+          path: |
+            dist/github/*.zip
+            dist/github/*.tar.gz
+            dist/github/SHA256SUMS
+            dist/github/SOURCE-MANIFEST.json

@@ -10,6 +10,8 @@ async function create({ root, settings: defaults, node, preview = false }) {
       variant: 'izlauncher',
       loaderSettings: {},
       installationSlots: {},
+      residentGraphics: false,
+      residentFiniteAudio: false,
       ...saved,
     },
     settings,
@@ -23,13 +25,25 @@ async function create({ root, settings: defaults, node, preview = false }) {
     configState,
     initializedInstalled,
     changing = false;
-  const availableLoaders=new Set(loaders.IDS);
+  if (choice.loaderId === 'ns2jb2') choice.loaderId = 'bermthesequel';
+  for (const key of ['loaderSettings', 'installationSlots']) {
+    if (Object.hasOwn(choice[key] || {}, 'ns2jb2')) {
+      choice[key].bermthesequel ??= choice[key].ns2jb2;
+      delete choice[key].ns2jb2;
+    }
+  }
+  const panelCatalog = require('../core/packages/store-catalog.cjs');
+  const panelLoaders = () => panelCatalog.normalizeSnapshot({platform:{loaders:loaders.list()}}).platform.loaders;
+  const available = (id, variant) => panelCatalog.engineAvailable(loaders.list().find(loader => loader.id === id), variant);
+  const availableLoaders = new Set(panelLoaders().map(loader => loader.id));
+  choice.residentGraphics = false;
+  choice.residentFiniteAudio = false;
   if (!availableLoaders.has(choice.loaderId)) choice.loaderId='izmysh';
   choice.loaderSettings=Object.fromEntries(Object.entries(choice.loaderSettings||{}).filter(([id])=>availableLoaders.has(id)));
   choice.installationSlots=Object.fromEntries(Object.entries(choice.installationSlots||{}).filter(([id])=>availableLoaders.has(id)));
   if (
-    choice.variant === 'izlauncher' &&
-    !loaders.available(choice.loaderId, 'izlauncher')
+    choice.variant !== 'original' &&
+    !available(choice.loaderId, choice.variant)
   )
     choice.loaderId = 'izmysh';
   choice.schemaVersion = 2;
@@ -58,9 +72,8 @@ async function create({ root, settings: defaults, node, preview = false }) {
       profile: configState.profiles?.[configState.selected] || {},
     });
     settings = configuration.settings;
-    if (!isIZ())
-      settings.consolePort =
-        selectedLoader().manifest.consolePort ?? settings.consolePort;
+    settings.consolePort =
+      selectedLoader().manifest.consolePort ?? settings.consolePort;
     configuration.env = {
       ...configuration.env,
       HB_PORT: String(settings.consolePort),
@@ -69,7 +82,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
       await require('../core/session/connections.cjs').createConnections({
         root,
         settings,
-        run: preview ? null : require('../core/session/devices.cjs').invoke,
+        networkEnabled: !preview,
       });
     input = await configurations.createInputLink({ root, configuration });
     devices = await configurations.createChecks({
@@ -85,7 +98,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
     delivery = null;
     iz = null;
     if (isIZ() && installationReady) {
-      if (!loaders.available(choice.loaderId, 'izlauncher'))
+      if (!available(choice.loaderId, choice.variant))
         throw Error('Selected loading method is unavailable for IZlauncher');
       delivery = require('./delivery.cjs').create({
         root,
@@ -105,7 +118,10 @@ async function create({ root, settings: defaults, node, preview = false }) {
         preview,
         launchEnvironment: {
           ...delivery.environment,
+          IZ2S_SHELL: choice.variant,
           IZ15_SHELL: choice.variant,
+          IZ18_RESIDENT_GRAPHICS: choice.residentGraphics&&['izlauncher','izpslauncher'].includes(choice.variant)?'1':'0',
+          IZ18_RESIDENT_FINITE_AUDIO: choice.residentGraphics&&choice.residentFiniteAudio&&['izlauncher','izpslauncher'].includes(choice.variant)?'1':'0',
         },
         prepareLaunch: () =>
           selectedLoader().plan({
@@ -155,18 +171,19 @@ async function create({ root, settings: defaults, node, preview = false }) {
   }
   return {
     preview,
+    inspectNS2HB: () => require('./ns2hb.cjs').inspect(root, choice.variant),
     refresh: (...args) => engine().refresh(...args),
     begin: async (body) => {
       await reconcileInstallation();
       if(configuration.externalWorkflow)throw Error('Use the native companion app for this configuration');
       if (selectedLoader().manifest.installed === false)
         throw Error('Download or manually install the original engine first');
-      if (!loaders.available(choice.loaderId, choice.variant))
+      if (!available(choice.loaderId, choice.variant))
         throw Error('Selected loader is unavailable for IZlauncher');
       return engine().begin(body);
     },
-    stop: () => engine().stop(),
-    hardStop: () => engine().hardStop(),
+    stop: (...args) => engine().stop(...args),
+    hardStop: (...args) => engine().hardStop(...args),
     ownsListener: () => engine().ownsListener(),
     async snapshot() {
       await reconcileInstallation();
@@ -197,14 +214,21 @@ async function create({ root, settings: defaults, node, preview = false }) {
       }
       return {
         ...state,
+        fsRpc: state.active?.runDirectory
+          ? await readJson(path.join(state.active.runDirectory, 'fs-rpc-state.json'), null)
+          : null,
         checks:require('../hardware/index.cjs').present(configuration,state.checks),
-        moduleCatalog: moduleInventory.modules.map((m) => m.descriptor),
+        moduleCatalog: moduleInventory.modules.map((m) => m.descriptor).filter(panelCatalog.visible),
         moduleErrors: moduleInventory.errors,
         moduleStates: require('../core/host-modules.cjs').status(),
-        version: 16,
+        version: 21,
         platform: {
+          host: { platform: process.platform, architecture: process.arch },
           loaderId: choice.loaderId,
           variant: choice.variant,
+          residentGraphics: choice.residentGraphics===true,
+          residentFiniteAudio: choice.residentFiniteAudio===true,
+          residentAudioReady: false,
           shells: extensions.shells.items,
           extensionErrors: [
             ...extensions.engines.errors,
@@ -212,7 +236,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
             ...extensions.profiles.errors,
             ...require('../hardware/index.cjs').configurations(root).errors,
           ],
-          loaders: await loaders.list(),
+          loaders: panelLoaders(),
           loaderSettings: selectedLoader().settings,
           engineInstalled: selectedLoader().manifest.installed !== false,
           engineInstallation: selectedLoader().manifest.installationStatus,
@@ -229,7 +253,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
           izModules: isIZ(),
           baseSource,
           delivery: {
-            application: isIZ() ? 'IZlauncher' : 'Original',
+            application: isIZ() ? (choice.variant === 'izpslauncher' ? 'IZPSlauncher' : 'IZlauncher') : 'Core only',
             method: choice.loaderId,
             bootstrapName: current.bootstrap.saveName,
             baseBootstrapName: base.bootstrap.saveName,
@@ -256,6 +280,32 @@ async function create({ root, settings: defaults, node, preview = false }) {
           locked: !!state.active || !!state.emergencyInputPending || changing,
         },
       };
+    },
+    async prepareCardputerSD() {
+      await assertIdle();
+      if (preview) throw Error('Prepare the SD package from the running panel');
+      changing = true;
+      try {
+      const bundle = await require('../hardware/cardputer.cjs').prepare(root);
+      const id = 'pc-cardputer-adv';
+      configState = await configurations.load(root);
+      await configurations.save(root, {selected: configState.selected, profiles: {
+        ...configState.profiles, [id]: {
+          ...configState.profiles?.[id],
+          cardputerEndpoint: configState.profiles?.[id]?.cardputerEndpoint || 'http://iz2s-adv.local',
+          cardputerToken: bundle.token,
+          cardputerCapsLock: configState.profiles?.[id]?.cardputerCapsLock || 'off',
+        },
+      }});
+      await initialize();
+      return {ok: true, filename: 'iz2s-cardputer-adv-sd.zip'};
+      } finally { changing = false; }
+    },
+    async installCardputerSD(body={}) {
+      await this.prepareCardputerSD();
+      await assertIdle();changing=true;
+      try {return await require('../hardware/cardputer.cjs').install(root,{target:body.target});}
+      finally {changing=false;}
     },
     async installEngine(id) {
       await assertIdle();
@@ -285,13 +335,18 @@ async function create({ root, settings: defaults, node, preview = false }) {
     },
     async configureLaunch(body) {
       await assertIdle();
+      if(body.residentGraphics!==undefined&&typeof body.residentGraphics!=='boolean')throw Error('Resident graphics setting must be boolean');
+      if(body.residentFiniteAudio!==undefined&&typeof body.residentFiniteAudio!=='boolean')throw Error('Resident finite audio setting must be boolean');
       const previous = JSON.parse(JSON.stringify(choice));
+      const previousConfiguration = JSON.parse(JSON.stringify(configState));
       changing = true;
       try {
         const next = {
           ...choice,
           loaderId: body.loaderId ?? choice.loaderId,
           variant: body.variant ?? choice.variant,
+          residentGraphics: body.residentGraphics ?? choice.residentGraphics,
+          residentFiniteAudio: body.residentFiniteAudio ?? choice.residentFiniteAudio,
         };
         if (
           ![
@@ -301,13 +356,13 @@ async function create({ root, settings: defaults, node, preview = false }) {
               .items.map((s) => s.id),
           ].includes(next.variant)
         )
-          throw Error('Choose IZlauncher or Original');
+          throw Error('Choose IZlauncher, IZPSlauncher or Core only');
         loaders.select(
           next.loaderId,
           body.loaderSettings || choice.loaderSettings?.[next.loaderId] || {},
         );
-        if (!loaders.available(next.loaderId, next.variant)) {
-          if (body.variant === 'izlauncher' && body.loaderId === undefined)
+        if (!available(next.loaderId, next.variant)) {
+          if (body.variant !== undefined && body.variant !== 'original' && body.loaderId === undefined)
             next.loaderId = 'izmysh';
           else
             throw Error(
@@ -353,6 +408,11 @@ async function create({ root, settings: defaults, node, preview = false }) {
         return { ok: true };
       } catch (error) {
         choice = previous;
+        try {
+          if (body.configurationId !== undefined || body.profile !== undefined)
+            await configurations.save(root, previousConfiguration);
+          await initialize();
+        } catch {error.message += ' Settings could not be restored; reopen the panel before launching.';}
         throw error;
       } finally {
         changing = false;
@@ -398,13 +458,14 @@ async function create({ root, settings: defaults, node, preview = false }) {
     },
     historyLog: (...args) => engine().historyLog(...args),
     dismiss: () => engine().dismiss(),
-    loadPackages: (ids) => {
-      if (!isIZ()) throw Error('Select IZlauncher to load IZM modules');
+    loadPackages: async (ids) => {
+      if (!isIZ()) throw Error('Select a console shell to load IZM modules');
       return iz.loadPackages(ids);
     },
-    unloadPackages: (ids) => {
+    unloadPackages: async (ids) => {
       if(preview)throw Error('Preview cannot remove console modules');
       if(!isIZ())throw Error('Select a console shell to remove modules');
+      if(choice.residentGraphics&&(await engine().snapshot()).active)throw Error('Restart the resident session to change its prepared app set');
       return iz.unloadPackages(ids);
     },
     async source(id) {

@@ -3,7 +3,7 @@
   "apiVersion": 1,
   "id": "izpslauncher",
   "name": "IZPSlauncher",
-  "version": "0.16.0-rc.5",
+  "version": "0.21.0",
   "entry": "adapter.cjs",
   "platforms": [
     "linux-x64",

@@ -33,7 +33,7 @@ async function create({
           if (key === 'mode')
             return (id) =>
               id === 'arm'
-                ? configuration.inputAdapter === 'kprox-http'
+                ? ['kprox-http','cardputer-wifi'].includes(configuration.inputAdapter)
                   ? 'wifi'
                   : target.mode(id)
                 : target.mode(id);
@@ -51,6 +51,7 @@ async function create({
     connections: adaptedConnections,
     ownsListener,
     requiresArmAddress: configuration.inputAdapter === 'ssh-gadget',
+    ...(configuration.inputAdapter === 'cardputer-wifi' ? {inputName:'Cardputer ADV', inputAddress:settings.cardputerEndpoint} : {}),
     ...options,
   });
   return {
@@ -79,9 +80,9 @@ async function create({
         if (input) input.label = 'ARM PC · local input service';
         if (usb) usb.label = 'ARM Type C - Switch';
       }
-      if (configuration.inputAdapter === 'kprox-http') {
-        if (input) input.label = 'Cardputer ADV · KProx input';
-        if (usb) usb.label = 'USB · Cardputer ADV → Switch';
+      if (['kprox-http','cardputer-wifi'].includes(configuration.inputAdapter)) {
+        if (input) input.label = 'Cardputer ADV · Wi-Fi input';
+        if (usb) {usb.label = 'USB · Cardputer ADV → Switch 2';if(usb.ready)usb.detail='USB host detected. Confirm Cardputer ADV is connected to Switch 2.';}
       }
       if (configuration.setupRequired && input) {
         input.ready = false;

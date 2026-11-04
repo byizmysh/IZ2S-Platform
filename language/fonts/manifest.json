@@ -1,0 +1,13 @@
+{
+  "family": "DejaVu",
+  "version": "2.37",
+  "files": {
+    "DejaVuSans.ttf": "6038a160b491e121c1f12c7bccb4a9c8730296e3adc1086a059404ed84b7451c",
+    "DejaVuSans-Bold.ttf": "b5d64817b6331723b5e59eaaa6db90057cbed58e9733f65687f110638192359f",
+    "DejaVuSans-ExtraLight.ttf": "35cdde3e903f78239ed3455881623f73aef75e4830a179c45896f9166633e48a",
+    "DejaVuSans-Oblique.ttf": "cf41fd01245e40e783ce3eae0bba5c38927a2497889dde1266d8757b9c84de1a",
+    "DejaVuSansMono.ttf": "b5babc084554ebdd142fe099d8b7c573ff161738bca913723d3e84f5c3df1c78",
+    "DejaVuSerif.ttf": "ae665174c5b7fdb9b457d112db098cbe651dff847bfcf8bcb711172856d0c6b1",
+    "DejaVuSerif-Bold.ttf": "8061b471398f4903262c0050d2c9eeb96a78bdbaee759710fe1cec9386bfbe03"
+  }
+}

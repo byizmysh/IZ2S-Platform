@@ -1,6 +1,6 @@
 """SSH policy shared by ARM input profiles. Never writes the HID device itself."""
 import os
-SSH = ['ssh', '-F', '/dev/null', '-o', 'StrictHostKeyChecking=yes', '-o', 'BatchMode=yes',
+SSH = ['ssh', '-F', os.devnull, '-o', 'StrictHostKeyChecking=yes', '-o', 'BatchMode=yes',
        '-o', 'ConnectTimeout=4', '-o', 'ServerAliveInterval=3', '-o', 'ServerAliveCountMax=2']
 identity = os.environ.get('IZ2S_SSH_IDENTITY') or os.environ.get('IZ15_SSH_IDENTITY')
 if identity: SSH += ['-i', identity]

@@ -77,7 +77,7 @@ async function inspectConsolePaths({
   connections,
   settings,
   hostInterface,
-  run,
+  routeLookup = require('../core/platform/network.cjs').routeTo,
   mode,
 }) {
   const { modeName } = require('../core/session/connections.cjs');
@@ -119,39 +119,16 @@ async function inspectConsolePaths({
               ' · switch the connection or connect via ' +
               modeName(mode),
           );
-        const route = JSON.parse(
-          (
-            await run('ip', ['-json', 'route', 'get', address], {
-              timeout: 4000,
-            })
-          ).stdout,
-        )[0];
-        if (!route?.dev || route.dev === 'lo')
-          throw Error('No route to the console');
+        const route = await routeLookup(address);
+        if (!route?.dev || route.dev === 'lo') throw Error('No route to the console');
         if (hostInterface && route.dev !== hostInterface)
           throw Error('Server and console are on different networks');
-        const ping = await run(
-          'ping',
-          [
-            '-n',
-            ...(settings.consoleHost ? ['-I', settings.consoleHost] : []),
-            '-c',
-            '1',
-            '-W',
-            '1',
-            address,
-          ],
-          { timeout: 2500 },
-        ).catch(() => {
-          throw Error(
-            'Console is not reachable via ' + modeName(mode) + ' · ' + address,
-          );
-        });
-        const ms = Number(ping.stdout.match(/time[=<]([\d.]+)\s*ms/)?.[1]);
         return {
           ...candidate,
           ready: true,
-          latencyMs: Number.isFinite(ms) ? ms : null,
+          pending: true,
+          verification: 'route-only',
+          latencyMs: null,
           checkedAt: Date.now(),
           durationMs: Date.now() - start,
         };
@@ -182,12 +159,9 @@ async function inspectConsolePaths({
   return {
     ...active,
     detail: active.pending
-      ? 'Automatic · waiting for Switch to connect to ' + settings.consoleHost
-      : (paths.length > 1 ? 'LAN + Wi-Fi · using ' : 'Reachable · ') +
-        modeName(active.mode) +
-        (active.observedMode ? ' verified' : ' selected') +
-        ' · ' +
-        active.address,
+      ? 'Network ready · waiting for Switch to connect to ' + settings.consoleHost +
+        (active.address ? ' · Switch ' + active.address : '')
+      : 'Console connection verified · ' + modeName(active.mode) + ' · ' + active.address,
     paths,
   };
 }
@@ -199,9 +173,12 @@ function createDeviceChecks({
   connections,
   ownsListener = () => false,
   requiresArmAddress = true,
+  inputName = 'ARM PC',
+  inputAddress = settings.armAddress || '10.42.0.2',
   run = invoke,
   interfaces = () => os.networkInterfaces(),
   portAvailable = availablePort,
+  routeLookup = address => require('../core/platform/network.cjs').routeTo(address, {interfaces}),
 }) {
   let cachedTools;
   async function inspect() {
@@ -252,7 +229,7 @@ function createDeviceChecks({
         )
           throw Error('Console port is already in use');
         if (!cachedTools) {
-          await run(node, ['hardware/dependencies.cjs', '--host-only'], {
+          await run(node, ['hardware/dependencies.cjs', '--host-only', ...(requiresArmAddress ? ['--ssh'] : [])], {
             cwd: root,
             env: { ...process.env, NODE: node },
             timeout: 20000,
@@ -278,7 +255,7 @@ function createDeviceChecks({
           );
         return arm.inspect();
       })(),
-      inspectConsolePaths({ connections, settings, hostInterface, run, mode }),
+      inspectConsolePaths({ connections, settings, hostInterface, routeLookup, mode }),
     ]);
     const host = tasks[0];
     rows[0].ready = host.status === 'fulfilled';
@@ -295,20 +272,22 @@ function createDeviceChecks({
       const h = peer.value,
         observed = h.connectionMode || connections?.observed('arm'),
         mismatch = observed && observed !== mode('arm');
+      rows[1].bootId = h.bootId;
+      rows[1].firmwareVersion = h.firmwareVersion;
       rows[1].ready = !!(h.reachable && h.moduleReady && !mismatch);
       rows[1].detail = !h.reachable
-        ? 'ARM connection failed: ' + (h.error || 'SSH did not respond')
+        ? inputName + ' connection failed: ' + (h.error || 'Input service did not respond')
         : !h.moduleReady
-          ? (h.error || 'Install or update the ARM input package')
+          ? (h.error || 'Install or update the ' + inputName + ' input package')
           : mismatch
-        ? 'ARM PC is on ' + modeName(observed) + ' · select that connection'
+        ? inputName + ' is on ' + modeName(observed) + ' · select that connection'
         : (h.installed ? 'Input module installed' : 'Input module ready') +
           ' · ' +
           modeName(mode('arm')) +
           ' · ' +
-          (settings.armAddress || '10.42.0.2');
+          inputAddress;
       rows[2].ready = !!h.reachable && !!h.keyboard && !h.keyboardBusy;
-      rows[2].detail = !h.reachable ? 'USB state unavailable until ARM reconnects' : h.keyboardBusy
+      rows[2].detail = !h.reachable ? 'USB state unavailable until ' + inputName + ' reconnects' : h.keyboardBusy
         ? 'Input device is busy'
         : h.keyboard
           ? 'USB host configured'
@@ -316,9 +295,8 @@ function createDeviceChecks({
     } else {
       rows[1].detail = peer.reason.message.startsWith('Set the ARM')
         ? peer.reason.message
-        : 'ARM PC is not reachable · ' +
-          (settings.armAddress || modeName(mode('arm')) + ' address needed');
-      rows[2].detail = 'Waiting for the ARM PC';
+        : inputName + ' is not reachable · ' + inputAddress;
+      rows[2].detail = 'Waiting for ' + inputName;
     }
     const link = tasks[2];
     rows[3].ready = link.status === 'fulfilled';

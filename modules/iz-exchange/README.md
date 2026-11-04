@@ -58,3 +58,7 @@ can run together. Previous acquisition attempts did not establish reliable game
 FS readiness; an engine failure or retained native resources requires a fresh
 console process before another attempt. Game storage access is experimental,
 and the normal read/write `/save` and `/tmp` functionality does not prove it.
+
+## Platform status and SD convention
+
+This bundled module currently declares Linux x64/ARM64 hosts. Windows/macOS platform installers do not qualify this module for those hosts; OS/native-session testing is pending. See the platform COMPATIBILITY.md. Its future console SD data location is `SD:/IZ2S/Homebrew/Modules/<module.id>/`; adoption is explicit, and existing data is not migrated automatically. PC-local module data remains private.

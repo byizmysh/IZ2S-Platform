@@ -68,8 +68,8 @@ vec3 psMenuContent(vec2 p,vec3 col){
  bool picker=c.piece.x!=0;uint installed=min(c.library.x,15u),count=focusCount(picker),chosen=picker?uint(max(c.piece.y,0)):c.state.x;
  uint ordinal=c.rows[19]==0x464f4355u?min(c.rows[11],count):chosen;bool home=!picker&&(chosen>=installed||ordinal>=count);uint selectedBase=slotBase(picker?16u+min(chosen,15u):min(chosen,14u));
  // Exchange tile at the left of the horizontal rail.
- float store=box(p,ADD_CENTER,vec2(92,160),7);col=mix(col,vec3(.19,.13,.55),fill(store));col=mix(col,vec3(.6,.67,1),line(store,.5)*.2);
- col=psExchangeGlyph(p,col,vec2(156,344));psLabel(p,col,vec2(88,456),PS_EXCHANGE,PS_WHITE);
+ float store=box(p,ADD_CENTER,PS_EXCHANGE_HALF,7);col=mix(col,vec3(.19,.13,.55),fill(store));col=mix(col,vec3(.6,.67,1),line(store,.5)*.2);
+ col=psExchangeGlyph(p,col,ADD_CENTER+vec2(0,-24));psLabel(p,col,ADD_CENTER+vec2(-68,88),PS_EXCHANGE,PS_WHITE);
 
  // What's New stays in the same place as the reference's large focus card.
  vec2 nc=HERO_CENTER;vec2 nh=PS_CARD_HALF;float nd=box(p,nc,nh,8);
@@ -100,7 +100,8 @@ vec3 psMenuContent(vec2 p,vec3 col){
  psActivityPanel(p,col);
  psLabel(p,col,vec2(PS_SIDE_LEFT,688),PS_COLLECTION,PS_MUTED);
  for(uint i=0u;i<2u;i++){
-  vec2 center=vec2(1552,769+float(i)*126.0);psPanel(p,col,center,vec2(304,49),16,.24);
+  vec2 center=psCollectionCenter(i);bool on=count>i&&!home&&focusIndex(i)==chosen;psPanel(p,col,center,PS_COLLECTION_HALF,16,on?.34:.24);
+  if(on)col=mix(col,PS_CYAN,line(box(p,center,PS_COLLECTION_HALF,16),1.4));
   if(count>i){uint base=slotBase(focusIndex(i)+(picker?16u:0u));vec4 pic=focusIcon(p,vec2(1310,center.y),base,60);col=mix(col,pic.rgb,pic.a);col=mix(col,PS_WHITE,psAppTitle(p,vec2(1372,center.y-24.0),base,.8));psLabel(p,col,vec2(1372,center.y+14.0),PS_READY,PS_MUTED);}
   else col=mix(col,PS_MUTED,psText(p,vec2(1280,center.y-8),PS_EMPTY,.7));
  }
@@ -117,13 +118,15 @@ void psFooter(vec2 p,inout vec3 col){
 }
 vec3 psMenu(vec2 p){
  vec3 col=psBackground(p);float scroll=clamp(uintBitsToFloat(c.rows[13]),0.0,psScrollMax());
- if(p.y>=174.0&&p.y<1016.0){vec3 content=psMenuContent(p+vec2(0,scroll),col);col=mix(col,content,scroll>1.0?smoothstep(174.0,218.0,p.y):smoothstep(174.0,194.0,p.y));}
+ if(psContentHit(p)){vec3 content=psMenuContent(p+vec2(0,scroll),col);col=mix(col,content,scroll>1.0?smoothstep(PS_CONTENT_TOP,218.0,p.y):smoothstep(PS_CONTENT_TOP,194.0,p.y));}
  psHeader(p,col);psFooter(p,col);
  // Thin scroll track and a low-key down cue, both anchored to the screen.
  if(psScrollMax()>0.0){
-  float track=box(p,vec2(1880,832),vec2(1,165),1);col=mix(col,PS_WHITE,fill(track)*.1);
-  float thumb=box(p,vec2(1880,722+scroll/psScrollMax()*220.0),vec2(2,55),2);col=mix(col,PS_CYAN,fill(thumb)*.65);
-  if(scroll<10.0)col=mix(col,PS_MUTED,psText(p,vec2(PS_RIGHT-float(PS_SCROLL.z),990),PS_SCROLL,.9));
+  float bottom=psContentBottom(),trackTop=667.0,trackBottom=bottom-19.0,trackHalf=(trackBottom-trackTop)*.5;
+  float track=box(p,vec2(1880,(trackTop+trackBottom)*.5),vec2(1,trackHalf),1);col=mix(col,PS_WHITE,fill(track)*.1);
+  float thumbHalf=min(55.0,trackHalf*.34),thumbY=mix(trackTop+thumbHalf,trackBottom-thumbHalf,scroll/psScrollMax());
+  float thumb=box(p,vec2(1880,thumbY),vec2(2,thumbHalf),2);col=mix(col,PS_CYAN,fill(thumb)*.65);
+  if(scroll<10.0)col=mix(col,PS_MUTED,psText(p,vec2(PS_RIGHT-float(PS_SCROLL.z),bottom-26.0),PS_SCROLL,.9));
  }
  return col;
 }

@@ -8,8 +8,13 @@ async function create(rpc){
  const serviceNames=['netStatus','netAddress','socketInitialized','irHandle','irStatus'];
  const api=await require('../native/client.cjs').create(rpc,{...hid,...Object.fromEntries(serviceNames.map(k=>[k,services[k]]))});
  let joyMouse,joyMouseError;
- try{joyMouse=await require('./joy-mouse.cjs').create(rpc);}catch(error){joyMouseError=error.message;}
+ try{joyMouse=await require('./joy-mouse.cjs').create(rpc);}catch(error){
+  // An optional device may be unavailable; a lost native transport cannot be reused.
+  if(require('../../session/offline-policy.cjs').isTransportLoss(error))throw error;
+  joyMouseError=error.message;
+ }
  for(let i=0;i<PAD_SOURCES.length;i++)await api.write(0x1000+i*4,word(PAD_SOURCES[i][0]));
+ for(let id=0;id<8;id++)await api.write(0x1020+id*4,word(id));
  const settings=await require('./controller-preferences.cjs').open();
  const controllerSlots=await require('./controller-slots.cjs').create(rpc,api,{settings});
  let sequence=0,selected=null,motion=[],vibration=[],lastDiscovery=0,closed=false,sensors=null;
@@ -31,11 +36,12 @@ async function create(rpc){
   }
   lastDiscovery=Date.now();return controllers;
  }
- const hardware={controllers:[],joyMouse,joyMouseError,async startSensors(mapped){sensors??=await require('./console-sensors.cjs').create({rpc,mapped});hardware.consoleSensors=sensors;},async refreshControllers(){if(closed)return;hardware.controllers=await controllerSlots.refresh();},frameCalls(mapped){
+ const hardware={controllers:[],joyMouse,joyMouseError,async startSensors(mapped){await rpc.write(mapped+require('./layout.cjs').OFFSET+require('./pad-sweep.cjs').HEADER,require('./pad-sweep.cjs').header());sensors??=await require('./console-sensors.cjs').create({rpc,mapped});hardware.consoleSensors=sensors;},async refreshControllers(){if(closed)return;hardware.controllers=await controllerSlots.refresh();},frameCalls(mapped){
   if(closed)throw Error('Hardware context closed');
   const ext=mapped+require('./layout.cjs').OFFSET,calls=[];
   if(selected)calls.push({function:api.functions['pad'+selected.kind],args:[mapped,api.base]});
   for(let i=0;i<PAD_SOURCES.length;i++)calls.push({function:api.functions['pad'+PAD_SOURCES[i][1]],args:[ext+F.padSources+i*64,api.base+0x1000+i*4]});
+  calls.push(...require('./pad-sweep.cjs').frameCalls(api.functions,api.base,ext));
   for(let i=0;i<motion.length;i++)calls.push({function:api.functions.motionRead,args:[api.base+0x400+i*4,ext+F.motion+i*96,1,motion[i]]});
   calls.push({function:api.functions.keyboard,args:[api.base+0xc00,ext+F.keyboard,1]});
   calls.push({function:api.functions.mouse,args:[ext+F.mouse]});

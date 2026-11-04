@@ -14,11 +14,11 @@ function remember(root, id, pkg) {
   const selected = selection(root);
   if (selected && !selected.modules[id]) selected.modules[id] = { sha256: pkg.sha256, packageBytes: pkg.packageBytes };
 }
-function read(root, id) {
+function read(root, id, home) {
   const pin = selection(root)?.modules[id];
   if (!pin) return null;
   assert(/^[a-f0-9]{64}$/.test(pin.sha256), 'Invalid module session fingerprint');
-  const folder = path.join(modulePaths.home(root, id), '.versions', pin.sha256);
+  const folder = path.join(home ?? modulePaths.home(root, id), '.versions', pin.sha256);
   if (cache.has(folder)) return cache.get(folder);
   const manifest = fs.readFileSync(path.join(folder, 'checksums.json'));
   assert(manifest.length <= 1024 * 1024, 'Pinned checksum manifest too large');
