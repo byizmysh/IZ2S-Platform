@@ -58,6 +58,7 @@ Install into a new versioned directory. Re-select device/network options; preser
 
 ## Modules, workspace and files
 
+- Fix initial panel loading with an empty App library, including Core only mode. Rendering errors now show a view error instead of incorrectly reporting that the local server is unavailable.
 - Open module interfaces/settings as IZ2S workspace tabs, including separate modules using the SDK. Add consistent active selection, quick reopen, sidebar status and accessible Stop controls. Closing a view is distinct from stopping a service or the console session.
 - Remove stale Tools and their iframes after a panel restart or the end of their console session. Check actual listener availability instead of trusting a persisted Running label, preserve live prelaunch settings, and ignore late Open/Stop responses for removed tools. Retained native resources remain an explicit recovery condition.
 - Add an explicit Close view control and consistent spacing between App library actions. Both console menus accept the same ABI-1 module shell contracts.

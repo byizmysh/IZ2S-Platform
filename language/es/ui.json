@@ -1321,5 +1321,6 @@
   "This previews the manual input interface. Buttons only change the preview stage.": "Esta es una vista previa de la interfaz de entrada manual. Los botones solo cambian la etapa de la vista previa.",
   "This switch records your confirmation in the preview.": "Este interruptor registra tu confirmación en la vista previa.",
   "Verification": "Verificación",
-  "You verify the result. This preview cannot confirm the device state.": "Tú verificas el resultado. Esta vista previa no puede confirmar el estado del dispositivo."
+  "You verify the result. This preview cannot confirm the device state.": "Tú verificas el resultado. Esta vista previa no puede confirmar el estado del dispositivo.",
+  "The panel could not display the server response. Try again or reopen IZ2S.": "No se pudo mostrar la respuesta del servidor. Reintenta o vuelve a abrir IZ2S."
 }

@@ -63,8 +63,8 @@
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "sha256": "e84e8f2f46f4e92be7e814f85b209d7d24d522913ddc1477d6c7218bdfd05e9b",
-      "bytes": 12291,
+      "sha256": "306829891e414fa21803e375ef5db3487de6336cf04707ef1ba5d4f383a986dd",
+      "bytes": 12482,
       "executable": false
     },
     "SUPPORT.md": {
@@ -2988,13 +2988,13 @@
       "executable": true
     },
     "language/en/ui.json": {
-      "sha256": "a0570fb2cc64e2bd8c88871539c4ba2b56ba2c3fb68477a4b559f5d3371a737f",
-      "bytes": 96349,
+      "sha256": "91324c2c9fb888bd0a93461151804c2f9d057541741c65d6f5e19346b6eca911",
+      "bytes": 96507,
       "executable": false
     },
     "language/es/ui.json": {
-      "sha256": "2a7a4b2ba266a82c172c27abbd3e667c6a7d4879e27c6e310cf61a316505ea84",
-      "bytes": 103665,
+      "sha256": "07dc6fd2aadc576d97f526fec8264a7597d8cd28ed3a66e753f8877e194f742f",
+      "bytes": 103827,
       "executable": false
     },
     "language/fonts/DejaVuSans-Bold.ttf": {
@@ -3073,8 +3073,8 @@
       "executable": false
     },
     "language/ru/ui.json": {
-      "sha256": "1ebb9b1b903bb767193eda7688fce77d466dc6043366731aa411aa62cc1f8ffd",
-      "bytes": 160788,
+      "sha256": "a58330e1fa6f1718417e30ae996b564021e3989a563e755f6a2141235cbff796",
+      "bytes": 161016,
       "executable": false
     },
     "language/runtime.js": {
@@ -3093,8 +3093,8 @@
       "executable": false
     },
     "language/zh/ui.json": {
-      "sha256": "6b40983ff705b78083880d94b46e60e943900235e72018c86f2304c7505b1cc0",
-      "bytes": 94869,
+      "sha256": "2e639579ec331c029dca4dea3a8703126207516f04b8d46f70d6dfb733b5ff0b",
+      "bytes": 95015,
       "executable": false
     },
     "modules/BookReader/FORMAT.md": {
@@ -3763,8 +3763,8 @@
       "executable": false
     },
     "panel/ui/app.js": {
-      "sha256": "1792e1bed5aa6a9e615559c0f4bc751e383704fbc750116c9cc55dffb0f0fabc",
-      "bytes": 151513,
+      "sha256": "07004c799086daa05353ec1443f83c01d7c07ddaaa74e5ca748630dec131ec8f",
+      "bytes": 152078,
       "executable": false
     },
     "panel/ui/cardputer-setup.js": {

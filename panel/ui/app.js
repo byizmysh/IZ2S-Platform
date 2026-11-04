@@ -1664,7 +1664,7 @@ function renderLibrary() {
     }
   }
   const installed = new Set((state.installed || []).map(app => typeof app === 'string' ? app : app.id));
-  for (const card of $('library').children) {
+  for (const card of $('library').querySelectorAll('.app-card')) {
     const loaded = installed.has(card.dataset.appId);
     card.classList.toggle('installed', loaded);
     card.dataset.installed = String(loaded);
@@ -2813,8 +2813,11 @@ function poll() {
     setText($('startup-message'), 'Connecting to the local server.');
   }
   polling = (async () => {
+    let readingState = true;
     try {
-      state = RUN21_CATALOG.normalizeSnapshot(await api('/api/state', undefined, {timeoutMs: 15000}));
+      const snapshot = await api('/api/state', undefined, {timeoutMs: 15000});
+      readingState = false;
+      state = RUN21_CATALOG.normalizeSnapshot(snapshot);
       await readFsRpcProof(state);
       try {const tools=await api('/api/workspace',undefined,{timeoutMs:5000});workspaceReady=true;workspace.sync(tools.tabs||[]);} catch {workspaceReady=false;}
       if (serverUnavailable && notificationKey === 'server-unavailable') $('toast').hidden = true;
@@ -2833,6 +2836,16 @@ function poll() {
         void openDolphin(true);
       }
     } catch (e) {
+      if (!readingState) {
+        console.error('IZ2S panel rendering failed', e);
+        const message = 'The panel could not display the server response. Try again or reopen IZ2S.';
+        if (!initialRenderComplete) {
+          setText($('startup-message'), message);
+          $('startup-retry').hidden = false;
+          $('startup-retry').disabled = false;
+        } else notice(message, 'error', 'panel-render-failed');
+        return;
+      }
       serverUnavailable = true;
       if (!initialRenderComplete) {
         setText($('startup-message'), 'The local server is unavailable. Try again or reopen IZ2S.');

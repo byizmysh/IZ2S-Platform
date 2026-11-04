@@ -1329,5 +1329,6 @@
   "Open an empty file manager preview in another tab. Device connections and file reads are disabled.": "Open an empty file manager preview in another tab. Device connections and file reads are disabled.",
   "STAGE ": "STAGE ",
   "Return to the beginning": "Return to the beginning",
-  "Find this path in Files → Engine.": "Find this path in Files → Engine."
+  "Find this path in Files → Engine.": "Find this path in Files → Engine.",
+  "The panel could not display the server response. Try again or reopen IZ2S.": "The panel could not display the server response. Try again or reopen IZ2S."
 }

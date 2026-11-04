@@ -1434,5 +1434,6 @@
   "Open an empty file manager preview in another tab. Device connections and file reads are disabled.": "Откроется отдельная вкладка с пустым макетом файлового менеджера. Подключение и чтение файлов не выполняются.",
   "STAGE ": "ЭКРАН ",
   "Return to the beginning": "Вернуться к началу",
-  "Find this path in Files → Engine.": "Путь доступен в меню Files → Engine."
+  "Find this path in Files → Engine.": "Путь доступен в меню Files → Engine.",
+  "The panel could not display the server response. Try again or reopen IZ2S.": "Не удалось отобразить ответ сервера. Повторите попытку или заново откройте IZ2S."
 }

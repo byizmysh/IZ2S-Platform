@@ -1321,5 +1321,6 @@
   "This previews the manual input interface. Buttons only change the preview stage.": "此处预览手动输入界面。按钮只会切换预览步骤。",
   "This switch records your confirmation in the preview.": "此开关在预览中记录你的确认。",
   "Verification": "验证",
-  "You verify the result. This preview cannot confirm the device state.": "请自行验证结果。此预览无法确认设备状态。"
+  "You verify the result. This preview cannot confirm the device state.": "请自行验证结果。此预览无法确认设备状态。",
+  "The panel could not display the server response. Try again or reopen IZ2S.": "无法显示服务器响应。请重试或重新打开 IZ2S。"
 }
