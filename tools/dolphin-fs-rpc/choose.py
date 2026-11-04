@@ -31,7 +31,7 @@ class Chooser(QDialog):
         self.quitting = False
         self.failed = False
         self.stopping = False
-        self.setWindowTitle('Switch 2 — Games in Dolphin')
+        self.setWindowTitle('Switch 2 - Games in Dolphin')
         icon = QIcon.fromTheme('folder-remote', app.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon))
         self.setWindowIcon(icon)
         self.resize(720, 590)
@@ -84,7 +84,7 @@ class Chooser(QDialog):
         layout.addWidget(details)
         layout.addWidget(self.details)
         self.tray = QSystemTrayIcon(icon, self)
-        self.tray.setToolTip('Switch 2 — Games in Dolphin')
+        self.tray.setToolTip('Switch 2 - Games in Dolphin')
         menu = QMenu()
         for label, callback in [('Choose a game…', self.reveal), ('Open folder', self.open_folder),
                                 ('Disconnect', self.stop), ('Quit', self.quit)]:

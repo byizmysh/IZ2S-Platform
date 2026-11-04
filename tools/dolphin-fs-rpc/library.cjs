@@ -160,7 +160,7 @@ async function availablePort(host, first = PORT) {
     if (used === false) return port;
     if (used === null) throw Error('The console is not responding over the network');
   }
-  throw Error('No free console FTP port in 2122–2199');
+  throw Error('No free console FTP port in 2122-2199');
 }
 
 async function exportGame(session, title, {signal, progress = () => {}, ready = () => {},

@@ -8,7 +8,7 @@
   "order": 3,
   "selectable": false,
   "panelVisible": false,
-  "description": "Native mac2jb workflow by cpypwn. Untested in IZ2S Platform — test reports welcome.",
+  "description": "Native mac2jb workflow by cpypwn. Untested in IZ2S Platform - test reports welcome.",
   "entry": "entry.cjs",
   "platforms": [
     "darwin-arm64"

@@ -34,8 +34,8 @@ def main():
     content = {
         service: '[Desktop Entry]\nType=Service\nMimeType=inode/directory;\nActions=chooseSwitchGame;\n'
                  'X-KDE-Priority=TopLevel\n\n[Desktop Action chooseSwitchGame]\n'
-                 'Name=Switch 2 — Choose a game via RPC…\nIcon=folder-games\nExec=' + command + '\n',
-        launcher: '[Desktop Entry]\nType=Application\nName=Switch 2 — Games in Dolphin\n'
+                 'Name=Switch 2 - Choose a game via RPC…\nIcon=folder-games\nExec=' + command + '\n',
+        launcher: '[Desktop Entry]\nType=Application\nName=Switch 2 - Games in Dolphin\n'
                   'Comment=Browse console games through IZ2S FS RPC\nIcon=folder-games\n'
                   'Terminal=false\nCategories=Utility;FileTools;\nStartupNotify=true\nExec=' + command + '\n'
     }

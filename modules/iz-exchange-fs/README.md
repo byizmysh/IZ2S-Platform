@@ -6,7 +6,7 @@ Requires a qualified held FS RPC session: select **IZ2S Core** or **ns2jb by Ber
 
 Open **File Exchange FS** on Switch, select **Games (FS RPC)**, choose a game
 with A and wait for **FTP ready**. Connect an FTP client to the console address
-shown on screen, the port shown on screen (**2122–2199**), anonymous login, passive mode. The game export
+shown on screen, the port shown on screen (**2122-2199**), anonymous login, passive mode. The game export
 contains its available base, updates and DLC; game content is read-only.
 Preparation can take several minutes for large titles. The menu keeps rendering.
 

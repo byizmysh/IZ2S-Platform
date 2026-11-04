@@ -616,7 +616,7 @@ function renderWizard() {
     const part = source?.parts?.[i];
     if (part)
       document.querySelector('label[for=metric-' + i * 2 + ']').textContent =
-        i + 1 + ' · lines ' + part.first + '–' + part.last;
+        i + 1 + ' · lines ' + part.first + '-' + part.last;
   }
   $('check-lines').nextElementSibling.textContent =
     'The check finished without errors. SOURCE LINES shows ' +
@@ -760,7 +760,7 @@ function renderWizard() {
             element(
               'strong',
               '',
-              `Part ${part.index} · lines ${part.first}–${part.last} · ${part.matches ? 'Matches' : 'Mismatch'}`,
+              `Part ${part.index} · lines ${part.first}-${part.last} · ${part.matches ? 'Matches' : 'Mismatch'}`,
             ),
             element(
               'span',

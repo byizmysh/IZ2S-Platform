@@ -18,8 +18,8 @@
       "executable": false
     },
     "COMPATIBILITY.md": {
-      "sha256": "6f9a9ec1a2cac02d86bca274c238171d71f306342576f9730e03a3c03997e639",
-      "bytes": 5449,
+      "sha256": "01302bb177696be5dbe3d27c7324a0a97b1482b31790f4bd0c949b2002fd7fef",
+      "bytes": 5447,
       "executable": false
     },
     "COPYRIGHT": {
@@ -28,8 +28,8 @@
       "executable": false
     },
     "FAQ.md": {
-      "sha256": "1e709c11eace4d3d51df781c480139a65239fd3070376e3afa90f99f3a367066",
-      "bytes": 28275,
+      "sha256": "ba22b6dffe1e02095ef72d064bb94507187175986b92a4e11f5d864e95c3b3b1",
+      "bytes": 27769,
       "executable": false
     },
     "Install-Linux.desktop": {
@@ -58,13 +58,13 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "98a6b072b957e78018e810c3648826af4800a87bc18e200d2ddb489325479cbc",
-      "bytes": 13202,
+      "sha256": "0400b22764427e524657a4f77be95cbf66535145d5080c29bd1db995a694cce6",
+      "bytes": 12852,
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "sha256": "2705b05f538a32fb142d097f711a35160fedb9d1938065795b625e92ebdd5195",
-      "bytes": 12293,
+      "sha256": "e84e8f2f46f4e92be7e814f85b209d7d24d522913ddc1477d6c7218bdfd05e9b",
+      "bytes": 12291,
       "executable": false
     },
     "SUPPORT.md": {
@@ -1058,8 +1058,8 @@
       "executable": false
     },
     "core/session/controller-hub.md": {
-      "sha256": "f1ebc21b5aed2537ee4ae28befcc1bcb27efc5b44551f31f9094d519aef5bcc4",
-      "bytes": 3098,
+      "sha256": "ca6b93984499b124f956b995202c14d7eef5a7dec39b1553a61ae2931a3a729b",
+      "bytes": 3092,
       "executable": false
     },
     "core/session/desktop-shutdown.cjs": {
@@ -1188,8 +1188,8 @@
       "executable": false
     },
     "core/session/session.cjs": {
-      "sha256": "cb6ff235357a431808d4356b1167396ac1aa5be1d7691eefcb07754a21ea30ac",
-      "bytes": 54763,
+      "sha256": "d1ef2002926dbebc6a3ca91d5cafbd301a92cc4a5a460de582c26765d5bfcec9",
+      "bytes": 54759,
       "executable": false
     },
     "core/session/setup-check.json": {
@@ -1198,8 +1198,8 @@
       "executable": false
     },
     "core/session/source-check.cjs": {
-      "sha256": "f2c1255130686d70b5ee509f420c3de97e434ea32fce5214c6555f7437909665",
-      "bytes": 4845,
+      "sha256": "c12c37e59e2d353853bc02c880c1becdd6dfca5b26732069613a92ebe99ba389",
+      "bytes": 4841,
       "executable": false
     },
     "core/session-api.cjs": {
@@ -2713,8 +2713,8 @@
       "executable": false
     },
     "hardware/agents/cardputer-adv/NOTICE.txt": {
-      "sha256": "7f1414b97364a7e7b9032d85592e77bc3b5aff026912f328706fd1fe10cb6161",
-      "bytes": 1687,
+      "sha256": "f5c6a1e044111e9fc37ee4e8a3ee23fba0b58b0c04536022429b06f03e188505",
+      "bytes": 1671,
       "executable": false
     },
     "hardware/agents/cardputer-adv/build.py": {
@@ -2818,8 +2818,8 @@
       "executable": false
     },
     "hardware/configurations/mac2jb/profile.json": {
-      "sha256": "1ac1227365935a49bb52c3a2d11f7283d6aff9ccf6784e79d64f8bef35086376",
-      "bytes": 1964,
+      "sha256": "8b538e7aaa0c4226d5aeb907735637fb868767768cfe7c753af4bdcbef2b9c42",
+      "bytes": 1962,
       "executable": false
     },
     "hardware/configurations/pc-arm/entry.cjs": {
@@ -2843,8 +2843,8 @@
       "executable": false
     },
     "hardware/dependencies.cjs": {
-      "sha256": "4e9d4ad84ac3c18a75a040fb03e12afd19850ef52af515380df8d98b2e955d1d",
-      "bytes": 2195,
+      "sha256": "76c313a6310b2fa7e36c7afdf358370c849d8ffc7b91f02c690c0869908b1ce6",
+      "bytes": 2193,
       "executable": false
     },
     "hardware/device-checks.cjs": {
@@ -2868,8 +2868,8 @@
       "executable": false
     },
     "hardware/devices/cardputer-adv/README.txt": {
-      "sha256": "255f19a63ed29fad44996f00e1c090564f583d1c0da0c1e756ffe81faf39a8b4",
-      "bytes": 3961,
+      "sha256": "ae949d79566714f7564515e2704eaa42715dbfa9a50c3b336f778f2b5ec6066b",
+      "bytes": 3959,
       "executable": false
     },
     "hardware/devices/cardputer-adv/device.json": {
@@ -2988,13 +2988,13 @@
       "executable": true
     },
     "language/en/ui.json": {
-      "sha256": "e6e69c2fa11541380e5e120ebf221bfa2ecdbb131bfb42338faae2b14bd20a4b",
-      "bytes": 96393,
+      "sha256": "a0570fb2cc64e2bd8c88871539c4ba2b56ba2c3fb68477a4b559f5d3371a737f",
+      "bytes": 96349,
       "executable": false
     },
     "language/es/ui.json": {
-      "sha256": "1b948176ae5937d86bca74d4371cf449fcb69d447779a83dd9beaaf5465e1dc6",
-      "bytes": 103711,
+      "sha256": "2a7a4b2ba266a82c172c27abbd3e667c6a7d4879e27c6e310cf61a316505ea84",
+      "bytes": 103665,
       "executable": false
     },
     "language/fonts/DejaVuSans-Bold.ttf": {
@@ -3073,8 +3073,8 @@
       "executable": false
     },
     "language/ru/ui.json": {
-      "sha256": "a87681f5e3cdf3c33c3236505583988f412090b61f09f1f7012e7342331d2b2f",
-      "bytes": 160880,
+      "sha256": "1ebb9b1b903bb767193eda7688fce77d466dc6043366731aa411aa62cc1f8ffd",
+      "bytes": 160788,
       "executable": false
     },
     "language/runtime.js": {
@@ -3093,13 +3093,13 @@
       "executable": false
     },
     "language/zh/ui.json": {
-      "sha256": "78533f468667d7141878ff08a1f3bd880f79b192eed1f4fb2aa42c3adc44ecc1",
-      "bytes": 94915,
+      "sha256": "6b40983ff705b78083880d94b46e60e943900235e72018c86f2304c7505b1cc0",
+      "bytes": 94869,
       "executable": false
     },
     "modules/BookReader/FORMAT.md": {
-      "sha256": "f3d386fa88b0c7fdcb33e69edef188c0684d8863781cc57e2521c08d5b94df05",
-      "bytes": 1511,
+      "sha256": "891dc67a95e37c8fb8652e52acf03b069e7e8ba45de9a55da6bb938d56fd9c4c",
+      "bytes": 1507,
       "executable": false
     },
     "modules/BookReader/LICENSE": {
@@ -3118,8 +3118,8 @@
       "executable": false
     },
     "modules/BookReader/book-reader.izm": {
-      "sha256": "9946ad98443c0a566dec3f43e98e2a3b4f1e08690383bcc385ca47d6952beac5",
-      "bytes": 361429,
+      "sha256": "88851f43fbd2959e9ae7e083c73e9ee4c239f820cfc398c79961d422ff9a7658",
+      "bytes": 361418,
       "executable": false
     },
     "modules/BookReader/install.sh": {
@@ -3233,7 +3233,7 @@
       "executable": false
     },
     "modules/BookReader/switch/assets/data.bin": {
-      "sha256": "f6e68d0655015ad60fcbc2014aee82b541f824585e3b35cf1afd7968be8d13ae",
+      "sha256": "17b0fa1c94d21cc62fae581acfe95c7a168db6cccfe5fc4e16f0d500a51b0c7a",
       "bytes": 2099080,
       "executable": false
     },
@@ -3588,13 +3588,13 @@
       "executable": false
     },
     "modules/iz-exchange-fs/README.md": {
-      "sha256": "78fdaf7123015fb2c02c0478f1f04a3d80e88b7031fc666da016c30cdc94ca1d",
-      "bytes": 2292,
+      "sha256": "8d89d45366a88b2732060a377c6ed94e6169a39e9df9089f6208cd3a7d52935e",
+      "bytes": 2290,
       "executable": false
     },
     "modules/iz-exchange-fs/iz-exchange-fs.izm": {
-      "sha256": "c3237be74214261876c13de4d44de7cbed278018db6a19788a6f488e71ff58f8",
-      "bytes": 73497,
+      "sha256": "39e18fc3f85a931cd3d74019ed91fc791fa033eb7dee9ca5b57866787fd3da62",
+      "bytes": 73490,
       "executable": false
     },
     "modules/iz-exchange-fs/module.json": {
@@ -3733,8 +3733,8 @@
       "executable": false
     },
     "packages/iz2s-arm-input.tar.gz": {
-      "sha256": "a15dd35321622d7da3bf754b96ac5bc9e2ddf139502c18bbcde7198cada7ac8e",
-      "bytes": 11654,
+      "sha256": "3793ad04b2a43b30c0f32c7a29cbcf68c80572216f45dfa28fef714140258e8a",
+      "bytes": 11665,
       "executable": false
     },
     "panel/controller.cjs": {
@@ -3763,8 +3763,8 @@
       "executable": false
     },
     "panel/ui/app.js": {
-      "sha256": "02d03192af9ddb190f99de4fc2efc0f1163ec1b81b61b93091dfba1f47e0ce33",
-      "bytes": 151517,
+      "sha256": "1792e1bed5aa6a9e615559c0f4bc751e383704fbc750116c9cc55dffb0f0fabc",
+      "bytes": 151513,
       "executable": false
     },
     "panel/ui/cardputer-setup.js": {
@@ -3778,8 +3778,8 @@
       "executable": false
     },
     "panel/ui/index.html": {
-      "sha256": "b3555520a4e7bc7885e8f9cfd753aa58cb379d241935f8df52d70248dbadf8de",
-      "bytes": 26088,
+      "sha256": "4542bcace35c14e248c41ab76d8d9dba02b695a50bc3e513b9a7338461849560",
+      "bytes": 26074,
       "executable": false
     },
     "panel/ui/style.css": {
@@ -4368,8 +4368,8 @@
       "executable": false
     },
     "shells/izlauncher/resident/compatibility.cjs": {
-      "sha256": "e5d22c2ae82f99afe2199391dcbb79114791e8374e51ea63061eeb8524e6178c",
-      "bytes": 2940,
+      "sha256": "e0f8a824c59288cd6d2c1d5961c4f8cf31951b5da249b2d6ebd9fee2d11fd282",
+      "bytes": 2938,
       "executable": false
     },
     "shells/izlauncher/resident/layout.cjs": {
@@ -4383,8 +4383,8 @@
       "executable": false
     },
     "shells/izlauncher/resident/prepare.cjs": {
-      "sha256": "e3a96624b8b90b710b33b9e16b3cd7bfb5827c6ba6d10a2e1c9740b08d0594f7",
-      "bytes": 15981,
+      "sha256": "d5a99fa6432f1faf0e5ce4d859aaaeb248d6ba450f4810fcd56f2df5932fb55b",
+      "bytes": 15979,
       "executable": false
     },
     "shells/izlauncher/resident/record.cjs": {
@@ -4668,13 +4668,13 @@
       "executable": false
     },
     "shells/izpslauncher/app/app.frag.spv": {
-      "sha256": "56051b9303cb574a85423e28b80fd28ffb7caa020e175d4f1dbb4fe8c5e62ffc",
+      "sha256": "e45a54a02720ef512320145c475ee240c4912060e03c279d6948a72cf789dde0",
       "bytes": 282316,
       "executable": false
     },
     "shells/izpslauncher/app/app.frag.spv.deflate": {
-      "sha256": "5daa8e32c5a9f347e4375a141134a2f3de7d0648c79c5929fc4ac73afbf80279",
-      "bytes": 92382,
+      "sha256": "2b9d4fb502a80310025e0f5a51ede232899b8f083433c1b1094f42c95dc3d1e3",
+      "bytes": 92372,
       "executable": false
     },
     "shells/izpslauncher/app/app.json": {
@@ -4698,8 +4698,8 @@
       "executable": false
     },
     "shells/izpslauncher/app/assets/focus-type.deflate": {
-      "sha256": "6200bb762a112726d08013b83b11ce863e6e393a7a17e15f2d3a4aa57223397b",
-      "bytes": 40879,
+      "sha256": "e00d7edf1f8fcfa8ea74cf9ca2251d23652113cfbe9a4ab3e546ce0aa02ca7bd",
+      "bytes": 40882,
       "executable": false
     },
     "shells/izpslauncher/app/assets/focus-type.json": {
@@ -4913,7 +4913,7 @@
       "executable": false
     },
     "shells/izpslauncher/app/shaders/ps-text.glsl": {
-      "sha256": "74748d49dc9d23ea01bfa5cf21c753ce3a4c498e1abdb53369ae32455a2a7e24",
+      "sha256": "0e6ac32c1b5a6b9bf5cc867d797c6c80b946f44b79fa32973e79682f3cf997da",
       "bytes": 2625,
       "executable": false
     },
@@ -4953,8 +4953,8 @@
       "executable": false
     },
     "shells/izpslauncher/assets/brand/izps-mark.svg": {
-      "sha256": "6c63645f166ac498557f37ab94439423b5600c4dd1d750fc256fae313419fd94",
-      "bytes": 898,
+      "sha256": "03e00779ed6dcb6ac5215ea8970a24897a9623c5688869daa6295642d9fcf232",
+      "bytes": 896,
       "executable": false
     },
     "shells/izpslauncher/build.cjs": {
@@ -4963,8 +4963,8 @@
       "executable": false
     },
     "shells/izpslauncher/preview/typography.png": {
-      "sha256": "f518af5837ff8cd8291949380968f0b41350cb8b75c6a3008b94d1844d9b68f2",
-      "bytes": 67945,
+      "sha256": "512de2515e76363881513ae57e03396c9db88453df223c644de92cfed808a38c",
+      "bytes": 67947,
       "executable": false
     },
     "shells/izpslauncher/server/activity.cjs": {
@@ -5043,8 +5043,8 @@
       "executable": false
     },
     "shells/izpslauncher/server/ps-assets.py": {
-      "sha256": "20b6c626739774cdf2428b10dca0229792683e7cd08576df02a2e55786c0ee97",
-      "bytes": 4139,
+      "sha256": "82c6ded7f8355688eac680cee4770b04eab933a292edb9b4fd9dd89d5d85c42c",
+      "bytes": 4137,
       "executable": false
     },
     "shells/izpslauncher/server/ps-covers.py": {
@@ -5238,8 +5238,8 @@
       "executable": false
     },
     "tools/dolphin-fs-rpc/choose.py": {
-      "sha256": "3c7feb199f81bcae276bfdffca0420b166427fb975b9db5e6ec671dc647e9a38",
-      "bytes": 14101,
+      "sha256": "064758d84001d7276b4ac988b2d02c05ba932684e82f3aa65b6bea066540a5da",
+      "bytes": 14097,
       "executable": false
     },
     "tools/dolphin-fs-rpc/control.cjs": {
@@ -5253,13 +5253,13 @@
       "executable": false
     },
     "tools/dolphin-fs-rpc/install.py": {
-      "sha256": "1f2e94f52b06e2c16347fef810d106be1a5252aecc12a0a50f705d95ced28b74",
-      "bytes": 2379,
+      "sha256": "655c67afc367ac4fef536b353fa7a38103083965cfb48954c2299186bf37eab7",
+      "bytes": 2375,
       "executable": false
     },
     "tools/dolphin-fs-rpc/library.cjs": {
-      "sha256": "c1a9708c5e9ae47694d81aba3ab69c5df55844e9902d7381476ad5d249c52c65",
-      "bytes": 11346,
+      "sha256": "285c0362c68cc7483011c5ec6b2d45ad78d7688df0f322206b6b2a5a1611434b",
+      "bytes": 11344,
       "executable": false
     },
     "tools/dolphin-fs-rpc/service.cjs": {

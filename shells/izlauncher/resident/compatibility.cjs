@@ -20,7 +20,7 @@ function assertSelection(packages,{residentFiniteAudio=false}={}){
  if(!packages.length)throw Error('Resident transitions: enable module preloading and select at least one standalone GPU module, such as IZOFF.');
  const eligibility=p=>residentFiniteAudio?p.residentAudio:p.resident;
  const excluded=packages.filter(p=>!eligibility(p)?.compatible);
- if(excluded.length)throw Error('Resident transitions: '+excluded.map(p=>p.name+' — '+(eligibility(p)?.userReason||'Compatibility is unverified.')).join(' '));
+ if(excluded.length)throw Error('Resident transitions: '+excluded.map(p=>p.name+' - '+(eligibility(p)?.userReason||'Compatibility is unverified.')).join(' '));
  if(packages.filter(p=>eligibility(p)?.code==='finite-audio-candidate').length>1)throw Error('Select one game version with audio per resident session.');
  return packages;
 }

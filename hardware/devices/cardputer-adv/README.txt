@@ -1,4 +1,4 @@
-IZ2S Platform — Cardputer ADV input
+IZ2S Platform - Cardputer ADV input
 Firmware application: 0.21.1 (M5Launcher file IZ2S-ADV-0.21.bin)
 
 Select Cardputer ADV as the input device in the panel. ARM PC is not required.

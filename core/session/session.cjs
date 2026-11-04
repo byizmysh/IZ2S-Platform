@@ -462,7 +462,7 @@ function createSessionManager({
                     p.part +
                     ' (lines ' +
                     p.first +
-                    '–' +
+                    '-' +
                     p.last +
                     ')',
                 )
@@ -533,7 +533,7 @@ function createSessionManager({
           await record(
             'ready',
             action === 'verify'
-              ? 'Read PART 1–3 values and enter the six numbers. Confirm SOURCE LINES shows ' +
+              ? 'Read PART 1-3 values and enter the six numbers. Confirm SOURCE LINES shows ' +
                   (row.setup.lines || 229) +
                   ' (or ' +
                   ((row.setup.lines || 229) + 1) +

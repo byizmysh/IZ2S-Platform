@@ -1,4 +1,4 @@
-# Compatibility and qualification — 0.21 local candidate
+# Compatibility and qualification - 0.21 local candidate
 
 **An installer target is not a qualified native console host.** This file separates implemented installation paths, local software checks and physical-device evidence. No Windows or macOS machine was available for this candidate's local checks.
 

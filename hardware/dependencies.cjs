@@ -14,5 +14,5 @@ function inspect({hostOnly=process.argv.includes('--host-only'),ssh=process.argv
  check('Console launchers',catalog.shells.items.some(x=>x.id==='izlauncher')&&catalog.shells.items.some(x=>x.id==='izpslauncher'),'Restore both console launchers');
  return rows;
 }
-if(require.main===module){const rows=inspect();for(const row of rows)console.log((row.ready?'OK   ':'NEED ')+row.name+(row.ready?'':' — '+row.fix));if(rows.some(row=>!row.ready))process.exitCode=1;}
+if(require.main===module){const rows=inspect();for(const row of rows)console.log((row.ready?'OK   ':'NEED ')+row.name+(row.ready?'':' - '+row.fix));if(rows.some(row=>!row.ready))process.exitCode=1;}
 module.exports={inspect};

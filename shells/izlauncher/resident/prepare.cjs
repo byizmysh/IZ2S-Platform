@@ -13,7 +13,7 @@ async function prepare({rpc,menu,directory,catalog,finiteAudio=false,shell='izla
  await save();const supported=[],excluded=[];
  for(const entry of catalog.apps){const app=await C.readApp(entry.root),candidate=source.candidate(app,{}, {finiteAudio});if(candidate.compatible)supported.push(app.root);else excluded.push({id:app.id,reason:candidate.reason});}
  report.excluded=excluded;await save();
- if(!supported.length||excluded.length){report.error=!supported.length?'No GPU-only apps are available for the resident graphics experiment':'Some selected apps require unavailable resident services';await save();throw Error(report.error+(excluded.length?': '+excluded.map(a=>a.id+' — '+a.reason).join('; '):''));}
+ if(!supported.length||excluded.length){report.error=!supported.length?'No GPU-only apps are available for the resident graphics experiment':'Some selected apps require unavailable resident services';await save();throw Error(report.error+(excluded.length?': '+excluded.map(a=>a.id+' - '+a.reason).join('; '):''));}
  const bundle=path.join(directory,'resident-bundle');
  let manifest=await source.prepare(bundle,supported,{qualifyFiniteAudio:finiteAudio,shell});report.bundle=manifest;report.excluded=excluded;await save();
  const module=JSON.parse(await fs.readFile(path.join(directory,'compatibility-module.json'))),display=JSON.parse(await fs.readFile(path.join(directory,'vulkan-display.json')));

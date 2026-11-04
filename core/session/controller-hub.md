@@ -18,10 +18,10 @@ The mailbox occupies 256 bytes at `mapped+0x701c00`, magic `0x48435a49`, version
 | 40, 44, 48, 52 | cursor, touchHeld, repeat, scroll | GPU |
 | 56, 60 | effectiveSource, capabilities | Host |
 | 64 | controllerCount, at most 9 | Host |
-| 68–139 | nine `{id:u32,style:u32}` entries | Host |
+| 68-139 | nine `{id:u32,style:u32}` entries | Host |
 | 144 | heartbeat | GPU |
 
-Source low byte: 0 Automatic, 1 Pro, 2 Joy-Con/Handheld. Bits 8–15 encode ID+1; zero means automatic ID. IDs 0–7 and 32 (Handheld) are supported. SDK style bits: FullKey=1, Handheld=2, JoyDual=4, JoyLeft=8, JoyRight=16. Profiles: 1 Nintendo Pro, 2 Xbox; capabilities uses corresponding bits 1 and 2. Status: 0 ready, 1 applied, 2 unavailable, 3 error, 4 needsPlugin, 5 needsRestart.
+Source low byte: 0 Automatic, 1 Pro, 2 Joy-Con/Handheld. Bits 8-15 encode ID+1; zero means automatic ID. IDs 0-7 and 32 (Handheld) are supported. SDK style bits: FullKey=1, Handheld=2, JoyDual=4, JoyLeft=8, JoyRight=16. Profiles: 1 Nintendo Pro, 2 Xbox; capabilities uses corresponding bits 1 and 2. Status: 0 ready, 1 applied, 2 unavailable, 3 error, 4 needsPlugin, 5 needsRestart.
 
 Publish payload before sequence using memoryBarrierBuffer(). Increment sequence while skipping zero. Do not publish another request before requestSequence equals ackSequence. Heartbeat increments once per compute frame while Controllers is open; input polling is independent of catalog refresh.
 

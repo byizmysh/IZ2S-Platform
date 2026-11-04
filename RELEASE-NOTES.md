@@ -12,7 +12,7 @@ PC-managed module launches and returns, FS access and streaming still require an
 
 See the [panel and console-menu screenshots](https://github.com/byizmysh/IZ2S-Platform#screenshots).
 
-## Upgrade notes — read first
+## Upgrade notes - read first
 
 The default engine/bootstrap has changed. Version 0.16 used `NS2I`, port **39395**, nine START arguments and BASIC SHA-256 `2261f65fb9ec0ed708ce0f0b6da5057168f706e541d956f658a3c2655e9e8c36`. Version 0.21's IZ2S Core uses **NS2IZM**, port **39380**, five arguments and SHA-256 `5a2b86da8787318652365b2e4cf710f67ce618d6c21087dfc78716533a510d32`.
 

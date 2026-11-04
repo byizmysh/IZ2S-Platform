@@ -18,7 +18,7 @@ labels=[
 ('COLLECTION','YOUR COLLECTION',12,bold),
 ('ACTIVITY','RECENT ACTIVITY',12,bold),('NO_ACTIVITY','No recent activity',20,regular),
 ('REMOVE_TITLE','Remove from console?',28,regular),('REMOVE_BODY','Available to load again from this PC.',17,regular),
-('REMOVE_CONFIRM','A  Remove',18,regular),('REMOVE_CANCEL','B  Cancel',18,regular),('REMOVE_HINT','− Remove',14,regular),('REMOVING','Removing from console…',18,regular),
+('REMOVE_CONFIRM','A  Remove',18,regular),('REMOVE_CANCEL','B  Cancel',18,regular),('REMOVE_HINT','- Remove',14,regular),('REMOVING','Removing from console…',18,regular),
 ('SPACE','YOUR SPACE',12,bold),('WELCOME','Good to be home.',34,light),('WELCOMESUB','Familiar games. New possibilities.',19,regular),
 ('DISCOVER','Explore your library',23,regular),('DISCOVERSUB','All your applications, together.',16,regular),
 ('LIBRARY','Application Library',28,regular),('LIBRARY_LINE1','Find something you love.',18,regular),('LIBRARY_LINE2','Make it part of your menu.',18,regular),

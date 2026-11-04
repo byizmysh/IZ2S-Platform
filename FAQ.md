@@ -1,4 +1,4 @@
-# IZ2S Platform — FAQ
+# IZ2S Platform - FAQ
 
 This guide describes **IZ2S Platform 0.21**, compared with the published [0.16.0-rc.5](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.16.0-rc.5). Read [README.md](README.md) for installation and setup, and [COMPATIBILITY.md](COMPATIBILITY.md) before choosing a host OS.
 
@@ -7,8 +7,6 @@ This guide describes **IZ2S Platform 0.21**, compared with the published [0.16.0
 ### What should I prepare before installing IZ2S?
 
 For FS access, start in **handheld mode** and use **wired LAN** between the console and the local network shared with the PC. These are recommended starting conditions, not a guarantee of successful FS acquisition. Keep the ARM PC or ADV USB keyboard connection available; follow the input device's connection guide for your physical setup.
-
-Have **[SmileBASIC 4](https://www.petc4.smilebasic.com/)** installed and able to open from the console's HOME Menu before First Setup. The current target is **4.4.9**; check the [compatibility table](COMPATIBILITY.md). If you use a USB-drive transfer workflow supported by your console setup, finish that transfer and installation first. Copying files to a USB drive alone does not install the title. The IZ2S installer does not include SmileBASIC, install console titles or provide that transfer tool.
 
 ### How do I keep local access while restricting internet access?
 
