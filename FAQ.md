@@ -83,6 +83,20 @@ Existing installations are preserved. A failed new installation folder is retain
 
 Open the installed Start file again. Check `data/state/startup.log` in the installed folder; it is private and may contain the panel access URL. Confirm a browser is installed. Browser launch uses the OS adapter; different default-browser versions may open a tab instead of a separate window. `IZ2S_BROWSER` can point to an installed browser executable. A browser on another OS does not move the PC server to that OS. The default authenticated panel listener is local to its host; remote access is not automatically enabled.
 
+## Offline use and console sleep
+
+### What works offline?
+
+After the initial PC launch, both console menus can keep their already loaded interface and supported local content running without the PC link. Installed local content does not require internet access. This does not make a PC-backed module independent of its server: module loading/switching, returns from host-managed applications, FS RPC and streaming need an active PC connection. VacooTube and other online services also need internet access.
+
+If the link is lost while the console renderer is active and no module transition is being serviced, IZ2S retains the native resources instead of shutting the menu down automatically. The panel reports the session as offline; it cannot verify console execution through a broken connection. A link lost during native setup or a module transition can still fail the session. The host does not reconnect automatically or replay native commands.
+
+### Can I put the console to sleep?
+
+Yes. Leave the launcher open, put Switch 2 to sleep and wake it to continue, provided SmileBASIC and the native session remain running. The menus retain their state across pauses and discard held-button/touch input on resume. Sleep does not require repeating First Setup.
+
+Keep the PC server running when using PC-backed features. If sleep breaks the PC link, the same offline limitations apply; waking the console does not guarantee reconnection. Closing SmileBASIC, ending the native session or a native failure is different from sleep. For a new native launch after an ended or failed session, fully restart Switch 2, open fresh Direct and use Launch.
+
 ## First Setup, input devices and networking
 
 ### What are the names?

@@ -1,6 +1,16 @@
 # IZ2S Platform 0.21.0
 
-These notes cover the cumulative changes **since the published [0.16.0-rc.5](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.16.0-rc.5)**, including Cardputer ADV input, integrated module tabs, improved file browsing and new desktop installers.
+These notes cover the cumulative changes **since the published [0.16.0-rc.5](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.16.0-rc.5)**, including offline launcher use, console sleep/wake, Cardputer ADV input, integrated module tabs, improved file browsing and new desktop installers.
+
+## Offline use and console sleep
+
+**IZlauncher and IZPSlauncher can keep the loaded console menu and supported local content running offline after the initial PC launch.** Losing the PC link no longer automatically shuts down the active console menu. Installed local content does not require internet access.
+
+**Switch 2 can be put to sleep with the launcher open and resumed after waking**, provided SmileBASIC and its native session remain running. The menus preserve their state across pauses and clear stale input on resume; repeating First Setup is not required.
+
+PC-managed module launches and returns, FS access and streaming still require an active PC connection. Online applications also need internet access. A disconnected PC link is not automatically reconnected; starting a new native session after ending the retained one still requires a full console restart. See the [offline and sleep FAQ](https://github.com/byizmysh/IZ2S-Platform/blob/main/FAQ.md#offline-use-and-console-sleep).
+
+See the [panel and console-menu screenshots](https://github.com/byizmysh/IZ2S-Platform#screenshots).
 
 ## Upgrade notes — read first
 

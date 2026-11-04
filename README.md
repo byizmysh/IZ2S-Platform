@@ -2,7 +2,31 @@
 
 IZ2S Platform runs a control panel on your PC and manages a SmileBASIC connection to Switch 2. **IZlauncher** and **IZPSlauncher** are the two console menu styles. **IZ2S Core** is the default connection engine; IZMYSH is the developer credit.
 
-[Installation](#install-with-one-entry-file) · [Additional modules](#modules-for-iz2s-platform) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [Changes since 0.16](RELEASE-NOTES.md) · [Support](SUPPORT.md)
+[Installation](#install-with-one-entry-file) · [Offline use and sleep](#offline-use-and-console-sleep) · [Screenshots](#screenshots) · [Additional modules](#modules-for-iz2s-platform) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [Changes since 0.16](RELEASE-NOTES.md) · [Support](SUPPORT.md)
+
+## Offline use and console sleep
+
+**Both IZlauncher and IZPSlauncher support offline use after the initial launch from the PC.** The loaded console menu and supported local content can continue when the PC connection is lost. Internet access is not needed for installed local content.
+
+**You can put Switch 2 to sleep with the launcher open and resume after waking it**, as long as SmileBASIC and its native session remain running. First Setup does not need to be repeated after sleep.
+
+Starting or switching modules through the PC, returning from host-managed applications, FS access and streaming still need the PC connection; online services also need internet access. A lost PC connection is not restored automatically. See the [offline and sleep FAQ](FAQ.md#offline-use-and-console-sleep) for recovery details.
+
+## Screenshots
+
+### PC control panel
+
+| Connection | App library |
+| --- | --- |
+| [![IZ2S Platform connection panel](docs/images/connection.png)](docs/images/connection.png) | [![IZ2S Platform App library](docs/images/app-library.png)](docs/images/app-library.png) |
+| Choose the console menu, connection engine, input device and network. | Browse modules, open their settings and choose what to load on the console. |
+
+### Console menus
+
+| IZlauncher | IZPSlauncher |
+| --- | --- |
+| [![IZlauncher console menu](docs/images/izlauncher.png)](docs/images/izlauncher.png) | [![IZPSlauncher console menu](docs/images/izpslauncher.png)](docs/images/izpslauncher.png) |
+| Console menu with an application library and module details. | Alternative console menu with horizontal application navigation. |
 
 ## Install with one entry file
 
@@ -73,7 +97,7 @@ Text and keyboard actions are preloaded onto ADV; the PC requests local actions 
 
 Closing a module tab closes its view. Use **Stop** in the sidebar or **Stop module** to stop the module. Its view can be reopened quickly. Console-session Stop is separate.
 
-A transport loss or uncertain native cleanup is not automatically replayed; restart the console before another attempt.
+An offline session is retained rather than automatically relaunched. After ending it, or after a failure with uncertain native cleanup, restart the console before starting a new native session.
 
 The shared SD location is `SD:/IZ2S/Homebrew/Modules/<module.id>/`. Opening **SD & console storage** prepares folders for installed modules. Module authors adopt this path explicitly through `context.sdStorage`; old files are not moved automatically. See the [SDK storage contract](sdk/SD-STORAGE.md).
 

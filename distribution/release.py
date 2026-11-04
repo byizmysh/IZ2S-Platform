@@ -5,7 +5,8 @@ import argparse,hashlib,json,shutil,subprocess,tempfile,os,re,zipfile,tarfile,gz
 from datetime import datetime,timezone
 ROOT=Path(__file__).resolve().parents[1]
 PROFILE=json.loads((ROOT/'distribution/profile.json').read_text())
-TOP={'core','panel','engines','shells','hardware','profiles','sdk','tools','language','distribution','.github'}
+TOP={'core','panel','engines','shells','hardware','profiles','sdk','tools','language','distribution','.github','docs'}
+DOC_IMAGES={'docs/images/'+name+'.png' for name in ('connection','app-library','izlauncher','izpslauncher')}
 ROOT_FILES={'start.cjs','start.sh','install.sh','install-desktop.sh','Install.cmd','Start.cmd','Install.command','Start.command','Install-Linux.desktop','package.json','LICENSE','COPYRIGHT','LICENSE-SCOPE.md','THIRD_PARTY.json','README.md','FAQ.md','COMPATIBILITY.md','RELEASE-NOTES.md','SUPPORT.md','.gitignore','preview.sh'}
 PRIVATE={'.git','node_modules','__pycache__','.versions','data','runs','downloads','test-data','tests'}
 PRIVATE_NAMES={'secret','capsule.key','installed.json','.engine-install.json'}
@@ -19,6 +20,7 @@ def allowed(rel):
     if any(p in PRIVATE or p.startswith(('.download-','.publish-','.placeholder-')) for p in parts):return False
     if rel.name in PRIVATE_NAMES or rel.suffix in {'.log','.pyc','.tmp','.izm','.pem','.key'}:return False
     if parts[0]=='desktop':return rel.as_posix() in {'desktop/install.cjs','desktop/izlauncher.svg'}
+    if parts[0]=='docs':return rel.as_posix() in DOC_IMAGES
     if parts[0]=='modules':
         if 'runtime' in parts[2:]:return False
         if rel.as_posix()=='modules/README.md':return True

@@ -28,8 +28,8 @@
       "executable": false
     },
     "FAQ.md": {
-      "sha256": "759777858dc9a3d9857f0b349dc9d9f7951dec699d4a3b191ecc7854709d9619",
-      "bytes": 23505,
+      "sha256": "50e680a00f97ef5ba43aa405a0149f6bc108303753ed821e07f70efbc05511ad",
+      "bytes": 25149,
       "executable": false
     },
     "Install-Linux.desktop": {
@@ -58,13 +58,13 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "90febf71560320c3b9dd6f4cb6a73d3570b097dfd46b5f800d47f35df0dcc8fa",
-      "bytes": 9850,
+      "sha256": "16e2591b5338525f11587fdddde7f16503d0eb5c07226e445a1209e4004b9353",
+      "bytes": 11630,
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "sha256": "fab580e55c8d3353251d663c832a8d54312dbbfc5ccf56a1a3374e81e01034a3",
-      "bytes": 11150,
+      "sha256": "2705b05f538a32fb142d097f711a35160fedb9d1938065795b625e92ebdd5195",
+      "bytes": 12293,
       "executable": false
     },
     "SUPPORT.md": {
@@ -1278,8 +1278,8 @@
       "executable": false
     },
     "distribution/install.cjs": {
-      "sha256": "3635e77cd71878303a74ae514568787b62c40f58659bd61f7f53f715acdef751",
-      "bytes": 14899,
+      "sha256": "f11eaf88685d2f7a56533ddf2c1bc641d10ae7cc5552163f832a794f1f11b152",
+      "bytes": 15098,
       "executable": false
     },
     "distribution/preview-smoke.cjs": {
@@ -1293,8 +1293,8 @@
       "executable": false
     },
     "distribution/release.py": {
-      "sha256": "3e8818e38e7b8b84defe60346443ca99c65552527779e886f3b8d0821e8e3d85",
-      "bytes": 10032,
+      "sha256": "f1539038fc32c703b1bca17be5b6d91e41b185a0a9c9f69fe002a9c6a6c29f38",
+      "bytes": 10208,
       "executable": true
     },
     "distribution/runtime-downloads.json": {
@@ -1320,6 +1320,26 @@
     "distribution/verify.cjs": {
       "sha256": "9e2688b4d411e676483aadbc30c37da97cf563e8e0c823600689b1b14267fb38",
       "bytes": 6001,
+      "executable": false
+    },
+    "docs/images/app-library.png": {
+      "sha256": "5263e7173d44da9a2aa9d3d829d2887a73ad66781fa1d337e8f5b2759322de83",
+      "bytes": 221110,
+      "executable": false
+    },
+    "docs/images/connection.png": {
+      "sha256": "69e3ba905a2af97190feabb36bb0d8626ce2cfca94a1ca61a0e94dd2678cabed",
+      "bytes": 287057,
+      "executable": false
+    },
+    "docs/images/izlauncher.png": {
+      "sha256": "9778ab448c66e9a221298e5961c6570cdaf996a0598d453871e6a91d5adfef06",
+      "bytes": 715137,
+      "executable": false
+    },
+    "docs/images/izpslauncher.png": {
+      "sha256": "72f2851bbf71e3ce70b265c0a7b12ba5f7485a6284f0166ad8f065d6df718849",
+      "bytes": 418955,
       "executable": false
     },
     "engines/BermTheSequel/adapter.cjs": {
@@ -3098,7 +3118,7 @@
       "executable": false
     },
     "modules/BookReader/book-reader.izm": {
-      "sha256": "690b40e137c1aa4f0aba2a981cd30957254112185dd3778c2b64bf331b0f62b0",
+      "sha256": "9946ad98443c0a566dec3f43e98e2a3b4f1e08690383bcc385ca47d6952beac5",
       "bytes": 361429,
       "executable": false
     },
@@ -3213,7 +3233,7 @@
       "executable": false
     },
     "modules/BookReader/switch/assets/data.bin": {
-      "sha256": "9202ccf986fe195a0c4f427ecf5b84259e8c4a47cc6fc52320013cc8372d9a59",
+      "sha256": "f6e68d0655015ad60fcbc2014aee82b541f824585e3b35cf1afd7968be8d13ae",
       "bytes": 2099080,
       "executable": false
     },
@@ -3713,8 +3733,8 @@
       "executable": false
     },
     "packages/iz2s-arm-input.tar.gz": {
-      "sha256": "b86dfb177556c448de53bd994c97673166355422fb8a8c2f5d765de36e12e4c1",
-      "bytes": 11665,
+      "sha256": "a15dd35321622d7da3bf754b96ac5bc9e2ddf139502c18bbcde7198cada7ac8e",
+      "bytes": 11654,
       "executable": false
     },
     "panel/controller.cjs": {
