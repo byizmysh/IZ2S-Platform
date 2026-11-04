@@ -2,6 +2,8 @@
 
 IZ2S Platform runs a control panel on your PC and manages a SmileBASIC connection to Switch 2. **IZlauncher** and **IZPSlauncher** are the two console menu styles. **IZ2S Core** is the default connection engine; IZMYSH is the developer credit.
 
+Support for **Civilization VII** and **Balatro** will be added within a week after the developer receives physical copies.
+
 [Recommended setup](#recommended-console-setup) · [Installation](#install-with-one-entry-file) · [Offline use and sleep](#offline-use-and-console-sleep) · [Screenshots](#screenshots) · [Additional modules](#modules-for-iz2s-platform) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [Changes since 0.16](RELEASE-NOTES.md) · [Support](SUPPORT.md)
 
 ## Offline use and console sleep
