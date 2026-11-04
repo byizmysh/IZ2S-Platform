@@ -1,6 +1,6 @@
 # IZ2S Platform — FAQ
 
-This guide describes **IZ2S Platform 0.21**, compared with the published [0.16.0-rc.5](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.16.0-rc.5). Read [READMI.md](READMI.md) for the short guide and [COMPATIBILITY.md](COMPATIBILITY.md) before choosing a host OS.
+This guide describes **IZ2S Platform 0.21**, compared with the published [0.16.0-rc.5](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.16.0-rc.5). Read [README.md](README.md) for installation and setup, and [COMPATIBILITY.md](COMPATIBILITY.md) before choosing a host OS.
 
 ## Installation and OS prompts
 

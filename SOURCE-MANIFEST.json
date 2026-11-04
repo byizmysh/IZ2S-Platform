@@ -28,8 +28,8 @@
       "executable": false
     },
     "FAQ.md": {
-      "sha256": "544ecd6a619d19fc08da32b29ddfab75ae0825144b269f9e9e5c36d37d50d119",
-      "bytes": 23497,
+      "sha256": "759777858dc9a3d9857f0b349dc9d9f7951dec699d4a3b191ecc7854709d9619",
+      "bytes": 23505,
       "executable": false
     },
     "Install-Linux.desktop": {
@@ -58,13 +58,8 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "02973b430940ac8d66143cd1dd36e4953d2736fa6a17d4279f23b99672cd4b88",
-      "bytes": 6971,
-      "executable": false
-    },
-    "READMI.md": {
-      "sha256": "720f9fdb66a0b34f43b834ecc6779358b5025a44f2c3285c58bacfecaa4e0398",
-      "bytes": 6126,
+      "sha256": "90febf71560320c3b9dd6f4cb6a73d3570b097dfd46b5f800d47f35df0dcc8fa",
+      "bytes": 9850,
       "executable": false
     },
     "RELEASE-NOTES.md": {
@@ -1283,8 +1278,8 @@
       "executable": false
     },
     "distribution/install.cjs": {
-      "sha256": "0d87821b5934f5840e1c96b5ce32a0195abbf4c20a94f14297df5163de2b15cc",
-      "bytes": 14911,
+      "sha256": "3635e77cd71878303a74ae514568787b62c40f58659bd61f7f53f715acdef751",
+      "bytes": 14899,
       "executable": false
     },
     "distribution/preview-smoke.cjs": {
@@ -1298,8 +1293,8 @@
       "executable": false
     },
     "distribution/release.py": {
-      "sha256": "ccaff5a583691fbaeaa89b36dfbc03cb384718b2837fc57516dc6e75c767e8eb",
-      "bytes": 10044,
+      "sha256": "3e8818e38e7b8b84defe60346443ca99c65552527779e886f3b8d0821e8e3d85",
+      "bytes": 10032,
       "executable": true
     },
     "distribution/runtime-downloads.json": {
@@ -3103,7 +3098,7 @@
       "executable": false
     },
     "modules/BookReader/book-reader.izm": {
-      "sha256": "7cb15634ff48fa4ae61904b86d14d20a08a08f6a54094f6a239eb70856753039",
+      "sha256": "690b40e137c1aa4f0aba2a981cd30957254112185dd3778c2b64bf331b0f62b0",
       "bytes": 361429,
       "executable": false
     },
@@ -3218,7 +3213,7 @@
       "executable": false
     },
     "modules/BookReader/switch/assets/data.bin": {
-      "sha256": "cab3e4a439eff712312bbdb76d6011debadbc6fa598630aa6f30bb40b9cbf87a",
+      "sha256": "9202ccf986fe195a0c4f427ecf5b84259e8c4a47cc6fc52320013cc8372d9a59",
       "bytes": 2099080,
       "executable": false
     },
@@ -3718,8 +3713,8 @@
       "executable": false
     },
     "packages/iz2s-arm-input.tar.gz": {
-      "sha256": "8e279804dc31628381962c46fe119f80fb0a20e9d378b0cd2f6eefdafc29eea7",
-      "bytes": 11664,
+      "sha256": "b86dfb177556c448de53bd994c97673166355422fb8a8c2f5d765de36e12e4c1",
+      "bytes": 11665,
       "executable": false
     },
     "panel/controller.cjs": {

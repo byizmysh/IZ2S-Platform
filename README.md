@@ -2,11 +2,11 @@
 
 IZ2S Platform runs a control panel on your PC and manages a SmileBASIC connection to Switch 2. **IZlauncher** and **IZPSlauncher** are the two console menu styles. **IZ2S Core** is the default connection engine; IZMYSH is the developer credit.
 
-[Quick guide](READMI.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [Changes since 0.16](RELEASE-NOTES.md) · [Support](SUPPORT.md)
+[Installation](#install-with-one-entry-file) · [Additional modules](#modules-for-iz2s-platform) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [Changes since 0.16](RELEASE-NOTES.md) · [Support](SUPPORT.md)
 
 ## Install with one entry file
 
-Extract the **whole** prepared archive into a writable local folder. Open the entry file for your OS:
+Extract the **whole** prepared archive into a writable local folder. Do not run an entry file from inside a ZIP or move it away from the other files. Open the entry file for your OS:
 
 | Computer | Installation | Later launches |
 | --- | --- | --- |
@@ -15,6 +15,8 @@ Extract the **whole** prepared archive into a writable local folder. Open the en
 | macOS Intel / Apple silicon | Double-click `Install.command` | `~/Applications/IZ2S Platform.app` or the installed `Start.command` |
 
 Linux installs missing packages through apt, pacman or dnf and may ask for administrator approval. If your desktop will not execute the installer, run `sh install.sh --launch` in its folder. Windows/macOS prepare private Node.js 24, Python 3.12 and Pillow automatically; no npm, Homebrew, Xcode or system Python installation is needed. Windows uses its OpenSSH client or downloads a private portable client for ARM input. The installers create a new per-user installation, add a shortcut and request panel startup. They do not install an ARM-board OS, flash ADV or launch a console session.
+
+Windows may show a downloaded-file warning; organization policy can require administrator approval. On macOS, review the specific file in **System Settings → Privacy & Security → Open Anyway** if offered. If a `.command` file lost execute permission, run `chmod +x Install.command Start.command` in its extracted folder. Installation needs internet access and a writable user profile. See the [installation FAQ](FAQ.md#installation-and-os-prompts) for permission and network recovery, including package-manager prompts on Linux.
 
 **Windows/macOS installers are experimental and still require testing on those operating systems. Native console sessions remain enabled only for the declared Linux hosts.** Successful installation or opening the browser does not establish full console compatibility. See the [compatibility table](COMPATIBILITY.md) and [OS-specific FAQ](FAQ.md#installation-and-os-prompts).
 
@@ -32,24 +34,52 @@ Node.js 24 currently requires Windows 10 or later on x64 and macOS 13.5 or later
 | [File Exchange](modules/iz-exchange/README.md) / [File Exchange FS](modules/iz-exchange-fs/README.md) | Title-owned files and retained FS RPC exports |
 | [Book Reader](modules/BookReader/README.md) | TXT/unencrypted EPUB reader and library settings |
 
-[Super File Bros.](https://github.com/byizmysh/super-file-bros) remains a separate standalone project. [BlitBun](https://github.com/byizmysh/BlitBun), [VacooTube](https://github.com/byizmysh/VacooTube), [emulators and other modules](modules/README.md#additional-modules) are separate packages; installing the platform does not install their host dependencies.
+[Super File Bros.](https://github.com/byizmysh/super-file-bros) remains a separate standalone project.
+
+## Modules for IZ2S Platform
+
+Extend IZ2S Platform with these separately installed modules:
+
+| Module | What it does | Get it |
+| --- | --- | --- |
+| **[BlitBun](https://github.com/byizmysh/BlitBun)** | Stream a PC application's video and audio to Switch 2, with live resolution changes, separate Dock/Handheld profiles and optional forwarding of controllers paired with the console. | [Download and install](https://github.com/byizmysh/BlitBun/releases/latest) |
+| **[VacooTube](https://github.com/byizmysh/VacooTube)** | A YouTube player for Switch 2 with touch and controller navigation. Browsing, search, playback and settings are controlled from the console after setup; the application runs on the PC in the background. Includes its own bundled BlitBun streaming engine. | [Download and install](https://github.com/byizmysh/VacooTube/releases/latest) |
+
+Install IZ2S Platform first, then follow the chosen module's README. Both modules include their PC and console components and can be installed independently: neither requires the other. They are optional downloads and are not bundled with the platform installer. Check each module's own host OS and dependency requirements.
+
+[Emulators and other modules](modules/README.md#additional-modules) are also separate packages; installing the platform does not install their host dependencies.
 
 ## Connect the console
 
 1. Choose a launcher, engine and input device. The current console profile targets Switch 2 system 23.0.1 and SmileBASIC 4.4.9; check compatibility before using other versions.
-2. Follow **First Setup** to enter and save the selected BASIC program. An upgrade from 0.16 requires this again: the old `NS2I` program is not the current `NS2IZM` bootstrap.
+2. Follow **First Setup** to enter and save the selected BASIC program. An upgrade from 0.16 requires this again: the old `NS2I` program is not the current `NS2IZM` bootstrap; renaming the file is insufficient.
 3. Fully restart Switch 2, open fresh SmileBASIC Direct and follow **Launch**. After a failed or ended native session, restart the console before another attempt.
 4. Enable **FS endpoint (--rpc)** before Launch when you need retained FS access. Super File Bros. opens as an IZ2S tab; choose an external file manager there separately.
 
-For ARM, prepare the separate Linux board using the [ARM instructions](hardware/agents/arm-input/README.md). A compatible input API 1 installation does not need replacing for every launcher update. For ADV, use the [firmware/Wi-Fi/USB instructions](hardware/devices/cardputer-adv/README.txt): after setup on the PC, connect its USB **data** cable to Switch 2.
+### ARM PC input
+
+The separate Linux board needs SSH and a working USB keyboard gadget. First Setup deploys the supplied `packages/iz2s-arm-input.tar.gz`; it does not install or repair the board OS. A compatible input API 1 installation does not need replacing for every launcher update. See the [ARM instructions](hardware/agents/arm-input/README.md).
+
+### Cardputer ADV input
+
+1. Follow the firmware step in First Setup using M5Launcher USB storage, or choose **File** to download the package and copy it manually.
+2. Launch the IZ2S-ADV firmware and select the same local Wi-Fi network as the PC. Enter its password with the ADV keyboard; **Tab** shows or hides it.
+3. Enter the IP shown on ADV in Device settings if the local `iz2s-adv.local` hostname is unavailable. A plain IP address is accepted.
+4. Move ADV's USB **data cable from the PC to Switch 2** and confirm the connection in the panel.
+
+Text and keyboard actions are preloaded onto ADV; the PC requests local actions over Wi-Fi. Match the panel's Caps Lock setting to SmileBASIC for correct capitalization. See the [firmware/Wi-Fi/USB instructions](hardware/devices/cardputer-adv/README.txt).
 
 ## Modules and files
 
 Closing a module tab closes its view. Use **Stop** in the sidebar or **Stop module** to stop the module. Its view can be reopened quickly. Console-session Stop is separate.
 
+A transport loss or uncertain native cleanup is not automatically replayed; restart the console before another attempt.
+
 The shared SD location is `SD:/IZ2S/Homebrew/Modules/<module.id>/`. Opening **SD & console storage** prepares folders for installed modules. Module authors adopt this path explicitly through `context.sdStorage`; old files are not moved automatically. See the [SDK storage contract](sdk/SD-STORAGE.md).
 
 FTP exports are read-only. Browser SD operations provide explicit upload, rename and deletion controls; internal console filesystems remain read-only. Windows Explorer and macOS Finder do not provide a general writable view of FS RPC; see the [FAQ](FAQ.md) for their FTP limits. [Book Reader](modules/BookReader/README.md) libraries/settings stay local and are not included in public archives.
+
+File Exchange's `/save`, `/tmp` and `/rom` belong to the SmileBASIC title; they are separate from general SD storage and installed-game exports.
 
 ## Build and local testing
 

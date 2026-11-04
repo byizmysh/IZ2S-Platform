@@ -19,7 +19,7 @@ function defaultDestination(version, {platform = process.platform, home = os.hom
 async function copySource(source, destination) {
   const profile = JSON.parse(await fs.readFile(path.join(source, 'distribution/profile.json')));
   const top = new Set(['core','panel','engines','shells','hardware','profiles','sdk','tools','language','distribution','.github']);
-  const rootFiles = new Set(['start.cjs','start.sh','install.sh','install-desktop.sh','Install.cmd','Start.cmd','Install.command','Start.command','Install-Linux.desktop','package.json','LICENSE','COPYRIGHT','LICENSE-SCOPE.md','THIRD_PARTY.json','README.md','READMI.md','FAQ.md','COMPATIBILITY.md','RELEASE-NOTES.md','SUPPORT.md','.gitignore','preview.sh']);
+  const rootFiles = new Set(['start.cjs','start.sh','install.sh','install-desktop.sh','Install.cmd','Start.cmd','Install.command','Start.command','Install-Linux.desktop','package.json','LICENSE','COPYRIGHT','LICENSE-SCOPE.md','THIRD_PARTY.json','README.md','FAQ.md','COMPATIBILITY.md','RELEASE-NOTES.md','SUPPORT.md','.gitignore','preview.sh']);
   const privateDirs = new Set(['.git','node_modules','__pycache__','.versions','data','runs','downloads','test-data','tests']);
   const privateFiles = new Set(['secret','capsule.key','installed.json','.engine-install.json']);
   let manifest;
