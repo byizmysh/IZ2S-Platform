@@ -2,7 +2,7 @@
 
 IZ2S Platform runs a control panel on your PC and manages a SmileBASIC connection to Switch 2. **IZlauncher** and **IZPSlauncher** are the two console menu styles. **IZ2S Core** is the default connection engine; IZMYSH is the developer credit.
 
-[Installation](#install-with-one-entry-file) · [Offline use and sleep](#offline-use-and-console-sleep) · [Screenshots](#screenshots) · [Additional modules](#modules-for-iz2s-platform) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [Changes since 0.16](RELEASE-NOTES.md) · [Support](SUPPORT.md)
+[Recommended setup](#recommended-console-setup) · [Installation](#install-with-one-entry-file) · [Offline use and sleep](#offline-use-and-console-sleep) · [Screenshots](#screenshots) · [Additional modules](#modules-for-iz2s-platform) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [Changes since 0.16](RELEASE-NOTES.md) · [Support](SUPPORT.md)
 
 ## Offline use and console sleep
 
@@ -27,6 +27,17 @@ Starting or switching modules through the PC, returning from host-managed applic
 | --- | --- |
 | [![IZlauncher console menu](docs/images/izlauncher.png)](docs/images/izlauncher.png) | [![IZPSlauncher console menu](docs/images/izpslauncher.png)](docs/images/izpslauncher.png) |
 | Console menu with an application library and module details. | Alternative console menu with horizontal application navigation. |
+
+## Recommended console setup
+
+Prepare this configuration **before installation and First Setup**:
+
+- **Use handheld mode for FS access.** Start with this mode when acquiring the FS endpoint.
+- **Use a wired LAN connection for FS access**, with the PC and console on the same local network. Keep the chosen USB keyboard input device connected as required by its setup guide.
+- **Install [SmileBASIC 4](https://www.petc4.smilebasic.com/) on the console first.** The current profile targets version **4.4.9**. If transferring it from a USB drive, complete the transfer and installation through a method supported by your console setup, then confirm it opens from HOME. IZ2S does not supply SmileBASIC or a USB title installer.
+- **Restrict the console's internet access while preserving local communication.** Use [SWFence](https://github.com/byizmysh/SWFence) on a compatible OpenWrt router for a LAN-only policy, or [90DNS](https://gitlab.com/a/90dns) for Nintendo-domain filtering. **90DNS does not block all internet traffic.** See the [network preparation FAQ](FAQ.md#recommended-console-and-network-setup).
+
+**If FS acquisition repeatedly fails:** stop the session and fully restart Switch 2. Open any installed game for about **10 seconds**, close it completely, then open **SmileBASIC 4 → Direct** and try Launch again. This is a recovery workaround, not a guaranteed fix; never retry over a failed session with retained native resources. See the [FS recovery steps](FAQ.md#what-if-fs-acquisition-keeps-failing).
 
 ## Install with one entry file
 

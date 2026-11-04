@@ -28,8 +28,8 @@
       "executable": false
     },
     "FAQ.md": {
-      "sha256": "50e680a00f97ef5ba43aa405a0149f6bc108303753ed821e07f70efbc05511ad",
-      "bytes": 25149,
+      "sha256": "1e709c11eace4d3d51df781c480139a65239fd3070376e3afa90f99f3a367066",
+      "bytes": 28275,
       "executable": false
     },
     "Install-Linux.desktop": {
@@ -58,8 +58,8 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "16e2591b5338525f11587fdddde7f16503d0eb5c07226e445a1209e4004b9353",
-      "bytes": 11630,
+      "sha256": "98a6b072b957e78018e810c3648826af4800a87bc18e200d2ddb489325479cbc",
+      "bytes": 13202,
       "executable": false
     },
     "RELEASE-NOTES.md": {

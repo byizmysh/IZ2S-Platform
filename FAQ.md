@@ -2,6 +2,21 @@
 
 This guide describes **IZ2S Platform 0.21**, compared with the published [0.16.0-rc.5](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.16.0-rc.5). Read [README.md](README.md) for installation and setup, and [COMPATIBILITY.md](COMPATIBILITY.md) before choosing a host OS.
 
+## Recommended console and network setup
+
+### What should I prepare before installing IZ2S?
+
+For FS access, start in **handheld mode** and use **wired LAN** between the console and the local network shared with the PC. These are recommended starting conditions, not a guarantee of successful FS acquisition. Keep the ARM PC or ADV USB keyboard connection available; follow the input device's connection guide for your physical setup.
+
+Have **[SmileBASIC 4](https://www.petc4.smilebasic.com/)** installed and able to open from the console's HOME Menu before First Setup. The current target is **4.4.9**; check the [compatibility table](COMPATIBILITY.md). If you use a USB-drive transfer workflow supported by your console setup, finish that transfer and installation first. Copying files to a USB drive alone does not install the title. The IZ2S installer does not include SmileBASIC, install console titles or provide that transfer tool.
+
+### How do I keep local access while restricting internet access?
+
+- **[SWFence](https://github.com/byizmysh/SWFence):** configure its OpenWrt router firewall for the console, permit the PC's local IPv4 subnet and leave internet exceptions empty for LAN-only use. Register each console Wi-Fi/Ethernet adapter MAC you use. Apply and check the rules before connecting the console; follow the project's [installation guide](https://github.com/byizmysh/SWFence/blob/main/INSTALL.md).
+- **[90DNS](https://gitlab.com/a/90dns):** follow its instructions for each console network connection. It filters Nintendo-related DNS names; it is not a firewall and does not block all internet destinations or direct-IP traffic. The project describes its Switch 2 support as early, so verify the result on your network.
+
+Keep the PC, console and input device reachable on the local network. With restrictive router rules, use the PC/ADV local IPv4 addresses if discovery or `.local` names do not resolve. The PC can retain its own internet connection for installation, downloads and online modules; the console does not need unrestricted internet access for the local IZ2S connection.
+
 ## Installation and OS prompts
 
 ### Which file do I open?
@@ -188,6 +203,17 @@ Reinstall compatible module packages, preserving their own documented data direc
 ### Is a retained-memory/native FS failure an ordinary successful setup?
 
 It is a failed attempt, even if an earlier connection step passed. If acquisition reports retained resources, changed heap/cache ownership, a native batch that did not terminate or incomplete release proof, stop and fully restart the console before retrying. IZ2S deliberately does not replay uncertain native writes. Preserve local diagnostics if investigating, but sanitize keys, private addresses, listings and file names before sharing them.
+
+### What if FS acquisition keeps failing?
+
+Try this recovery sequence if repeated attempts stall or fail while acquiring FS memory:
+
+1. Stop the IZ2S session and **fully restart Switch 2**. Do not retry native acquisition in the failed session.
+2. Return to **handheld mode** and check the **wired LAN** connection to the PC's local network.
+3. Open any installed game, leave it running for about **10 seconds**, then **close the game completely** from HOME.
+4. Only then open **SmileBASIC 4 → Direct**, confirm the console screen in IZ2S and use **Launch** with **FS endpoint (--rpc)** enabled.
+
+This is a suggested workaround for recurring acquisition failures, not a guaranteed repair. If it fails again, stop and follow the reported restart/recovery requirement rather than repeatedly pressing Launch. Running a game does not prove that resources from a failed native attempt were released; the full restart comes first. Repeating First Setup is unnecessary unless the saved BASIC program itself needs updating.
 
 ### What changed for socket hang up during launcher initialization?
 
