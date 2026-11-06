@@ -1322,5 +1322,18 @@
   "This switch records your confirmation in the preview.": "Este interruptor registra tu confirmación en la vista previa.",
   "Verification": "Verificación",
   "You verify the result. This preview cannot confirm the device state.": "Tú verificas el resultado. Esta vista previa no puede confirmar el estado del dispositivo.",
-  "The panel could not display the server response. Try again or reopen IZ2S.": "No se pudo mostrar la respuesta del servidor. Reintenta o vuelve a abrir IZ2S."
+  "The panel could not display the server response. Try again or reopen IZ2S.": "No se pudo mostrar la respuesta del servidor. Reintenta o vuelve a abrir IZ2S.",
+  "USB connected · keyboard ready.": "USB conectado · teclado listo.",
+  "USB connected; waiting for keyboard configuration.": "USB conectado; esperando la configuración del teclado.",
+  "USB status unavailable until ADV reconnects.": "El estado USB no está disponible hasta que ADV se reconecte.",
+  "ADV USB is connected to this PC. Move its USB data cable to Switch 2.": "ADV está conectado por USB a este PC. Conecta su cable de datos USB a Switch 2.",
+  "USB host is sleeping. Wake the console to continue.": "El host USB está suspendido. Activa la consola para continuar.",
+  "Connect the ADV USB data cable to Switch 2.": "Conecta el cable de datos USB de ADV a Switch 2.",
+  "Update ADV firmware from First Setup for Switch keyboard compatibility.": "Actualiza el firmware de ADV desde First Setup para que el teclado sea compatible con Switch.",
+  "Detected automatically over Wi-Fi. Open SmileBASIC Direct, then continue.": "Detectado automáticamente por Wi-Fi. Abre SmileBASIC Direct y continúa.",
+  "Direct is open; slot ": "Direct está abierto; la ranura ",
+  "Switch 2 was fully restarted; fresh Direct is open.": "Switch 2 se ha reiniciado por completo; Direct está recién abierto.",
+  "Reconnecting USB keyboard. No commands are replayed.": "Reconectando el teclado USB. No se repiten los comandos.",
+  "USB inactive. Wake the console or check the cable.": "USB inactivo. Activa la consola o revisa el cable.",
+  "USB host not responding. Check the dock, cable and console.": "El host USB no responde. Revisa la base, el cable y la consola."
 }

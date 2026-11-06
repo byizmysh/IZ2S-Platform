@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('node:crypto');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-function create({root,configuration,preparePlan=value=>require('../common.cjs').plan(root,value),fetchImpl=fetch,pause=sleep,pollMs=500}){
+function create({root,configuration,preparePlan=value=>require('../common.cjs').plan(root,value),fetchImpl=fetch,pause=sleep,pollMs=500,identifyLocalHost=require('../../devices/cardputer-adv/usb-status.cjs').localHost}){
  const settings=configuration.settings,jobs=new Map(),cancelled=new Set();
  let stagedPlans={},stagedId=null;
  const normalized=plan=>({steps:plan.steps,source:plan.source||'',sourceAfter:plan.sourceAfter,capsLock:settings.cardputerCapsLock==='on'});
@@ -23,7 +23,7 @@ function create({root,configuration,preparePlan=value=>require('../common.cjs').
   return state;
  }
  async function inspect(){
-  try{const state=await status(),compatible=state.usbKeyboardFormat==='boot-8-byte';return {reachable:true,moduleReady:true,installed:true,keyboard:state.keyboard===true&&compatible,keyboardBusy:state.busy===true,setupRequired:state.keyboard!==true||!compatible,firmwareUpdateRequired:!compatible,service:'cardputer-wifi',firmwareVersion:state.version,bootId:state.bootId,usbState:state.usbState,detail:!compatible?'Update ADV firmware from First Setup for Switch keyboard compatibility.':state.keyboard?'Cardputer ADV · Wi-Fi + USB boot keyboard ready':'Connect the Cardputer USB data cable to Switch'};}
+  try{const state=await status(),compatible=state.usbKeyboardFormat==='boot-8-byte',usb=require('../../devices/cardputer-adv/usb-status.cjs').describe(state,await identifyLocalHost(state.usbSerial));return {reachable:true,moduleReady:true,installed:true,keyboard:usb.keyboard,keyboardBusy:state.busy===true,setupRequired:!usb.keyboard,firmwareUpdateRequired:!compatible,service:'cardputer-wifi',firmwareVersion:state.version,bootId:state.bootId,usbState:usb.state,usb,detail:usb.detail};}
   catch(error){return {reachable:false,moduleReady:false,keyboard:false,setupRequired:true,service:'cardputer-wifi',error:error.message};}
  }
  async function persist(file,value){await require('../../../core/services/json-write.cjs').write(file,value,{directoryMode:0o700});}
@@ -64,7 +64,7 @@ function create({root,configuration,preparePlan=value=>require('../common.cjs').
    if(previous?.digest&&previous.digest!==digest)throw Error('Input job identity belongs to a different plan');
    if(previous?.status==='complete')return {ok:true,duplicate:true};
    if(previous&&['cancelled','failed'].includes(previous.status))throw Error('This input job already ended; it was not replayed');
-   const device=await status();if(device.usbKeyboardFormat!=='boot-8-byte')throw Error('Update Cardputer ADV firmware from First Setup before entering commands on Switch.');if(!device.keyboard)throw Error('Cardputer USB keyboard is not ready');
+   const device=await status();if(device.usbKeyboardFormat!=='boot-8-byte')throw Error('Update Cardputer ADV firmware from First Setup before entering commands on Switch.');const usb=require('../../devices/cardputer-adv/usb-status.cjs').describe(device,await identifyLocalHost(device.usbSerial));if(!usb.keyboard)throw Error(usb.detail);
    if(device.busy&&device.jobId!==plan.requestId)throw Error('Cardputer is executing another input job');
    if(previous&&previous.bootId!==device.bootId)throw Error('Cardputer restarted after this job; commands were not replayed');
    const record={id:plan.requestId,digest,bootId:device.bootId,status:'requested'};

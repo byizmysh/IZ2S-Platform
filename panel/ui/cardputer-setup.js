@@ -1,13 +1,19 @@
 'use strict';
 // Only the ADV branch owns these preparatory screens. ARM uses its original wizard.
 globalThis.IZ2S_ADV_SETUP = (() => {
+  function usbDescription(state, wifi, usb) {
+    if (!wifi?.ready) return 'USB status unavailable until ADV reconnects.';
+    if (usb?.usb?.localHost === 'this-pc') return 'ADV USB is connected to this PC. Move its USB data cable to Switch 2.';
+    if (usb?.usb?.suspended) return 'USB inactive. Wake the console or check the cable.';
+    if (usb?.ready) return 'USB connected · keyboard ready.';
+    return usb?.detail || 'Connect the ADV USB data cable to Switch 2.';
+  }
   function create({document,changed,openSetup}) {
     const $=id=>document.getElementById(id);
-    let phase=1,boot=null,usbConfirmed=false,context=null;
-    function select(value){phase=value;if(value<4)usbConfirmed=false;$('adv-usb-ready').checked=false;$('screen-ready').checked=false;changed();}
+    let phase=1,boot=null,usbIdentity=null,usbConfirmed=false,context=null;
+    function select(value){phase=value;if(value<4)usbConfirmed=false;$('screen-ready').checked=false;changed();}
     $('adv-firmware-next').onclick=()=>select(2);
-    $('adv-usb-next').onclick=()=>{if(context?.wifi&&context?.usb&&$('adv-usb-ready').checked){usbConfirmed=true;phase=4;changed();}};
-    $('adv-usb-ready').onchange=()=>changed();
+    $('adv-usb-next').onclick=()=>{if(context?.wifi&&context?.usb){usbConfirmed=true;phase=4;changed();}};
     $('adv-setup-back').onclick=()=>select(context?.wifi?3:2);
     $('adv-open-setup').onclick=()=>{phase=context?.wifi?3:1;openSetup();};
     for(const button of document.querySelectorAll('[data-adv-back]'))button.onclick=()=>select(Number(button.dataset.advBack));
@@ -19,7 +25,16 @@ globalThis.IZ2S_ADV_SETUP = (() => {
       context={wifi:!!wifi?.ready,usb:!!usb?.ready};
       if(enabled&&wifi?.ready){
         const identity=wifi.bootId||'detected';
-        if(boot!==identity){boot=identity;usbConfirmed=false;$('adv-usb-ready').checked=false;$('screen-ready').checked=false;phase=3;}
+        if(boot!==identity){boot=identity;usbConfirmed=false;$('screen-ready').checked=false;phase=3;}
+        const generation=usb?.usb?.generation;
+        if(Number.isSafeInteger(generation)){
+          const next=identity+':'+generation;
+          if(usbIdentity!==null&&usbIdentity!==next){usbConfirmed=false;$('screen-ready').checked=false;}
+          usbIdentity=next;
+        }
+        if(usb?.usb?.connected===false||usb?.usb?.localHost==='this-pc'){
+          usbConfirmed=false;$('screen-ready').checked=false;
+        }
       }
       if(setup&&enabled)phase=setup.stage==='reboot'?5:4;
       else if(enabled&&state?.active?.kind==='launch')phase=6;
@@ -39,16 +54,16 @@ globalThis.IZ2S_ADV_SETUP = (() => {
       $('adv-setup-back').hidden=phase!==4||!!setup;
       const locked=busy||serverUnavailable||!!state.platform.locked||!!state.preview;
       for(const button of $('cardputer-setup').querySelectorAll('button'))button.disabled=locked;
-      // The network/USB acknowledgements describe the cable, not a USB-host identity claim.
-      $('adv-usb-ready').disabled=locked||!context.wifi;
-      $('adv-usb-next').disabled=locked||!context.wifi||!context.usb||!$('adv-usb-ready').checked;
+      // USB readiness comes from the firmware, independently of a console network session.
+      $('adv-usb-next').disabled=locked||!context.wifi||!context.usb;
       $('adv-wifi-status').textContent=context.wifi?'ADV found on Wi-Fi.':'Waiting for ADV on Wi-Fi.';
-      $('cardputer-usb-prompt').textContent=context.wifi
-        ?'ADV found on Wi-Fi. Move its USB data cable from this PC to Switch 2.'
-        :'Reconnect ADV to local Wi-Fi, then connect its USB cable to Switch 2.';
-      $('adv-usb-status').textContent=!context.wifi?'Waiting for ADV on Wi-Fi.':context.usb?'USB host detected. Confirm the cable is connected to Switch 2.':'Waiting for the USB connection to Switch 2.';
+      const description=usbDescription(state,wifi,usb);
+      $('cardputer-usb-prompt').textContent=description;
+      $('adv-usb-status').textContent=context.usb
+        ?'Detected automatically over Wi-Fi. Open SmileBASIC Direct, then continue.'
+        :description;
     }
     return {render,select,get phase(){return phase;}};
   }
-  return {create};
+  return {create,usbDescription};
 })();

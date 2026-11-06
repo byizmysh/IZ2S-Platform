@@ -1,5 +1,5 @@
 IZ2S Platform - Cardputer ADV input
-Firmware application: 0.21.1 (M5Launcher file IZ2S-ADV-0.21.bin)
+Firmware application: 0.21.3 (M5Launcher file IZ2S-ADV-0.21.bin)
 
 Select Cardputer ADV as the input device in the panel. ARM PC is not required.
 The PC preloads the text/actions onto ADV SD; later Wi-Fi commands choose an
@@ -26,7 +26,8 @@ FIRST SETUP
 5. If iz2s-adv.local does not resolve, enter the IP shown on the ADV screen in
    Device settings. A plain IP is accepted. Guest Wi-Fi/client isolation or a
    firewall can block this even when ADV shows connected.
-6. Move the USB DATA cable from the PC to Switch 2 and confirm that in IZ2S.
+6. Move the USB DATA cable from the PC to Switch 2. The panel detects USB
+   readiness automatically over Wi-Fi; no console LAN session is needed.
    Complete the source entry/save stage, fully restart Switch 2, open fresh
    SmileBASIC Direct and follow Launch. The six panel stages are firmware,
    Wi-Fi, USB to Switch, entry/save, console restart and Launch.
@@ -38,6 +39,24 @@ preserving source strings; do not blindly uppercase every quoted string.
 Firmware 0.21.1 uses an unnumbered eight-byte USB boot keyboard report and waits
 for USB report completion. Status includes usbKeyboardFormat, hidProtocol,
 reportsSent and reportErrors. Wi-Fi alone does not prove USB keyboard readiness.
+Firmware 0.21.2 also reports USB attached/configured/suspended state and a USB
+connection generation. The panel shows the current USB state after Wi-Fi
+connects and clears old screen confirmations when USB reconnects. Configured USB sleep keeps
+the screen confirmation. USB reports a host connection, not the host model; it
+cannot uniquely identify Switch 2. A charge-only cable does not enumerate USB.
+On Linux, a matching USB serial in the local inventory identifies ADV attached
+to this PC and prevents keyboard jobs. Other OSes retain an unknown host type.
+
+Firmware 0.21.3 reannounces an unconfigured USB keyboard while idle and while
+the authenticated panel is checking status. It first waits 8 seconds, then
+detaches for 400 ms and reconnects without rebooting ADV or replaying commands.
+Repeated failures back off to 16, 32 and then 60 seconds. Configured devices,
+including normal USB suspend, and active input jobs are never reset. A missing
+host response is reported as such, rather than claiming the cable is absent.
+The host still has to enable its USB data port; software reconnect cannot
+restore power or data to an unavailable dock port. A physical Switch 2 reboot with the USB cable left in the same dock port
+was verified locally with 0.21.3: Keyboard ready returned without unplugging
+the cable. Other dock/host combinations remain unqualified.
 
 Panel Stop or a short G0 press stops input. Lost Wi-Fi/USB or loss of server
 polling stops input; the polling timeout is 15 seconds. Accepted jobs are not

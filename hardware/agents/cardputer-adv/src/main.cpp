@@ -15,12 +15,13 @@
 #include <deque>
 #include <mbedtls/sha256.h>
 #include "screen.h"
+#include "usb_recovery.h"
 
 // Results from the pinned boot-keyboard compatibility patch.
 extern bool iz2s_hid_last_report_ok;
 extern uint32_t iz2s_hid_reports_sent,iz2s_hid_report_errors;
 
-static const char *VERSION="0.21.1", *CONFIG="/IZ2S/input.json";
+static const char *VERSION="0.21.3", *CONFIG="/IZ2S/input.json";
 static constexpr uint32_t KEY_MS=60, HEARTBEAT_MS=15000, MAX_JOB_MS=7200000;
 WebServer server(80);
 USBHIDKeyboard keyboard;
@@ -39,9 +40,27 @@ size_t stepIndex=0,sourcePosition=0,textPosition=0;
 uint32_t sourceLine=0,totalLines=0,sourceAfter=0,lastContact=0,started=0,deadline=0;
 bool sourceDone=true,down=false,releasing=false,capsOn=false;
 uint8_t seenSlot=0;
+volatile uint32_t usbGeneration=0;
+volatile bool usbAwaitingMount=false;
+UsbRecoveryPolicy usbRecovery;
+bool panelSeen=false;
+uint32_t panelSeenAt=0;
 
-bool usbReady(){return tud_mounted()&&!tud_suspended();}
+bool usbReady(){return !usbRecovery.detached()&&!usbAwaitingMount&&tud_mounted()&&!tud_suspended();}
+String usbState(){return usbRecovery.detached()?"reconnecting":tud_mounted()&&!usbAwaitingMount?(tud_suspended()?"suspended":"configured"):tud_connected()?"attached":"not attached";}
+void usbEvent(void *,esp_event_base_t eventBase,int32_t eventId,void *){
+  if(eventBase!=ARDUINO_USB_EVENTS)return;
+  if(eventId==ARDUINO_USB_STARTED_EVENT){usbAwaitingMount=false;usbGeneration++;}
+  else if(eventId==ARDUINO_USB_STOPPED_EVENT){usbAwaitingMount=true;usbGeneration++;}
+}
 bool running(){return jobState=="running";}
+void recoverUsb(){
+  const uint32_t now=millis();
+  const bool observed=panelSeen&&uint32_t(now-panelSeenAt)<HEARTBEAT_MS&&WiFi.status()==WL_CONNECTED;
+  const auto action=usbRecovery.update(now,tud_mounted()&&!usbAwaitingMount,running(),observed);
+  if(action==UsbRecoveryPolicy::Detach){usbAwaitingMount=true;usbGeneration++;tud_disconnect();}
+  else if(action==UsbRecoveryPolicy::Attach)tud_connect();
+}
 bool due(uint32_t time){return int32_t(millis()-time)>=0;}
 void releaseKeys(){keyboard.releaseAll();down=false;releasing=false;}
 void finish(const String &state,const String &error=""){
@@ -165,10 +184,13 @@ void acceptJob(){
 }
 void setupHttp(){
   const char *headers[]={"Authorization"};server.collectHeaders(headers,1);
-  server.on("/v1/status",HTTP_GET,[]{if(!auth())return;StaticJsonDocument<1024> d;
+  server.on("/v1/status",HTTP_GET,[]{if(!auth())return;panelSeen=true;panelSeenAt=millis();StaticJsonDocument<1792> d;
     d["device"]="iz2s-cardputer-adv";d["apiVersion"]=2;d["contentId"]=contentId;d["version"]=VERSION;d["bootId"]=bootId;d["keyboard"]=usbReady();d["busy"]=running();
     d["usbKeyboardFormat"]="boot-8-byte";d["hidProtocol"]=tud_hid_n_get_protocol(0);d["reportsSent"]=iz2s_hid_reports_sent;d["reportErrors"]=iz2s_hid_report_errors;
-    d["usbState"]=usbReady()?"configured":"not attached";d["ip"]=WiFi.localIP().toString();d["jobId"]=jobId;reply(200,d);});
+    d["usbState"]=usbState();d["usbConnected"]=tud_connected()||tud_mounted();d["usbConfigured"]=tud_mounted()&&!usbAwaitingMount&&!usbRecovery.detached();d["usbSuspended"]=tud_mounted()&&tud_suspended();
+    d["usbHidReady"]=tud_hid_n_ready(0);d["usbGeneration"]=usbGeneration;d["usbSerial"]=USB.serialNumber();
+    d["usbRecovering"]=usbRecovery.detached();d["usbReconnects"]=usbRecovery.attempts();
+    d["ip"]=WiFi.localIP().toString();d["jobId"]=jobId;reply(200,d);});
   server.on("/v1/jobs",HTTP_POST,acceptJob);
   server.on("/v1/stop",HTTP_POST,[]{if(!auth())return;StaticJsonDocument<256> d;
     if(deserializeJson(d,server.arg("plain"))){errorReply(400,"Invalid cancellation");return;}
@@ -234,11 +256,11 @@ void setup(){
   WiFi.mode(WIFI_STA);WiFi.setSleep(false);
   if(wifiName.isEmpty())configureWifi();
   else {WiFi.begin(wifiName.c_str(),wifiPassword.c_str());wifiStarted=millis();}
-  keyboard.begin();USB.productName("IZ2S Cardputer ADV Keyboard");USB.manufacturerName("IZMYSH");USB.begin();
+  USB.onEvent(usbEvent);keyboard.begin();USB.productName("IZ2S Cardputer ADV Keyboard");USB.manufacturerName("IZMYSH");USB.begin();
   configured=true;setupHttp();
 }
 void loop(){
-  M5Cardputer.update();server.handleClient();tick();
+  M5Cardputer.update();server.handleClient();recoverUsb();tick();
   if(M5Cardputer.BtnA.wasPressed()&&running())finish("cancelled","Stopped on the device");
   if(!M5Cardputer.BtnA.isPressed())wifiSetupHeld=false;
   if(!running()&&!wifiSetupHeld&&M5Cardputer.BtnA.pressedFor(2000)){wifiSetupHeld=true;configureWifi();}
@@ -246,7 +268,7 @@ void loop(){
   else if(!running()&&!wifiMenuOffered&&millis()-wifiStarted>20000){wifiMenuOffered=true;configureWifi(true);}
   if(WiFi.status()!=WL_CONNECTED&&due(nextReconnect)){nextReconnect=millis()+10000;WiFi.reconnect();}
   if(millis()-lastDraw>500){lastDraw=millis();
-    Screen::status(WiFi.status()==WL_CONNECTED,WiFi.localIP().toString(),usbReady(),running(),sdReady,jobState,sourceLine,totalLines,jobError);
+    Screen::status(WiFi.status()==WL_CONNECTED,WiFi.localIP().toString(),usbReady(),usbState(),running(),sdReady,jobState,sourceLine,totalLines,jobError);
   }
   delay(1);
 }

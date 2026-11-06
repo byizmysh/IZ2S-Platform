@@ -18,8 +18,8 @@
       "executable": false
     },
     "COMPATIBILITY.md": {
-      "sha256": "01302bb177696be5dbe3d27c7324a0a97b1482b31790f4bd0c949b2002fd7fef",
-      "bytes": 5447,
+      "sha256": "3b0a25692ee3c7de3536e2a9de5b54795ad20745fc8fe3a9eb454c7637958f67",
+      "bytes": 5586,
       "executable": false
     },
     "COPYRIGHT": {
@@ -28,8 +28,8 @@
       "executable": false
     },
     "FAQ.md": {
-      "sha256": "ba22b6dffe1e02095ef72d064bb94507187175986b92a4e11f5d864e95c3b3b1",
-      "bytes": 27769,
+      "sha256": "40f705cd9b76918bbdf858f1fcf917a97903520c944abc92a249294b15021074",
+      "bytes": 29011,
       "executable": false
     },
     "Install-Linux.desktop": {
@@ -58,13 +58,13 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "42ba937107f8ef263df4e08e199d61b0df0be5ce085e4fb5da342ec5b08a04c5",
-      "bytes": 12976,
+      "sha256": "529a4c99d2ad3456654449f43222f70fb5136eef35bd4be78b36429eab1248cf",
+      "bytes": 13328,
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "sha256": "306829891e414fa21803e375ef5db3487de6336cf04707ef1ba5d4f383a986dd",
-      "bytes": 12482,
+      "sha256": "845856f053a24de13e46d41362a437bf475f476b14f8c45cb3de2992a0184c05",
+      "bytes": 13634,
       "executable": false
     },
     "SUPPORT.md": {
@@ -593,8 +593,8 @@
       "executable": false
     },
     "core/packages/store-catalog.cjs": {
-      "sha256": "9b01e1464957e8a0fab879a45d17d8669aa2dbbca9084617d4de02a362bc1745",
-      "bytes": 2970,
+      "sha256": "99aff6f579629757ca6a92ecdff637bf6666f9260b3e3e008e4ac27cddfb66cd",
+      "bytes": 2976,
       "executable": false
     },
     "core/packages/telemetry.cjs": {
@@ -1288,13 +1288,13 @@
       "executable": false
     },
     "distribution/profile.json": {
-      "sha256": "a6687d1b4edd40d2a6ab23847acbd5fd2437615cce7ef159e5a43335f637730e",
-      "bytes": 828,
+      "sha256": "7e34cb784d802534712c71ab21d44c717b5c544046d36cab351480618e6530c2",
+      "bytes": 817,
       "executable": false
     },
     "distribution/release.py": {
-      "sha256": "f1539038fc32c703b1bca17be5b6d91e41b185a0a9c9f69fe002a9c6a6c29f38",
-      "bytes": 10208,
+      "sha256": "fff2ebda7d745a2deba41f59e752adae069fca805de5732d8b2bf6ba58108211",
+      "bytes": 10194,
       "executable": true
     },
     "distribution/runtime-downloads.json": {
@@ -2718,8 +2718,8 @@
       "executable": false
     },
     "hardware/agents/cardputer-adv/build.py": {
-      "sha256": "4a4181f6b90d9c20cfab3b99785b74a8a82d0efdbb6301bc6ed35e462333a738",
-      "bytes": 1647,
+      "sha256": "9081cb3da81931d9911747d31625896fbc9805b4bae68220030a82f4d92e77e8",
+      "bytes": 1669,
       "executable": false
     },
     "hardware/agents/cardputer-adv/licenses/Arduino-ESP32.txt": {
@@ -2778,13 +2778,18 @@
       "executable": false
     },
     "hardware/agents/cardputer-adv/src/main.cpp": {
-      "sha256": "c2bdc4bfeb22a6085a55656a8888fb2c8766d412f5ee36bcde6e683b979b324b",
-      "bytes": 16872,
+      "sha256": "9da4c514005aad95518416140e0ce7f04533ed20d88aa617eeb4e4ba7be6f1f8",
+      "bytes": 18399,
       "executable": false
     },
     "hardware/agents/cardputer-adv/src/screen.h": {
-      "sha256": "ac55638e7acd9abfcc0bb5a8133b37e06fbbfd33138e448085cf271e2868f3bb",
-      "bytes": 4675,
+      "sha256": "03e025f410cb84bd45275b7dfb6c026b2e39326e1e61531a55d5ed97dda6884a",
+      "bytes": 4848,
+      "executable": false
+    },
+    "hardware/agents/cardputer-adv/src/usb_recovery.h": {
+      "sha256": "d88b5d755e70271c145cf094b11ee3450624439671d1bc536e384e6f487387ac",
+      "bytes": 1129,
       "executable": false
     },
     "hardware/agents.cjs": {
@@ -2793,13 +2798,13 @@
       "executable": false
     },
     "hardware/cardputer.cjs": {
-      "sha256": "1c54599bdecfbc82bfab420aa7c32b95c98a95b9053883de3877c68d2b3bff57",
-      "bytes": 6231,
+      "sha256": "fba40af64e1cd9c40e3dba63af7a85f2426c020aa5444b7ad16b84a33c478e38",
+      "bytes": 6460,
       "executable": false
     },
     "hardware/checks.cjs": {
-      "sha256": "b79d686cb990d99616964532bfac6a0f3e494d04e42e6d673e91a7196d1217f6",
-      "bytes": 3592,
+      "sha256": "ac331074a69d544d0b420fbc4c4176ec99cc5b684bbd43082edca5d497cfbdf6",
+      "bytes": 3558,
       "executable": false
     },
     "hardware/configurations/arm-only/entry.cjs": {
@@ -2848,8 +2853,8 @@
       "executable": false
     },
     "hardware/device-checks.cjs": {
-      "sha256": "444bc6b2003bab5e8ceb725dcfeb0f51e5ae104ec38e526e5cb1418f2dbfa960",
-      "bytes": 10607,
+      "sha256": "69e44abcc91515be8800d6d28bc312d2368a0b806ee3c4c6485b5dcef30f6fd7",
+      "bytes": 10676,
       "executable": false
     },
     "hardware/devices/apple-silicon-mac/device.json": {
@@ -2868,8 +2873,8 @@
       "executable": false
     },
     "hardware/devices/cardputer-adv/README.txt": {
-      "sha256": "ae949d79566714f7564515e2704eaa42715dbfa9a50c3b336f778f2b5ec6066b",
-      "bytes": 3959,
+      "sha256": "c20ba7c0f6375d4e694b3308cc2ad6b99ac04beb291474ad7045777635a8627f",
+      "bytes": 5393,
       "executable": false
     },
     "hardware/devices/cardputer-adv/device.json": {
@@ -2878,18 +2883,23 @@
       "executable": false
     },
     "hardware/devices/cardputer-adv/firmware/IZ2S-ADV-0.21.bin": {
-      "sha256": "2401b9b2c26d27de65d2ca72f53ca98259345071adcad1cc06b5d4c30f413ff9",
-      "bytes": 1069328,
+      "sha256": "73c8a2f114dd225db208a4e86f02d927a7c6c51e7d402db3be54a1925e718d2f",
+      "bytes": 1070736,
       "executable": false
     },
     "hardware/devices/cardputer-adv/firmware/manifest.json": {
-      "sha256": "7ce2babd00b61b8cc760d0497944f6f9c50cd4a10a11dbd3a4bc6e4a22a6a6f4",
-      "bytes": 864,
+      "sha256": "4575044a39fda338650b98785a5a4429e01d57ad5c9c9ac02f7b09aef2949155",
+      "bytes": 958,
       "executable": false
     },
     "hardware/devices/cardputer-adv/settings.cjs": {
       "sha256": "83b225aa7dc82c844f8186a0f4954bc0f3fa8ae819198713cf3397ee94befedd",
       "bytes": 984,
+      "executable": false
+    },
+    "hardware/devices/cardputer-adv/usb-status.cjs": {
+      "sha256": "01cc8bcf7ba6289de7617817ec4b7a3fb9c395428d4d681c0c4ff70ab4dc207a",
+      "bytes": 2797,
       "executable": false
     },
     "hardware/devices/linux-host/device.json": {
@@ -2913,8 +2923,8 @@
       "executable": false
     },
     "hardware/transports/cardputer-wifi/index.cjs": {
-      "sha256": "3d4809c0343b3ba79da47c9735a54ab51adaa05f2b24079b7b543f0694c200c9",
-      "bytes": 9014,
+      "sha256": "4519a9cb6fa3c58128b835d570f0c2d209cd0ec5d8476b309cc5318420ed6c34",
+      "bytes": 9071,
       "executable": false
     },
     "hardware/transports/cardputer-wifi/transport.json": {
@@ -2988,13 +2998,13 @@
       "executable": true
     },
     "language/en/ui.json": {
-      "sha256": "91324c2c9fb888bd0a93461151804c2f9d057541741c65d6f5e19346b6eca911",
-      "bytes": 96507,
+      "sha256": "c403054ddb141dae75779ac037f107ac32347435841aefc9060ea57ed380f31d",
+      "bytes": 97969,
       "executable": false
     },
     "language/es/ui.json": {
-      "sha256": "07dc6fd2aadc576d97f526fec8264a7597d8cd28ed3a66e753f8877e194f742f",
-      "bytes": 103827,
+      "sha256": "c0e95fdca3061fe516f620940828436176b3395dfacea91bc293a3080ed94707",
+      "bytes": 105397,
       "executable": false
     },
     "language/fonts/DejaVuSans-Bold.ttf": {
@@ -3073,8 +3083,8 @@
       "executable": false
     },
     "language/ru/ui.json": {
-      "sha256": "a58330e1fa6f1718417e30ae996b564021e3989a563e755f6a2141235cbff796",
-      "bytes": 161016,
+      "sha256": "ff77525fcfe911c79887fca10ff4c1c0dc3cc492486adb8f634e965b2c7652f0",
+      "bytes": 162962,
       "executable": false
     },
     "language/runtime.js": {
@@ -3093,8 +3103,8 @@
       "executable": false
     },
     "language/zh/ui.json": {
-      "sha256": "2e639579ec331c029dca4dea3a8703126207516f04b8d46f70d6dfb733b5ff0b",
-      "bytes": 95015,
+      "sha256": "215b9f5430681e73ed8c320485729f6f5007d845bcf63d80dde0315dce57c8ff",
+      "bytes": 96494,
       "executable": false
     },
     "modules/BookReader/FORMAT.md": {
@@ -3763,13 +3773,13 @@
       "executable": false
     },
     "panel/ui/app.js": {
-      "sha256": "07004c799086daa05353ec1443f83c01d7c07ddaaa74e5ca748630dec131ec8f",
-      "bytes": 152078,
+      "sha256": "b49e59950fa973a84aa01c1eac4cb0d8d1dcc00cee8840b5f7d1a2d64fcf447a",
+      "bytes": 152281,
       "executable": false
     },
     "panel/ui/cardputer-setup.js": {
-      "sha256": "2cc0e4697f86061e26b00142606d427835efd14dce7d6f3c30feccb4f14e7230",
-      "bytes": 3808,
+      "sha256": "7c321e27fb9ab18a1fa777fb3ef4f2b803dd3f19984b2fe87a039f631da8df48",
+      "bytes": 4363,
       "executable": false
     },
     "panel/ui/icon.svg": {
@@ -3778,8 +3788,8 @@
       "executable": false
     },
     "panel/ui/index.html": {
-      "sha256": "4542bcace35c14e248c41ab76d8d9dba02b695a50bc3e513b9a7338461849560",
-      "bytes": 26074,
+      "sha256": "fc79f0bd927315ed49da4ccb75fd1fcb601cf7b467db063bad819baa870ac01a",
+      "bytes": 25905,
       "executable": false
     },
     "panel/ui/style.css": {

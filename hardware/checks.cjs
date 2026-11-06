@@ -82,7 +82,7 @@ async function create({
       }
       if (['kprox-http','cardputer-wifi'].includes(configuration.inputAdapter)) {
         if (input) input.label = 'Cardputer ADV · Wi-Fi input';
-        if (usb) {usb.label = 'USB · Cardputer ADV → Switch 2';if(usb.ready)usb.detail='USB host detected. Confirm Cardputer ADV is connected to Switch 2.';}
+        if (usb) {usb.label = 'USB · Cardputer ADV → Switch 2';if(usb.ready)usb.detail='USB connected · keyboard ready.';}
       }
       if (configuration.setupRequired && input) {
         input.ready = false;

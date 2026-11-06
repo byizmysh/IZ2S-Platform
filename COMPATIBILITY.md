@@ -37,7 +37,7 @@ Runtime baseline for the new installers: Node.js 24, CPython 3.12 managed by uv,
 | BermTheSequel alternative | Bundled and protocol/resource checked; all physical combinations not qualified |
 | Original kurumoz adapter | Explicit separate source installation; Core only mode; not bundled as a complete original runtime |
 | ARM input API 1 | Agent integrity, transport and version-independent compatibility checked; board OS/UDC setup remains device-specific |
-| ADV firmware 0.21.1 | Physical Switch keyboard job and subsequent launcher path exercised; boot keyboard uses eight-byte reports, with send-error reporting |
+| ADV firmware 0.21.3 | Retains the eight-byte boot keyboard and send-error reporting; adds Wi-Fi USB telemetry and idle reannouncement. Local connection/disconnection and a console-reboot check were exercised; other docks and automatic-recovery failure cases still require hardware qualification |
 | Module SD directories | Mocked writable-SD checks cover idempotence, concurrency, case handling, blocked files and no replay; this change still needs real SD verification |
 | Windows/macOS end-to-end | Not run. Installer syntax/unit checks on Linux cannot substitute for these OS tests |
 

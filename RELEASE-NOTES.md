@@ -56,8 +56,13 @@ Install into a new versioned directory. Re-select device/network options; preser
 - Accept plain IPv4 entries and normalize the HTTP endpoint. Explain the local `iz2s-adv.local` mDNS hostname and the displayed-IP fallback.
 - Preserve intended command/source capitalization with the selected SmileBASIC Caps Lock state. Firmware **0.21.1** uses unnumbered eight-byte boot keyboard reports, verifies report completion and exposes send errors instead of reporting false success.
 
+- Update ADV to firmware **0.21.3**. Report USB host/configuration/suspend state over Wi-Fi, show keyboard readiness automatically and remove the redundant manual USB confirmation. Keep the console-screen confirmation separate from USB readiness.
+- Add idle USB reannouncement after a console restart when the host has not configured the keyboard. Wait 8 seconds before the first 400 ms detach/reconnect, back off further attempts, leave active input/configured sleep alone, and never replay accepted commands. USB status does not claim to identify Switch from its host model.
+- Recognize a matching ADV USB serial attached to this Linux PC and block console keyboard jobs there. Clear stale screen confirmations when the device or USB connection changes, and explain nonresponsive USB hosts without assuming the cable is absent. See the [ADV recovery FAQ](https://github.com/byizmysh/IZ2S-Platform/blob/main/FAQ.md#why-does-adv-sometimes-need-usb-reconnecting-after-switch-restarts).
+
 ## Modules, workspace and files
 
+- Synchronize module visibility rules between the server and the panel. Keep diagnostic packages hidden while allowing the separate DOOM Prime module in the library.
 - Fix initial panel loading with an empty App library, including Core only mode. Rendering errors now show a view error instead of incorrectly reporting that the local server is unavailable.
 - Open module interfaces/settings as IZ2S workspace tabs, including separate modules using the SDK. Add consistent active selection, quick reopen, sidebar status and accessible Stop controls. Closing a view is distinct from stopping a service or the console session.
 - Remove stale Tools and their iframes after a panel restart or the end of their console session. Check actual listener availability instead of trusting a persisted Running label, preserve live prelaunch settings, and ignore late Open/Stop responses for removed tools. Retained native resources remain an explicit recovery condition.

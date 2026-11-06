@@ -274,6 +274,7 @@ function createDeviceChecks({
         mismatch = observed && observed !== mode('arm');
       rows[1].bootId = h.bootId;
       rows[1].firmwareVersion = h.firmwareVersion;
+      if (h.usb) rows[2].usb = h.usb;
       rows[1].ready = !!(h.reachable && h.moduleReady && !mismatch);
       rows[1].detail = !h.reachable
         ? inputName + ' connection failed: ' + (h.error || 'Input service did not respond')
@@ -289,6 +290,7 @@ function createDeviceChecks({
       rows[2].ready = !!h.reachable && !!h.keyboard && !h.keyboardBusy;
       rows[2].detail = !h.reachable ? 'USB state unavailable until ' + inputName + ' reconnects' : h.keyboardBusy
         ? 'Input device is busy'
+        : h.usb ? h.usb.detail
         : h.keyboard
           ? 'USB host configured'
           : h.usbState || 'Connect the USB data cable';

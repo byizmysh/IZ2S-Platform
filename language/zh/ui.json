@@ -1322,5 +1322,18 @@
   "This switch records your confirmation in the preview.": "此开关在预览中记录你的确认。",
   "Verification": "验证",
   "You verify the result. This preview cannot confirm the device state.": "请自行验证结果。此预览无法确认设备状态。",
-  "The panel could not display the server response. Try again or reopen IZ2S.": "无法显示服务器响应。请重试或重新打开 IZ2S。"
+  "The panel could not display the server response. Try again or reopen IZ2S.": "无法显示服务器响应。请重试或重新打开 IZ2S。",
+  "USB connected · keyboard ready.": "USB 已连接 · 键盘已就绪。",
+  "USB connected; waiting for keyboard configuration.": "USB 已连接；正在等待键盘配置。",
+  "USB status unavailable until ADV reconnects.": "ADV 重新连接前无法获取 USB 状态。",
+  "ADV USB is connected to this PC. Move its USB data cable to Switch 2.": "ADV 的 USB 已连接到此电脑。请将 USB 数据线接到 Switch 2。",
+  "USB host is sleeping. Wake the console to continue.": "USB 主机正在休眠。请唤醒主机以继续。",
+  "Connect the ADV USB data cable to Switch 2.": "将 ADV 的 USB 数据线连接到 Switch 2。",
+  "Update ADV firmware from First Setup for Switch keyboard compatibility.": "请通过 First Setup 更新 ADV 固件，以兼容 Switch 键盘。",
+  "Detected automatically over Wi-Fi. Open SmileBASIC Direct, then continue.": "已通过 Wi-Fi 自动检测。请打开 SmileBASIC Direct，然后继续。",
+  "Direct is open; slot ": "Direct 已打开；插槽 ",
+  "Switch 2 was fully restarted; fresh Direct is open.": "Switch 2 已完全重启；已打开新的 Direct。",
+  "Reconnecting USB keyboard. No commands are replayed.": "正在重新连接 USB 键盘。不会重放命令。",
+  "USB inactive. Wake the console or check the cable.": "USB 未激活。请唤醒主机或检查数据线。",
+  "USB host not responding. Check the dock, cable and console.": "USB 主机未响应。请检查底座、数据线和主机。"
 }

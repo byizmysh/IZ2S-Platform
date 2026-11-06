@@ -1435,5 +1435,18 @@
   "STAGE ": "ЭКРАН ",
   "Return to the beginning": "Вернуться к началу",
   "Find this path in Files → Engine.": "Путь доступен в меню Files → Engine.",
-  "The panel could not display the server response. Try again or reopen IZ2S.": "Не удалось отобразить ответ сервера. Повторите попытку или заново откройте IZ2S."
+  "The panel could not display the server response. Try again or reopen IZ2S.": "Не удалось отобразить ответ сервера. Повторите попытку или заново откройте IZ2S.",
+  "USB connected · keyboard ready.": "USB подключён · клавиатура готова.",
+  "USB connected; waiting for keyboard configuration.": "USB подключён; ожидается настройка клавиатуры.",
+  "USB status unavailable until ADV reconnects.": "Статус USB недоступен до подключения ADV по Wi-Fi.",
+  "ADV USB is connected to this PC. Move its USB data cable to Switch 2.": "ADV подключён по USB к этому ПК. Переставьте USB-кабель данных в Switch 2.",
+  "USB host is sleeping. Wake the console to continue.": "USB-хост спит. Разбудите консоль для продолжения.",
+  "Connect the ADV USB data cable to Switch 2.": "Подключите USB-кабель данных ADV к Switch 2.",
+  "Update ADV firmware from First Setup for Switch keyboard compatibility.": "Обновите прошивку ADV через First Setup для совместимости клавиатуры со Switch.",
+  "Detected automatically over Wi-Fi. Open SmileBASIC Direct, then continue.": "Определено автоматически по Wi-Fi. Откройте SmileBASIC Direct и продолжайте.",
+  "Direct is open; slot ": "Direct открыт; слот ",
+  "Switch 2 was fully restarted; fresh Direct is open.": "Switch 2 полностью перезапущена; открыт новый Direct.",
+  "Reconnecting USB keyboard. No commands are replayed.": "Переподключение USB-клавиатуры. Команды не повторяются.",
+  "USB inactive. Wake the console or check the cable.": "USB неактивен. Разбудите консоль или проверьте кабель.",
+  "USB host not responding. Check the dock, cable and console.": "USB-хост не отвечает. Проверьте док, кабель и консоль."
 }

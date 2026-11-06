@@ -160,6 +160,7 @@ const RUN21_CATALOG = (function createPolicy() {
     'cpu-mailbox-lab-v2',
     'cpu-mailbox-lab-v3',
     'ims-driver-cache-probe',
+    'ims-gpu-pcm-cityfast',
     'ims-music-packed-lab',
     'izbrowser-check-20261101',
     'izbrowser-offline-v2-20261101',
@@ -167,7 +168,6 @@ const RUN21_CATALOG = (function createPolicy() {
     'izbrowser-offline-v4-20261101',
     'izbrowser-wifi-20261101',
     'izdoom-native18',
-    'izdoom-prime18',
     'izdoom-wide18',
     'izoff-012',
     'izsonic-transfer18',
@@ -705,8 +705,8 @@ function renderWizard() {
     };
     $('step-description').textContent = show ? brief[stage] || brief.prepare : 'ADV: Wi-Fi on, USB to Switch 2. Restart Switch 2 and open fresh Direct.';
     $('screen-label').textContent = show && stage !== 'reboot'
-      ? 'ADV is connected to Switch 2. Direct is open; slot ' + sourceSlot + ' is empty; English (US), Caps Lock ' + (capsOn ? 'on.' : 'off.')
-      : 'ADV is connected to Switch 2. Switch 2 was fully restarted; fresh Direct is open.';
+      ? 'Direct is open; slot ' + sourceSlot + ' is empty; English (US), Caps Lock ' + (capsOn ? 'on.' : 'off.')
+      : 'Switch 2 was fully restarted; fresh Direct is open.';
   }
   const stamp = (row?.id || 'none') + ':' + stage;
   if (stamp !== setupStamp) {
@@ -1277,7 +1277,10 @@ function renderDevices() {
       : state.preview
         ? 'PREVIEW'
         : '○ WAITING');
-    renderDeviceDetail(card.querySelector('.device-detail'), row);
+    const detailRow = row.id === 'usb' && state.platform?.configuration?.inputAdapter === 'cardputer-wifi'
+      ? {...row, detail: globalThis.IZ2S_ADV_SETUP.usbDescription(state, state.checks.items.find(item => item.id === 'arm'), row)}
+      : row;
+    renderDeviceDetail(card.querySelector('.device-detail'), detailRow);
     const ping = card.querySelector('.device-ping');
     ping.hidden = false;
     setText(ping, Number.isFinite(row.latencyMs)

@@ -101,7 +101,9 @@ The separate Linux board needs SSH and a working USB keyboard gadget. First Setu
 1. Follow the firmware step in First Setup using M5Launcher USB storage, or choose **File** to download the package and copy it manually.
 2. Launch the IZ2S-ADV firmware and select the same local Wi-Fi network as the PC. Enter its password with the ADV keyboard; **Tab** shows or hides it.
 3. Enter the IP shown on ADV in Device settings if the local `iz2s-adv.local` hostname is unavailable. A plain IP address is accepted.
-4. Move ADV's USB **data cable from the PC to Switch 2** and confirm the connection in the panel.
+4. Move ADV's USB **data cable from the PC to Switch 2**. The panel detects USB readiness automatically over Wi-Fi; no manual USB checkbox is needed.
+
+Firmware **0.21.3** can reannounce an unconfigured USB keyboard after a console restart while the panel is checking its status. It leaves active input and configured USB sleep alone, and never replays commands. See the [ADV connection and recovery guide](hardware/devices/cardputer-adv/README.txt).
 
 Text and keyboard actions are preloaded onto ADV; the PC requests local actions over Wi-Fi. Match the panel's Caps Lock setting to SmileBASIC for correct capitalization. See the [firmware/Wi-Fi/USB instructions](hardware/devices/cardputer-adv/README.txt).
 

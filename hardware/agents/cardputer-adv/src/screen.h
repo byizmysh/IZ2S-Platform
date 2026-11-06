@@ -56,13 +56,14 @@ void networks(int count,int page,bool retry){
     if(WiFi.encryptionType(index)!=WIFI_AUTH_OPEN){c.drawRoundRect(217,y+6,7,6,1,MUTED);c.drawCircle(220,y+5,2,MUTED);}
   }end("1-5 SELECT    N/P PAGE","R RESCAN      M MANUAL");
 }
-void status(bool wifi,const String &ip,bool usb,bool busy,bool sd,const String &job,
+void status(bool wifi,const String &ip,bool usb,const String &usbState,bool busy,bool sd,const String &job,
             uint32_t line,uint32_t total,const String &error){
   begin(busy?"TYPING":"INPUT");auto &c=canvas();
   c.fillRoundRect(7,26,226,33,5,PANEL);text(14,31,"WI-FI",MUTED);
   c.fillCircle(220,34,3,wifi?LIME:RED);text(14,41,wifi?ip:"Connecting...",wifi?CYAN:TEXT,true);
   c.fillRoundRect(7,64,226,22,4,PANEL);text(14,71,"USB",MUTED);
-  text(51,67,usb?"Keyboard ready":"Connect to Switch 2",usb?LIME:TEXT,true);
+  const char *usbLabel=usb?"Keyboard ready":usbState=="reconnecting"?"Reconnecting USB":usbState=="suspended"?"USB inactive":usbState=="attached"?"Configuring USB":"Waiting USB host";
+  text(51,67,usbLabel,usb?LIME:TEXT,true);
   String detail=!sd?"Insert the paired SD card":error.length()?error:busy?String("Typing ")+line+" / "+total:job=="complete"?"Input complete":job=="cancelled"?"Input stopped":"Waiting for panel";
   text(10,96,fit(detail,220),!sd||error.length()?RED:busy?CYAN:MUTED);
   if(busy&&total){c.fillRoundRect(9,106,222,2,1,EDGE);c.fillRoundRect(9,106,max(2,int(min(line,total)*222/total)),2,1,LIME);}

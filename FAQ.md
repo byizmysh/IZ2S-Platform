@@ -124,11 +124,19 @@ It sends the engine's BASIC source through the chosen keyboard device and saves 
 
 Compatible **input API 1** agents are checked against the board's own installed inventory, independent of the launcher's version. Do not reinstall a healthy compatible agent merely because the PC version changed. The board itself still needs Linux, Python, SSH authentication and a working USB device/OTG keyboard gadget. Its package does not supply an OS image or modify arbitrary USB drivers. Use the [ARM guide](hardware/agents/arm-input/README.md).
 
+### Why does ADV sometimes need USB reconnecting after Switch restarts?
+
+The dock may not configure the keyboard again after a console restart. ADV firmware **0.21.3** can request a new USB connection while idle and while the authenticated panel is checking status: it waits 8 seconds, detaches for 400 ms, then reconnects. Further attempts back off to 16, 32 and 60 seconds. It does not reset an active input job or a configured sleeping USB host, and it never replays commands.
+
+If the panel reports that the USB host is not responding, check the dock connection, USB data cable and awake console. USB power or Wi-Fi connectivity alone does not prove that the keyboard is configured. Software reconnect cannot repair an unavailable dock port. The USB device cannot uniquely identify the host as Switch; on Linux the panel can separately recognize the same ADV connected to this PC and block console input there.
+
+Update through the [ADV firmware procedure](hardware/devices/cardputer-adv/README.txt), preserving M5Launcher, the other firmware and the existing pairing/Wi-Fi settings. ARM input does not need an update for this change.
+
 ### How do I set up ADV without replacing my other firmware?
 
 In First Setup choose Cardputer ADV. Connect it to the PC, select **USB storage** in M5Launcher and use the Linux direct-copy option when the card is positively identified. On Windows/macOS, or if automatic detection is unavailable, choose **File**, extract its ZIP to the root of the ADV card and eject it normally. The package adds `Utilities/IZ2S-ADV-0.21.bin` and its `IZ2S/input.json`; it does not replace M5Launcher or remove other firmware. Do not write the application image at flash address zero. Existing Wi-Fi configuration is preserved by the supported copy workflow.
 
-Exit USB storage, start the IZ2S application in M5Launcher, select the local Wi-Fi shared with the PC and enter its password on the ADV keyboard. The firmware shows keyboard controls in its footer; Tab shows/hides the password. Wi-Fi selection is offered on first use or when disconnected. Now move the USB **data** cable to Switch 2 and confirm it in the panel. The PC continues to communicate with ADV over Wi-Fi.
+Exit USB storage, start the IZ2S application in M5Launcher, select the local Wi-Fi shared with the PC and enter its password on the ADV keyboard. The firmware shows keyboard controls in its footer; Tab shows/hides the password. Wi-Fi selection is offered on first use or when disconnected. Now move the USB **data** cable to Switch 2. The panel detects USB readiness automatically over Wi-Fi; no manual cable checkbox or console LAN session is needed for this check. The PC continues to communicate with ADV over Wi-Fi.
 
 ### What is iz2s-adv.local? Can I enter a plain IP?
 

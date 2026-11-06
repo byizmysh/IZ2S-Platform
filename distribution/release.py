@@ -89,7 +89,7 @@ def archives(stage,out):
                     entry='Install.cmd' if 'windows' in suffix else 'Install.command'
                     host='Windows x64' if 'windows' in suffix else 'macOS Intel / Apple silicon'
                     info=zipfile.ZipInfo(prefix+'/START-HERE.txt',(2026,11,4,0,0,0));info.external_attr=0o100644<<16;info.compress_type=zipfile.ZIP_DEFLATED
-                    archive.writestr(info,'IZ2S Platform '+PROFILE['version']+' - '+host+'\nEXPERIMENTAL installer/panel candidate\n\nExtract this entire folder and open '+entry+'.\nPrivate Node.js/Python/Pillow are downloaded automatically.\nRead README.md, FAQ.md and COMPATIBILITY.md before proceeding.\nNative console session descriptors remain Linux-only.\nActual OS installation and end-to-end qualification are pending.\nThis package is prepared locally; no upload/publication is performed.\n')
+                    archive.writestr(info,'IZ2S Platform '+PROFILE['version']+' - '+host+'\nEXPERIMENTAL installer/panel candidate\n\nExtract this entire folder and open '+entry+'.\nPrivate Node.js/Python/Pillow are downloaded automatically.\nRead README.md, FAQ.md and COMPATIBILITY.md before proceeding.\nNative console session descriptors remain Linux-only.\nActual OS installation and end-to-end qualification are pending.\nThe installer does not upload files or publish content.\n')
         else:
             with target.open('wb') as raw,gzip.GzipFile(fileobj=raw,mode='wb',filename='',mtime=0,compresslevel=9) as compressed,tarfile.open(fileobj=compressed,mode='w',format=tarfile.PAX_FORMAT) as archive:
                 for f in sorted(stage.rglob('*')):

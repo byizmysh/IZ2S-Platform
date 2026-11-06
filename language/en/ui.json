@@ -1330,5 +1330,18 @@
   "STAGE ": "STAGE ",
   "Return to the beginning": "Return to the beginning",
   "Find this path in Files → Engine.": "Find this path in Files → Engine.",
-  "The panel could not display the server response. Try again or reopen IZ2S.": "The panel could not display the server response. Try again or reopen IZ2S."
+  "The panel could not display the server response. Try again or reopen IZ2S.": "The panel could not display the server response. Try again or reopen IZ2S.",
+  "USB connected · keyboard ready.": "USB connected · keyboard ready.",
+  "USB connected; waiting for keyboard configuration.": "USB connected; waiting for keyboard configuration.",
+  "USB status unavailable until ADV reconnects.": "USB status unavailable until ADV reconnects.",
+  "ADV USB is connected to this PC. Move its USB data cable to Switch 2.": "ADV USB is connected to this PC. Move its USB data cable to Switch 2.",
+  "USB host is sleeping. Wake the console to continue.": "USB host is sleeping. Wake the console to continue.",
+  "Connect the ADV USB data cable to Switch 2.": "Connect the ADV USB data cable to Switch 2.",
+  "Update ADV firmware from First Setup for Switch keyboard compatibility.": "Update ADV firmware from First Setup for Switch keyboard compatibility.",
+  "Detected automatically over Wi-Fi. Open SmileBASIC Direct, then continue.": "Detected automatically over Wi-Fi. Open SmileBASIC Direct, then continue.",
+  "Direct is open; slot ": "Direct is open; slot ",
+  "Switch 2 was fully restarted; fresh Direct is open.": "Switch 2 was fully restarted; fresh Direct is open.",
+  "Reconnecting USB keyboard. No commands are replayed.": "Reconnecting USB keyboard. No commands are replayed.",
+  "USB inactive. Wake the console or check the cable.": "USB inactive. Wake the console or check the cable.",
+  "USB host not responding. Check the dock, cable and console.": "USB host not responding. Check the dock, cable and console."
 }
