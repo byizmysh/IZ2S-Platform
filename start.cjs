@@ -30,6 +30,8 @@ async function main() {
   const { readJson, saveJson } = require('./core/session/ledger.cjs'),
     settings = await readJson(path.join(root, 'panel/profile.json')),
     node = process.execPath;
+  const releaseStartup = preview ? async () => {} : await require('./core/session/panel-start-lock.cjs').acquireStartupLock({root, port: settings.panelPort});
+  try {
   const stateFile = path.join(
       root,
       preview ? 'data/state/preview-window.json' : 'data/state/window.json',
@@ -43,12 +45,15 @@ async function main() {
         health = await fetch(url.origin + '/health', { signal: AbortSignal.timeout(1500) }).then(
           (r) => r.json(),
         );
-      if (health.version !== 21 || health.pid !== previous.pid || health.preview !== preview)
+      if (health.version !== 22 || health.pid !== previous.pid || health.preview !== preview)
         throw Error('Stale IZ2S Platform window');
       running = true;
     } catch {}
   if (running) {
     if (restart) {
+      if (!preview) {
+        await require('./core/session/panel-handover.cjs').handover({root, port: settings.panelPort, restart: true});
+      } else {
       process.kill(previous.pid, 'SIGTERM');
       const deadline = Date.now() + 20000;
       for (;;) {
@@ -56,6 +61,7 @@ async function main() {
         catch (error) { if (error.code === 'ESRCH') break; throw error; }
         if (Date.now() >= deadline) throw Error('Previous server is still stopping. Wait before restarting.');
         await new Promise(resolve => setTimeout(resolve, 100));
+      }
       }
     } else {
       if (!noOpen)
@@ -67,8 +73,8 @@ async function main() {
       return;
     }
   }
-  if (restart && !preview && !running)
-    await require('./core/session/panel-handover.cjs').handover({ root, port: settings.panelPort });
+  if (!preview && !running)
+    await require('./core/session/panel-handover.cjs').handover({ root, port: settings.panelPort, restart: true });
   if (!preview) {
     const publication = await require('./sdk/publish-modules.cjs').publish(root);
     await saveJson(path.join(root, 'data/state/module-publish.json'), publication);
@@ -96,7 +102,7 @@ async function main() {
     pid: process.pid,
     url: window.url,
     preview,
-    version: 21,
+    version: 22,
     started: new Date().toISOString(),
     workspaceInstance: process.env.IZ2S_PANEL_INSTANCE,
   });
@@ -120,6 +126,9 @@ async function main() {
   });
   process.on('SIGINT', () => shutdown.finish().catch(console.error));
   process.on('SIGTERM', () => shutdown.finish().catch(console.error));
+  } finally {
+    await releaseStartup();
+  }
 }
 if (require.main === module)
   main().catch((e) => {

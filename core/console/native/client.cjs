@@ -1,5 +1,6 @@
 // Qualified calls only. Buffers are session-owned and retained until SmileBASIC exits.
 async function create(rpc, definitions, bytes = 65536) {
+ if(rpc.nativeABI==='civswitch')return rpc.createNativeClient(definitions,bytes);
  if (!Number.isInteger(bytes) || bytes < 4096 || bytes > 1048576 || bytes % 4096) throw Error('Invalid native allocation size');
  const functions = {};
  for (const [name, f] of Object.entries(definitions)) {

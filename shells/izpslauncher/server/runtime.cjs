@@ -1,5 +1,7 @@
 const path = require('node:path');
 async function start({launchStage, watchAuxiliary, closeSession}, directory) {
+  const features = await require('../../../core/session/launcher-features.cjs').read(directory);
+  if (!features.fsRpc) console.log('FS RPC disabled; starting the PC-backed launcher without SD or native recovery.');
   const stages = [
     ['core/services/inspect-display.cjs'],
     ['core/services/inspect-compatibility.cjs'],
@@ -9,6 +11,9 @@ async function start({launchStage, watchAuxiliary, closeSession}, directory) {
     ['shells/izpslauncher/server/check-input.cjs', 'auto'],
   ];
   for (const [script, ...args] of stages) await launchStage(script, [directory, ...args]).done;
+  // Recovery uses FS-backed executable mappings; FS-free sessions keep the
+  // ordinary PC-backed renderer and the original native RPC connection.
+  if(features.recovery && process.env.IZ2S_SD_LAUNCHER!=='1')await launchStage('core/console/recovery/prepare-launcher.cjs',[directory]).done;
   const graphics = launchStage(
     'shells/izpslauncher/server/frame-loop.cjs',
     [directory, 'auto'],
@@ -22,6 +27,7 @@ async function start({launchStage, watchAuxiliary, closeSession}, directory) {
       JSON.stringify({ name, error: error.message, at: new Date().toISOString() }) + '\n',
     );
   };
+  if(process.env.IZ2S_SD_LAUNCHER==='1'){console.log('SD supervisor owns discovery, input and application transitions.');return {done:graphics.done,close:closeSession};}
   const ftp = launchStage('core/console/host/ftp-service.cjs', [directory], 'SDK FTP service ready.');
   await watchAuxiliary(ftp, 'FTP', serviceExit);
   const completions = [graphics.done];

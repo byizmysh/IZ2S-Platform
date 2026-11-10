@@ -1,0 +1,33 @@
+{
+  "format": "izlauncher.engine",
+  "apiVersion": 1,
+  "id": "civswitch-ldn",
+  "directory": "CivSwitchLDN",
+  "name": "Civilization VII \u00b7 Wi-Fi",
+  "version": "0.22.0",
+  "entry": "adapter.cjs",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64",
+    "win32-x64",
+    "win32-arm64"
+  ],
+  "modes": [
+    "original"
+  ],
+  "consolePort": 9026,
+  "order": 31,
+  "settingsSchema": [],
+  "defaultSettings": {},
+  "requirements": {
+    "game": "Civilization VII, Switch 1 cartridge, version 1.0.0",
+    "network": "First setup: native Linux Wi-Fi for LDN. Saved loader launch: local LAN or Wi-Fi on Linux or Windows.",
+    "keys": "User-provided prod.keys from their Switch 1"
+  },
+  "integrationStatus": "Core only \u00b7 PC + Wi-Fi LDN; no USB input device",
+  "upstream": {
+    "repository": "https://github.com/ItsNerisma/CivSwitchLDN",
+    "license": "GPL-3.0-only",
+    "revision": "91668edc8141f6764294fd969bf8373b625626ba"
+  }
+}

@@ -38,17 +38,14 @@ float mouse(vec2 q,float t){
 }
 
 void menuHeader(vec2 p,inout vec3 col){
- float t=c.motion.x;col=mix(col,INK,focusText(p,vec2(80,65),F_TITLE,1.0));
- // Right aligned below the title; italic shear uses the same lime as the orbit.
- col=mix(col,BLUE,focusText(p,vec2(80.0+float(F_TITLE.z-F_VERSION.z),65.0+float(F_TITLE.w)+10.0),F_VERSION,1.0));
-
- // A full out-and-back walk takes 24 seconds. Ease at the planet and turn.
- float phase=mod(t,24.0)*.261799388,velocity=sin(phase),direction=velocity>=0.0?1.0:-1.0;
- float angle=mix(-1.0,-.29,.5-.5*cos(phase));vec2 tangent=focusOrbitTangent(angle),normal=vec2(-tangent.y,tangent.x);
- vec2 feet=focusOrbitPoint(angle);float pace=min(1.0,abs(velocity)*4.0),bob=2.0*sin(t*10.0)*pace;
- for(int i=0;i<13;i++){float a=mix(-.98,-.28,float(i)/12.0);vec2 at=focusOrbitPoint(a),n=focusOrbitTangent(a);at+=vec2(-n.y,n.x)*(mod(float(i)*7.0,5.0)-2.0);float radius=2.6+mod(float(i)*3.0,4.0)*.5;col=mix(col,BLUE,fill(length(p-at)-radius)*.9);}
- vec2 delta=p-feet-normal*bob;vec2 q=vec2(dot(delta,tangent)*direction,dot(delta,normal))/.8+vec2(116,110);
- if(q.x>=5.0&&q.x<=194.0&&q.y>=20.0&&q.y<=115.0)col=mix(col,BLUE,mouse(q,t));
+ // The original brand silhouette, drawn analytically only inside its logo box.
+ if(p.x>=70.0&&p.x<162.0&&p.y>=60.0&&p.y<126.0)col=mix(col,vec3(.76,1.0,.34),mouse((p-vec2(70,63))/.47,c.motion.x*.10));
+ col=mix(col,INK,focusText(p,vec2(180,70),F_TITLE,.57));
+ col=mix(col,MUTED,focusText(p,vec2(182,114),F_VERSION,1.0));
+ // Shared filter/search hit areas remain at their existing positions.
+ float glass=box(p,vec2(1467,95),vec2(382,37),37.0);
+ col=mix(col,vec3(.15,.20,.39),fill(glass)*.36);
+ col=mix(col,vec3(.75,.85,1),line(glass,.65)*.23);
 }
 void menuFooter(vec2 p,inout vec3 col){
  if(p.y<970.0||p.y>1040.0)return;
@@ -61,5 +58,6 @@ void menuFooter(vec2 p,inout vec3 col){
  b=vec2(cursor,1008);
  if(showB){col=mix(col,INK,line(length(p-b)-19.0,1.4));col=mix(col,INK,text(p,b-vec2(TEXT_BUTTON_B.zw)*.5,TEXT_BUTTON_B));col=mix(col,INK,focusText(p,b+vec2(35,-float(F_BACK.w)*.5),F_BACK,1));cursor+=35.0+float(F_BACK.z)+48.0;}
  x=vec2(cursor,1008);
- if(showX){col=mix(col,INK,line(length(p-x)-19.0,1.4));col=mix(col,INK,focusText(p,x-vec2(F_X.zw)*.5,F_X,1));col=mix(col,INK,focusText(p,x+vec2(35,-float(F_ADDSMALL.w)*.5),F_ADDSMALL,1));}
+ if(showX){col=mix(col,INK,line(length(p-x)-19.0,1.4));col=mix(col,INK,focusText(p,x-vec2(F_X.zw)*.5,F_X,1));col=mix(col,INK,focusText(p,x+vec2(35,-float(F_ADDSMALL.w)*.5),F_ADDSMALL,1));cursor+=35.0+float(F_ADDSMALL.z)+48.0;}
+ if(appSelected&&c.transition.y==0.0){vec2 key=F_REMOVE_KEY;col=mix(col,INK,line(length(p-key)-19.0,1.4));col=mix(col,INK,fill(box(p,key,vec2(7,1),1)));col=mix(col,INK,focusText(p,key+vec2(35,-float(F_REMOVE.w)*.5),F_REMOVE,1));}
 }

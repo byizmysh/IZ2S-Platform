@@ -3,14 +3,14 @@ const fs = require('node:fs/promises'),
   path = require('node:path'),
   checks = require('../core/session/source-check.cjs');
 const engines = require('../engines/index.cjs');
-function selected({ root, id, settings = {}, host, port, recovery = false }) {
+function selected({ root, id, settings = {}, host, port, recovery = false,sdLauncher=false }) {
   const engines = require('../engines/index.cjs').create(root);
   if (!engines.IDS.includes(id))
     throw Error('Unknown IZlauncher loading method');
   const meta = engines.list().find((e) => e.id === id);
   if (!meta.bootstrapDescriptor) throw Error('This engine has no bootstrap');
   const resumable=meta.capabilities?.receiptRecovery===true;
-  return {
+  const result={
     id,
     protocol: resumable?2:1,
     resumable,
@@ -22,7 +22,7 @@ function selected({ root, id, settings = {}, host, port, recovery = false }) {
       loaderId: id,
       recovery: meta.bootstrapDescriptor.recovery===true,
     },
-  };
+  };if(sdLauncher)result.bootstrap=require('../core/console/sd-launcher/quiet-bootstrap.cjs').select({root,id,bootstrap:result.bootstrap});return result;
 }
 function create({
   root,
@@ -31,6 +31,7 @@ function create({
   configuration,
   input,
   installSlot,
+  sdLauncher=false,
 }) {
   const engines = require('../engines/index.cjs').create(root);
   const slots = require('../core/session/install-slot.cjs');
@@ -53,6 +54,7 @@ function create({
       host: configuration.settings.consoleHost,
       port: configuration.settings.consolePort,
       recovery,
+      sdLauncher,
     });
   async function profile() {
     try {
@@ -117,7 +119,7 @@ function create({
       bootstrap:{steps:[{type:'line',text:'LIST '+slot+':1',delayMs:2000}],sourceFile:value.bootstrap.file},
       'verify-editor':{steps:[...editor,...checks]}, 'verify-direct':{steps:checks},
       'save-editor':{steps:[...editor,...save]}, 'save-direct':{steps:save},
-      connect:{steps:require('../engines/common.cjs').connectSteps({command,bootstrapName:value.bootstrap.saveName})},
+      connect:{steps:require('../engines/common.cjs').connectSteps({command,bootstrapName:value.bootstrap.saveName,quietDisconnect:!sdLauncher&&settings.fsRpcMode!==true&&['izmysh','bermthesequel'].includes(id)})},
     }, onEvent);
   }
   async function perform(
@@ -165,6 +167,7 @@ function create({
             command,
             bootstrapName: await connectionBootstrapName(recovery),
             preloaded: value.preloaded === true,
+            quietDisconnect:!sdLauncher&&settings.fsRpcMode!==true&&['izmysh','bermthesequel'].includes(id),
           }),
         },
         onEvent,

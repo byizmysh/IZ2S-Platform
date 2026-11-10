@@ -3,7 +3,7 @@
   "apiVersion": 1,
   "id": "izlauncher",
   "name": "IZlauncher",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "entry": "adapter.cjs",
   "platforms": [
     "linux-x64",
@@ -11,7 +11,8 @@
   ],
   "consoleAbi": 1,
   "moduleShells": [
-    "izpslauncher"
+    "izpslauncher",
+    "iz2launcher"
   ],
   "requires": [
     "native-rpc",

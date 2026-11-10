@@ -1,0 +1,25 @@
+{
+  "format": "iz-ps2-native-receipt-profile-v1",
+  "moduleId": "ps2-cold-r176",
+  "moduleSha256": "e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec",
+  "sourcePins": {
+    "data/ps2-cold-work/build/ps2-resident-gpu-native-owner-source-v3/json.c": "bfb6abd3668f59d286132ce9a9648d183e081fca4ec61501aa9900fa21a3a15f",
+    "data/ps2-cold-work/build/ps2-resident-gpu-native-owner-source-v3/json.h": "f9383c0dd6df4a7a4b71c1c8f4ea485819c2a44cb900b8fdf336aaf948fd0166",
+    "data/ps2-cold-work/build/ps2-resident-gpu-native-owner-source-v3/gpu-closure.c": "700f5a3d17ceb9f7adbd95673122f583406053968e3ee7d5c4a3e47074afe497",
+    "data/ps2-cold-work/build/ps2-resident-gpu-native-owner-source-v3/gpu-closure.h": "9be63bb8f0d1324cca1dd752e684c8b2557865767a13912ea36924681074b966",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/local-io-host-v2.cjs": "80d8d14805ecaa360a0323ef440731a0b72fdb279c254bbb886d4b6b86de9c3c",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/startup.cjs": "513efdf52c323a2abb53345de4b38b0aa83e2725ca93fd0570c6e0269184192f",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/gpu-final-records-v1.cjs": "2b7acbc31b592ae4ffd7ddb5b34a5bce8cae08bdd6e7f60b86bb27f3d7b8256e",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/native-hwgs-profile-v1.cjs": "c191b2f198e5b23bebe72c30462a3da7d35ab1a110a51c192c833f79c87fb8c8",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/native-iop-profile-v1.cjs": "c5992525a0ccb9f129d58659eb86607351ef3add85e46c5841d470021d357e95",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/native-present-pair-profile.cjs": "5350410b03a42f17008bba48d3f53584f1886ff8376c9f603c1f5b1fec8e4ea3",
+    "data/ps2-cold-work/build/r171-performance-ready-source-v1/manifest.json": "55398ec374c74781a326dfd6ffa587687b61ad28e5c9ad3564704c3e69a28035",
+    "data/ps2-cold-work/build/r171-performance-ready-source-v1/profile/report.json": "e3354704a6dc5ac37b3fd515949782c3e00f634c5d2bb60d1fa76a81e4b09238",
+    "data/ps2-cold-work/build/native-1794119906739/postjoin-local-receipts.bin": "7c904d22e9e1df9c510dbb86784b6eb133d5c801eaed44371a0f08ee671ae232",
+    "data/ps2-cold-work/build/native-1794119906739/postjoin-local-status.bin": "df86b2d8cc44799fdfa6e3fa3f681212db251737825019af2a55f74e137ec9c4",
+    "data/ps2-cold-work/build/native-1794119906739/report.json": "195af7a06b43be844924129ad06590363e0113432c546f43b80585f537a227a6"
+  },
+  "scope": "Normal paired GPU / native IOP receipt records only. No SDK join, Main/global validation or cleanup authority.",
+  "hardwareQualified": false,
+  "fixtureNote": "Historical actual paired-GPU/native-IOP records have an older image header. Tests keep the original capture intact, reject its old geometry for R176, and explicitly construct modeled current-address capsules from those unchanged receipt rows. This is not a new physical R176 execution."
+}

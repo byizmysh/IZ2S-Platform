@@ -19,9 +19,12 @@ async function readApp(directory,{validate=true}={}){
  check(typeof m.version==='string'&&m.version.length<=32,'Invalid version');
  check(typeof m.description==='string'&&m.description.length<=160,'Invalid description');
  check(m.transition===undefined||m.transition==='none'||m.transition==='fade','Invalid transition');
+ require('./catalog-category.cjs').classify({id:m.id,manifest:m});
  check(m.shaderEncoding===undefined||m.shaderEncoding==='deflate','Unsupported shader encoding');
  check(m.service===undefined,'Unsupported host service');
+ check(m.sdOnly===undefined||m.sdOnly===true,'Invalid SD-only application marker');
  check(m.hostRuntime===undefined||/^module:[a-z0-9-]+\/[A-Za-z0-9-]+$/.test(m.hostRuntime),'Invalid module host runtime');
+ if(m.localRuntime!==undefined){check(!m.native,'Choose either native entry or local instructions');require('../console/sd-launcher/instructions.cjs').compile(m.localRuntime,{privateBytes:m.memory?.bytes||0});}
  check(m.shellContribution?.launchCommand===undefined||(m.builtin&&m.shellContribution.scene===3&&Number.isInteger(m.shellContribution.launchCommand)&&m.shellContribution.launchCommand>=1&&m.shellContribution.launchCommand<=255),'Invalid stream launch command');
  check(m.builtin===undefined||(/^[a-z0-9][a-z0-9-]{0,47}$/.test(m.builtin)&&Number.isInteger(m.shellContribution?.scene)&&m.shellContribution.scene>=2&&m.shellContribution.scene<=9),'Invalid shell contribution scene');
  // Separate package identities may share the same validated built-in behavior.
@@ -43,12 +46,7 @@ async function readApp(directory,{validate=true}={}){
   check(b.length>=20&&b.length%4===0&&b.readUInt32LE()===0x07230203,'Invalid SPIR-V '+stage);
   let entry=false;for(let i=5;i<b.length/4;){const word=b.readUInt32LE(i*4),count=word>>>16,op=word&65535;check(count>0&&i+count<=b.length/4,'Malformed SPIR-V instruction');if(op===15&&count>=4&&b.readUInt32LE((i+1)*4)===model){const name=b.subarray((i+3)*4,(i+count)*4).toString('utf8').split('\0')[0];if(name==='main')entry=true;}i+=count;}
   check(entry,'Missing '+stage+' main entry point');
-  if(validate){
-   const temp=await fs.mkdtemp(path.join(require('node:os').tmpdir(),'hb-shader-'));
-   try{const file=path.join(temp,'module.spv');await fs.writeFile(file,b);
-    await run(require('../../sdk/tools/toolchain.cjs').tool('SPIRV_VAL','spirv-val'),['--target-env','vulkan1.0',file],{timeout:10000,maxBuffer:65536});
-   }finally{await fs.rm(temp,{recursive:true,force:true});}
-  }
+  if(validate)await require('./asset-validation.cjs').shader(b);
   files[stage]=item;hash.update(stage).update(b);
  }
  if(m.displayOnly!==true&&!m.builtin){
@@ -68,14 +66,15 @@ async function readApp(directory,{validate=true}={}){
  const webp=icon.toString('ascii',0,4)==='RIFF'&&icon.toString('ascii',8,12)==='WEBP';
  check(png||webp,'Icon must be a PNG or WebP');
  if(png)check(icon.readUInt32BE(16)>0&&icon.readUInt32BE(16)<=4096&&icon.readUInt32BE(20)>0&&icon.readUInt32BE(20)<=4096,'Icon dimensions exceed 4096');
- if(validate)await run(require('../platform/python.cjs').command(),['-c','from PIL import Image; import sys; im=Image.open(sys.argv[1]); assert 0<im.width<=4096 and 0<im.height<=4096; im.verify()',files.icon.file],{timeout:10000,maxBuffer:65536});
+ if(validate)await require('./asset-validation.cjs').icon(icon);
  const effects={},effectData={};
  check(m.audio===undefined||(m.audio.sampleRate===48000&&m.audio.channels===2&&m.audio.format==='s16le'),'Unsupported audio format');
  for(const [id,name] of Object.entries(m.audio?.effects||{})){
   check(/^(?:[1-9]|[12][0-9]|3[01])$/.test(id),'Sound event ids must be 1..31');
   const item=await asset(root,name,131072);check(item.bytes.length%4===0,'Invalid stereo PCM frame alignment');effects[id]=item.file;effectData[id]=item.bytes;hash.update(id).update(item.bytes);
  }
- return {id:m.id,name:m.name.trim(),version:m.version,description:m.description,root,manifest:m,files,effects,effectData,fingerprint:hash.digest('hex')};
+ const sdAssets=await require('../console/sd-launcher/assets.cjs').inspect(root,m.localRuntime?{native:{assets:m.localRuntime.assets}}:m);for(const a of sdAssets)hash.update('sd-asset').update(a.path).update(a.sha256);
+ return {id:m.id,name:m.name.trim(),version:m.version,description:m.description,root,manifest:m,files,effects,effectData,sdAssets,fingerprint:hash.digest('hex')};
 }
 async function scan(root=ROOT){
  root=path.resolve(root);let entries;try{entries=await fs.readdir(root,{withFileTypes:true});}catch(error){if(error.code==='ENOENT')return {root,apps:[],rejected:[]};throw error;}
@@ -89,16 +88,18 @@ async function scan(root=ROOT){
  return {root,apps,rejected};
 }
 function summary(catalog){return {root:catalog.root,apps:catalog.apps.map(a=>({id:a.id,name:a.name,version:a.version,description:a.description,root:a.root,fingerprint:a.fingerprint,effects:a.effects})),rejected:catalog.rejected};}
-async function raster(catalog,directory,label='catalog'){
+async function raster(catalog,directory,label='catalog',{postprocess=[]}={}){
+ check(Array.isArray(postprocess)&&postprocess.length<=2&&postprocess.every(file=>typeof file==='string'&&path.isAbsolute(file)),'Invalid raster pipeline');
  const input=path.join(directory,label+'.json'),output=path.join(directory,label+'.bin');
  const labels=[];
- const language=await require('../../language/node.cjs').current();
+ const language=await require('../../language/node.cjs').forConsole();
  for(const [i,a] of catalog.apps.entries()){
   const icon=path.join(directory,label+'-icon-'+i+'.png');await fs.writeFile(icon,a.files.icon.bytes);
-  labels.push({name:language.t(a.name),searchName:a.name,description:language.t(a.description),icon,transition:a.manifest.transition,displayOnly:a.manifest.displayOnly===true,builtin:a.manifest.builtin,scene:a.manifest.shellContribution?.scene,launchCommand:a.manifest.shellContribution?.launchCommand});
+  labels.push({name:a.name,searchName:a.name,description:language.t(a.description),icon,category:require('./catalog-category.cjs').classify(a),transition:a.manifest.transition,displayOnly:a.manifest.displayOnly===true,builtin:a.manifest.builtin,scene:a.manifest.shellContribution?.scene,launchCommand:a.manifest.shellContribution?.launchCommand});
  }
  await fs.writeFile(input,JSON.stringify(labels,null,2));
- await run(require('../platform/python.cjs').command(),[path.join(__dirname,'catalog-assets.py'),input,output],{timeout:15000,maxBuffer:65536,env:{...process.env,...(language.font?{HB_FONT:language.font}:{})}});
+ const fontEnvironment=postprocess.length?{IZ2S_RASTER_FONT:language.font||process.env.HB_FONT||''}:language.font?{HB_FONT:language.font}:{};
+ await run(require('../platform/python.cjs').command(),[path.join(__dirname,postprocess.length?'raster-pipeline.py':'catalog-assets.py'),input,output,...postprocess],{timeout:15000*(1+postprocess.length),maxBuffer:65536,env:{...process.env,...fontEnvironment}});
  const bytes=await fs.readFile(output);check(bytes.length===MAX_APPS*SLOT_BYTES,'Invalid catalog raster');return bytes;
 }
 module.exports={ROOT,MAX_APPS,SLOT_BYTES,ATLAS_BYTES,asset,readApp,scan,summary,raster};

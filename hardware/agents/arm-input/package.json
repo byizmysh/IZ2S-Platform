@@ -3,9 +3,32 @@
   "apiVersion": 1,
   "id": "arm-input",
   "name": "IZ2S ARM Input",
-  "version": "1.0.0",
-  "platforms": ["linux-arm64", "linux-x64"],
-  "requires": ["python3", "systemd", "root", "usb-hid-gadget"],
-  "files": ["agent.py", "discovery.py", "type-bootstrap.py", "install.py", "package.json", "README.md"],
-  "defaultDirectory": "/opt/iz2s/arm-input"
+  "version": "1.1.1",
+  "platforms": [
+    "linux-arm64",
+    "linux-x64"
+  ],
+  "requires": [
+    "python3",
+    "systemd",
+    "root",
+    "usb-hid-gadget"
+  ],
+  "files": [
+    "agent.py",
+    "discovery.py",
+    "type-bootstrap.py",
+    "install.py",
+    "package.json",
+    "README.md",
+    "gamepad.py",
+    "usb_gadget.py",
+    "CivSwitch-MIT.txt"
+  ],
+  "defaultDirectory": "/opt/iz2s/arm-input",
+  "capabilities": [
+    "usb-keyboard",
+    "usb-gamepad",
+    "automatic-chat"
+  ]
 }

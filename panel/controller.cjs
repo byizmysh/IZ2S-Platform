@@ -4,12 +4,15 @@ async function create({ root, settings: defaults, node, preview = false }) {
   const file = path.join(root, 'data/state/launcher-settings.json'),
     loaders = require('../engines/index.cjs').create(root),
     configurations = require('../profiles/index.cjs');
+  const cardputerOperation=require('../core/services/cancellable-operation.cjs').create();
   const saved = await readJson(file, {});
   let choice = {
       loaderId: 'izmysh',
       variant: 'izlauncher',
       loaderSettings: {},
       installationSlots: {},
+      sdLauncher: false,
+      nativeRecovery: false,
       residentGraphics: false,
       residentFiniteAudio: false,
       ...saved,
@@ -64,6 +67,10 @@ async function create({ root, settings: defaults, node, preview = false }) {
       runtime: 'original',
     });
   async function initialize() {
+    if(isIZ()&&choice.sdLauncher){
+      if(choice.loaderId!=='izmysh')throw Error('SD mode currently requires IZ2S Core');
+      choice.loaderSettings.izmysh={...choice.loaderSettings.izmysh,fsRpcMode:true};
+    }
     const installationReady = selectedLoader().manifest.installed !== false;
     configState = await configurations.load(root);
     configuration = await configurations.resolve(configState.selected, {
@@ -106,6 +113,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
         settings: selectedLoader().settings,
         configuration,
         input,
+        sdLauncher:choice.sdLauncher===true,
         installSlot: selectedLoader().sourcePlan().bootstrap?.sourceSlot,
       });
       iz = require('../core/session/session.cjs').createSessionManager({
@@ -118,6 +126,8 @@ async function create({ root, settings: defaults, node, preview = false }) {
         preview,
         launchEnvironment: {
           ...delivery.environment,
+          IZ2S_SD_LAUNCHER: choice.sdLauncher===true?'1':'0',
+          IZ2S_NATIVE_RECOVERY: selectedLoader().settings.fsRpcMode===true?'1':'0',
           IZ2S_SHELL: choice.variant,
           IZ15_SHELL: choice.variant,
           IZ18_RESIDENT_GRAPHICS: choice.residentGraphics&&['izlauncher','izpslauncher'].includes(choice.variant)?'1':'0',
@@ -141,7 +151,10 @@ async function create({ root, settings: defaults, node, preview = false }) {
       });
       iz.preview = preview;
     }
-    upstream = require('./upstream-session.cjs').create({
+    const sessionFactory = ['civswitch', 'civswitch-ldn'].includes(choice.loaderId)
+      ? require(path.join(selectedLoader().folder, 'adapter.cjs')).createSession
+      : require('./upstream-session.cjs').create;
+    upstream = sessionFactory({
       root,
       settings,
       node,
@@ -151,14 +164,15 @@ async function create({ root, settings: defaults, node, preview = false }) {
       preview,
       environment: configuration.env,
       selection: selectedLoader,
+      configuration,
     });
     initializedInstalled = installationReady;
   }
   await initialize();
   await saveJson(file, choice);
   async function assertIdle() {
-    const state = await engine().snapshot();
-    if (changing || state.active || state.emergencyInputPending)
+    const state = await engine().snapshot({statusOnly:true});
+    if (changing || state.changing || state.active || state.emergencyInputPending)
       throw Error('Stop the current session before changing launch settings');
   }
   async function reconcileInstallation() {
@@ -168,6 +182,17 @@ async function create({ root, settings: defaults, node, preview = false }) {
     changing = true;
     try { await initialize(); }
     finally { changing = false; }
+  }
+  async function prepareCardputerBundle(signal){
+    signal.throwIfAborted();
+    const bundle=await require('../hardware/cardputer.cjs').prepare(root,{profile:choice.loaderId==='civswitch'?'civ':'sb4',signal});
+    signal.throwIfAborted();
+    const id='pc-cardputer-adv';configState=await configurations.load(root);
+    await configurations.save(root,{selected:configState.selected,profiles:{...configState.profiles,[id]:{
+      ...configState.profiles?.[id],cardputerEndpoint:configState.profiles?.[id]?.cardputerEndpoint||'http://iz2s-adv.local',
+      cardputerToken:bundle.token,cardputerCapsLock:configState.profiles?.[id]?.cardputerCapsLock||'off',
+    }}});
+    signal.throwIfAborted();await initialize();signal.throwIfAborted();return bundle;
   }
   return {
     preview,
@@ -188,7 +213,9 @@ async function create({ root, settings: defaults, node, preview = false }) {
     async snapshot() {
       await reconcileInstallation();
       const state = await engine().snapshot(),
-        moduleInventory = await require('../core/modules.cjs').list(root),
+        // CivSwitch has no IZM runtime. Do not verify the SmileBASIC app library
+        // just to open its game setup or refresh progress.
+        moduleInventory = isIZ() || state.civLauncher?.state==='running' ? await require('../core/modules.cjs').metadata(root) : {modules: [], errors: []},
         extensions = require('../core/extensions.cjs').catalog(root);
       let base, current, baseSource;
       if (delivery) {
@@ -217,15 +244,23 @@ async function create({ root, settings: defaults, node, preview = false }) {
         fsRpc: state.active?.runDirectory
           ? await readJson(path.join(state.active.runDirectory, 'fs-rpc-state.json'), null)
           : null,
-        checks:require('../hardware/index.cjs').present(configuration,state.checks),
+        checks:choice.loaderId==='civswitch-ldn'?state.checks:require('../hardware/index.cjs').present(configuration,state.checks),
         moduleCatalog: moduleInventory.modules.map((m) => m.descriptor).filter(panelCatalog.visible),
         moduleErrors: moduleInventory.errors,
         moduleStates: require('../core/host-modules.cjs').status(),
-        version: 21,
+        hardwareOperation:cardputerOperation.snapshot(),
+        version: 22,
         platform: {
+          civswitchLdnAvailable: true,
+          preparationCancelAvailable:true,
           host: { platform: process.platform, architecture: process.arch },
           loaderId: choice.loaderId,
           variant: choice.variant,
+          consoleEndpoint: {port:settings.consolePort,
+            host:choice.loaderId==='civswitch-ldn' ? state.civswitchLdn?.suggestedHost||settings.consoleAddress : choice.loaderId==='civswitch' ? state.civswitch?.networkHost||settings.consoleAddress : settings.consoleHost,
+            listener:['civswitch','civswitch-ldn'].includes(choice.loaderId)?'console':'pc'},
+          sdLauncher: choice.sdLauncher===true,
+          nativeRecovery: selectedLoader().settings.fsRpcMode===true,
           residentGraphics: choice.residentGraphics===true,
           residentFiniteAudio: choice.residentFiniteAudio===true,
           residentAudioReady: false,
@@ -250,7 +285,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
                 ),
               }
             : null,
-          izModules: isIZ(),
+          izModules: isIZ() || state.civLauncher?.state==='running',
           baseSource,
           delivery: {
             application: isIZ() ? (choice.variant === 'izpslauncher' ? 'IZPSlauncher' : 'IZlauncher') : 'Core only',
@@ -281,32 +316,38 @@ async function create({ root, settings: defaults, node, preview = false }) {
         },
       };
     },
-    async prepareCardputerSD() {
+    async confirmCardputerUsb() {
       await assertIdle();
-      if (preview) throw Error('Prepare the SD package from the running panel');
-      changing = true;
+      if(preview)throw Error('Preview cannot confirm device connections');
+      if(configuration.inputAdapter!=='cardputer-wifi')throw Error('Select Cardputer ADV first');
+      changing=true;
       try {
-      const bundle = await require('../hardware/cardputer.cjs').prepare(root);
-      const id = 'pc-cardputer-adv';
-      configState = await configurations.load(root);
-      await configurations.save(root, {selected: configState.selected, profiles: {
-        ...configState.profiles, [id]: {
-          ...configState.profiles?.[id],
-          cardputerEndpoint: configState.profiles?.[id]?.cardputerEndpoint || 'http://iz2s-adv.local',
-          cardputerToken: bundle.token,
-          cardputerCapsLock: configState.profiles?.[id]?.cardputerCapsLock || 'off',
-        },
-      }});
-      await initialize();
-      return {ok: true, filename: 'iz2s-cardputer-adv-sd.zip'};
-      } finally { changing = false; }
+        const result=await input.confirmUsb();
+        await engine().refresh(true);
+        return result;
+      } finally {changing=false;}
+    },
+    async prepareCardputerSD(body={}) {
+      return cardputerOperation.run({id:body.requestId,kind:'package'},async signal=>{
+        await assertIdle();signal.throwIfAborted();
+        if(preview)throw Error('Prepare the SD package from the running panel');
+        changing=true;
+        try{await prepareCardputerBundle(signal);signal.throwIfAborted();return {ok:true,filename:'iz2s-cardputer-adv-sd.zip'};}
+        finally{changing=false;}
+      });
     },
     async installCardputerSD(body={}) {
-      await this.prepareCardputerSD();
-      await assertIdle();changing=true;
-      try {return await require('../hardware/cardputer.cjs').install(root,{target:body.target});}
-      finally {changing=false;}
+      return cardputerOperation.run({id:body.requestId,kind:'firmware'},async signal=>{
+        await assertIdle();signal.throwIfAborted();
+        if(preview)throw Error('Preview cannot copy firmware');
+        changing=true;
+        try{
+          const bundle=await prepareCardputerBundle(signal);signal.throwIfAborted();
+          return await require('../hardware/cardputer.cjs').install(root,{target:body.target,profile:bundle.profile,bundle,signal,onProgress:value=>cardputerOperation.progress(value)});
+        }finally{changing=false;}
+      });
     },
+    cancelCardputerSD:body=>cardputerOperation.cancel(body?.requestId),
     async installEngine(id) {
       await assertIdle();
       if (preview) throw Error('Preview does not download engines');
@@ -337,6 +378,8 @@ async function create({ root, settings: defaults, node, preview = false }) {
       await assertIdle();
       if(body.residentGraphics!==undefined&&typeof body.residentGraphics!=='boolean')throw Error('Resident graphics setting must be boolean');
       if(body.residentFiniteAudio!==undefined&&typeof body.residentFiniteAudio!=='boolean')throw Error('Resident finite audio setting must be boolean');
+      if(body.sdLauncher!==undefined&&typeof body.sdLauncher!=='boolean')throw Error('SD launcher setting must be boolean');
+      if(body.nativeRecovery!==undefined&&typeof body.nativeRecovery!=='boolean')throw Error('Native recovery setting must be boolean');
       const previous = JSON.parse(JSON.stringify(choice));
       const previousConfiguration = JSON.parse(JSON.stringify(configState));
       changing = true;
@@ -345,6 +388,8 @@ async function create({ root, settings: defaults, node, preview = false }) {
           ...choice,
           loaderId: body.loaderId ?? choice.loaderId,
           variant: body.variant ?? choice.variant,
+          sdLauncher: body.sdLauncher ?? choice.sdLauncher,
+          nativeRecovery: body.nativeRecovery ?? choice.nativeRecovery,
           residentGraphics: body.residentGraphics ?? choice.residentGraphics,
           residentFiniteAudio: body.residentFiniteAudio ?? choice.residentFiniteAudio,
         };
@@ -447,6 +492,14 @@ async function create({ root, settings: defaults, node, preview = false }) {
     },
     configureConnection: (...args) => engine().configureConnection(...args),
     setupAction: (body) => engine().setupAction(body),
+    async civswitchAction(body) {
+      if (choice.loaderId !== 'civswitch' || isIZ()) throw Error('Select CivSwitch in Core only first');
+      return upstream.action(body);
+    },
+    async civswitchLdnAction(body) {
+      if (choice.loaderId !== 'civswitch-ldn' || isIZ()) throw Error('Select CIV7 LAN in Core only first');
+      return upstream.action(body);
+    },
     retry: () => engine().retry(),
     setupReport: (...args) => engine().setupReport(...args),
     remove: async (id) => {
@@ -458,16 +511,29 @@ async function create({ root, settings: defaults, node, preview = false }) {
     },
     historyLog: (...args) => engine().historyLog(...args),
     dismiss: () => engine().dismiss(),
-    loadPackages: async (ids) => {
-      if (!isIZ()) throw Error('Select a console shell to load IZM modules');
-      return iz.loadPackages(ids);
+    async restoreConnection(){
+      if(preview)throw Error('Preview cannot reconnect a console');const state=await engine().snapshot(),directory=state.active?.runDirectory;
+      if(!directory)throw Error('Start a launcher session with automatic connection recovery enabled');
+      const rpc=require(path.join(directory,'shared/rpc.cjs')),status=await rpc.request({command:'recovery-status'});
+      if(!status.enabled)throw Error('This session has no resident recovery service; enable automatic recovery before starting a fresh session');
+      return rpc.request({command:'recovery-wake'});
     },
-    unloadPackages: async (ids) => {
+    loadPackages: async (ids,options) => {
+      if(['civswitch','civswitch-ldn'].includes(choice.loaderId))return upstream.loadPackages(ids,options);
+      if (!isIZ()) throw Error('Select a console shell to load IZM modules');
+      if(choice.sdLauncher||options?.target==='sd'||Object.values(options?.targets||{}).includes('sd')){
+        if(preview)throw Error('Preview cannot write to SD');
+      }
+      return iz.loadPackages(ids,options);
+    },
+    unloadPackages: async (ids,target) => {
+      if(['civswitch','civswitch-ldn'].includes(choice.loaderId))return upstream.unloadPackages(ids,target);
       if(preview)throw Error('Preview cannot remove console modules');
       if(!isIZ())throw Error('Select a console shell to remove modules');
       if(choice.residentGraphics&&(await engine().snapshot()).active)throw Error('Restart the resident session to change its prepared app set');
-      return iz.unloadPackages(ids);
+      return iz.unloadPackages(ids,target);
     },
+    refreshSdInventory:()=>{if(!isIZ())throw Error('Select a console shell first');return iz.refreshSdInventory();},
     async source(id) {
       await reconcileInstallation();
       if (loaders.select(id).manifest.installed === false)
@@ -480,6 +546,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
           host: settings.consoleHost,
           port: settings.consolePort,
           recovery: id === 'izmysh' && !!(await delivery.profile()).recovery,
+          sdLauncher:choice.sdLauncher===true,
         });
         return { file: method.bootstrap.file, name: method.bootstrap.saveName };
       }

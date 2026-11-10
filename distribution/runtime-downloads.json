@@ -3,14 +3,6 @@
   "python": "3.12",
   "pillow": "12.0.0",
   "uv": {
-    "darwin-arm64": {
-      "file": "uv-aarch64-apple-darwin.tar.gz",
-      "sha256": "81b811b57e4624df7ed3aac148e0359100d9962f3d9dce00aec533dc2e086731"
-    },
-    "darwin-x64": {
-      "file": "uv-x86_64-apple-darwin.tar.gz",
-      "sha256": "20c47e4c1f630b8abaff8c291fa9b9aa300fef92c4fbff95adf198b55287cda7"
-    },
     "win32-x64": {
       "file": "uv-x86_64-pc-windows-msvc.zip",
       "sha256": "0cdc5b38fe5a8168ed6a25814f5ba43c21d313dd3187314fccb37b7cec46e021"

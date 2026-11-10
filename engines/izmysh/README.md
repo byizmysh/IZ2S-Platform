@@ -1,4 +1,4 @@
-# IZ2S Core · 0.21
+# IZ2S Core · 0.22
 
 IZ2S Core is the default connection engine in IZ2S Platform. IZMYSH is the
 developer credit; IZlauncher and IZPSlauncher are the console menus.
@@ -19,7 +19,7 @@ that the underlying console research or native implementation was created anew.
 
 ## Upgrade from 0.16
 
-The published 0.16 default used NS2I, port 39395 and nine arguments. This core uses NS2IZM, port 39380 and five arguments. Run First Setup again; renaming the old file is insufficient. Windows/macOS PC installation entry points do not change the current Linux-only native host declarations. See the platform COMPATIBILITY.md for pending tests.
+The published 0.16 default used NS2I, port 39395 and nine arguments. This core uses NS2IZM, port 39380 and five arguments. Run First Setup again; renaming the old file is insufficient. This release targets Linux x64/ARM64 only. See the platform COMPATIBILITY.md for pending tests.
 
 ## Compatibility
 
@@ -44,3 +44,5 @@ The foundation is [BermTheSequel/ns2jb2](https://gitlab.com/BermTheSequel/ns2jb2
 revision `ee87d8301cb317ff0ee1d49bcedcfea5e1d8b04e`. Upstream notices, source
 revision and bootstrap hashes remain in the descriptors and `THIRD_PARTY.json`.
 See the platform's `LICENSE`, `LICENSE-SCOPE.md` and `COPYRIGHT`.
+
+For a fresh 0.22 launch, open SmileBASIC 4 → Make a Program → Direct after the instructed restart. FS acquisition remains probabilistic; a previous PC error is not a persistent lock on a new game process. Retained native resources still require the stated restart procedure.

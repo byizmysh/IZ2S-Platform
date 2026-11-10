@@ -68,35 +68,12 @@ float mouse(vec2 q,float t){
  m*=1.0-fill(chevron-3.1);
  return clamp(m,0.0,1.0);
 }
+#include "focus-light.glsl"
 void main(){
  if(c.atlas[CB+7u]==CMAGIC&&c.atlas[CB+1u]==1u){outColor=vec4(calcDraw(gl_FragCoord.xy),1);return;}
  if(c.atlas[CB+7u]==CMAGIC&&c.atlas[CB+1u]==2u){outColor=vec4(streamDraw(gl_FragCoord.xy),1);return;}
- vec2 p=gl_FragCoord.xy;float t=c.motion.x;vec3 col=BG;
- // Quiet ruled sections and restrained panels follow the website palette.
- col=mix(col,vec3(.19),line(p.y-304.0,.5)*.65);
- col=mix(col,vec3(.19),line(p.y-952.0,.5)*.65);
- col=mix(col,INK,text(p,vec2(IZ_CONTENT_LEFT,144),TEXT_TITLE));
- float phase=mod(t,18.0)*.34906585,velocity=sin(phase);
- float dir=velocity>=0.0?1.0:-1.0;
- float facing=2.0*smoothstep(-.08,.08,velocity)-1.0;
- float progress=.5-.5*cos(phase),mx=mix(1072.0,1648.0,progress);
- col=mix(col,vec3(.23),line(p.y-248.0,.5)*step(960.0,p.x)*step(p.x,IZ_CONTENT_RIGHT));
- const float mouseScale=1.12;
- float bob=7.0*sin(t*8.37758041),nominalNose=mx+facing*85.0*mouseScale;
- float nearestCrumb=1136.0+80.0*clamp(round((nominalNose-1136.0)/80.0),0.0,6.0);
- float tilt=.30*(1.0-smoothstep(0.0,32.0,abs(nominalNose-nearestCrumb)))*abs(facing);
- float nose=mx+facing*(85.0*cos(tilt)-14.0*sin(tilt))*mouseScale;
- for(int i=0;i<7;i++){
-  float x=1136.0+float(i)*80.0,y=224.0+mod(float(i)*7.0,11.0),distance=(x-nose)*dir;
-  float visible=smoothstep(-8.0,5.0,distance)*smoothstep(0.0,.1,abs(velocity));
-  vec2 crumb=vec2(x,y);
-  col=mix(col,BLUE,fill(length(p-crumb)-(3.6+mod(float(i),3.0)*.85))*visible*.85);
- }
- if(abs(facing)>.02){
-  vec2 q=(p-vec2(mx,180.0+bob))/mouseScale;q.x/=facing;
-  q=mat2(cos(tilt),-sin(tilt),sin(tilt),cos(tilt))*q+vec2(96,70);
-  if(q.x>=5.0&&q.x<=184.0&&q.y>=20.0&&q.y<=115.0)col=mix(col,BLUE,mouse(q,t));
- }
+ vec2 p=gl_FragCoord.xy;float t=c.motion.x;vec3 col=focusBackground(p);
+ col=mix(col,INK,text(p,vec2(IZ_CONTENT_LEFT,130),TEXT_TITLE));
  uint count=min(c.library.x,32u),page=(c.state.x/IZ_PAGE_SIZE)*IZ_PAGE_SIZE;
  bool canOpen=count>0u&&c.atlas[524288u+c.state.x*32768u+25604u]!=1u;
  for(int i=0;i<int(IZ_PAGE_SIZE);i++){

@@ -1,0 +1,65 @@
+Console-owned host application frames
+
+This component is a required ownership layer for offline exit from applications
+that still depend on a PC service. It does not turn a PC service into a local
+executable and is not yet enabled in ordinary.cjs. Both launcher shells share
+the same supervisor and publication API.
+
+The common loader must prepare an isolated 8 MiB GPU control allocation and
+app command buffers. Application source/engines and manifest flags do not
+participate in this protocol. The PC owns a normal acknowledged display lease
+while preparing the app. lease.delegateFrames verifies writable control memory,
+writes the 168-byte frame plan and publishes the exact lease token last. The
+supervisor validates it, copies it into private native stack state and then
+acknowledges. It starts submitting frames only after lease.release completes
+the handoff. Publication is attempted once per lease; unknown outcomes retain
+the original owner and cannot be replayed.
+
+App controls may overlap neither the parent menu allocation nor any byte of
+the supervisor allocation. Commands must be separate from the menu and each
+other. The current-session SDK/device/swapchain remain the supervisor's own
+verified objects. A command handle is an internal loader product, not an
+address accepted from an untrusted package manifest. App/native worker owners
+must already be excluded from concurrent graphics access by the caller.
+
+While app frames run:
+ - The native supervisor reads fresh controller/touch states into app controls.
+ - The primary controller's double-R3 shortcut is evaluated by the supervisor.
+   Player 2 cannot complete player 1's sequence. Plus is not involved.
+ - Application-requested exit remains available through its normal exit word.
+ - Each submitted frame reaches QueueWaitIdle before another owner can run.
+ - Exit restores the resident menu snapshot locally, without a PC callback,
+   SD command, application close handler or script instruction.
+ - Delayed edits to the public frame offer cannot mutate the accepted private
+   plan. Consumed display releases cannot be rolled back to an older token to
+   reopen an already returned lease.
+
+The PC can acquire another exact display lease at a completed frame boundary.
+The supervisor reports host_frames_paused while this lease owns graphics.
+Releasing it resumes the same app frame ticket. lease.cancelFrames terminates
+that registration before publishing a replacement menu. A native local return
+is reconciled through mixed.observeFrames; the old lease cannot start it again.
+
+Return receipts prove that this registered graphics producer is idle. They do
+not prove closure of native engine threads, DSP buffers or FS endpoints, and
+never authorize freeing the caller's retained GPU/control allocations. Unknown
+queue results poison/retain the native owner without publishing a false clean
+return. Full process exit remains necessary after an uncontained native fault.
+
+Still required for ordinary-loader activation and universal recovery:
+ - Allocate and bind distinct app controls in the common GPU preparation path.
+ - Point app services, SDK mailboxes, capture/input hooks and state snapshots
+   at those controls rather than the parent menu's buffer.
+ - Integrate delegated-frame reconciliation with app runtime service lifetime
+   and fence late PC operations after a local return.
+ - Make PC-service boundaries cancellable/isolated; this component still parks
+   on an explicitly granted service lease until known release. Network loss
+   during that borrowed boundary is not solved by the frame shortcut alone.
+ - Isolate offscreen/native graphics and track actual native worker completion
+   before extending this to engines that presently own the display directly.
+ - Qualify real Switch input, rendering and disconnect/reconnect behavior.
+
+Local evidence: tools/sd-launcher/host-frames-local.cjs compiles the actual ARM
+supervisor, runs its C lifecycle on the host against modeled SDK/Vulkan/SD,
+and checks the shared host protocol. No console session is attached, no
+hardware command is sent, and no engine source is edited.

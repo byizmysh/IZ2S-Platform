@@ -42,7 +42,8 @@ async function create({port = 0, backend = control, openManager = managers.open,
       if (req.method !== 'POST') return reply(res, 404, {error: 'Not found'});
       if (req.headers.origin !== origin) return reply(res, 403, {error: 'The request must come from this tool'});
       let size = 0, body = '';
-      for await (const chunk of req) {size += chunk.length; if (size > 65536) throw Error('Request is too large'); body += chunk;}
+      const requestLimit = url.pathname === '/api/sd/upload-chunk' ? require('../dolphin-fs-rpc/transfer.cjs').REQUEST_BYTES : 65536;
+      for await (const chunk of req) {size += chunk.length; if (size > requestLimit) throw Error('Request is too large'); body += chunk;}
       const data = JSON.parse(body || '{}');
       let result;
       if (url.pathname === '/api/shutdown') {

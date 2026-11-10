@@ -2,6 +2,7 @@
 const {virtualPath,nativePath,CHUNK}=require('./ftp-native.cjs');
 function clean(s){return String(s).replace(/[\r\n\x00]/g,' ').slice(0,180);}
 function create({transport:t,storage:fs,now=Date.now,readOnly=false,greeting='ftpd-sb ready. /save and /tmp read-write; /rom read-only.'}){
+ const readChunk=Number.isInteger(fs.chunkBytes)&&fs.chunkBytes>=CHUNK&&fs.chunkBytes<=524288?fs.chunkBytes:CHUNK;
  let listener=null,client=null,busy=false;
  const state={running:false,address:'0.0.0.0',port:0,clients:0,transferring:false,received:0,sent:0,files:0,error:'',activity:'Stopped'};
  function reply(code,message){if(!client)return;const b=Buffer.from(code+' '+clean(message)+'\r\n');client.output=Buffer.concat([client.output,b]);if(client.output.length>65536)throw Error('Control output overflow');}
@@ -46,7 +47,7 @@ function create({transport:t,storage:fs,now=Date.now,readOnly=false,greeting='ft
    if(!x.file){x.file=await fs.openWrite(x.path,x.kind==='APPE');x.offset=x.file.size;}
    const bytes=await t.recv(client.data.fd);if(bytes===null)return;if(bytes.length){await fs.write(x.file,x.offset,bytes);x.offset+=bytes.length;state.received+=bytes.length;client.last=x.started=now();return;}
   }else{
-   if(!x.pending.length&&x.kind==='RETR'&&x.offset<x.file.size)x.pending=await fs.read(x.file,x.offset,CHUNK);
+   if(!x.pending.length&&x.kind==='RETR'&&x.offset<x.file.size)x.pending=await fs.read(x.file,x.offset,readChunk);
    if(x.pending.length){const n=await t.send(client.data.fd,x.pending);if(n<0||n>x.pending.length)throw Error('Invalid send count');x.pending=x.pending.subarray(n);x.offset+=n;state.sent+=n;if(n)client.last=x.started=now();return;}
   }
   await dataClose();state.files++;state.activity='Transfer complete';reply(226,'Transfer complete; writes committed');

@@ -5,6 +5,7 @@ function closeHandle(handle){
  if(!closeTasks.has(handle))closeTasks.set(handle,Promise.resolve().then(()=>handle.close()));
  return closeTasks.get(handle);
 }
+function fileViewOnly(id,error){return id==='izpsx'&&error.izpsxManagerCleanupUncertain===true&&!!error.managerRetained;}
 async function open(root,id){
  root=path.resolve(root);const key=root+'\0'+id;
  if(pending.has(key))return pending.get(key);
@@ -12,7 +13,7 @@ async function open(root,id){
   const previous=active.get(key);
   if(previous){
    if(await require('./platform/listener.cjs').listening(previous.url)!==false)return {url:previous.url};
-   try{await closeHandle(previous);}catch(error){if(error.resourcesRetained||error.code!=='ERR_SERVER_NOT_RUNNING')throw error;}
+   try{await closeHandle(previous);}catch(error){if(!fileViewOnly(id,error)&&(error.resourcesRetained||error.code!=='ERR_SERVER_NOT_RUNNING'))throw error;}
    if(active.get(key)===previous)active.delete(key);
   }
   const module=await require('./modules.cjs').read(root,id),settings=module.descriptor.server?.settings;
@@ -28,12 +29,12 @@ async function open(root,id){
   active.set(key,handle);return {url:handle.url};
  })().finally(()=>pending.delete(key));pending.set(key,task);return task;
 }
-async function stop(root,id){const key=path.resolve(root)+'\0'+id;await pending.get(key);const handle=active.get(key);if(handle){await closeHandle(handle);if(active.get(key)===handle)active.delete(key);}return {ok:true};}
+async function stop(root,id){const key=path.resolve(root)+'\0'+id;await pending.get(key);const handle=active.get(key);if(handle){try{await closeHandle(handle);}catch(error){if(!fileViewOnly(id,error))throw error;}if(active.get(key)===handle)active.delete(key);}return {ok:true};}
 async function close(root){
  root=path.resolve(root);await Promise.allSettled([...pending].filter(([key])=>key.startsWith(root+'\0')).map(([,value])=>value));
  const errors=[];
  for(const [key,handle]of active)if(key.startsWith(root+'\0')){
-  try{await closeHandle(handle);if(active.get(key)===handle)active.delete(key);}catch(error){errors.push(error);}
+  try{await closeHandle(handle);if(active.get(key)===handle)active.delete(key);}catch(error){if(fileViewOnly(key.slice(key.indexOf('\0')+1),error)){if(active.get(key)===handle)active.delete(key);}else errors.push(error);}
  }
  if(errors.length)throw Object.assign(new AggregateError(errors,'Some module settings could not confirm shutdown: '+errors.map(error=>error.message).join('; ')),{resourcesRetained:errors.some(error=>error.resourcesRetained)});
 }

@@ -25,7 +25,7 @@ async function pack(directory,secret,{validate=true}={}){
  let descriptor;try{descriptor=JSON.parse(await fs.readFile(path.join(directory,'module.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  if(descriptor){check(descriptor.format==='izlauncher.module'&&descriptor.switch?.source==='switch','Invalid module source');directory=path.join(directory,'switch');}
  const catalog=require('../services/app-catalog.cjs'),app=await catalog.readApp(directory,{validate}),m=app.manifest;
- const names=new Set(['app.json',m.icon,m.initialState,m.data,m.memory?.initial,...Object.values(m.shaders||{}),...Object.values(m.audio?.effects||{}),m.computeSequence?.begin,m.computeSequence?.after,...(m.run11Modules||[])].filter(Boolean));
+ const names=new Set(['app.json',m.icon,m.initialState,m.data,m.memory?.initial,...Object.values(m.shaders||{}),...Object.values(m.audio?.effects||{}),m.computeSequence?.begin,m.computeSequence?.after,...(m.run11Modules||[]),...(m.localRuntime?.assets||[]).map(a=>a.file)].filter(Boolean));
  const files=[];for(const name of [...names].sort()){const file=await catalog.asset(app.root,safeName(name),MAX);files.push({name,bytes:file.bytes});}
  return encode({id:app.id,name:app.name,appVersion:app.version,description:app.description,kind:m.builtin?'builtin':'gpu-app'},files,secret);
 }

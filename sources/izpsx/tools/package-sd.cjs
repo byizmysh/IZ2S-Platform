@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const BASE=path.resolve(__dirname,'..'),PANEL=path.resolve(process.env.IZPSX_PANEL||process.env.IZ2S_ROOT||path.join(BASE,'../IZ2S-Platform')),OUT=path.join(BASE,'build/izpsx-sd');
+(async()=>{
+ const app=await require(path.join(PANEL,'core/services/app-catalog.cjs')).readApp(path.join(OUT,'module/switch'));
+ const manifest=JSON.parse(await fs.readFile(path.join(OUT,'module/switch/app.json')));
+ assert.equal(manifest.sdOnly,undefined);assert.equal(manifest.hostRuntime,'module:izpsx/launch');assert.equal(manifest.native.abi,5);
+ const html=await fs.readFile(path.join(OUT,'module/server/ui/index.html'),'utf8'),css=await fs.readFile(path.join(OUT,'module/server/ui/style.css'),'utf8');
+ assert(!/<a\b/i.test(html),'The author address must remain plain text');
+ assert(!/(?:src|href)\s*=\s*["'](?:https?:)?\/\//i.test(html),'UI assets must be local');
+ assert(!/@import|url\(\s*["']?(?:https?:)?\/\//i.test(css),'UI fonts and styles must be local');
+ for(const m of html.matchAll(/(?:src|href)="(\/[^"#]+)"/g))await fs.access(path.join(OUT,'module/server/ui',m[1]));
+ const pkg=require(path.join(PANEL,'core/console/sd-launcher/package.cjs'));assert(pkg.eligibility(app).compatible);
+ const bundle=await pkg.build(app.root,path.join(OUT,'sd'));const decoded=pkg.decode(bundle.bytes);assert.equal(decoded.id,'izpsx');assert.equal(decoded.nativeAbi,5);
+ const bytes=await require(path.join(PANEL,'core/archive.cjs')).pack(path.join(OUT,'module')),file=path.join(OUT,'izpsx.izm');await fs.writeFile(file,bytes);
+ const report={format:'izpsx-package/1',passed:true,consoleExecuted:false,installed:false,package:file,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),sdPackage:bundle.output,sdBytes:bundle.bytes.length,sdSha256:bundle.sha256,sdBundle:bundle.bundle,companionBytes:bundle.assets.reduce((n,x)=>n+x.bytes,0),nativeAbi:5,root:'/sd/IZ2S/Homebrew/Modules/izpsx',hostRuntimeRequired:false,memoryLaunchSupported:true,launchSourceAutomatic:true,gamesAndBiosIncluded:false,localUiAssetsVerified:true,plainAuthorAddressVerified:true};
+ await fs.writeFile(path.join(OUT,'package-report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));
+})().catch(e=>{console.error(e.stack);process.exitCode=1;});

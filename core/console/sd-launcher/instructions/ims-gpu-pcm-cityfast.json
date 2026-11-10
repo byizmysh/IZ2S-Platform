@@ -1,0 +1,373 @@
+{
+  "format": "iz2s.local-instructions-profile",
+  "id": "ims-gpu-pcm-cityfast",
+  "version": "0.1.1",
+  "files": {
+    "app.json": "4e95f69ca6a42c762b76674c8686509e9c2fd5587bdf46d4354f1c8c3fd8827d",
+    "icon.png": "a5fd35385a740116638d629f018b5b529ea6f56e3b9215039445c529a550b727",
+    "state.bin": "35efaeb6a056e6bc9a052741823b2514f9deadb68137d833a5bba0649f2010ce",
+    "data.bin": "f241da348acfd7906324389507a0d4c02e69cfc92f8995f4503a1596c7a98cc5",
+    "private-zero.deflate": "bfd38e0d4937d7dcdabca6cd1bd39052f1ec3de43a06922920053d44e6234cef",
+    "app.vert.spv": "4056325aaa646b0d5992d96c4862211cdf13830058bf45faa0a44be10a09ceff",
+    "app.frag.spv": "e3cfb76c551608b74cb41a2ddddde0f6e0e5717e950f19d1634f7fc00aaa2c93",
+    "app.comp.spv": "b945fdd1ef556671e38137f7c229389dbfd34c09af3e565827cb7f2f432c2bf2",
+    "app.begin.spv": "cc5345eff8d2b600d027d6969de087789e6f3628fe5a29e590248be07d4eefd5",
+    "app.after.spv": "5eac0d319944f26b81d7ae56a17af7f94f64bc94151fbd1a0a84a2d09815b1d1"
+  },
+  "plan": {
+    "format": "iz2s.local-instructions",
+    "version": 1,
+    "guards": [
+      {
+        "space": "controls",
+        "offset": 784,
+        "value": 826496844
+      },
+      {
+        "space": "controls",
+        "offset": 788,
+        "value": 1
+      },
+      {
+        "space": "controls",
+        "offset": 792,
+        "value": 31404032
+      },
+      {
+        "space": "controls",
+        "offset": 796,
+        "value": 31403784
+      },
+      {
+        "space": "controls",
+        "offset": 800,
+        "value": 48000
+      },
+      {
+        "space": "controls",
+        "offset": 804,
+        "value": 2
+      },
+      {
+        "space": "controls",
+        "offset": 808,
+        "value": 7850946
+      },
+      {
+        "space": "controls",
+        "offset": 812,
+        "value": 128
+      },
+      {
+        "space": "controls",
+        "offset": 872,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 876,
+        "value": 962528
+      },
+      {
+        "space": "controls",
+        "offset": 880,
+        "value": 1
+      },
+      {
+        "space": "controls",
+        "offset": 884,
+        "value": 5328705
+      },
+      {
+        "space": "controls",
+        "offset": 888,
+        "value": 640
+      },
+      {
+        "space": "controls",
+        "offset": 892,
+        "value": 280
+      },
+      {
+        "space": "controls",
+        "offset": 896,
+        "value": 12268
+      },
+      {
+        "space": "controls",
+        "offset": 900,
+        "value": 103678
+      },
+      {
+        "space": "controls",
+        "offset": 904,
+        "value": 858850
+      },
+      {
+        "space": "controls",
+        "offset": 908,
+        "value": 3434824
+      },
+      {
+        "space": "controls",
+        "offset": 912,
+        "value": 962400
+      },
+      {
+        "space": "controls",
+        "offset": 916,
+        "value": 1
+      },
+      {
+        "space": "controls",
+        "offset": 920,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 924,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 928,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 932,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 936,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 940,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 944,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 948,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 952,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 956,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 816,
+        "value": 1,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 820,
+        "value": 3,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 824,
+        "value": 7850946,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 828,
+        "value": 7850946,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 840,
+        "value": 1,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 844,
+        "value": 3,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 848,
+        "value": 1,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 852,
+        "value": 1,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 860,
+        "value": 1,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 864,
+        "value": 1,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 868,
+        "value": 12268,
+        "compare": "lte"
+      }
+    ],
+    "rules": [
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 836,
+            "value": 0,
+            "compare": "ne"
+          }
+        ],
+        "actions": [
+          {
+            "op": "exit"
+          }
+        ]
+      },
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 840,
+            "value": 1
+          }
+        ],
+        "actions": [
+          {
+            "op": "exit"
+          }
+        ]
+      },
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 820,
+            "value": 3
+          }
+        ],
+        "actions": [
+          {
+            "op": "exit"
+          }
+        ]
+      },
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 820,
+            "value": 1
+          },
+          {
+            "space": "controls",
+            "offset": 816,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 836,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 840,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 844,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 824,
+            "value": 7850946
+          },
+          {
+            "space": "controls",
+            "offset": 828,
+            "value": 7850946
+          },
+          {
+            "space": "controls",
+            "offset": 832,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 848,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 852,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 856,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 864,
+            "value": 1
+          },
+          {
+            "space": "controls",
+            "offset": 868,
+            "value": 12268
+          }
+        ],
+        "actions": [
+          {
+            "op": "audio-queue",
+            "offset": 0,
+            "capacity": 31404032,
+            "bytes": 31403784,
+            "descriptors": 32
+          },
+          {
+            "op": "audio-start"
+          },
+          {
+            "op": "set",
+            "to": {
+              "space": "controls",
+              "offset": 816
+            },
+            "value": 1
+          }
+        ]
+      }
+    ]
+  }
+}

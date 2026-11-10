@@ -1,7 +1,7 @@
 {
   "format": "izlauncher.device",
   "apiVersion": 1,
-  "version": "0.21.0",
+  "version": "0.22.4",
   "id": "cardputer-adv",
   "name": "Cardputer ADV",
   "roles": [
@@ -54,8 +54,20 @@
   ],
   "validator": "settings.cjs",
   "firmware": {
-    "file": "firmware/IZ2S-ADV-0.21.bin",
+    "file": "firmware/IZ2S-ADV.bin",
     "configuration": "/IZ2S/input.json",
-    "version": "0.21.1"
+    "version": "0.22.4",
+    "profiles": {
+      "smilebasic4": {
+        "file": "firmware/IZ2S-ADV-SB4.bin",
+        "version": "0.21.3",
+        "usb": "keyboard"
+      },
+      "civswitch": {
+        "file": "firmware/IZ2S-ADV-CIV.bin",
+        "version": "0.22.4",
+        "usb": "keyboard-gamepad"
+      }
+    }
   }
 }

@@ -16,7 +16,7 @@ async function resolve(root,ids,options={}){
  const packages=[...new Set(ids)].map(id=>{const pkg=list.packages.find(p=>p.id===id||p.file===id);if(!pkg)throw Error('Selected module is no longer available: '+id);return pkg;});
  if(options.residentGraphics)require('../../shells/izlauncher/resident/compatibility.cjs').assertSelection(packages,options);
  await qualifyResident(repo,packages,options);
- const selected=packages.map(pkg=>{if(pkg.supported===false)throw Error('Module incompatible with this host or shell: '+pkg.id);return pkg.id;});
+ const selected=packages.map(pkg=>{if(pkg.supported===false)throw Error('Module incompatible with this host or shell: '+pkg.id);if(pkg.session?.compatible===false)throw Error(pkg.name+': '+pkg.session.reason);return pkg.id;});
  await require('../modules.cjs').verify(root,selected);return selected;
 }
 async function prepare(root,ids,destination,options={}){
@@ -24,7 +24,7 @@ async function prepare(root,ids,destination,options={}){
  const repo=await require('../packages/repository.cjs').create(root,options),list=await repo.list();
  const packages=ids.map(id=>{const pkg=list.packages.find(p=>p.id===id);if(!pkg)throw Error('Selected module is no longer available: '+id);return pkg;});
  if(options.residentGraphics)require('../../shells/izlauncher/resident/compatibility.cjs').assertSelection(packages,options);
- for(const pkg of packages)await repo.install(pkg.file,destination);
+ for(const pkg of packages){if(pkg.session?.compatible===false)throw Error(pkg.name+': '+pkg.session.reason);await repo.install(pkg.file,destination);}
  const catalog=await require('../services/app-catalog.cjs').scan(destination);if(catalog.rejected.length)throw Error(catalog.rejected.map(a=>a.error).join('; '));
  if(options.residentGraphics&&options.residentFiniteAudio)for(const app of catalog.apps)if(app.manifest.hostRuntime)require('../../shells/izlauncher/resident/services.cjs').policy(app);
  await require('../packages/shell-builder.cjs').build(catalog.apps,cacheRoot(root),{root,shell:options.shell||process.env.IZ2S_SHELL||process.env.IZ15_SHELL||'izlauncher'});

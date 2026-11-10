@@ -1,0 +1,12 @@
+{
+  "format": "iz2s.local-reader-profile-v1",
+  "version": "0.1.0",
+  "files": {
+    "app.json": "c18757602a05de5939381fcc1094ad08769c2b7db720fbf125d457b6981febfb",
+    "assets/state.bin": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+    "assets/data.bin": "987a7c6d621d6c211291669942b85cd6c01b04e07bf5868be56bd78eee0e385d",
+    "app.vert.spv.deflate": "b29a485abbd42418d3fc85b63c6bb7a4d4c614d43a336c064d97a4b527da48a4",
+    "app.frag.spv.deflate": "a04caab166a8934363993b7b83ea5bbb7050ac13667243062f90db02ef477e15",
+    "app.comp.spv.deflate": "5554b3cc161cb0bf475a83cceb1dd838db2e87edc1e144406716696cbdfe6b1e"
+  }
+}

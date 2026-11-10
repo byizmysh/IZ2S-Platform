@@ -1,8 +1,8 @@
 const vec3 INK=vec3(242,241,232)/255.0;
-const vec3 BLUE=vec3(213,255,0)/255.0;
+const vec3 BLUE=vec3(149,231,255)/255.0;
 const vec3 MUTED=vec3(167,170,165)/255.0;
-const vec3 BG=vec3(16,17,18)/255.0;
-const vec3 PANEL=vec3(25,27,29)/255.0;
+const vec3 BG=vec3(10,16,38)/255.0;
+const vec3 PANEL=vec3(22,30,62)/255.0;
 float box(vec2 p,vec2 center,vec2 halfSize,float radius){vec2 q=abs(p-center)-halfSize+radius;return min(max(q.x,q.y),0.0)+length(max(q,0.0))-radius;}
 float fill(float d){return 1.0-smoothstep(-.8,.8,d);}
 float line(float d,float w){return 1.0-smoothstep(w-.8,w+.8,abs(d));}

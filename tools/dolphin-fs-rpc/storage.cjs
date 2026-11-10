@@ -2,9 +2,12 @@
 const path = require('node:path');
 const {virtualPath} = require('../../core/console/host/ftp-native.cjs');
 const {success, pathRequest, resultError} = require('../../core/filesystem/ouncecake/engine/protocol.cjs');
+const {CHUNK_BYTES} = require('./transfer.cjs');
 
 async function createStorage(attachment) {
   const {s, root, domain, filesystem} = attachment;
+  const address = s.base + 0x6000;
+  if (!Number.isSafeInteger(s.base) || !s.base || !Number.isInteger(s.bytes) || s.bytes < 0x6000 + CHUNK_BYTES || s.threads.size) throw Error('File transfer requires the idle owned staging allocation');
   const mounts = new Map(), unavailable = [];
   for (const [name, command, id] of [['sd', 18], ['system', 11, 31], ['user', 11, 30]]) {
     try {
@@ -94,14 +97,30 @@ async function createStorage(attachment) {
   };
 
   return {
+    chunkBytes: CHUNK_BYTES,
     mounts: [...mounts.keys()], unavailable, writableMounts: mounts.has('sd') ? ['sd'] : [],
     list: serial(list),
     stat: serial(stat),
     openRead: serial(openRead),
     read: serial(async (file, offset, count) => {
       if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isInteger(count) || count < 0) throw Error('Invalid read range');
-      const size = Math.min(count, 32768, Math.max(0, file.size - offset));
-      return size ? filesystem.readFile(s, file.handle, offset, size) : Buffer.alloc(0);
+      const size = Math.min(count, CHUNK_BYTES, Math.max(0, file.size - offset));
+      if (!size) return Buffer.alloc(0);
+      if (s.threads.size) throw Error('File transfer staging is in use');
+      const input = Buffer.alloc(24); input.writeBigUInt64LE(BigInt(offset), 8); input.writeBigUInt64LE(BigInt(size), 16);
+      const reply = success(await s.ipc('Read file transfer', file.handle, 0, input, {receive:[{address, size, mode:1}]}), 'Read file');
+      const returned = Number(reply.data.readBigUInt64LE());
+      if (!Number.isInteger(returned) || returned < 1 || returned > size) throw Error('Invalid returned file byte count');
+      return filesystem.verifiedBytes(s, address, returned, {handle:file.handle, offset});
+    }),
+    // Verify an acknowledged SD chunk on the console. Returning its digest
+    // avoids downloading the entire partial game over the RPC connection.
+    hash: serial(async (file, offset, count) => {
+      if(!Number.isSafeInteger(offset)||offset<0||!Number.isInteger(count)||count<1||count>CHUNK_BYTES||offset+count>file.size||s.threads.size)throw Error('Invalid verification range');
+      const input=Buffer.alloc(24);input.writeBigUInt64LE(BigInt(offset),8);input.writeBigUInt64LE(BigInt(count),16);
+      const reply=success(await s.ipc('Verify resumed SD file',file.handle,0,input,{receive:[{address,size:count,mode:1}]}),'Read resumed file');
+      if(Number(reply.data.readBigUInt64LE())!==count)throw Error('The partial SD file is incomplete');
+      return filesystem.nativeHash(s,address,count);
     }),
     close: serial(file => s.close(file.handle)),
     openWrite: serial(async (value, size = 0) => {
@@ -112,9 +131,14 @@ async function createStorage(attachment) {
       try {const reply = await mutate(value, 8, mode); return {handle: domain.oneHandle(reply), size, write: true};}
       catch (error) {await mutate(value, 1).catch(() => {}); throw error;}
     }),
+    resumeWrite: serial(async (value, size) => {
+      const info=await stat(value);if(info.type!=='file'||info.size!==size)throw Error('The partial SD file changed');
+      const mode=Buffer.alloc(4);mode.writeUInt32LE(2);const reply=await mutate(value,8,mode);
+      return {handle:domain.oneHandle(reply),size,write:true};
+    }),
     write: serial(async (file, offset, bytes) => {
-      if (!file.write || !Number.isSafeInteger(offset) || offset < 0 || !Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 32768 || offset + bytes.length > file.size) throw Error('Invalid write range');
-      const address = s.base + 0x6000; await s.write(address, bytes);
+      if (!file.write || !Number.isSafeInteger(offset) || offset < 0 || !Buffer.isBuffer(bytes) || !bytes.length || bytes.length > CHUNK_BYTES || offset + bytes.length > file.size || s.threads.size) throw Error('Invalid write range');
+      await s.write(address, bytes);
       const expected = require('node:crypto').createHash('sha256').update(bytes).digest('hex');
       if (await filesystem.nativeHash(s, address, bytes.length) !== expected) throw Error('Upload data verification failed');
       const input = Buffer.alloc(24); input.writeBigUInt64LE(BigInt(offset), 8); input.writeBigUInt64LE(BigInt(bytes.length), 16);

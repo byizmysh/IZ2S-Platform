@@ -1,0 +1,31 @@
+{
+  "format": "iz-ps2-native-av-profile-v1",
+  "moduleId": "ps2-cold-r176",
+  "moduleSha256": "e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec",
+  "sourcePins": {
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/config.cjs": "4dfc533d56e67ea8495fb2aa7a18caf82fb94ea728962022388caf76ee1986d4",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/native-video-pair-contract.cjs": "db2af8ae565865ce780139c69b4678d9962fb24964637c5bcaf62a3f01123299",
+    "data/ps2-cold-work/build/display-composed-aspect-v1/prepare_native_video.cjs": "882f8a89d5e502100c8ebd1135a7afd657437028463f24296d883c52555266a0",
+    "data/ps2-cold-work/build/display-composed-aspect-v1/package/app.vert.spv": "9302f1b4f15fb2f52d20a0ce5d4bb66fdd98f8c6e4dfc330c1da077ae6ede8e9",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/display-source-slot1/app.vert.spv": "9302f1b4f15fb2f52d20a0ce5d4bb66fdd98f8c6e4dfc330c1da077ae6ede8e9",
+    "data/ps2-cold-work/build/display-composed-aspect-v1/package/app.frag.spv": "ba54849e5da2a020444d395f0ec97b97a63258c575d7cd7fb3716acd8df886b9",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/display-source-slot1/app.frag.spv": "ba54849e5da2a020444d395f0ec97b97a63258c575d7cd7fb3716acd8df886b9",
+    "data/ps2-cold-work/build/display-composed-aspect-v1/package/app.comp.spv": "2e20fe5e958e75291419592c6b391fd15efa4a7e22a601b8cd50f6ea144588bf",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/display-source-slot1/app.comp.spv": "2e20fe5e958e75291419592c6b391fd15efa4a7e22a601b8cd50f6ea144588bf",
+    "data/ps2-cold-work/build/display-composed-aspect-v1/package/state.bin": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/display-source-slot1/state.bin": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+    "data/ps2-cold-work/build/display-composed-aspect-v1/package/data.bin": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/display-source-slot1/data.bin": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "data/ps2-cold-work/build/display-composed-aspect-v1/package/pixels.bin": "06955cde7f98b9503653b906e9634732d59a17a6dc2cb1a0e453fbdd4adaab86",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/display-source-slot1/pixels.bin": "06955cde7f98b9503653b906e9634732d59a17a6dc2cb1a0e453fbdd4adaab86"
+  },
+  "sourceBytes": 4198400,
+  "sourceCount": 2,
+  "audioBytes": 36864,
+  "scanoutBytes": 4325376,
+  "avPageBytes": 4096,
+  "legacyBytes": 288,
+  "pairOffset": 512,
+  "pairBytes": 528,
+  "hardwareQualified": false
+}

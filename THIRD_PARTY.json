@@ -1,5 +1,5 @@
 {
-  "release": "0.21.0",
+  "release": "0.22.0",
   "engines": [
     {
       "id": "izmysh",
@@ -27,6 +27,13 @@
       "licenseStatus": "license-review-required",
       "notes": "Adapter and empty manual folder only. Original repository is fetched on explicit request at the revision above; no upstream server runs during installation.",
       "distribution": "optional-download"
+    },
+    {
+      "id": "civswitch",
+      "repository": "https://github.com/Gezine/CivSwitch",
+      "licenseStatus": "MIT",
+      "distribution": "local-source",
+      "notes": "CivSwitch by Gezine, MIT. RUN22 uses automatic keyboard/controller input on ADV and ARM, original HID descriptors with attribution, marker-based loader verification, and an optional save installer gated by explicit deletion consent."
     }
   ],
   "modules": [
@@ -132,5 +139,16 @@
       "license": "OpenSSH/OpenBSD and Microsoft component notices",
       "distribution": "Windows fallback download only if ssh client is absent; pinned asset SHA256; no server service installed"
     }
-  ]
+  ],
+  "izpsx": {
+    "name": "IZPSX emulator",
+    "version": "0.5.0",
+    "core": "PCSX-ReARMed",
+    "repository": "https://github.com/libretro/pcsx_rearmed",
+    "revision": "7b0e8f8fadfbce3d170d195b9d9eecaabfa08c8e",
+    "license": "GPL-2.0-only",
+    "distribution": "bundled-source-and-native-payload",
+    "correspondingSource": "sources/izpsx",
+    "fontLicense": "modules/izpsx/FONT-LICENSE.txt"
+  }
 }

@@ -5,6 +5,7 @@ function check(relative,text){
  const name=relative.replace(/\\/g,'/');
  // The four interface catalogs and their translation runtime intentionally
  // contain native language labels. Other project prose uses English.
+ if(/(?:^|\/)vendor\//.test(name))return;
  if(/^language\/(?:en|ru|es|zh)\//.test(name)||name==='language/runtime.js')return;
  if(!textTypes.has(path.posix.extname(name).toLowerCase())&&!/^(?:README|LICENSE|COPYRIGHT|NOTICE)$/.test(path.posix.basename(name)))return;
  const lines=text.split('\n'),index=lines.findIndex(line=>/[\p{Script=Cyrillic}\p{Script=Han}]/u.test(line));

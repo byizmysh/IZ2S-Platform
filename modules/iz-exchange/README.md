@@ -2,7 +2,7 @@
 
 ## Quick start
 
-This is the only module bundled in the prepared public release. Load it into a live console session, open its tile on Switch, then connect your FTP client to the console's current IP on port 2121. Use anonymous login, passive mode and one simultaneous connection. The browser panel's 127.0.0.1 address is not the console FTP address. Closing the app closes the service.
+This is one of the four console modules bundled in IZ2S Platform 0.22. Load it into a live console session, open its tile on Switch, then connect your FTP client to the console's current IP on port 2121. Use anonymous login, passive mode and one simultaneous connection. The browser panel's 127.0.0.1 address is not the console FTP address. Closing the app closes the service.
 
 [Main README](../../README.md) · [Plain-English FAQ](../../FAQ.md)
 
@@ -61,4 +61,6 @@ and the normal read/write `/save` and `/tmp` functionality does not prove it.
 
 ## Platform status and SD convention
 
-This bundled module currently declares Linux x64/ARM64 hosts. Windows/macOS platform installers do not qualify this module for those hosts; OS/native-session testing is pending. See the platform COMPATIBILITY.md. Its future console SD data location is `SD:/IZ2S/Homebrew/Modules/<module.id>/`; adoption is explicit, and existing data is not migrated automatically. PC-local module data remains private.
+This bundled module currently declares Linux x64/ARM64 hosts. Windows and macOS builds are outside this release scope; physical native-session coverage is not implied by packaging. See the platform COMPATIBILITY.md. Its console SD data location is `SD:/IZ2S/Homebrew/Modules/<module.id>/`; adoption is explicit, and existing data is not migrated automatically. PC-local module data remains private.
+
+Release 0.22 bundles this app with File Exchange, File Exchange FS, Book Reader, IZPSX emulator and integrated Super File Bros. RAM startup requires explicit module selection; no previous selection is restored automatically. See the root README/FAQ for RAM/SD status and shared file-service ownership.

@@ -111,6 +111,7 @@ function watchAuxiliary(task, name, onExit, isStopping = () => !!stopping) {
 async function runQualifiedSession() {
   const id = process.env.IZ2S_SHELL || process.env.IZ15_SHELL || 'izlauncher';
   require('./runtime-check.cjs').verify(root, id);
+  if(process.env.IZ2S_SD_LAUNCHER==='1'||process.env.IZ18_RESIDENT_GRAPHICS!=='1'&&process.env.IZ2S_MIXED_MENU!=='0')require('../console/sd-launcher/check.cjs').verify();
   const pinned = await require('../extensions.cjs').pin(root, 'shell', id),
     factory = pinned.load();
   if (

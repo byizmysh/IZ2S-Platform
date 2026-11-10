@@ -9,7 +9,7 @@ uint focusKeyCode(uint i){return i<26u?97u+i:i<36u?48u+i-26u:32u;}
 #ifndef HB_READONLY
 bool focusMatches(uint actual,bool picker){
  uint b=524288u+(actual+(picker?16u:0u))*32768u,kind=c.atlas[b+25604u];
- bool game=kind==4u||kind==5u||kind==8u;if(c.rows[0]==1u&&!game)return false;if(c.rows[0]==2u&&game)return false;
+ uint category=c.atlas[b+25627u];bool game=category==1u||(category==0u&&(kind==4u||kind==5u||kind==8u));if(c.rows[0]==1u&&!game)return false;if(c.rows[0]==2u&&game)return false;
  uint n=min(c.rows[2],16u);if(n==0u)return true;
  for(uint start=0u;start<64u;start++){bool same=true;for(uint j=0u;j<n;j++){uint k=start+j;if(k>=64u){same=false;break;}uint ch=(c.atlas[b+25608u+k/4u]>>((k%4u)*8u))&255u;if(ch==0u)return false;if(ch!=focusQuery(j)){same=false;break;}}if(same)return true;}return false;
 }

@@ -8,7 +8,7 @@ async function build(){
  if(result.errors.length)throw Error(JSON.stringify(result.errors));
  // Preserve the standalone version of the ARM input protocol across launcher releases.
  await require('../sdk/pack-agent.cjs').pack(root);
- console.log('Built three IZ2S modules and the compatible ARM input package.');
+ console.log('Rebuilt three resource modules, packed four bundled modules (IZPSX native payload frozen) and the compatible ARM input package.');
 }
 if(require.main===module)build().catch(error=>{console.error(error);process.exitCode=1;});
 module.exports={build};

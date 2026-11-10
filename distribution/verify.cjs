@@ -35,6 +35,11 @@ async function verify({release=process.argv.includes('--release')}={}){
  const firmwareRoot=path.join(root,'hardware/devices/cardputer-adv/firmware'),manifest=JSON.parse(await fs.readFile(path.join(firmwareRoot,'manifest.json')));
  assert.equal(hash(await fs.readFile(path.join(firmwareRoot,manifest.file))),manifest.sha256);
  for(const [name,digest]of Object.entries(manifest.sources))assert.equal(hash(await fs.readFile(path.join(root,'hardware/agents/cardputer-adv',name))),digest,name);
+ for(const id of ['sb4','civ']){
+  const profile=JSON.parse(await fs.readFile(path.join(firmwareRoot,'manifest-'+id+'.json')));
+  assert.equal(hash(await fs.readFile(path.join(firmwareRoot,profile.file))),profile.sha256,'ADV '+id);
+  if(profile.sourceRoot)for(const [name,digest]of Object.entries(profile.sources))assert.equal(hash(await fs.readFile(path.join(root,profile.sourceRoot,name))),digest,'Preserved ADV source '+name);
+ }
  const endpoint=require('../hardware/devices/cardputer-adv/settings.cjs').endpoint;
  assert.equal(endpoint('192.168.1.50'),'http://192.168.1.50');assert.equal(endpoint('iz2s-adv.local'),'http://iz2s-adv.local');assert.throws(()=>endpoint('http://host/path'));
  const fonts=JSON.parse(await fs.readFile(path.join(root,'language/fonts/manifest.json')));

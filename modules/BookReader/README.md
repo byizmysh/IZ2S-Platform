@@ -82,4 +82,6 @@ Original module code is GPL-2.0-or-later. DejaVu font terms are retained in `lic
 
 ## Platform status and SD convention
 
-This bundled module currently declares Linux x64/ARM64 hosts. Windows/macOS platform installers do not qualify this module for those hosts; OS/native-session testing is pending. See the platform COMPATIBILITY.md. Its future console SD data location is `SD:/IZ2S/Homebrew/Modules/<module.id>/`; adoption is explicit, and existing data is not migrated automatically. PC-local module data remains private.
+This bundled module currently declares Linux x64/ARM64 hosts. Windows and macOS builds are outside this release scope; physical native-session coverage is not implied by packaging. See the platform COMPATIBILITY.md. Its console SD data location is `SD:/IZ2S/Homebrew/Modules/<module.id>/`; adoption is explicit, and existing data is not migrated automatically. PC-local module data remains private.
+
+Release 0.22 bundles this app with File Exchange, File Exchange FS, Book Reader, IZPSX emulator and integrated Super File Bros. RAM startup requires explicit module selection; no previous selection is restored automatically. See the root README/FAQ for RAM/SD status and shared file-service ownership.

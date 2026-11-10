@@ -4,7 +4,7 @@ const path = require("node:path");
 const os = require("node:os");
 function desktopEntry({ root, icon }) {
   const quote = value => '"' + value.replace(/[\\"`$]/g, "\\$&").replace(/%/g, "%%") + '"';
-  return `[Desktop Entry]\nVersion=1.0\nType=Application\nName=IZ2S Platform\nGenericName=Switch 2 control panel\nComment=Open IZ2S Platform in a browser window\nExec=${quote(path.join(root, "start.sh"))}\nPath=${root}\nIcon=${icon}\nTerminal=false\nStartupNotify=false\nCategories=Game;\nKeywords=IZ2S;IZLauncher;IZPSlauncher;Switch;\n`;
+  return `[Desktop Entry]\nVersion=1.0\nType=Application\nName=IZ2S Platform RUN22\nGenericName=Switch 2 control panel\nComment=Open IZ2S Platform in a browser window\nExec=${quote(path.join(root, "start.sh"))}\nPath=${root}\nIcon=${icon}\nTerminal=false\nStartupNotify=false\nCategories=Game;\nKeywords=IZ2S;IZLauncher;IZPSlauncher;Switch;RUN22;\n`;
 }
 async function install({
   home = os.homedir(),
@@ -15,7 +15,7 @@ async function install({
   const applications = path.join(dataHome, "applications");
   const icon = path.join(
     dataHome,
-    "icons/hicolor/scalable/apps/izlauncher-run21.svg",
+    "icons/hicolor/scalable/apps/izlauncher-run22.svg",
   );
   let desktop = path.join(home, "Desktop");
   try {
@@ -37,8 +37,8 @@ async function install({
   await fs.copyFile(path.join(__dirname, "izlauncher.svg"), icon);
   const entry = desktopEntry({ root, icon });
   const files = [
-    path.join(applications, "izlauncher-run21.desktop"),
-    ...(desktopShortcut?[path.join(desktop,"izlauncher-run21.desktop")]:[]),
+    path.join(applications, "izlauncher-run22.desktop"),
+    ...(desktopShortcut?[path.join(desktop,"izlauncher-run22.desktop")]:[]),
   ];
   for (const file of files) {
     await fs.writeFile(file, entry, { mode: 0o755 });

@@ -22,8 +22,12 @@ process.on('message', async (message) => {
     stopping = true;
     try {
       await handle?.stop();
-      process.send?.({ state: 'disposed' });
-    } finally {
+      // Disposal has completed. Leftover module timers must not hold up STOP.
+      // Flush the acknowledgement before exiting this dedicated host worker.
+      if (process.connected) process.send({ state: 'disposed' }, () => process.exit(0));
+      else process.exit(0);
+    } catch (error) {
+      process.send?.({ state: 'failed', error: error.message });
       process.disconnect?.();
     }
   }

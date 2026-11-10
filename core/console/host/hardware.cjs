@@ -36,9 +36,11 @@ async function create(rpc){
   }
   lastDiscovery=Date.now();return controllers;
  }
- const hardware={controllers:[],joyMouse,joyMouseError,async startSensors(mapped){await rpc.write(mapped+require('./layout.cjs').OFFSET+require('./pad-sweep.cjs').HEADER,require('./pad-sweep.cjs').header());sensors??=await require('./console-sensors.cjs').create({rpc,mapped});hardware.consoleSensors=sensors;},async refreshControllers(){if(closed)return;hardware.controllers=await controllerSlots.refresh();},frameCalls(mapped){
+ let sensorMapped;
+ const hardware={controllers:[],joyMouse,joyMouseError,async startSensors(mapped){await rpc.write(mapped+require('./layout.cjs').OFFSET+require('./pad-sweep.cjs').HEADER,require('./pad-sweep.cjs').header());if(!sensors){sensors=await require('./console-sensors.cjs').create({rpc,mapped});sensorMapped=mapped;}hardware.consoleSensors=sensors;},async refreshControllers(){if(closed)return;hardware.controllers=await controllerSlots.refresh();},frameCalls(mapped){
   if(closed)throw Error('Hardware context closed');
   const ext=mapped+require('./layout.cjs').OFFSET,calls=[];
+  if(sensors?.supported&&sensorMapped!==mapped){const sample=require('./console-sensors.cjs');calls.push({function:rpc.a.sdk+0x586fb0,args:[ext+sample.OFFSET,sensorMapped+require('./layout.cjs').OFFSET+sample.OFFSET,sample.BYTES]});}
   if(selected)calls.push({function:api.functions['pad'+selected.kind],args:[mapped,api.base]});
   for(let i=0;i<PAD_SOURCES.length;i++)calls.push({function:api.functions['pad'+PAD_SOURCES[i][1]],args:[ext+F.padSources+i*64,api.base+0x1000+i*4]});
   calls.push(...require('./pad-sweep.cjs').frameCalls(api.functions,api.base,ext));

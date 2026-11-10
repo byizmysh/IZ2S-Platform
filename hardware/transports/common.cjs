@@ -79,10 +79,10 @@ async function plan(root, value) {
     'tab',
   ]);
   const steps = value.steps.map((step) => {
-    if (!step || !['line', 'key', 'sleep'].includes(step.type))
+    if (!step || !['line', 'text', 'key', 'sleep', 'gamepad'].includes(step.type))
       throw Error('Invalid input plan step');
     if (
-      step.type === 'line' &&
+      ['line', 'text'].includes(step.type) &&
       (typeof step.text !== 'string' ||
         step.text.length > 2048 ||
         /[^\x20-\x7e]/.test(step.text))
@@ -90,6 +90,11 @@ async function plan(root, value) {
       throw Error('A typed line must be printable ASCII');
     if (step.type === 'key' && !allowed.has(step.key))
       throw Error('Unsupported input key');
+    if (step.when !== undefined && (!['first-line','not-last-line'].includes(step.when)||value.sourceMode!=='raw-lines'))
+      throw Error('Invalid conditional input step');
+    if (step.type === 'gamepad' && (!['a','b','x','y','l','r','zl','zr','minus','plus','l3','r3','home','capture'].includes(step.button)||
+        !Number.isInteger(step.holdMs??50)||(step.holdMs??50)<20||(step.holdMs??50)>2000))
+      throw Error('Unsupported gamepad button or hold time');
     const delay = step.type === 'sleep' ? step.ms : (step.delayMs ?? 500);
     if (!Number.isInteger(delay) || delay < 0 || delay > 120000)
       throw Error('Invalid input delay');
@@ -114,6 +119,20 @@ async function plan(root, value) {
     sourceAfter > steps.length
   )
     throw Error('Invalid source insertion point');
-  return { requestId: value.id, action: 'plan', steps, source, sourceAfter };
+  const selection = {};
+  if (value.sourceMode !== undefined) {
+    if (value.sourceMode !== 'raw-lines' || source === null || /[^\x0a\x0d\x20-\x7e]/.test(source))
+      throw Error('Invalid raw source mode');
+    const lines = source.trimEnd().split(/\r?\n/);
+    if (!Number.isInteger(value.sourceLine) || value.sourceLine < 0 || value.sourceLine >= lines.length || lines.some(line=>!line.length||line.length>253))
+      throw Error('Invalid raw source line selection');
+    selection.sourceMode = 'raw-lines';
+    selection.sourceLine = value.sourceLine;
+    if(value.sourceThrough!==undefined){
+      if(!Number.isInteger(value.sourceThrough)||value.sourceThrough<value.sourceLine||value.sourceThrough>=lines.length)throw Error('Invalid raw source range');
+      selection.sourceThrough=value.sourceThrough;
+    }
+  }
+  return { requestId: value.id, action: 'plan', steps, source, sourceAfter, ...selection };
 }
 module.exports = { invoke, bundle, plan };

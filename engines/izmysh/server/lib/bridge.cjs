@@ -106,7 +106,15 @@ async function serve(native, directory, options = {}) {
         ready: !native.connection.error && !native.connection.suspended,
         suspended: !!native.connection.suspended,
         calls: native.calls,
+        ...(options.recovery?{recovery:options.recovery.status()}:{}),
       };
+    if(command==='recovery-status')return options.recovery?.status()||{available:false,enabled:false};
+    if(command==='recovery-wake'){
+      if(!options.recovery)throw Error('This host has no recovery manager');return options.recovery.wake();
+    }
+    if(command==='recovery-arm'){
+      if(!options.recovery)throw Error('Start a new launcher session to enable native recovery');return options.recovery.arm();
+    }
     if (command === "call") {
       const reply = await native.call(request.offset, ...request.args);
       return {
@@ -223,9 +231,25 @@ async function serve(native, directory, options = {}) {
           (n, s) => n + (Number.isInteger(s?.length) ? s.length : 0),
           0,
         );
-      const result = await (request.command === "status"
+      // Keep the unchanged, source-pinned local RPC clients alive during a
+      // recoverable outage. Interim 102 responses reset socket inactivity
+      // without committing the final HTTP status or an SDK result. A later
+      // rejection can still use HTTP 400, and no operation is replayed here.
+      let progress;
+      if(options.recovery){
+        const interval=options.recoveryKeepaliveMs??30000;
+        if(!Number.isFinite(interval)||interval<1)throw Error('Invalid local recovery keepalive interval');
+        progress=setInterval(()=>{
+          if(res.destroyed||res.writableFinished){clearInterval(progress);return;}
+          try{if(options.recovery.status().enabled)res.writeProcessing();}catch{clearInterval(progress);}
+        },interval);progress.unref();
+      }
+      const stopProgress=()=>clearInterval(progress);res.once('close',stopProgress);
+      let result;
+      try{result=await (["status","recovery-status","recovery-wake"].includes(request.command)
         ? handle(request)
-        : enqueue(() => handle(request), info, req.headers));
+        : enqueue(() => handle(request), info, req.headers));}
+      finally{stopProgress();res.off('close',stopProgress);}
       if (admission && request.command === 'status') result.admission = admission.inspect();
       res.setHeader("Content-Type", "application/json");
       res.end(

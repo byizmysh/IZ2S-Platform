@@ -10,9 +10,13 @@ function inputSteps(plan,connectCommand){
  const words=connectCommand.slice(8,-1).split(',');if(![5,9].includes(words.length))throw Error('Unsupported upstream START arity');
  return [...plan.startup.manualSteps,{type:'line',text:connectCommand,delayMs:0}];
 }
-function connectSteps({command,bootstrapName='NS2',fromEditor=false,preloaded=false}={}){
+function connectSteps({command,bootstrapName='NS2',fromEditor=false,preloaded=false,quietDisconnect=false}={}){
  if(!/^[A-Z0-9_]{1,16}$/.test(bootstrapName)||typeof command!=='string'||!/^V=START\([0-9,]+\)$/.test(command)||command.length>512)throw Error('Expected saved bootstrap name and fresh START command');
- return [...(fromEditor?[{type:'key',key:'f4',delayMs:2000}]:[]),...launchPrefix(bootstrapName).slice(preloaded?2:0),{type:'line',text:command,delayMs:0}];
+ // START owns the BASIC foreground until its socket closes. Keep that same
+ // foreground sleeping afterwards: returning to Direct consumes gamepad keys.
+ // This is the same qualified sleep used by the separate quiet SD bootstrap.
+ const text=quietDisconnect?require('../core/session/quiet-disconnect.cjs').wrap(command):command;
+ return [...(fromEditor?[{type:'key',key:'f4',delayMs:2000}]:[]),...launchPrefix(bootstrapName).slice(preloaded?2:0),{type:'line',text,delayMs:0}];
 }
 function launchPrefix(name){return [{type:'line',text:'LOAD "TXT:'+name+'"',delayMs:2000},{type:'key',key:'enter',delayMs:2000},{type:'line',text:'RUN',delayMs:3000},{type:'line',text:'REMOVE NSR,&H60000000,&H3FFFFFFF',delayMs:3000}];}
 function izPlan({id,manifest,settings={},options={},bootstrap}){

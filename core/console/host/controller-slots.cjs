@@ -7,13 +7,20 @@ function sourceIds(controllers,{source='auto',controllerId=null}={}){
 async function create(rpc,target,{apiFactory=require('../native/client.cjs').create,now=Date.now,intervalMs=5000,activeIntervalMs=300,settings}={}){
  settings??=await require('./controller-preferences.cjs').open();
  const hid=require('../abi/hid-functions.json'),api=await apiFactory(rpc,{style:hid.style},4096);let checked=-Infinity,controllers=[],previousIds=[];
+ // One private buffer holds all IDs and results. Qualified paired calls keep
+ // discovery independent of the live renderer's input/selector storage.
+ const batched=typeof rpc.pair==='function'&&Number.isSafeInteger(api.functions?.style);
+ if(batched){const ids=Buffer.alloc(IDS.length*4);IDS.forEach((id,i)=>ids.writeUInt32LE(id,i*4));await api.write(0x100,ids);}
  return {async refresh({forceSelectors=false}={}){
   const interval=settings.hubActive()?activeIntervalMs:intervalMs;
   if(now()-checked>=interval){checked=now();const next=[];
-   for(const id of IDS){await api.write(0,word(id));if(await api.result('style',[api.base+16,api.base]))continue;const style=(await api.read(16,4)).readUInt32LE();if(style)next.push({id,style});}
+   if(batched){
+    const results=[];for(let i=0;i<IDS.length;i+=2){const calls=IDS.slice(i,i+2).map((id,j)=>({address:api.functions.style,args:[api.base+0x200+(i+j)*4,api.base+0x100+(i+j)*4,0,0]}));results.push(...(await rpc.pair(calls)).results);}
+    const styles=await api.read(0x200,IDS.length*4);for(let i=0;i<IDS.length;i++){const style=styles.readUInt32LE(i*4);if(BigInt.asUintN(32,results[i])===0n&&style)next.push({id:IDS[i],style});}
+   }else for(const id of IDS){await api.write(0,word(id));if(await api.result('style',[api.base+16,api.base]))continue;const style=(await api.read(16,4)).readUInt32LE();if(style)next.push({id,style});}
    controllers=next;
   }
-  const ids=sourceIds(controllers,settings.get());for(let i=0;i<ids.length;i++)if(forceSelectors||ids[i]!==previousIds[i])await target.write(0x1004+i*4,word(ids[i]));previousIds=ids;return controllers;
+  const ids=sourceIds(controllers,settings.get());if(forceSelectors||ids.some((id,i)=>id!==previousIds[i])){const selectors=Buffer.alloc(ids.length*4);ids.forEach((id,i)=>selectors.writeUInt32LE(id,i*4));await target.write(0x1004,selectors);}previousIds=ids;return controllers;
  }};
 }
 // Optional upgrade for an existing running hardware object. Reuse its actual

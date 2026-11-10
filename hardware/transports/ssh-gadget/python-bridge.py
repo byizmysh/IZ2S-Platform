@@ -31,7 +31,8 @@ if action not in ('halt','follow'):
   else:
    # Verify the ARM installation against its own inventory, never the PC copy.
    checks=json.loads((folder/'checksums.json').read_text())
-   for name in ('agent.py','type-bootstrap.py'):
+   for name in checks['files']:
+    if '/' in name or '\\' in name or name in ('.','..'):raise ValueError('Invalid input package path')
     if checks.get('algorithm')!='sha256' or hashlib.sha256((folder/name).read_bytes()).hexdigest()!=checks['files'][name]:
      error='ARM input installation is damaged. Reinstall the input package using First-time setup.'
  except (OSError,ValueError,KeyError,TypeError):

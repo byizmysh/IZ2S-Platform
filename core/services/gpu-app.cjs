@@ -4,7 +4,8 @@ const {create}=require('./native-six.cjs');
 const {recordPresentation}=require('./gpu-presentation.cjs');
 const check=(v,m)=>{if(!v)throw Error(m);};
 const struct=(size,type,words={},pointers={})=>{const b=Buffer.alloc(size);b.writeUInt32LE(type);for(const[a,v]of Object.entries(words))b.writeUInt32LE(v,+a);for(const[a,v]of Object.entries(pointers))b.writeBigUInt64LE(BigInt(v),+a);return b;};
-async function prepare(rpc,menu,app,directory){
+async function prepare(rpc,menu,app,directory,{isolateControls=false,protectedRanges=[],workerFactory=create}={}){
+ const placement=require('../packages/install-plan.cjs').sessionEligibility(app.manifest);check(placement.compatible,placement.reason);
  const computeWorkgroups=app.manifest.computeWorkgroups===undefined?[1,1,1]:app.manifest.computeWorkgroups;
  const module=JSON.parse(await fs.readFile(path.join(directory,'compatibility-module.json')));
  const file=path.join(directory,'app-'+app.id+'-'+app.fingerprint.slice(0,16)+'.json');
@@ -12,25 +13,31 @@ async function prepare(rpc,menu,app,directory){
  const captureFrames=process.env.IZ12_GPU_PREVIEW==='1';
  const report={framePreview:{enabled:captureFrames,bytesPerFrame:captureFrames?1920*1080*4:0},session:rpc.a.session,id:app.id,fingerprint:app.fingerprint,started:new Date().toISOString(),resourcesRetained:true,commands:[],functions:{}};
  const save=()=>fs.writeFile(file,JSON.stringify(report,null,2));
- const worker=await create(rpc,directory),fn=report.functions;
+ const worker=await workerFactory(rpc,directory),fn=report.functions;let callPending=false,uncertain=false;
  async function resolve(name){if(fn[name])return fn[name];const s=module.symbols.find(s=>s.name===name&&s.section&&s.type===2);check(s,'Missing '+name);const address=module.base+s.offset;await rpc.request({command:'verify-function',address,hex:(await rpc.read(address,32)).toString('hex')});return fn[name]=address;}
- async function call(name,...args){const address=await resolve(name);return args.length>4?worker.call(address,args):rpc.callAddress(address,args).then(r=>r.result);}
+ async function call(name,...args){const address=await resolve(name);callPending=true;const result=args.length>4?await worker.call(address,args):(await rpc.callAddress(address,args)).result;callPending=false;return result;}
  const ok=async(name,...args)=>check(BigInt.asIntN(32,await call(name,...args))===0n,name+' failed');
  const p=rpc.a.scratch+0x10000,saved=await rpc.read(p,0x10000),put=(o,b)=>rpc.write(p+o,b),ptr=async o=>(await rpc.read(p+o,8)).readBigUInt64LE();
  const device=BigInt(menu.resources.device),queue=BigInt(menu.resources.queue),swapchain=BigInt(menu.resources.swapchain);
  let shaderStaging=menu.shaderStaging.address,stagingBytes=menu.shaderStaging.bytes,layout=BigInt(menu.layout),descriptor=BigInt(menu.controls.descriptor);
  const images=menu.resources.images.map(BigInt),views=menu.resources.views.map(BigInt),pool=BigInt(menu.resources.pool),previewBuffer=BigInt(menu.capture.buffer);
+ let boundControls=menu.controls,memoryProperties;
+ async function properties(){
+  if(memoryProperties)return memoryProperties;
+  const display=JSON.parse(await fs.readFile(path.join(directory,'vulkan-display.json'))),instance=BigInt(display.displayResources.instance);
+  await ok('vkEnumeratePhysicalDevices',instance,p+24,0);check((await rpc.read(p+24,4)).readUInt32LE()===1,'Physical device count');await ok('vkEnumeratePhysicalDevices',instance,p+24,p+32);const physical=await ptr(32);
+  await call('vkGetPhysicalDeviceMemoryProperties',physical,p+0x3000);memoryProperties=await rpc.read(p+0x3000,520);return memoryProperties;
+ }
  try{
   await put(0,Buffer.alloc(0x10000));const shaders=[];
   const largest=Math.max(...['vertex','fragment','compute','computeBegin','computeAfter'].filter(s=>app.files[s]).map(s=>app.files[s].bytes.length));
   if(largest>stagingBytes){stagingBytes=Math.ceil(largest/65536)*65536;const allocation=await rpc.call(5732112,[rpc.output,65536,stagingBytes]);check(allocation.result===0n,'App shader staging allocation failed');shaderStaging=Number(allocation.output.readBigUInt64LE());check(Number.isSafeInteger(shaderStaging)&&shaderStaging>0&&shaderStaging%65536===0,'Invalid app shader staging');report.shaderStaging={address:shaderStaging,bytes:stagingBytes};}
+  if(isolateControls){boundControls=await require('./isolated-controls.cjs').allocate({rpc,menu,p,put,ptr,call,ok,properties:await properties(),record:report,protectedRanges});descriptor=BigInt(boundControls.descriptor);}
   if(app.files.memory){
-   const display=JSON.parse(await fs.readFile(path.join(directory,'vulkan-display.json')));
-   const instance=BigInt(display.displayResources.instance);await ok('vkEnumeratePhysicalDevices',instance,p+24,0);check((await rpc.read(p+24,4)).readUInt32LE()===1,'Physical device count');await ok('vkEnumeratePhysicalDevices',instance,p+24,p+32);const physical=await ptr(32);
-   await call('vkGetPhysicalDeviceMemoryProperties',physical,p+0x3000);const properties=await rpc.read(p+0x3000,1024),bytes=app.files.memory.allocationBytes;
+   const propertiesData=await properties(),bytes=app.files.memory.allocationBytes;
    await put(0x100,struct(56,12,{32:0x20},{24:bytes}));await ok('vkCreateBuffer',device,p+0x100,0,p);const buffer=await ptr(0);
    await call('vkGetBufferMemoryRequirements',device,buffer,p+0x200);const requirements=await rpc.read(p+0x200,24),size=requirements.readBigUInt64LE(),bits=requirements.readUInt32LE(16);let type=-1;
-   for(const required of [7,6]){for(let i=0;i<properties.readUInt32LE();i++)if((bits&(1<<i))&&((properties.readUInt32LE(4+i*8)&required)===required)){type=i;break;}if(type>=0)break;}
+   for(const required of [7,6]){for(let i=0;i<propertiesData.readUInt32LE();i++)if((bits&(1<<i))&&((propertiesData.readUInt32LE(4+i*8)&required)===required)){type=i;break;}if(type>=0)break;}
    check(type>=0&&require('./private-memory-profile.cjs').allocationFits(app.manifest.memory,size),'Private coherent storage unavailable');await put(0x100,struct(32,5,{24:type},{16:size}));await ok('vkAllocateMemory',device,p+0x100,0,p);const memory=await ptr(0);await ok('vkBindBufferMemory',device,buffer,memory,0);
    await put(0x100,struct(48,1000271000,{}, {24:memory,40:size}));await ok('vkMapMemory2',device,p+0x100,p);const mapped=Number(await ptr(0));check(Number.isSafeInteger(mapped)&&mapped>0,'Invalid private mapping');
    const bindings=Buffer.alloc(48);for(let i=0;i<2;i++){bindings.writeUInt32LE(i,i*24);bindings.writeUInt32LE(7,i*24+4);bindings.writeUInt32LE(1,i*24+8);bindings.writeUInt32LE(49,i*24+12);}await put(0x200,bindings);
@@ -38,8 +45,8 @@ async function prepare(rpc,menu,app,directory){
    await put(0x100,struct(48,30,{20:1},{24:p+0x200}));await ok('vkCreatePipelineLayout',device,p+0x100,0,p);layout=await ptr(0);
    const poolSize=Buffer.alloc(8);poolSize.writeUInt32LE(7);poolSize.writeUInt32LE(2,4);await put(0x200,poolSize);await put(0x100,struct(40,33,{20:1,24:1},{32:p+0x200}));await ok('vkCreateDescriptorPool',device,p+0x100,0,p);const poolHandle=await ptr(0);
    await put(0x200,handle);await put(0x100,struct(40,34,{24:1},{16:poolHandle,32:p+0x200}));await ok('vkAllocateDescriptorSets',device,p+0x100,p);descriptor=await ptr(0);
-   for(const [binding,bufferHandle,length]of [[0,menu.controls.buffer,menu.controls.bytes],[1,String(buffer),bytes]]){const info=Buffer.alloc(24);info.writeBigUInt64LE(BigInt(bufferHandle));info.writeBigUInt64LE(BigInt(length),16);await put(0x200,info);await put(0x100,struct(64,35,{24:binding,32:1,36:7},{16:descriptor,48:p+0x200}));await call('vkUpdateDescriptorSets',device,1,p+0x100,0,0);}
-   report.privateStorage={buffer:String(buffer),memory:String(memory),mapped,bytes,allocationBytes:Number(size),profile:app.manifest.memory.profile||'standard-32',memoryFlags:properties.readUInt32LE(4+type*8),descriptor:String(descriptor),setLayout:String(set),descriptorPool:String(poolHandle)};await save();
+   for(const [binding,bufferHandle,length]of [[0,boundControls.buffer,boundControls.bytes],[1,String(buffer),bytes]]){const info=Buffer.alloc(24);info.writeBigUInt64LE(BigInt(bufferHandle));info.writeBigUInt64LE(BigInt(length),16);await put(0x200,info);await put(0x100,struct(64,35,{24:binding,32:1,36:7},{16:descriptor,48:p+0x200}));await call('vkUpdateDescriptorSets',device,1,p+0x100,0,0);}
+   report.privateStorage={buffer:String(buffer),memory:String(memory),mapped,bytes,allocationBytes:Number(size),profile:app.manifest.memory.profile||'standard-32',memoryFlags:memoryProperties.readUInt32LE(4+type*8),descriptor:String(descriptor),setLayout:String(set),descriptorPool:String(poolHandle)};await save();
   }
   for(const stage of ['vertex','fragment']){const bytes=app.files[stage].bytes;check(bytes.length<=stagingBytes,'Shader staging capacity exceeded');await rpc.write(shaderStaging,bytes);await put(0x100,struct(40,16,{}, {24:bytes.length,32:shaderStaging}));await ok('vkCreateShaderModule',device,p+0x100,0,p);shaders.push(await ptr(0));}
   await put(0x200,Buffer.from('main\0'));
@@ -103,8 +110,12 @@ async function prepare(rpc,menu,app,directory){
    }
 
    report.commands=[commands];report.descriptor=String(descriptor);report.ready=true;
- }catch(error){report.error=error.stack;throw error;}
- finally{await put(0,saved);report.scratchRestored=(await rpc.read(p,saved.length)).equals(saved);report.completed=new Date().toISOString();await save();check(report.scratchRestored,'App preparation failed to restore scratch');}
+ }catch(error){report.error=error.stack;uncertain=callPending||error.resourcesRetained||require('../session/offline-policy.cjs').isTransportLoss(error);if(uncertain){report.uncertain=true;error.resourcesRetained=true;}throw error;}
+ finally{
+  if(!uncertain){try{await put(0,saved);report.scratchRestored=(await rpc.read(p,saved.length)).equals(saved);}catch(error){report.scratchRestored=false;report.cleanupError=error.message;error.resourcesRetained=true;await save();throw error;}}
+  else report.scratchRestored=false;
+  report.completed=new Date().toISOString();await save();if(!uncertain)check(report.scratchRestored,'App preparation failed to restore scratch');
+ }
  return report;
 }
 module.exports={prepare};

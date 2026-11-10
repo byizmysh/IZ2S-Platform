@@ -11,6 +11,7 @@ async function initialize(rpc,address,bytes,initial=Buffer.alloc(0),memory){
   if(data.length<=64*1024*1024){if(data.length)await rpc.write(address,data);return;}
   for(let offset=0;offset<data.length;offset+=8*1024*1024)await rpc.write(address+offset,data.subarray(offset,offset+8*1024*1024));
  }
+ if(rpc.nativeABI==='civswitch'){await rpc.initializeOwned(address,bytes);if(initial.length)await write(initial);return;}
  if(!rpc.a?.sdk||!rpc.callAddress||!rpc.query){
   const data=Buffer.alloc(bytes);initial.copy(data);await write(data);return;
  }

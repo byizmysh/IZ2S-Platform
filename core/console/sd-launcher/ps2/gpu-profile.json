@@ -1,0 +1,21 @@
+{
+  "format": "iz-ps2-native-gpu-profile-v1",
+  "moduleId": "ps2-cold-r176",
+  "moduleSha256": "e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec",
+  "sourcePins": {
+    "server/vulkan-heap-profile.json": "a086f9a5e2f8f63701daa27a76abc022f316cd2e2c89b253e294541fce9b3d76",
+    "server/vulkan-heap.cjs": "3ec4597be68ddac3b233b1307c3adc9a5c59e49f0ce60fbb0dca0452e86188c8",
+    "server/jit-shadow-cached-v3.cjs": "9640ae749ca09a7d6b77365fe4bc151240948a596ad37d6b1bbbf7d5f4be2366"
+  },
+  "vulkanRxBytes": 45989888,
+  "shadowBytes": 110100480,
+  "shadowAttributes": 96,
+  "sourceAttributes": 0,
+  "qualifiedSelection": {
+    "memoryTypeIndex": 2,
+    "propertyFlags": 15,
+    "heapIndex": 0,
+    "coherent": true
+  },
+  "hardwareQualified": false
+}

@@ -6,7 +6,11 @@ function create({now=()=>performance.now(),maxAudioBurst=2,normalMaxWaitMs=25}={
   if(running)return;
   if(!normal.length&&!audio.length){for(const resolve of waiters.splice(0))resolve();return;}
   const overdue=normal.length&&now()-normal[0].at>=normalMaxWaitMs;
-  const urgent=audio.length&&!overdue&&(!normal.length||burst<maxAudioBurst);
+  // An overdue normal backlog used to defeat audio priority indefinitely.
+  // Once audio has also waited its budget, alternate bounded audio bursts
+  // with normal work instead of draining every old poll before PCM.
+  const audioOverdue=audio.length&&now()-audio[0].at>=normalMaxWaitMs;
+  const urgent=audio.length&&(!normal.length||burst<maxAudioBurst&&(!overdue||audioOverdue));
   const item=(urgent?audio:normal).shift();burst=urgent?burst+1:0;running=true;
   Promise.resolve().then(item.task).then(item.resolve,item.reject).finally(()=>{running=false;pump();});
  }

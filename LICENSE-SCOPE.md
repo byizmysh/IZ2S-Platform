@@ -20,3 +20,7 @@ Private changes do not require public release. Independent programs merely
 installed beside this project are not automatically covered by this grant.
 
 The full license, not this short explanation, controls its interpretation.
+
+## Bundled IZPSX emulator
+
+The 0.5.0 PCSX-ReARMed derivative module is conveyed under GPL-2.0-only with its matching corresponding source in `sources/izpsx`, including the pinned core, frontend/native adapters, ABI profile and build instructions. The platform-wide GPL-2.0-or-later grant does not broaden the emulator core's terms. Vendor and font notices are preserved.

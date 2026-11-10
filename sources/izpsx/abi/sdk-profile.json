@@ -1,0 +1,184 @@
+{
+  "imports": [
+    {
+      "name": "abs",
+      "sdkOffset": 5895248,
+      "bytes": "1f0000710054805ac0035fd600000000e1031faadb9000140000000000000000"
+    },
+    {
+      "name": "atof",
+      "sdkOffset": 5895264,
+      "bytes": "e1031faadb900014000000000000000009144038282500513f8100710019457a"
+    },
+    {
+      "name": "atoi",
+      "sdkOffset": 5895280,
+      "bytes": "09144038282500513f8100710019457a83ffff543fad0071200100543fb50071"
+    },
+    {
+      "name": "isalnum",
+      "sdkOffset": 5842352,
+      "bytes": "08001b32088501511f69007108c00051e9279f1a1f290071e8279f1a2001082a"
+    },
+    {
+      "name": "isxdigit",
+      "sdkOffset": 5845008,
+      "bytes": "08c0005109001b321f29007128850151e9279f1a1f190071e8279f1a2001082a"
+    },
+    {
+      "name": "memchr",
+      "sdkOffset": 5794976,
+      "bytes": "5f0000f1e80300aa09084092ea079f1aa90900b4820900b4090140393f01216b"
+    },
+    {
+      "name": "memcmp",
+      "sdkOffset": 5997376,
+      "bytes": "620100b42800004a08094092680100b40814403829144038420400f10011497a"
+    },
+    {
+      "name": "memcpy",
+      "sdkOffset": 5795760,
+      "bytes": "e80301cb090940923f0102eb22040054a90700b4ea0301aaeb0300aaa8091037"
+    },
+    {
+      "name": "memmove",
+      "sdkOffset": 5796592,
+      "bytes": "fd7bbea9f30b00f9fd030091f30300aa1f0001eb800300542800028b1f0113eb"
+    },
+    {
+      "name": "memset",
+      "sdkOffset": 5797280,
+      "bytes": "620600b44800008b5f0c00f10100003901f11f38c30500545f1c00f101040039"
+    },
+    {
+      "name": "qsort",
+      "sdkOffset": 5896592,
+      "bytes": "fd7bbaa9fc6f01a9fd030091fa6702a9f85f03a9f65704a9f44f05a9ffc31fd1"
+    },
+    {
+      "name": "roundf",
+      "sdkOffset": 5959840,
+      "bytes": "0040261ec0035fd6000000000000000000c0611ec0035fd60000000000000000"
+    },
+    {
+      "name": "snprintf",
+      "sdkOffset": 5888928,
+      "bytes": "ff0304d1fd7b0fa9fdc30391e8030091e9048092aaa301d1a39339a909f0dff2"
+    },
+    {
+      "name": "sprintf",
+      "sdkOffset": 5889040,
+      "bytes": "ff0304d1fd7b0fa9fdc30391e8030091e9058092aac301d1a20319f809f0dff2"
+    },
+    {
+      "name": "sscanf",
+      "sdkOffset": 5889152,
+      "bytes": "ff0304d1fd7b0fa9fdc30391e8030091e9058092aac301d1a20319f809f0dff2"
+    },
+    {
+      "name": "strcasecmp",
+      "sdkOffset": 5905024,
+      "bytes": "fd7bbca9f70b00f9fd030091f65702a9f44f03a916004039f30301aa36020034"
+    },
+    {
+      "name": "strcasestr",
+      "sdkOffset": 5905312,
+      "bytes": "fd7bbda9f50b00f9fd030091f44f02a9f30300aae00301aaf40301aa4d750094"
+    },
+    {
+      "name": "strcat",
+      "sdkOffset": 5905408,
+      "bytes": "fd7bbea9f44f01a9fd030091f30301aaf40300aa377500948002008be10313aa"
+    },
+    {
+      "name": "strchr",
+      "sdkOffset": 5905472,
+      "bytes": "fd7bbea9f30b00f9fd030091f303012a08000094080040391f01336bf30b40f9"
+    },
+    {
+      "name": "strcmp",
+      "sdkOffset": 5997632,
+      "bytes": "2800004a08094092880200b408004039290040391f0100710011497a01010054"
+    },
+    {
+      "name": "strcpy",
+      "sdkOffset": 5905936,
+      "bytes": "fd7bbea9f30b00f9fd030091f30300aa34feff97e00313aaf30b40f9fd7bc2a8"
+    },
+    {
+      "name": "strerror",
+      "sdkOffset": 5848592,
+      "bytes": "fd7bbea9f30b00f9fd030091f303002a942d01947f0e0271692e0090e883931a"
+    },
+    {
+      "name": "strftime",
+      "sdkOffset": 5719392,
+      "bytes": "fd7bbda9f65701a9fd030091f44f02a9f30303aaf40302aaf50301aaf60300aa"
+    },
+    {
+      "name": "strlen",
+      "sdkOffset": 5907136,
+      "bytes": "e90300aa1f0840f22005005409004039e80300aa4906003408f07d9209210091"
+    },
+    {
+      "name": "strncasecmp",
+      "sdkOffset": 5907376,
+      "bytes": "420500b4fd7bbca9f85f01a9fd030091f65702a9f44f03a916004039f30301aa"
+    },
+    {
+      "name": "strncmp",
+      "sdkOffset": 5997888,
+      "bytes": "820100b42800004a08094092680100b4081440382a144038420400f100114a7a"
+    },
+    {
+      "name": "strncpy",
+      "sdkOffset": 5907824,
+      "bytes": "fd7bbea9f30b00f9fd030091f30300aab8fcff97e00313aaf30b40f9fd7bc2a8"
+    },
+    {
+      "name": "strrchr",
+      "sdkOffset": 5907984,
+      "bytes": "fd7bbea9f44f01a9fd030091f303012af40300aab372009402040091e00314aa"
+    },
+    {
+      "name": "strstr",
+      "sdkOffset": 5908320,
+      "bytes": "fd7bbea9f44f01a9fd0300913400403914070034f30301aae103142a15960094"
+    },
+    {
+      "name": "strtok",
+      "sdkOffset": 5909536,
+      "bytes": "fd7bbea9f44f01a9fd030091f30300aaf40301aa800000b5a841009013c941f9"
+    },
+    {
+      "name": "strtol",
+      "sdkOffset": 5900160,
+      "bytes": "ff0304d1fd7b0da9fd430391f57300f9f44f0fa908008092f30301aaf40300aa"
+    },
+    {
+      "name": "strtoul",
+      "sdkOffset": 5900032,
+      "bytes": "ff0304d1fd7b0da9fd430391f6570ea9f44f0fa916008092f30301aaf40300aa"
+    },
+    {
+      "name": "tolower",
+      "sdkOffset": 5845120,
+      "bytes": "0804015109001b321f6900712031801ac0035fd6000000000000000000000000"
+    },
+    {
+      "name": "toupper",
+      "sdkOffset": 5845184,
+      "bytes": "e80b8052098401510800080a3f6900710031801ac0035fd60000000000000000"
+    },
+    {
+      "name": "vsnprintf",
+      "sdkOffset": 5893344,
+      "bytes": "ff8304d1fd7b10a9fd030491fc8b00f93f0000f1a96300912a0400d12901809a"
+    },
+    {
+      "name": "vsprintf",
+      "sdkOffset": 5893776,
+      "bytes": "ffc300d1fd7b02a9fd830091e80301aae3030091492840a90100b0124b3041a9"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+**/node_modules/
+ldn/.venv/
+**/prod.keys
+*.log
+logs/
+__pycache__/
+*.pyc

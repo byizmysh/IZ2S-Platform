@@ -5,9 +5,9 @@ import argparse,hashlib,json,shutil,subprocess,tempfile,os,re,zipfile,tarfile,gz
 from datetime import datetime,timezone
 ROOT=Path(__file__).resolve().parents[1]
 PROFILE=json.loads((ROOT/'distribution/profile.json').read_text())
-TOP={'core','panel','engines','shells','hardware','profiles','sdk','tools','language','distribution','.github','docs'}
+TOP={'core','panel','engines','shells','hardware','profiles','sdk','tools','language','distribution','.github','docs','sources'}
 DOC_IMAGES={'docs/images/'+name+'.png' for name in ('connection','app-library','izlauncher','izpslauncher')}
-ROOT_FILES={'start.cjs','start.sh','install.sh','install-desktop.sh','Install.cmd','Start.cmd','Install.command','Start.command','Install-Linux.desktop','package.json','LICENSE','COPYRIGHT','LICENSE-SCOPE.md','THIRD_PARTY.json','README.md','FAQ.md','COMPATIBILITY.md','RELEASE-NOTES.md','SUPPORT.md','.gitignore','preview.sh'}
+ROOT_FILES={'start.cjs','start.sh','install.sh','install-desktop.sh','Install-Linux.desktop','package.json','LICENSE','COPYRIGHT','LICENSE-SCOPE.md','THIRD_PARTY.json','README.md','BUILDING.md','FAQ.md','COMPATIBILITY.md','RELEASE-NOTES.md','SUPPORT.md','.gitignore','preview.sh'}
 PRIVATE={'.git','node_modules','__pycache__','.versions','data','runs','downloads','test-data','tests'}
 PRIVATE_NAMES={'secret','capsule.key','installed.json','.engine-install.json'}
 CREDENTIAL=re.compile(rb'-----BEGIN (?:OPENSSH |RSA |EC |DSA )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}')
@@ -15,16 +15,17 @@ EPOCH=int(datetime(2026,11,4,tzinfo=timezone.utc).timestamp())
 
 def allowed(rel):
     parts=rel.parts
-    if rel.as_posix()=='packages/iz2s-arm-input.tar.gz':return True
+    if rel.as_posix() in {'packages/iz2s-arm-input.tar.gz','packages/iz2s-arm-input.run','packages/iz2s-civ7-arm-input.run'}:return True
     if len(parts)==1:return rel.as_posix() in ROOT_FILES
-    if any(p in PRIVATE or p.startswith(('.download-','.publish-','.placeholder-')) for p in parts):return False
+    if any((p in PRIVATE and not (p=='tests' and parts[0]=='sources')) or p.startswith(('.download-','.publish-','.placeholder-')) for p in parts):return False
     if rel.name in PRIVATE_NAMES or rel.suffix in {'.log','.pyc','.tmp','.izm','.pem','.key'}:return False
     if parts[0]=='desktop':return rel.as_posix() in {'desktop/install.cjs','desktop/izlauncher.svg'}
-    if parts[0]=='docs':return rel.as_posix() in DOC_IMAGES
+    if parts[0]=='docs':return rel.as_posix() in DOC_IMAGES or rel.suffix in {'.md','.txt'}
     if parts[0]=='modules':
         if 'runtime' in parts[2:]:return False
         if rel.as_posix()=='modules/README.md':return True
         return len(parts)>2 and parts[1] in PROFILE['moduleDirectories'] and 'docs' not in parts[2:]
+    if parts[:2]==('distribution','install-macos.sh'):return False
     if parts[0] not in TOP:return False
     if parts[:3]==('engines','kurumuz','upstream'):return rel.name=='README.md'
     if parts[:2]==('core','session') and rel.suffix in {'.jpg','.png','.webp'}:return False
@@ -76,7 +77,7 @@ def write_manifest(stage):
 def archives(stage,out):
     prefix='iz2s-platform'
     products=[]
-    for suffix in ['-source.zip','-linux.tar.gz','-windows-x64-experimental.zip','-macos-experimental.zip']:
+    for suffix in ['-source.zip','-linux.tar.gz']:
         target=out/('iz2s-platform-'+PROFILE['version']+suffix)
         if suffix.endswith('.zip'):
             with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
@@ -85,11 +86,6 @@ def archives(stage,out):
                     info=zipfile.ZipInfo(prefix+'/'+f.relative_to(stage).as_posix(),(2026,11,4,0,0,0))
                     info.external_attr=(0o100755 if f.stat().st_mode&0o111 else 0o100644)<<16
                     info.compress_type=zipfile.ZIP_DEFLATED;archive.writestr(info,f.read_bytes())
-                if 'experimental' in suffix:
-                    entry='Install.cmd' if 'windows' in suffix else 'Install.command'
-                    host='Windows x64' if 'windows' in suffix else 'macOS Intel / Apple silicon'
-                    info=zipfile.ZipInfo(prefix+'/START-HERE.txt',(2026,11,4,0,0,0));info.external_attr=0o100644<<16;info.compress_type=zipfile.ZIP_DEFLATED
-                    archive.writestr(info,'IZ2S Platform '+PROFILE['version']+' - '+host+'\nEXPERIMENTAL installer/panel candidate\n\nExtract this entire folder and open '+entry+'.\nPrivate Node.js/Python/Pillow are downloaded automatically.\nRead README.md, FAQ.md and COMPATIBILITY.md before proceeding.\nNative console session descriptors remain Linux-only.\nActual OS installation and end-to-end qualification are pending.\nThe installer does not upload files or publish content.\n')
         else:
             with target.open('wb') as raw,gzip.GzipFile(fileobj=raw,mode='wb',filename='',mtime=0,compresslevel=9) as compressed,tarfile.open(fileobj=compressed,mode='w',format=tarfile.PAX_FORMAT) as archive:
                 for f in sorted(stage.rglob('*')):

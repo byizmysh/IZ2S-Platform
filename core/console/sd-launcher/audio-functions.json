@@ -1,0 +1,59 @@
+{
+  "format": "iz2s-audio-out-bindings-v1",
+  "source": "ims-gpu-pcm-cityfast/server/borrowed-player.cjs",
+  "sourceSha256": "04452e3dd09eaa792ff3602bda0746d71375b693ac2d10fe792685e013cc12c2",
+  "functions": {
+    "InitializeAudioOutParameter": {
+      "offset": 1867568,
+      "hex": "c85ff9d2080000f9c0035fd6"
+    },
+    "OpenDefaultAudioOut": {
+      "offset": 1969792,
+      "hex": "e20301aa81460090215c1d91e5a50f14"
+    },
+    "GetAudioOutSampleRate": {
+      "offset": 1971728,
+      "hex": "000040b9c0035fd6"
+    },
+    "GetAudioOutChannelCount": {
+      "offset": 1971744,
+      "hex": "000440b9c0035fd6"
+    },
+    "GetAudioOutSampleFormat": {
+      "offset": 1971760,
+      "hex": "000840b9c0035fd6"
+    },
+    "SetAudioOutBufferInfo": {
+      "offset": 1867584,
+      "hex": "018800a9030c00f9c0035fd6"
+    },
+    "AppendAudioOutBuffer": {
+      "offset": 1971776,
+      "hex": "ff0301d1fd7b02a9fd830091f44f03a9f40300aa805b00f000700091f30301aa"
+    },
+    "StartAudioOut": {
+      "offset": 1971232,
+      "hex": "fd7bbea9f30b00f9fd030091f30300aa805b00f000700091ae8e0f94a85900d0"
+    },
+    "StopAudioOut": {
+      "offset": 1971360,
+      "hex": "fd7bbea9f30b00f9fd030091f30300aa805b00f0007000918e8e0f94a85900d0"
+    },
+    "FlushAudioOutBuffers": {
+      "offset": 1972672,
+      "hex": "fd7bbea9f30b00f9fd030091f30300aa805b00f000700091468d0f94a85900d0"
+    },
+    "GetReleasedAudioOutBuffer": {
+      "offset": 1971984,
+      "hex": "ff0301d1fd7b02a9fd830091f31b00f9f30300aaa82300d109018052805b00f0"
+    },
+    "GetAudioOutBufferCount": {
+      "offset": 1972336,
+      "hex": "fd7bbea9f30b00f9fd030091f30300aa805b00f0007000919a8d0f94a85900d0"
+    },
+    "CloseAudioOut": {
+      "offset": 1970944,
+      "hex": "fd7bbda9f50b00f9fd030091f44f02a9f30300aa805b00f000700091f58e0f94"
+    }
+  }
+}

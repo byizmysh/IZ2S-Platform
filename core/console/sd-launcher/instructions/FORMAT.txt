@@ -1,0 +1,113 @@
+Launcher local instructions, version 1
+
+Purpose
+The common SD package builder can replace a finite PC startup/controller with
+instructions executed through the existing autonomous native app supervisor.
+The original game shaders, GPU memory image and engine remain unchanged.
+These instructions run on the console, not in the PC frame loop.
+
+Existing applications
+Bundled profiles qualify exact app bytes. Bundled profiles adapt
+izdoom-prime18 0.18.2-experimental and ims-gpu-pcm-cityfast 0.1.1.
+City keeps its original experimental aliased large PCM buffer contract;
+its physical audibility/cache visibility and large-descriptor support remain
+unqualified by local GPU tests.
+The historical C adapter remains as a local comparison fixture.
+
+An additional launcher profile can be prepared without editing the app:
+  node tools/sd-launcher/prepare-instructions.cjs MODULE_ID PLAN_JSON
+It writes data/local-instructions/MODULE_ID.json and pins app.json, state,
+data, shaders, initial private image and declared companion files by SHA256.
+Changed app bytes/version reject the profile until it is prepared again.
+The profile is compiled into launcher.izapp when the app is installed on SD.
+Changing a PC profile requires rebuilding/reinstalling that SD package.
+The installed package needs neither the original PC profile nor its JS server.
+Native applications that already provide a native entry keep that entry.
+
+Module authors
+An app.json may instead contain localRuntime with the plan object below.
+Keep hostRuntime to preserve the original connected PC mode where applicable.
+An app with only localRuntime uses the autonomous SD launcher. Ordinary RAM
+installation does not silently emulate instructions on the PC or mark it local.
+Both launchers use the same builder, eligibility checks and console executor.
+
+Plan
+{
+  "format": "iz2s.local-instructions",
+  "version": 1,
+  "guards": [{"space":"controls","offset":784,"value":123}],
+  "initialize": [],
+  "rules": [{
+    "when": [{"space":"controls","offset":788,"value":1}],
+    "actions": [{"op":"set","to":{"space":"controls","offset":792},"value":1}]
+  }],
+  "stop": []
+}
+
+Conditions use a 32-bit space/offset, value, optional mask and compare:
+eq (default), ne, lte or gte. Guards must hold before initialization and each
+frame. A rule runs once per launch unless once:false. No jumps or source eval.
+A suspended rule resumes its unfinished operation without repeating earlier
+side effects. Rules and callbacks have bounded operation and file IO budgets.
+
+Actions
+set: to {space,offset}, value (32-bit).
+copy: from/to {space,offset}, bytes; nonoverlapping, at most 64 KiB.
+read: path, optional offset, bytes, to {space,offset}; exact bounded reads.
+write: path, bytes, from {space,offset}; complete save, at most 64 KiB.
+audio-queue: offset, capacity, bytes, descriptors (1..32); one fixed 48 kHz,
+  stereo PCM16LE AudioOut queue borrowing owned, page-aligned private memory.
+audio-start: starts that queue after the app's ready/ack conditions.
+exit: requests the common supervisor's return to menu immediately.
+reconnect: sends the existing resident connection-recovery trigger.
+
+controls write ranges are app state [784,960) and app data [1024,0x700000).
+private operands must fit the app's actual coherent allocation.
+Files are relative to SD:/IZ2S/Homebrew/Modules/MODULE_ID/.
+No parent/absolute paths, executable replacement, immutable asset overwrites,
+arbitrary native calls or SDK addresses. Reads yield after 64 KiB and no file
+handle survives a callback. Optional assets use the existing immutable SHA256
+companion declarations (file, path, bytes, sha256), published before launcher.
+
+STOP drains and releases every known AudioOut descriptor before freeing the
+app. Unknown ownership retains resources. Optional stop actions can set/copy
+or write at most 64 KiB total; they are skipped for failed/incomplete reads or
+initialization to avoid publishing partial state. Stopping twice has no effect.
+
+Scope
+This is a finite local controller, not a general JS/Node/browser interpreter.
+Apps requiring a PC renderer, video stream, external PC software, web service,
+or a complex unported host runtime need a corresponding native implementation
+or a suitable local profile. A GPU tile alone never qualifies such an app.
+Raw SDK/engine entry calls are deliberately absent from this version.
+
+Qualification
+The instruction runtime is built as ARM64 PIC for native ABI 2. Tests execute
+the production C controller under ASan/UBSan and a host RX build through the
+production SD supervisor with unchanged IZDOOM shaders on an actual PC Vulkan
+GPU. SD/kernel/AudioOut boundaries in those local tests are modeled; they do
+not establish physical Switch execution, audible output or console timing.
+
+Separate hardware qualification, 2026-11-08
+Session launcher-ynJ67p loaded the ARM64 instruction controller and unchanged
+IZDOOM image from SD twice. The user confirmed gameplay. AudioOut opened and
+started, GPU PCM counters advanced, and native errors remained zero. After
+exit the supervisor joined, released its resources and automatically returned
+display ownership to the ordinary launcher while the diagnostic process was
+still alive. An immutable console-side parent snapshot now restores its own
+catalog instead of leaving SD tiles/requests in the ordinary menu. The second
+trial restored the original two-app catalog with no phantom app transition.
+Reports: data/sessions/launcher-ynJ67p/sd-izdoom-instructions-first-hardware.json
+and data/sessions/launcher-ynJ67p/sd-izdoom-hardware.json.
+Network disconnection was deferred by the user. This trial does not qualify
+offline input, LAN/Wi-Fi recovery, long outages, City audio, or arbitrary apps.
+
+Private initial-memory zero tails
+The SD encoder omits trailing zero bytes only from the private initial image.
+The native loader already clears the entire allocation before every launch.
+This preserves every initial byte, including cached allocations after an app
+exit, and needs no engine, native supervisor or on-card format change.
+Savings depend on actual stored source bytes; an allocation size is not a
+transfer size. City previously stored only one initial zero byte, and the
+current IZDOOM source image has no zero tail, so this optimization alone does
+not materially speed either package. Full SD digest verification is separate.

@@ -31,6 +31,9 @@ function create({root,configuration,mode='ssh'}) {
   async function submit(body, onEvent = () => {}) {
     const status=JSON.parse(await run('status'));
     if(!status.moduleReady)throw Error('Install the ARM input package using First-time setup');
+    if(body.steps.some(step=>step.type==='gamepad')&&(!status.gamepadInput||!status.gamepadReady))throw Error('Prepare ARM USB keyboard + controller in Device setup before automatic input');
+    if(body.steps.some(step=>step.type==='text')&&!status.rawTextInput)throw Error('Update the ARM input package from Device setup before using CivSwitch');
+    if(body.sourceMode==='raw-lines'&&!status.sourceLineSelection)throw Error('Update the ARM input package from Device setup before using CivSwitch');
     await run('enqueue', body);
     let result;
     await run(

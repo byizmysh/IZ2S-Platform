@@ -9,7 +9,7 @@ width=512
 atlas=Image.new('L',(width,512));draw=ImageDraw.Draw(atlas)
 font=resolve_font()
 mono=resolve_font('DejaVuSansMono.ttf')
-labels=[('TITLE','IZPSlauncher 0.21',48),
+labels=[('TITLE','IZPSlauncher 0.22',48),
  ('NOTITLES','A little room for ideas.',30),('EMPTYHINT','Add an app. Make something small.',18),
  ('SELECT','Open',19),('BACK','Back',19),('EMPTY','App unavailable',30),
  ('DETAIL','Restart the launcher and try again.',18),('CLOSE','Press B to return',18),

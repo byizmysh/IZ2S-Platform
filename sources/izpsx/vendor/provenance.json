@@ -1,0 +1,7 @@
+{
+  "project": "libretro/pcsx_rearmed",
+  "commit": "7b0e8f8fadfbce3d170d195b9d9eecaabfa08c8e",
+  "url": "https://github.com/libretro/pcsx_rearmed",
+  "license": "GPL-2.0; vendor/COPYING retained",
+  "selection": "Ari64 ARM64 dynarec + NEON GPU + SPU; performance to be measured, not a claim of globally fastest emulator"
+}

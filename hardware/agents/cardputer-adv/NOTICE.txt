@@ -1,4 +1,4 @@
-IZ2S Cardputer ADV application 0.21
+IZ2S Cardputer ADV application 0.22.3
 
 Application source follows the IZ2S repository license (see root LICENSE).
 The binary is built from src/main.cpp and the pinned platformio.ini dependencies.
@@ -26,4 +26,14 @@ Original copyright and license texts are provided alongside this file in license
 Full component sources and per-file notices can be obtained from the linked projects
 and the versions fetched by the reproducible PlatformIO recipe.
 
-IZ2S 0.21.1 applies the included patch_usb.py to Arduino-ESP32 2.0.17 USBHID.cpp and USBHIDKeyboard.cpp: boot keyboard interface, single eight-byte report without Report ID, and report completion diagnostics. The upstream Apache-2.0/LGPL notices remain applicable.
+IZ2S 0.22.3 compiles TinyUSB 0.16.0 hid_device.c locally for two interfaces.
+The pinned framework HID ABI is checked without modifying framework sources.
+Upstream HID driver SHA-256 before the local preamble/include-path change:
+8281ebb7bdb66bd444ad403b1f672956bcb1255bf7430228119fbef41f2b7407
+https://github.com/hathach/tinyusb/blob/0.16.0/src/class/hid/hid_device.c
+
+The wired controller and boot keyboard report descriptors are from
+Gezine/CivSwitch PicoSwitch/include/SwitchConsts.h, MIT (licenses/CivSwitch.txt).
+https://github.com/Gezine/CivSwitch
+The device uses PicoSwitch's 0F0D:0092 identity and separate eight-byte reports,
+without Report IDs. The key sender and dual HID callbacks are IZ2S sources.

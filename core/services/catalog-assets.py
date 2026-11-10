@@ -25,4 +25,6 @@ for i,app in enumerate(apps):
     slots[base+65536:base+102400]=tile.tobytes()
     struct.pack_into('<5I',slots,base+102400,*sizes,1 if app.get('displayOnly') else int(app.get('scene') or 0))
     struct.pack_into('<I',slots,base+102428,int(app.get('launchCommand') or 0))
+    # Presentation only: never change the built-in launch scene at 102416.
+    struct.pack_into('<I',slots,base+102508,int(app.get('category') or 0))
 Path(sys.argv[2]).write_bytes(slots)

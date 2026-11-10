@@ -1,0 +1,216 @@
+{
+  "format": "iz-ps2-native-execution-profile-v1",
+  "moduleId": "ps2-cold-r176",
+  "moduleSha256": "e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec",
+  "sourcePins": {
+    "data/ps2-cold-work/build/r171-performance-ready-source-v1/manifest.json": "55398ec374c74781a326dfd6ffa587687b61ad28e5c9ad3564704c3e69a28035",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/runtime-owned.cjs": "5e01c82cc4d84053f37b4ea75e66f3afa12dab45706e57ffa85824ea2a8b4937",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/config.cjs": "4dfc533d56e67ea8495fb2aa7a18caf82fb94ea728962022388caf76ee1986d4",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/startup.cjs": "513efdf52c323a2abb53345de4b38b0aa83e2725ca93fd0570c6e0269184192f",
+    "modules/ps2-cold-r176/.versions/e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec/server/passive-exit-watch-v1.cjs": "0c42e153789236a23e19fa42b8adb48fe1b2bf741120beb343ed51859ba6072b"
+  },
+  "exports": {
+    "g_threads": {
+      "offset": 2088032,
+      "bytes": 1024,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_LOCAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_nchunks": {
+      "offset": 1296972,
+      "bytes": 4,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_LOCAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_used_pages": {
+      "offset": 1296960,
+      "bytes": 8,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_LOCAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_memory_poisoned": {
+      "offset": 1296928,
+      "bytes": 4,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_LOCAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_sw_temporal_statistics": {
+      "offset": 69230472,
+      "bytes": 40,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_phdrs": {
+      "offset": 1295328,
+      "bytes": 280,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_LOCAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "hbxl_exiting": {
+      "offset": 1296192,
+      "bytes": 4,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_session_request": {
+      "offset": 395148,
+      "bytes": 708,
+      "segment": "code",
+      "kind": "STT_FUNC",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_session_status": {
+      "offset": 395856,
+      "bytes": 396,
+      "segment": "code",
+      "kind": "STT_FUNC",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_session_presented_frames": {
+      "offset": 395128,
+      "bytes": 20,
+      "segment": "code",
+      "kind": "STT_FUNC",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_exit_requested": {
+      "offset": 2553064,
+      "bytes": 4,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_hbxl_av_trace": {
+      "offset": 90560,
+      "bytes": 1472,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_gs_portable_stats": {
+      "offset": 69230528,
+      "bytes": 64,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_sdk_stack_maps": {
+      "offset": 1296400,
+      "bytes": 8,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_sdk_stack_scopes_entered": {
+      "offset": 1296392,
+      "bytes": 8,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_stack_creator_count": {
+      "offset": 1296408,
+      "bytes": 4,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_LOCAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_sdk_failed_requests": {
+      "offset": 1296384,
+      "bytes": 8,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_sdk_last_request": {
+      "offset": 1296376,
+      "bytes": 8,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "g_sdk_last_result": {
+      "offset": 1296368,
+      "bytes": 4,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_hbxl_pub_timing": {
+      "offset": 22912,
+      "bytes": 512,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_hbxl_ee_wait_tally": {
+      "offset": 90112,
+      "bytes": 256,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    },
+    "ps2_local_storage_status": {
+      "bytes": 128,
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT",
+      "segment": "data",
+      "offset": 2457856
+    },
+    "ps2_local_console": {
+      "bytes": 65584,
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT",
+      "segment": "data",
+      "offset": 24512
+    },
+    "ps2_local_receipts": {
+      "bytes": 53528,
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT",
+      "segment": "data",
+      "offset": 2404288
+    },
+    "ps2_native_pad_snapshot": {
+      "offset": 92032,
+      "bytes": 128,
+      "segment": "data",
+      "kind": "STT_OBJECT",
+      "binding": "STB_GLOBAL",
+      "visibility": "STV_DEFAULT"
+    }
+  },
+  "scope": "Exact current normal-path ABI and export references; no physical execution qualification",
+  "hardwareQualified": false
+}

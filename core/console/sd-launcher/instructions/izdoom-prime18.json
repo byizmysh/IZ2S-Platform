@@ -1,0 +1,321 @@
+{
+  "format": "iz2s.local-instructions-profile",
+  "id": "izdoom-prime18",
+  "version": "0.18.2-experimental",
+  "files": {
+    "after.comp.spv": "d551a888a4137327e4830c6e1e1d549de3900950e5353765fbf64e4057a79158",
+    "app.comp.spv": "c21c85c912b5436264140f34ca890d0ffbe2603252ee8e949a009bb44695bc30",
+    "app.frag.spv": "11b9fa83ecc8b778680013680a87bcfa74a7edca61fda2582257eed92fac0c5b",
+    "app.json": "4480d5f7cf3ed49bea8fc3916b200b416b3c71f1c51ec718686273de3b1803b6",
+    "app.vert.spv": "a2bb2dd3f958bd0085b26cb44f860a83dd0def7e2a678cafc19565959818788e",
+    "begin.comp.spv": "4aec67788ce31d6f194deed6c60961d47e86cc85ddf1f8230d6c62a783873f09",
+    "data.bin": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "icon.png": "7b3efdf746ffe84e8460245fa9cfd1c9016f2ca212c6fa468ed6d038a76d6846",
+    "memory.bin.deflate": "d366f0d3460a0863ec4abd40c1b4f67ae253f2bbc1a4c5c109ed11f8d00af879",
+    "state.bin": "5726ddeff16c44e189b98d10cbd6585b82612f1a767787c9b6fa60921155694c"
+  },
+  "plan": {
+    "format": "iz2s.local-instructions",
+    "version": 1,
+    "guards": [
+      {
+        "space": "controls",
+        "offset": 784,
+        "value": 1145123128
+      },
+      {
+        "space": "controls",
+        "offset": 788,
+        "value": 1
+      },
+      {
+        "space": "controls",
+        "offset": 792,
+        "value": 71303168
+      },
+      {
+        "space": "controls",
+        "offset": 796,
+        "value": 4194304
+      },
+      {
+        "space": "controls",
+        "offset": 800,
+        "value": 48000
+      },
+      {
+        "space": "controls",
+        "offset": 804,
+        "value": 2
+      },
+      {
+        "space": "controls",
+        "offset": 808,
+        "value": 1048576
+      },
+      {
+        "space": "controls",
+        "offset": 812,
+        "value": 256
+      },
+      {
+        "space": "controls",
+        "offset": 916,
+        "value": 31250000
+      },
+      {
+        "space": "controls",
+        "offset": 920,
+        "value": 32
+      },
+      {
+        "space": "controls",
+        "offset": 924,
+        "value": 33554432
+      },
+      {
+        "space": "controls",
+        "offset": 932,
+        "value": 8
+      },
+      {
+        "space": "controls",
+        "offset": 936,
+        "value": 67108864
+      },
+      {
+        "space": "controls",
+        "offset": 940,
+        "value": 24000
+      },
+      {
+        "space": "controls",
+        "offset": 948,
+        "value": 0
+      },
+      {
+        "space": "controls",
+        "offset": 956,
+        "value": 1144076359
+      },
+      {
+        "space": "controls",
+        "offset": 944,
+        "value": 32768,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 952,
+        "value": 1,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 816,
+        "value": 1,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 820,
+        "value": 6,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 828,
+        "value": 2,
+        "compare": "lte"
+      },
+      {
+        "space": "controls",
+        "offset": 840,
+        "value": 1,
+        "compare": "lte"
+      }
+    ],
+    "rules": [
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 832,
+            "value": 0,
+            "compare": "ne"
+          }
+        ],
+        "actions": [
+          {
+            "op": "exit"
+          }
+        ]
+      },
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 836,
+            "value": 0,
+            "compare": "ne"
+          }
+        ],
+        "actions": [
+          {
+            "op": "exit"
+          }
+        ]
+      },
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 820,
+            "value": 4
+          }
+        ],
+        "actions": [
+          {
+            "op": "exit"
+          }
+        ]
+      },
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 820,
+            "value": 5
+          }
+        ],
+        "actions": [
+          {
+            "op": "exit"
+          }
+        ]
+      },
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 820,
+            "value": 1
+          },
+          {
+            "space": "controls",
+            "offset": 816,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 832,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 824,
+            "value": 1048576
+          },
+          {
+            "space": "controls",
+            "offset": 876,
+            "value": 8192
+          },
+          {
+            "space": "controls",
+            "offset": 928,
+            "value": 8053012
+          }
+        ],
+        "actions": [
+          {
+            "op": "audio-queue",
+            "offset": 67108864,
+            "capacity": 4194304,
+            "bytes": 4194304,
+            "descriptors": 32
+          },
+          {
+            "op": "set",
+            "to": {
+              "space": "controls",
+              "offset": 840
+            },
+            "value": 1
+          }
+        ]
+      },
+      {
+        "when": [
+          {
+            "space": "controls",
+            "offset": 820,
+            "value": 2
+          },
+          {
+            "space": "controls",
+            "offset": 828,
+            "value": 2
+          },
+          {
+            "space": "controls",
+            "offset": 840,
+            "value": 1
+          },
+          {
+            "space": "controls",
+            "offset": 816,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 832,
+            "value": 0
+          },
+          {
+            "space": "controls",
+            "offset": 876,
+            "value": 8192
+          }
+        ],
+        "actions": [
+          {
+            "op": "copy",
+            "to": {
+              "space": "controls",
+              "offset": 844
+            },
+            "from": {
+              "space": "controls",
+              "offset": 852
+            },
+            "bytes": 4
+          },
+          {
+            "op": "copy",
+            "to": {
+              "space": "controls",
+              "offset": 848
+            },
+            "from": {
+              "space": "controls",
+              "offset": 856
+            },
+            "bytes": 4
+          },
+          {
+            "op": "audio-start"
+          },
+          {
+            "op": "set",
+            "to": {
+              "space": "controls",
+              "offset": 816
+            },
+            "value": 1
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+Launcher-owned SD checkpoints (RUN22)
+
+Both IZlauncher and IZPSlauncher enable this policy in the shared bootstrap.
+Applications do not opt in through a manifest flag. Returning to the menu or
+stopping the supervisor captures the current app at its serialized boundary;
+the next launch automatically restores the newest fully verified checkpoint.
+An app failure does not replace the last good snapshot. A power loss before a
+normal exit can recover the previous committed snapshot, not unsaved changes.
+
+Files on the console SD card:
+ /sd/IZ2S/Homebrew/Modules/<app-id>/.launcher-state-a.izsave
+ /sd/IZ2S/Homebrew/Modules/<app-id>/.launcher-state-b.izsave
+
+The snapshot binds the complete 512-byte application header, layout, runtime,
+companion asset digest and tick frequency. Changed packages cold-start. Both
+banks are fully checked before selecting one; the selected file is checked
+again while applying. An error during application aborts launch before any
+frame or native INIT executes. Unknown service results fence all SDK calls
+and retain the uncertain file/application owners. They are never replayed.
+
+The inactive bank is created with an invalid header, grown in 1 MiB increments,
+written in at most 64 KiB transfers, truncated to its actual encoded length,
+given its final checked header, flushed, closed and committed. Complete SD
+readback must succeed before it becomes the current bank. The previous bank
+is preserved. Zero runs are compact; no second full RAM image is allocated.
+
+Current automatic state channels:
+ - Standard GPU applications: app state [784,960), app storage
+   [1024,0x700000), and all private GPU memory, including dynamically written
+   data beyond the initial image. Input, touch, menu actions, network mailbox,
+   SDK pointers, graphics resources and exit flags are excluded. Vulkan
+   resources are constructed normally on each launch.
+ - The exact launcher-owned instruction executor: the same memory plus
+   portable completed-rule progress. Capture requires initialization complete,
+   no partial read/rule, and known audio ownership. On restoration the executor
+   recreates AudioOut and buffer descriptors against fresh allocations. It
+   does not repeat initial reads, writes or completed one-shot actions. Its
+   code is matched byte for byte, not by an app id or self-declared flag.
+ - The app clock resumes at the stored virtual tick; the menu clock and
+   double-R3 gesture continue using current real ticks.
+
+Status and failures use the existing supervisor observation, without adding
+polling requests. checkpoint_state: 1 cold, 2 restored, 3 saving, 4 saved,
+5 skipped. 0xe731 means a controller is between safe capture boundaries;
+0xe733 means invalid snapshot; 0xe734 means an unsupported native runtime.
+Session Memory is not silently persisted to SD.
+
+Capture pauses application frames until its committed readback completes;
+save latency on a physical console has not been measured. The host stop wait
+observes actual write/readback progress instead of timing out after ten
+seconds of advancing work. Ten seconds without progress still retains the
+owner; six minutes is an absolute bound. A quick normal stop makes no new
+checkpoint reads. Worker wait frequency is reduced from 20 to 4 per second
+while waiting; checkpoint progress is observed at most twice per second.
+Audio buffer descriptors are recreated; exact DSP sample cursor continuity
+is not part of the portable snapshot.
+
+Scope still incomplete:
+Arbitrary native/PC-managed apps and owned CPU engine workers are not yet
+portable checkpoint channels. Their heaps can contain pointers, threads,
+mutexes and live device handles. Saving only their GPU buffer would not save
+the running application. They continue their normal launch and report skipped
+checkpoint status; no unsafe raw heap or thread replay is attempted. Engine
+specific portable adapters or a fully controlled virtual machine are needed
+to extend coverage without modifying engines. Existing PS2 native autosaves
+remain a separate channel; these files are not represented as universal
+native snapshots. Already installed instruction executors from older builds
+need the rebuilt SD package before they gain the new portable state channel.
+
+Local qualification only. Console behavior, SD latency and audible output
+must still be tested in an authorized fresh hardware session.

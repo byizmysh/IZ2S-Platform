@@ -581,7 +581,7 @@ function create({
         required: !source.preloaded,
         preloaded: source.preloaded,
       },
-      version: 21,
+      version: 22,
       preview,
       setupWizard: source.setupAvailable,
       hardStopAvailable: true,
@@ -595,7 +595,8 @@ function create({
       active: current,
       lastAttempt: current ? null : last,
       notification: notice,
-      history: await ledger.listFailures(),
+      history: await ledger.listAttempts(),
+      historyAll: true,
       log,
       library: [],
       jobs: [],
@@ -640,8 +641,8 @@ function create({
       if (id === current?.id)
         throw Error('An active attempt cannot be removed');
       const row = await ledger.read(id);
-      if (!row || !['failed', 'cancelled'].includes(row.status))
-        throw Error('Only failed or cancelled attempts can be removed');
+      if (!row || !['failed', 'cancelled', 'complete', 'stopped'].includes(row.status))
+        throw Error('Stop this attempt before deleting its log');
       if (row.runDirectory) {
         const directory = path.resolve(row.runDirectory),
           allowed = require('../engines/index.cjs').create(root).list().flatMap((loader) => [

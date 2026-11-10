@@ -3,6 +3,13 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const ids = ['en', 'ru', 'es', 'zh'];
+let consoleMessages;
+async function forConsole() {
+  // Panel preferences never alter console pixels, SD tiles or native labels.
+  consoleMessages ||= fs.readFile(path.join(__dirname, 'en/ui.json'), 'utf8').then(JSON.parse).catch(error => {consoleMessages = null; throw error;});
+  const messages = await consoleMessages;
+  return {id: 'en', messages, font: process.env.HB_FONT || path.join(__dirname, 'fonts/DejaVuSans.ttf'), t: text => messages[text] ?? text};
+}
 async function current() {
   let id = 'en';
   try {const saved = JSON.parse(await fs.readFile(path.join(root, 'data/state/language.json'), 'utf8')); if (ids.includes(saved.language)) id = saved.language;} catch (error) {if (error.code !== 'ENOENT') throw error;}
@@ -13,4 +20,4 @@ async function current() {
   }
   return {id, messages, font, t: text => messages[text] ?? text};
 }
-module.exports = {current, ids};
+module.exports = {current, forConsole, ids};

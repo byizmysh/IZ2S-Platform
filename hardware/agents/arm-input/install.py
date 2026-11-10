@@ -3,7 +3,7 @@
 import argparse, base64, hashlib, json, os, subprocess
 from pathlib import Path
 
-def install(folder, files, hid='/dev/hidg0'):
+def install(folder, files, hid='/dev/hidg0', dual_hid=True):
     folder = Path(folder)
     if os.geteuid() != 0:
         raise RuntimeError('Install as root. Use sudo for manual installation.')
@@ -44,8 +44,18 @@ def install(folder, files, hid='/dev/hidg0'):
         temporary.replace(target)
     (folder / 'checksums.json').write_text(json.dumps(sums, indent=2) + '\n')
     config = folder / 'input-config.json'
-    config.write_text(json.dumps({'hidDevice': hid}))
+    if not config.exists():
+        config.write_text(json.dumps({'hidDevice': hid}))
     config.chmod(0o600)
+    if dual_hid:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('iz2s_usb_setup', folder / 'usb_gadget.py')
+        gadget = importlib.util.module_from_spec(spec);spec.loader.exec_module(gadget)
+        gadget.start(folder)
+        usb_command = ' '.join(json.dumps(x).replace('%', '%%') for x in ['/usr/bin/python3', str(folder / 'usb_gadget.py')])
+        usb_unit = Path('/etc/systemd/system/iz2s-usb.service')
+        usb_unit.write_text('[Unit]\nDescription=IZ2S USB keyboard and controller\nAfter=systemd-modules-load.service local-fs.target\nBefore=iz2s-discovery.service\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=' + usb_command + ' start\nExecStop=' + usb_command + ' stop\n[Install]\nWantedBy=multi-user.target\n')
+        usb_unit.chmod(0o644)
     unit = 'iz2s-discovery.service'
     quoted = ' '.join(json.dumps(x).replace('%', '%%') for x in ['/usr/bin/python3', str(folder / 'discovery.py')])
     text = '[Unit]\nDescription=IZ2S local network discovery\nAfter=network.target\n[Service]\nExecStart=' + quoted + '\nRestart=on-failure\nRestartSec=2\nNoNewPrivileges=true\nProtectSystem=strict\nProtectHome=read-only\nRestrictAddressFamilies=AF_INET AF_UNIX\n[Install]\nWantedBy=multi-user.target\n'
@@ -53,17 +63,21 @@ def install(folder, files, hid='/dev/hidg0'):
     unit_file.write_text(text)
     unit_file.chmod(0o644)
     subprocess.run(['systemctl', 'daemon-reload'], check=True, capture_output=True, timeout=10)
+    if dual_hid:
+        subprocess.run(['systemctl', 'enable', 'iz2s-usb.service'], check=True, capture_output=True, timeout=10)
+        subprocess.run(['systemctl', 'start', 'iz2s-usb.service'], check=True, capture_output=True, timeout=10)
     subprocess.run(['systemctl', 'enable', '--now', unit], check=True, capture_output=True, timeout=10)
     subprocess.run(['systemctl', 'restart', unit], check=True, capture_output=True, timeout=10)
-    return {'installed': True, 'directory': str(folder), 'keyboard': Path(hid).exists(), 'note': 'Agent installed. USB gadget configuration is a separate board/OS requirement.'}
+    return {'installed': True, 'directory': str(folder), 'keyboard': Path(json.loads(config.read_text())['hidDevice']).exists(), 'gamepadInput': dual_hid, 'note': 'Keyboard + controller installed.' if dual_hid else 'Keyboard-only package installed.'}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--folder', default='/opt/iz2s/arm-input')
     parser.add_argument('--hid', default='/dev/hidg0')
+    parser.add_argument('--keyboard-only', action='store_true', help='Keep an existing keyboard gadget for SmileBASIC only')
     args = parser.parse_args()
     here = Path(__file__).resolve().parent
     manifest = json.loads((here / 'checksums.json').read_text())
     names = list(manifest['files']) + ['checksums.json']
     files = {name: base64.b64encode((here / name).read_bytes()).decode() for name in names}
-    print(json.dumps(install(args.folder, files, args.hid)))
+    print(json.dumps(install(args.folder, files, args.hid, dual_hid=not args.keyboard_only)))

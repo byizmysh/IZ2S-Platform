@@ -1,0 +1,28 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "FONT-LICENSE.txt": "4388a5e2a70b40ceeff0d18855eef6c3278b2d541dde2d7e0fc8a54c090bf3cf",
+    "LICENSE": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d",
+    "README.md": "e1678af4b15c025ca4645235d7e118039f64911ba2e32f9155f1446ab5d62a45",
+    "module.json": "1688efb0ad94b5160f0dd68808f45188f1df83d1784ad5b8c25a91d460859cfc",
+    "server/entry.cjs": "59c267a771473008da84938898bd0995f7f43d3a8d3266c445d853370985bd9e",
+    "server/launch.cjs": "90678869e94b51735ed40a2094b49d3cdba586445c39e99ed77ff5bd7895dc3e",
+    "server/run-native.cjs": "f1c08772e5feaeccac676a0f192cea80a79ebcd78cfb97151118af521a8b174e",
+    "server/settings.cjs": "f44cea221d4ceca48b7fa10316e34fe29fcc688204fca8ee0fb5eaea38ffdd67",
+    "server/ui/app.js": "7ce6ac3ca1788fb7ce83c52c8ab05a323818c5fda0c4f459303b66c6a2e8760b",
+    "server/ui/import-plan.js": "fda786f8030a72446a6ff5ac479418da85b395180e4cf8101fe69c8be087af46",
+    "server/ui/index.html": "62e8a19a6712775140492697362c1a512ed4a9da1441f4b7c9ccc5b8e8b1a72a",
+    "server/ui/logo.svg": "63f90bef25d3910fe9556574ff0ddd395114cfb0f0d1a4d1828898b53d8ed688",
+    "server/ui/style.css": "ebbaf9c1b7c49dfdde555a74aae2b8a602bce79610737f27d28ab7998cbbc4dc",
+    "switch/app.comp.spv": "2e20fe5e958e75291419592c6b391fd15efa4a7e22a601b8cd50f6ea144588bf",
+    "switch/app.frag.spv": "bdbb9d687f8ef1fce9d59af03647879a2a65c45acecfa323fcf69ca1d6ea47c2",
+    "switch/app.json": "2eaae8d2cfea1c282811b8ebb477d5d165dc45b4a0c21e0921b8b0f4168d6dc8",
+    "switch/app.vert.spv": "9302f1b4f15fb2f52d20a0ce5d4bb66fdd98f8c6e4dfc330c1da077ae6ede8e9",
+    "switch/data.bin": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "switch/icon.png": "314d83280905cad6ed05a23d2628bec79d0f806b443eb80db2a31e42553d69a1",
+    "switch/native/asset-0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997.izdata": "0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997",
+    "switch/native/shim.bin": "7ead33827bb123e1b3da8b9350a8f37654ead443582f21e97b5141b3bb21602d",
+    "switch/pixels.bin": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7",
+    "switch/state.bin": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+  }
+}

@@ -14,7 +14,7 @@ async function localHost(serial, {platform = process.platform, directory = '/sys
       if (normalizedSerial((await fs.readFile(path.join(device, 'serial'), 'utf8')).trim()) !== wanted) continue;
       const product = (await fs.readFile(path.join(device, 'product'), 'utf8')).trim();
       const manufacturer = (await fs.readFile(path.join(device, 'manufacturer'), 'utf8')).trim();
-      if (product === 'IZ2S Cardputer ADV Keyboard' && manufacturer === 'IZMYSH') return 'this-pc';
+      if (['IZ2S Cardputer ADV Keyboard','IZ2S Cardputer ADV Keyboard + Gamepad'].includes(product) && manufacturer === 'IZMYSH') return 'this-pc';
     } catch { /* USB devices can disappear during enumeration. */ }
   }
   return 'unknown';
@@ -35,6 +35,9 @@ function describe(state, host = 'unknown') {
     : connected ? 'USB connected; waiting for keyboard configuration.'
     : 'USB host not responding. Check the dock, cable and console.';
   return {connected, configured, suspended, recovering, keyboard, localHost: host, detail,
+    confirmationSupported: state.usbConfirmationSupported === true,
+    confirmed: state.usbConfirmed === true && host !== 'this-pc',
+    confirmation: Number.isSafeInteger(state.usbConfirmation) && state.usbConfirmation >= 0 ? state.usbConfirmation : 0,
     state: recovering ? 'reconnecting' : suspended ? 'suspended' : configured ? 'configured' : connected ? 'attached' : 'not-attached',
     generation: Number.isSafeInteger(state.usbGeneration) && state.usbGeneration >= 0 ? state.usbGeneration : null};
 }

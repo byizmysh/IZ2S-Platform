@@ -1,0 +1,102 @@
+IZ2S RUN22 CivSwitch integration
+Upstream: https://github.com/Gezine/CivSwitch (Gezine, MIT).
+
+Choose Civilization VII and the desired launcher. USB setup requirements:
+Switch 1 edition physical cartridge, game version 1.0.0; English (US) system
+language and USB keyboard. Keep PC and Switch on the isolated local network.
+The PC connects to the console loader on TCP 9026.
+
+One four-step setup wizard serves ADV and ARM:
+1. Choose optional IZ2S.Civ7Save installation. It DELETES ALL single-player
+   files in save:/saves/Single/. Back up needed saves and acknowledge deletion.
+2. Connect ADV CIV firmware 0.22.4 (IZ2S-ADV-CIV.bin) over Wi-Fi, or install ARM input package 1.1.0
+   over trusted root SSH/LAN. Both expose a keyboard and controller over USB.
+   Connect the input device data/OTG USB port to the Switch dock. A keyboard-only
+   ARM device cannot start automatic CIV input; there is no manual A fallback.
+3. Open MULTIPLAYER > WIRELESS > CREATE GAME > HOST LOBBY > CHAT. CHAT means
+   the lobby chat. Confirm a fresh lobby and Start input. The panel supplies
+   all 87 original bounded ASCII lines. First line: initial A x5; each line:
+   Escape/wait/A/wait/text/Enter/Enter, with separator A except the last line.
+   Video: https://www.reddit.com/r/switch2hacks/comments/1xll4wf/civswitch_hack_start_to_finish/
+4. After all confirmed lines, the panel checks the loader, then installs the
+   save only if selected and explicitly acknowledged before this run. Wait for
+   INSTALL DONE; restart the game and open Load Game. System language may then
+   be restored. Future starts use Load Game rather than Wireless/chat input.
+
+ADV stages all 87 lines and keyboard/controller actions on SD before start,
+then executes one autonomous batch. ARM receives the whole batch through SSH
+and executes it in an owned transient systemd service. No per-line PC command
+is required. ADV tolerates network loss while enforcing a two-minute deadline
+per line and a two-hour whole-job deadline. USB changes stop the batch. The PC
+queries the same UUID after network recovery; it never repeats the input POST.
+If panel contact is unavailable, stop on ADV with G0; remote STOP needs Wi-Fi.
+Restart never replays input or persisted save deletion consent.
+An interrupted old per-line job can be recovered only from its matching device
+receipt, unchanged lobby and a visibly empty input field. Partial source is
+cancelled with Escape, never submitted. Arbitrary character offsets are not
+resumed because USB reports do not prove what the game actually accepted.
+STOP releases keyboard and controller. The ARM package prepares
+an owned configfs gadget with the same HID descriptors as ADV, preserves the
+previous HID-only gadget and restores its binding on setup failure/stop. USB
+network/storage gadgets are never unbound by this installer. Missing board UDC
+support is a board/OS requirement. See hardware/agents/arm-input/README.md.
+
+Wireless local play may disconnect normal console IP networking. PC-to-input
+LAN/Wi-Fi and input-to-Switch USB remain independent. The upstream loader calls
+Network.resetNetworkCommunication(), waits for an IP and listens on TCP 9026.
+The panel shows LAN as waiting before/during bootstrap, never as confirmed.
+After 87 lines it waits about two minutes and retries only a marker-based JS
+probe, never input or installation. If the loader displays a different IP,
+update step 2 and retry verification. Empty port probes are avoided because
+upstream counts invalid connections. A network error preserves the 87-line
+cursor. Actual network restoration must be verified on the physical console.
+
+The installed trigger is IZ2S.Civ7Save. Upload acknowledgements and template
+structure are checked before upstream save deletion. No deletion starts before
+a verified loader and explicit consent in the current run.
+
+IZlauncher and IZPSlauncher have independent Civ7 renderers in launcher/ and
+pslauncher/. They use the named Civ7 SDK bridge in runtime/, not SmileBASIC
+native offsets. After Load Game exposes TCP 9026, select the shell and launch.
+App Store packages are retained on the PC and loaded into session memory.
+Book Reader and IZDOOM have run on the console through this adapter. Native
+SB4 executors and menu extensions needing additional host services still need
+separate Civ7 adaptation; they must not be presented as working applications.
+
+Inside an application, press and release R3 twice within 500 ms to return to
+the launcher. The Civ7 frame adapter owns this gesture independently of app
+shaders. Holding R3 counts once; R3 held during launch is ignored until release.
+Input and the shared 31.25 MHz clock are sampled on every rendered frame.
+Applications use bounded batches of up to six frames to reduce PC round trips;
+menus retain two-frame batches. This does not guarantee SB4 frame rates.
+Panel status contains public package metadata only, never archive buffers.
+
+Audio timing: publish the shared clock after acquiring the next display image.
+An image acquire can block; a timestamp taken before it can already be stale
+when the GPU mixer runs. This defect was reproduced with the exact released
+IZDOOM 0.18.2 mixer on desktop Vulkan. The local DSP cursor is simulated; this
+test does not establish physical output latency or DSP prefetch behavior.
+
+The optional named AudioOut counter adapter defaults to off. For a separate
+Civ7 qualification session, IZ2S_CIV_AUDIO_CLOCK=observe records device/wall
+drift without changing application time. The device mode aligns sample zero
+with the completed-frame Start handshake, then uses the device counter after
+a rate check. It rejects reversed, stopped, or implausible counters and never
+repeats Start/Stop or frees another owner's buffers. Neither mode is enabled
+automatically without a console qualification run. SB4 does not load this code.
+Local timing reproduction: tools/diagnostics/civ7-audio-stall.py takes an
+extracted corresponding IZDOOM source bundle with its desktop harness built.
+
+Validation: original payload round trip; first/middle/last line HID order;
+all printable keyboard keys; independent controller reports and cancellation;
+USB setup rollback/network-gadget refusal; optional-save gates; no replay after
+restart. ARM hardware deployment/recognition still needs a live board test.
+
+ADV sends continuous gamepad reports only while an action plan contains gamepad
+steps. SmileBASIC keyboard jobs and idle firmware have no background controller
+stream; final release reports are still sent. This removes avoidable USB traffic,
+but does not establish that ADV caused any particular FS acquisition failure.
+
+SmileBASIC 4 uses the separate preserved IZ2S-ADV-SB4.bin 0.21.3 keyboard-only
+release. It is not rebuilt. The PC chooses the copy target profile from the
+selected game; SD packages include both explicitly named applications.

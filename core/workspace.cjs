@@ -39,7 +39,16 @@ async function visible(root,{active,connected=false,panelInstance=process.env.IZ
   const checked=await Promise.all(rows.map(async row=>{
     const owner=ownerAlive(row.ownerPid);
     // Keep an actual retained owner visible; removing a view is not release proof.
-    if(row.state==='retained'&&owner)return row;
+    if(row.state==='retained'&&owner){
+      if(row.kind==='settings'&&row.moduleId==='izpsx'&&!row.controlUrl&&await probe(row.url)===false){
+        // This HTTP manager owns a file-transfer view, not the emulator.
+        // Its old cleanup error is reconciled by module-settings without
+        // weakening retained native module ownership for other tools.
+        await require('./module-settings.cjs').stop(root,row.moduleId);
+        await saveJson(path.join(folder(root),row.id+'.json'),{...row,state:'stopped',sessionId:undefined,updatedAt:new Date().toISOString()});return null;
+      }
+      return row;
+    }
     if(row.panelInstance&&panelInstance&&row.panelInstance!==panelInstance)return null;
     if(row.kind==='settings'){
       if(!settingsOpen(row.moduleId)||!owner)return null;

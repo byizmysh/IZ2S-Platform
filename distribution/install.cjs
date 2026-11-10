@@ -18,9 +18,9 @@ function defaultDestination(version, {platform = process.platform, home = os.hom
 }
 async function copySource(source, destination) {
   const profile = JSON.parse(await fs.readFile(path.join(source, 'distribution/profile.json')));
-  const top = new Set(['core','panel','engines','shells','hardware','profiles','sdk','tools','language','distribution','.github','docs']);
+  const top = new Set(['core','panel','engines','shells','hardware','profiles','sdk','tools','language','distribution','.github','docs','sources']);
   const docImages = new Set(['connection','app-library','izlauncher','izpslauncher'].map(name => 'docs/images/' + name + '.png'));
-  const rootFiles = new Set(['start.cjs','start.sh','install.sh','install-desktop.sh','Install.cmd','Start.cmd','Install.command','Start.command','Install-Linux.desktop','package.json','LICENSE','COPYRIGHT','LICENSE-SCOPE.md','THIRD_PARTY.json','README.md','FAQ.md','COMPATIBILITY.md','RELEASE-NOTES.md','SUPPORT.md','.gitignore','preview.sh']);
+  const rootFiles = new Set(['start.cjs','start.sh','install.sh','install-desktop.sh','Install-Linux.desktop','package.json','LICENSE','COPYRIGHT','LICENSE-SCOPE.md','THIRD_PARTY.json','README.md','BUILDING.md','FAQ.md','COMPATIBILITY.md','RELEASE-NOTES.md','SUPPORT.md','.gitignore','preview.sh']);
   const privateDirs = new Set(['.git','node_modules','__pycache__','.versions','data','runs','downloads','test-data','tests']);
   const privateFiles = new Set(['secret','capsule.key','installed.json','.engine-install.json']);
   let manifest;
@@ -29,12 +29,12 @@ async function copySource(source, destination) {
   catch (error) {if (error.code !== 'ENOENT') throw error;}
   if(manifest&&(typeof manifest!=='object'||Array.isArray(manifest)))throw Error('Invalid source manifest');
   function allowed(relative) {
-    if (relative === 'packages/iz2s-arm-input.tar.gz') return true;
+    if (['packages/iz2s-arm-input.tar.gz','packages/iz2s-arm-input.run','packages/iz2s-civ7-arm-input.run'].includes(relative)) return true;
     const parts = relative.split('/'), name = parts.at(-1);
     if (parts.length === 1) return rootFiles.has(name);
-    if (parts.some(p => privateDirs.has(p) || /^\.(?:download|publish|placeholder)-/.test(p)) || privateFiles.has(name) || /\.(?:log|pyc|tmp|izm|pem|key)$/.test(name)) return false;
+    if (parts.some(p => (privateDirs.has(p) && !(p === 'tests' && parts[0] === 'sources')) || /^\.(?:download|publish|placeholder)-/.test(p)) || privateFiles.has(name) || /\.(?:log|pyc|tmp|izm|pem|key)$/.test(name)) return false;
     if (parts[0] === 'desktop') return ['desktop/install.cjs','desktop/izlauncher.svg'].includes(relative);
-    if (parts[0] === 'docs') return docImages.has(relative);
+    if (parts[0] === 'docs') return docImages.has(relative) || /\.(?:md|txt)$/.test(name);
     if (parts[0] === 'modules') return relative === 'modules/README.md' || parts.length > 2 && profile.moduleDirectories.includes(parts[1]) && !parts.slice(2).some(p => p === 'runtime' || p === 'docs');
     if (!top.has(parts[0])) return false;
     if (parts.slice(0,3).join('/') === 'engines/kurumuz/upstream') return name === 'README.md';
@@ -102,8 +102,7 @@ async function install({source = SOURCE, destination, nodeHome, platform = proce
   uvProgram, execute = run, download = require('./download-runtime.cjs').download,
   createShortcut = true, launch = true} = {}) {
   const version = JSON.parse(await fs.readFile(path.join(source,'package.json'))).version;
-  if (!['linux','darwin','win32'].includes(platform) || !['x64','arm64'].includes(arch)) throw Error('A 64-bit Windows, macOS or Linux host is required');
-  if (platform === 'win32' && arch !== 'x64') throw Error('Windows x64 is required. Windows ARM64 and 32-bit Windows are not supported.');
+  if (platform !== 'linux' || !['x64','arm64'].includes(arch)) throw Error('This release supports Linux x64 and ARM64 only');
   destination ||= defaultDestination(version, {platform});
   if (!path.isAbsolute(destination)) throw Error('Installation folder must be absolute');
   const relative=path.relative(path.resolve(source),path.resolve(destination));

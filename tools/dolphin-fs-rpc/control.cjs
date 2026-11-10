@@ -44,5 +44,13 @@ async function ensure() {
   })().finally(() => {launching = null;});
   await launching;
 }
-async function request(method, values) {await ensure(); return requestRaw(method, values);}
+async function request(method, values) {
+  try {return await requestRaw(method, values);}
+  catch (error) {
+    // These are refused/missing local socket connections, before any request
+    // was accepted. Lost replies and all other outcomes are never replayed.
+    if (!['ENOENT', 'ECONNREFUSED'].includes(error.code)) throw error;
+    await ensure(); return requestRaw(method, values);
+  }
+}
 module.exports = {socketPath, requestRaw, request};

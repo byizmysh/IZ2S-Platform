@@ -3,6 +3,7 @@ const path = require('node:path');
 const {once} = require('node:events');
 const {streamZip} = require('./zip.cjs');
 const {virtualPath} = require('../../core/console/host/ftp-native.cjs');
+const transfer = require('../dolphin-fs-rpc/transfer.cjs');
 
 function create({backend, now = Date.now}) {
   const records = new Map();
@@ -57,7 +58,7 @@ function create({backend, now = Date.now}) {
           if (!record.folder && file.size !== record.totalBytes) throw Error('The selected file changed. Start the download again.');
           for (let offset = 0; offset < file.size;) {
             if (signal.aborted) throw Error('Download cancelled');
-            const count = Math.min(32768, file.size - offset);
+            const count = Math.min(transfer.chunkBytes(retained), file.size - offset);
             const chunk = await backend.request('download-read', {token, offset, length: count});
             const bytes = Buffer.from(chunk.data, 'base64');
             if (!bytes.length || bytes.length > count) throw Error('File data was truncated or invalid');

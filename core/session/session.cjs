@@ -131,7 +131,17 @@ function createSessionManager({
     epoch = 0,
     stoppingTask = null;
   const recoveryFile = path.join(root, 'data/state/input-recovery.json');
-  const recoveryReady = readJson(recoveryFile).then((row) => {
+  const recoveryReady = Promise.all([readJson(recoveryFile),preview ? null : journal.latest()]).then(([row,latest]) => {
+    if(latest){
+      lastAttempt={...latest,restoredFromDisk:true};
+      if(!['failed','cancelled','stopped','complete','saved'].includes(lastAttempt.status)){
+        lastAttempt.status='failed';lastAttempt.needsRestart=true;
+        lastAttempt.error='The previous PC server stopped before this attempt finished. Restart Switch before another attempt.';
+        notification={type:'warning',message:lastAttempt.error};
+      }
+      // Terminal attempts are history, not a new failure in this panel owner.
+      // Preserve their diagnostics without replaying an already reported toast.
+    }
     if (row) {
       inputRecovery = row;
       emergencyInputPending = true;
@@ -583,7 +593,7 @@ function createSessionManager({
       IZ12_CONSOLE_LINKS: JSON.stringify(connections?.candidates?.() || []),
     };
     if (current !== row || row.status === 'stopping') return;
-    if (row.selectedModules?.length) {
+    if (row.selectedModules?.length && launchEnvironment.IZ2S_SD_LAUNCHER !== '1') {
       await record(
         'stage',
         'Preparing ' +
@@ -699,10 +709,13 @@ function createSessionManager({
           row.status = 'offline';
           row.disconnectedAt ||= new Date().toISOString();
           const resident = launchEnvironment.IZ18_RESIDENT_GRAPHICS === '1';
+          const sdLauncher = launchEnvironment.IZ2S_SD_LAUNCHER === '1';
           row.offline = { resourcesRetained: true, automaticReconnect: false,
-            consoleExecution: 'unverified', menuReturnRequiresHost: !resident };
+            consoleExecution: 'unverified', menuReturnRequiresHost: !resident && !sdLauncher };
           notification = { type: 'warning', message:
-            resident
+            sdLauncher
+              ? 'Connection lost. The SD launcher is retained on the console; operation after disconnection is unverified. The control link is unavailable.'
+              : resident
               ? 'Connection lost. The resident application set is retained; console operation after disconnection is unverified. The control link is unavailable.'
               : 'Console connection lost. Host shutdown is suspended; an already loaded local app may continue. Menu return and starting apps need the host connection.' };
           void journal.write(row).catch(error => reportLifecycleError(row, 'connection status save', error));
@@ -837,6 +850,7 @@ function createSessionManager({
     screenReady,
     requestId,
     moduleIds = [],
+    restoreInstalled = false,
     recovery = false,
   }) {
     await recoveryReady;
@@ -873,9 +887,11 @@ function createSessionManager({
       if (kind === 'launch')
         require('./runtime-check.cjs').verify(root,
           launchEnvironment.IZ2S_SHELL || launchEnvironment.IZ15_SHELL || 'izlauncher');
+      if(launchEnvironment.IZ2S_SD_LAUNCHER==='1'&&moduleIds.length)throw Error('SD mode discovers installed applications on the console; disable PC preloading');
+      if(kind==='launch'&&(launchEnvironment.IZ2S_SD_LAUNCHER==='1'||launchEnvironment.IZ18_RESIDENT_GRAPHICS!=='1'&&launchEnvironment.IZ2S_MIXED_MENU!=='0'))require('../console/sd-launcher/check.cjs').verify();
       const selectedModules =
         kind === 'launch'
-          ? await require('./preload.cjs').resolve(root, moduleIds,{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',residentGraphics:launchEnvironment.IZ18_RESIDENT_GRAPHICS==='1',residentFiniteAudio:launchEnvironment.IZ18_RESIDENT_FINITE_AUDIO==='1'})
+          ? await require('./preload.cjs').resolve(root, await require('../packages/installed-session.cjs').selection(root,launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',{moduleIds,restoreInstalled,sd:launchEnvironment.IZ2S_SD_LAUNCHER==='1'}),{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',residentGraphics:launchEnvironment.IZ18_RESIDENT_GRAPHICS==='1',residentFiniteAudio:launchEnvironment.IZ18_RESIDENT_FINITE_AUDIO==='1'})
           : [];
       const checks = await refresh(true);
       if (epoch !== ownEpoch) throw Error('Start cancelled by STOP');
@@ -1046,16 +1062,16 @@ function createSessionManager({
   function stop(options = {}) {
     if (stoppingTask) return stoppingTask;
     const row = current, owned = child;
+    // Teardown is one operation, even if the owned process needs escalation.
+    const beforeSignal = options.beforeSignal;
+    let moduleShutdown;
+    options = {...options, beforeSignal: () => moduleShutdown ||= Promise.resolve().then(() => beforeSignal?.())};
     stoppingTask = (async () => {
       const result = await stopOnce(options);
       if (result?.retained) return result;
       if (!row && inputRecovery) await cancelRemoteInput(inputRecovery);
       if (owned && child === owned) {
-        let timer;
-        try { await Promise.race([
-          new Promise(resolve => owned.once('close', resolve)),
-          new Promise(resolve => {timer=setTimeout(resolve,graceMs*2);}),
-        ]); } finally { clearTimeout(timer); }
+        await require('./wait-for-close.cjs')(owned, graceMs);
         if (child === owned && !protectedChildren.has(owned)) await hardStop(options);
       }
       if (row && current === row && !child && row.status === 'stopping') {
@@ -1064,6 +1080,10 @@ function createSessionManager({
       }
       if (inputCancellation) await inputCancellation;
       lastCheck=0;
+      if(row&&!current){
+        await recordQueues.get(row)?.pending;
+        await journal.append(row.id,'stage',row.needsRestart?'Session stopped. Restart Switch before another attempt.':'Session stopped.');
+      }
       if (!emergencyInputPending && !current) notification={type:'success',message:row?.needsRestart?'Session stopped. Fully restart Switch and open fresh SmileBASIC Direct before loading again.':'Stopped. The Launch form is ready.'};
       return {ok:!emergencyInputPending, inputPending:emergencyInputPending, needsRestart:!!row?.needsRestart};
     })().finally(() => {stoppingTask=null;});
@@ -1175,8 +1195,10 @@ function createSessionManager({
     lastCheck = 0;
     return { ok: true };
   }
-  async function snapshot() {
+  async function snapshot({statusOnly=false}={}) {
     await recoveryReady;
+    // Changing a game needs only ownership state, not the application catalog.
+    if(statusOnly)return {active:current,emergencyInputPending,changing:!!(child||beginBusy)};
     const row = current || lastAttempt;
     let runtime = null,
       capture = null,
@@ -1202,6 +1224,8 @@ function createSessionManager({
       consoleState = await readJson(
         path.join(row.runDirectory, 'console-state.json'),
       );
+      if(current===row&&link?.protocol===3&&link.state==='connected'&&['lan','wifi'].includes(link.mode)&&require('./network-discovery.cjs').privateIP(link.address)&&Date.now()-Date.parse(runtime?.updated||0)<6000)
+        observeConsoleStateAddress(row,link.address,link.mode);
       if (
         current === row &&
         consoleState?.network?.connected &&
@@ -1240,21 +1264,15 @@ function createSessionManager({
       } catch {}
     }
     try {
-      const repo = await require('../packages/repository.cjs').create(root,{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher'});
+      const repo = await require('../packages/repository.cjs').create(root,{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',source:'current'});
       library = (await repo.list()).packages.map(
         require('../packages/repository.cjs').publicPackage,
       );
     } catch (e) {
       notification = { type: 'error', message: redact(e.message) };
     }
-    const runtimeAt=Date.parse(runtime?.updated||0),linkAt=Date.parse(link?.at||0);
-    const nativeLinked=!link||(link.state==='connected'&&(link.protocol!==2||runtimeAt>=linkAt));
-    const fresh = !!(
-      current?.status === 'running' &&
-      runtime?.menuReady &&
-      nativeLinked &&
-      Date.now() - runtimeAt < 6000
-    );
+    log=await require('./session-diagnostics.cjs').mergeDiagnostics(root,row,log);
+    const fresh = require('./connection-health.cjs').connected({status:current?.status,runtime,link,jobs});
     return {
       hostModules: await require('./host-modules.cjs').status(root),
       version: 12,
@@ -1283,12 +1301,17 @@ function createSessionManager({
       active: current,
       lastAttempt: !current ? lastAttempt : null,
       notification,
-      history: await journal.listFailures(),
+      history: await journal.listAttempts(),
+      historyAll: true,
       log,
       library,
       jobs,
-      installed: runtime?.installed || [],
+      installed: current ? runtime?.installed || [] : [],
+      sdInstalled: runtime?.sdInstalled || runtime?.sd?.presentOnCard || [],
+      sdStorage: runtime?.sdStorage || null,
+      sessionCatalog:runtime?.available||[],
       residentMemory: runtime?.memory || null,
+      sdRuntime: runtime?.sd || null,
       connected: fresh,
       fps:
         fresh && runtime.lastFrameBatch?.interval
@@ -1303,33 +1326,44 @@ function createSessionManager({
       },
     };
   }
-  async function loadPackages(ids) {
+  async function loadPackages(ids,options={}) {
+    const state=current?.runDirectory&&current.status==='running'?await snapshot():null;
     if (
       !current?.runDirectory ||
       current.status !== 'running' ||
-      !(await snapshot()).connected
+      !state?.connected
     )
       throw Error('Start and connect the launcher first');
-    const repo = await require('../packages/repository.cjs').create(root,{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher'}),
+    const repo = await require('../packages/repository.cjs').create(root,{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',source:'current'}),
       list = await repo.list();
-    if (!Array.isArray(ids) || !ids.length || ids.length > 16)
-      throw Error('Select an app');
-    if(launchEnvironment.IZ18_RESIDENT_GRAPHICS==='1')await require('./preload.cjs').resolve(root,ids,{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',residentGraphics:true,residentFiniteAudio:launchEnvironment.IZ18_RESIDENT_FINITE_AUDIO==='1'});
-    for (const id of [...new Set(ids)]) {
-      const pkg = list.packages.find((p) => p.id === id);
-      if (!pkg) throw Error('App is no longer available');
+    const sd=launchEnvironment.IZ2S_SD_LAUNCHER==='1';
+    const endpoint=await readJson(path.join(current.runDirectory,'fs-rpc-state.json'));
+    const plan=require('../packages/install-plan.cjs').create(list.packages,ids,{...options,sdMode:sd,storageReady:endpoint?.state==='ready'&&endpoint.verified===true&&(sd||state.sdStorage?.enabled&&state.sdStorage.state!=='uncertain'),residentGraphics:launchEnvironment.IZ18_RESIDENT_GRAPHICS==='1'});
+    const ram=plan.filter(row=>row.target==='session').map(row=>row.pkg.id);
+    if(launchEnvironment.IZ18_RESIDENT_GRAPHICS==='1')await require('./preload.cjs').resolve(root,ram,{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',residentGraphics:true,residentFiniteAudio:launchEnvironment.IZ18_RESIDENT_FINITE_AUDIO==='1'});
+    for (const {pkg,target} of plan) {
       await require('../packages/jobs.cjs').create(
         journal.session(current.id),
         pkg,
         'browser',
+        {target},
       );
     }
   }
-  async function unloadPackages(ids) {
+  async function unloadPackages(ids,target) {
     if(preview)throw Error('Preview cannot remove console modules');
     const state=await snapshot();
     if(!current?.runDirectory||current.status!=='running'||!state.connected)throw Error('Start and connect the launcher first');
-    return require('../packages/removal.cjs').queue(journal.session(current.id),ids,state.installed,'browser');
+    const sd=launchEnvironment.IZ2S_SD_LAUNCHER==='1';
+    target=target||(sd?'sd':'session');
+    if(!['sd','session'].includes(target)||sd&&target==='session')throw Error('Choose an available console storage destination');
+    if(target==='sd'&&!sd){const endpoint=await readJson(path.join(current.runDirectory,'fs-rpc-state.json'));if(endpoint?.state!=='ready'||!endpoint.verified||!state.sdStorage?.enabled||state.sdStorage.state==='uncertain'||launchEnvironment.IZ18_RESIDENT_GRAPHICS==='1')throw Error('The ordinary launcher SD connection is not ready');}
+    return require('../packages/removal.cjs').queue(journal.session(current.id),ids,target==='sd'?state.sdInstalled:state.installed,'browser',{target});
+  }
+  async function refreshSdInventory(){
+    const state=await snapshot();if(preview||!current?.runDirectory||current.status!=='running'||!state.connected)throw Error('Start and connect the launcher first');
+    if(launchEnvironment.IZ2S_SD_LAUNCHER!=='1'&&!state.sdStorage?.enabled)throw Error('The ordinary launcher SD connection is not ready');
+    await fs.writeFile(path.join(current.runDirectory,launchEnvironment.IZ2S_SD_LAUNCHER==='1'?'sd-launcher-rescan.request':'sd-launcher-inventory.request'),'scan');return {ok:true};
   }
   async function configureConnection(body) {
     await recoveryReady;
@@ -1397,6 +1431,7 @@ function createSessionManager({
       return sourceCheck.report(root, row, await journal.recent(row.id));
     },
     ownsListener: () => !!child,
+    refreshSdInventory,
     get activeId() {
       return current?.id;
     },
@@ -1404,7 +1439,7 @@ function createSessionManager({
       await journal.removeFailure(id, current?.id);
       if (lastAttempt?.id === id) lastAttempt = null;
     },
-    historyLog: (id) => journal.all(id),
+    historyLog: async (id) => require('./session-diagnostics.cjs').mergeDiagnostics(root,await journal.read(id),await journal.all(id)),
     dismiss: () => (notification = null),
   };
 }

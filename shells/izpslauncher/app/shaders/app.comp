@@ -8,6 +8,7 @@ layout(local_size_x=1) in;
 #include "focus-layout.glsl"
 #include "focus-library.glsl"
 #include "menu-removal.glsl"
+#include "menu-install.glsl"
 #include "features.glsl"
 #include "app-menu.glsl"
 #if defined(IZ_CALC) || defined(IZ_STREAM) || defined(IZ_CONTROLLERS)
@@ -58,6 +59,8 @@ streamInput(pressed);return;}}
 #ifdef IZ_CONTROLLERS
  if(c.atlas[CB+7u]==CMAGIC&&c.atlas[CB+1u]==3u){controllerHubInput(pressed);return;}
 #endif
+ if(menuLaunchErrorInput(pressed))return;
+ if(menuInstallInput(pressed))return;
  if(menuRemovalInput(pressed))return;
  if(c.transition.y!=0.0){c.transition.x=min(1.0,c.transition.x+1.0/15.0);if(c.transition.x>=1.0)c.reserved.y=c.state.x+1u;hbEndFrame();return;}
  c.transition.x=max(0.0,c.transition.x-1.0/15.0);
@@ -100,7 +103,7 @@ streamInput(pressed);return;}}
  }
  c.library.w=touch?1u:0u;
  if((pressed&HB_B)!=0u&&c.bagMeta.y==0u)c.piece.x=0;
- if(picker){c.piece.y=int(realCount>0u?focusIndex(selected):0u);if(open&&realCount>0u&&c.bagMeta.y==0u){c.piece.z++;c.piece.w=c.piece.y+1;c.bagMeta.y=1u;}}
+ if(picker){c.piece.y=int(realCount>0u?focusIndex(selected):0u);if(open&&realCount>0u&&c.bagMeta.y==0u){menuInstallOpen(uint(c.piece.y));}}
  else{c.state.x=selected==0u?installed:focusIndex(selected-1u);if(open)launchSelection();}
  float index=picker?float(selected):float(max(int(selected)-1,0)),target=clamp(index-2.0,0.0,max(float(realCount)-5.0,0.0));if(c.stats.y!=(picker?1u:0u)){c.flow.x=target;c.stats.y=picker?1u:0u;}else c.flow.x=mix(c.flow.x,target,.22);if(abs(c.flow.x-target)<.002)c.flow.x=target;
  c.rows[11]=picker?selected:(selected==0u?realCount:selected-1u);

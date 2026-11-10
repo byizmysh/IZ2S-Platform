@@ -8,7 +8,9 @@ const run = (command, args) => execFileSync(command, args, {
 });
 async function main() {
   run('python3', ['core/packages/build-focus-assets.py']);
-  for (const shell of ['izlauncher', 'izpslauncher']) {
+  // IZPS consumes the shared base atlas before IZ2Launcher paints its own
+  // brand and activity labels. Keep each shell's typography independent.
+  for (const shell of ['izpslauncher', 'izlauncher']) {
     run('bash', ['shells/' + shell + '/server/build.sh']);
     if (shell === 'izpslauncher') run('python3', ['shells/izpslauncher/server/ps-assets.py']);
     await require('node:fs/promises').copyFile(
@@ -19,6 +21,9 @@ async function main() {
       await require('node:fs/promises').copyFile(
         path.join(root, 'shells/izlauncher/app/shaders/focus-type.glsl'),
         path.join(root, 'shells/izpslauncher/app/shaders/focus-type.glsl'));
+      await require('node:fs/promises').copyFile(
+        path.join(root, 'shells/izlauncher/app/shaders/menu-install.glsl'),
+        path.join(root, 'shells/izpslauncher/app/shaders/menu-install.glsl'));
     }
     await require('../shells/' + shell + '/server/build-app.cjs').build();
   }

@@ -10,6 +10,8 @@ async function create(root, options = {}) {
   const shell=options.shell||process.env.IZ2S_SHELL||process.env.IZ15_SHELL||'izlauncher';
   const shellDescriptor=require('../descriptors.cjs').scan(root,'shell').items.find(item=>item.id===shell);
   const compatibilityOptions={...options,shell,shellDescriptor};
+  const moduleOptions={pinned:options.source!=='current'};
+  const inventoryNow=()=>registry.list(root,moduleOptions);
   const folder = path.join(root, 'data/imports');
   await fs.mkdir(folder, { recursive: true });
   async function inspectFromInventory(name, inventory) {
@@ -40,6 +42,8 @@ async function create(root, options = {}) {
         compatibility.supported = false;
         compatibility.reasons.push(reason);
       }
+    const sessionFingerprint=require('../module-pins.cjs').fingerprint(root,m.id);
+    const providerChanged=options.sessionProviders===true&&!!m.descriptor.server&&!!sessionFingerprint&&sessionFingerprint!==m.sha256;
     const icon = files.find((f) => f.name === manifest.icon);
     if (!icon || icon.bytes.length > 2 * 1024 * 1024)
       throw Error('Package icon unavailable');
@@ -70,6 +74,8 @@ async function create(root, options = {}) {
         description: manifest.description,
         kind: manifest.builtin ? 'builtin' : 'gpu-app',
       },
+      sd: require('../console/sd-launcher/adapters.cjs').eligibility(manifest,files),
+      session: {...require('./install-plan.cjs').sessionEligibility(manifest,{engine:options.engine}),...(providerChanged?{compatible:false,requiresFreshSession:true,reason:'Start a new launcher session to load the updated PC component for this module.'}:{}),requiresFilesystem:require('../services/app-requirements.cjs').requiresFilesystem(manifest)},
       resident: require('../../shells/izlauncher/resident/compatibility.cjs').candidate({manifest,effects:manifest.audio?.effects||{}},m.descriptor),
       residentAudio: require('../../shells/izlauncher/resident/compatibility.cjs').candidate({manifest,effects:manifest.audio?.effects||{}},m.descriptor,{finiteAudio:true}),
       ...compatibility,
@@ -84,10 +90,10 @@ async function create(root, options = {}) {
     };
   }
   async function inspect(name) {
-    return inspectFromInventory(name, await registry.list(root));
+    return inspectFromInventory(name, await inventoryNow());
   }
   async function list() {
-    const inventory = await registry.list(root),
+    const inventory = await inventoryNow(),
       packages = [],
       errors = [...inventory.errors];
     for (const m of inventory.modules)
@@ -99,10 +105,12 @@ async function create(root, options = {}) {
         }
     return { packages, errors };
   }
-  async function install(name, destination, {onProgress} = {}) {
+  async function install(name, destination, {onProgress,expectedSha256} = {}) {
     const p = await inspect(name);
-    await registry.verify(root, [p.id]);
+    if(expectedSha256!==undefined&&p.sha256!==expectedSha256)throw Error('The selected package changed on the PC; select the new version again');
+    await registry.verify(root, [p.id], new Set(), moduleOptions);
     if (!p.supported) throw Error('Module unsupported on this host: ' + p.id);
+    if(options.sessionProviders&&p.session?.requiresFreshSession)throw Error(p.session.reason);
     await fs.mkdir(destination, { recursive: true });
     const stage = path.join(
       destination,
@@ -146,13 +154,23 @@ async function create(root, options = {}) {
       await fs.rm(stage, { recursive: true, force: true });
     }
   }
-  async function previewApps(cacheRoot, {filter = () => true} = {}) {
-    const result = await list(),
+  async function previewApps(cacheRoot, {filter = () => true, listing} = {}) {
+    const result = listing || await list(),
       apps = [], packages = [], rejected = [...result.errors];
+    let verified=new Set();
     for (const p of result.packages.filter((p) => p.supported && filter(p)).slice(0, 16)) {
       try {
-        await install(p.file, cacheRoot);
-        apps.push(await catalog.readApp(path.join(cacheRoot, p.id)));
+        // Resolve only this identity; inspecting it through list() would walk
+        // every unrelated module again for each of the sixteen preview tiles.
+        const current = await registry.read(root,p.id,moduleOptions);
+        if(current.sha256!==p.sha256)throw Error('The selected package changed on the PC; select the new version again');
+        const nextVerified=new Set(verified);await registry.verify(root,[p.id],nextVerified,moduleOptions);verified=nextVerified;
+        // Previews never execute. Read their already extracted immutable
+        // version once, with the usual app validation, instead of installing
+        // another full copy and validating the same app a second time.
+        const app = await catalog.readApp(current.switchRoot);
+        if(app.id!==p.id)throw Error('App identity differs');
+        apps.push(app);
         packages.push(p);
       } catch (error) {
         rejected.push({ file: p.file, error: error.message });
@@ -174,6 +192,7 @@ function publicPackage(p) {
     file: p.file,
     name: p.name,
     version: p.version,
+    sha256:p.sha256,
     description: p.description,
     bytes: p.packageBytes,
     expandedBytes: p.expandedBytes,
@@ -182,6 +201,8 @@ function publicPackage(p) {
     icon: p.icon,
     module: p.module,
     supported: p.supported,
+    sd: p.sd,
+    session: p.session,
     resident: p.resident,
     residentAudio: p.residentAudio,
     unsupportedReasons: p.reasons,

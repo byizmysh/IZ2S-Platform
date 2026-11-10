@@ -1,0 +1,19 @@
+{
+  "id": "izdoom-prime18",
+  "version": "0.18.2-experimental",
+  "files": {
+    "after.comp.spv": "d551a888a4137327e4830c6e1e1d549de3900950e5353765fbf64e4057a79158",
+    "app.comp.spv": "c21c85c912b5436264140f34ca890d0ffbe2603252ee8e949a009bb44695bc30",
+    "app.frag.spv": "11b9fa83ecc8b778680013680a87bcfa74a7edca61fda2582257eed92fac0c5b",
+    "app.json": "4480d5f7cf3ed49bea8fc3916b200b416b3c71f1c51ec718686273de3b1803b6",
+    "app.vert.spv": "a2bb2dd3f958bd0085b26cb44f860a83dd0def7e2a678cafc19565959818788e",
+    "begin.comp.spv": "4aec67788ce31d6f194deed6c60961d47e86cc85ddf1f8230d6c62a783873f09",
+    "data.bin": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "icon.png": "7b3efdf746ffe84e8460245fa9cfd1c9016f2ca212c6fa468ed6d038a76d6846",
+    "memory.bin.deflate": "d366f0d3460a0863ec4abd40c1b4f67ae253f2bbc1a4c5c109ed11f8d00af879",
+    "state.bin": "5726ddeff16c44e189b98d10cbd6585b82612f1a767787c9b6fa60921155694c"
+  },
+  "initialImageBytes": 65766480,
+  "initialImageSha256": "a61d3ac8d05021acdcdce5f31bd60ea493c16bc002da512ea9d35ce20c8678af",
+  "bankBytes": 32212048
+}

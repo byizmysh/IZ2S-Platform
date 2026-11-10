@@ -1,0 +1,33 @@
+name: Check IZPSX source and packages
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Local JS tests
+        run: npm test
+      - name: Checkout compatible platform SDK
+        uses: actions/checkout@v4
+        with:
+          repository: byizmysh/IZ2S-Platform
+          ref: main
+          path: .sdk/IZ2S-Platform
+      - name: Package existing native module; do not install or contact a console
+        env:
+          IZPSX_PANEL: ${{ github.workspace }}/.sdk/IZ2S-Platform
+        run: python3 tools/release.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: izpsx-emulator-0.5.0-candidate
+          path: dist/*
+          if-no-files-found: error

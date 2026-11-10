@@ -1,7 +1,13 @@
 #include "focus-type.glsl"
+float iz2TypePixel(ivec2 q,ivec4 rect){
+ if(any(lessThan(q,ivec2(0)))||any(greaterThanEqual(q,rect.zw)))return 0.0;
+ uint pixel=uint(q.y+rect.y)*FOCUS_WIDTH+uint(q.x+rect.x);
+ return float((c.atlas[FOCUS_TYPE+(pixel>>4u)]>>((pixel&15u)*2u))&3u)/3.0;
+}
 float focusText(vec2 p,vec2 origin,ivec4 rect,float scale){
- vec2 d=(p-origin)/scale;ivec2 q=ivec2(floor(d));if(any(lessThan(d,vec2(0)))||any(greaterThanEqual(q,rect.zw)))return 0.0;
- uint pixel=uint(q.y+rect.y)*FOCUS_WIDTH+uint(q.x+rect.x);return float((c.atlas[FOCUS_TYPE+(pixel>>4u)]>>((pixel&15u)*2u))&3u)/3.0;
+ vec2 d=(p-origin)/scale;if(any(lessThan(d,vec2(-1)))||any(greaterThanEqual(d,vec2(rect.zw)+vec2(1))))return 0.0;
+ ivec2 q=ivec2(floor(d));vec2 f=fract(d);
+ return mix(mix(iz2TypePixel(q,rect),iz2TypePixel(q+ivec2(1,0),rect),f.x),mix(iz2TypePixel(q+ivec2(0,1),rect),iz2TypePixel(q+ivec2(1),rect),f.x),f.y);
 }
 ivec4 focusDigit(uint n){if(n==0u)return F_NUM_0;if(n==1u)return F_NUM_1;if(n==2u)return F_NUM_2;if(n==3u)return F_NUM_3;if(n==4u)return F_NUM_4;if(n==5u)return F_NUM_5;if(n==6u)return F_NUM_6;if(n==7u)return F_NUM_7;if(n==8u)return F_NUM_8;return F_NUM_9;}
 float focusNumber(vec2 p,vec2 origin,uint n){float m=0.0;uint div=n>=1000u?1000u:n>=100u?100u:n>=10u?10u:1u;for(int i=0;i<4;i++){m=max(m,focusText(p,origin,focusDigit((n/div)%10u),1.0));origin.x+=14.0;if(div==1u)break;div/=10u;}return m;}

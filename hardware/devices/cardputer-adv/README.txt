@@ -1,36 +1,46 @@
 IZ2S Platform - Cardputer ADV input
-Firmware application: 0.21.3 (M5Launcher file IZ2S-ADV-0.21.bin)
+Firmware application: 0.22.3 (M5Launcher file IZ2S-ADV.bin)
 
 Select Cardputer ADV as the input device in the panel. ARM PC is not required.
 The PC preloads the text/actions onto ADV SD; later Wi-Fi commands choose an
-action, and ADV types locally over USB as the Switch keyboard.
+action. ADV provides two independent USB HID interfaces: a Switch wired
+controller and a boot keyboard. SM4 uses the keyboard; automatic CivSwitch
+input also presses controller A between chat lines. One IZ2S-ADV.bin serves both.
 
 FIRST SETUP
 1. Connect ADV to the PC and choose USB storage in M5Launcher.
 2. On Linux, use direct USB copy only when the panel positively identifies its
    card. On Windows/macOS, or when discovery is unavailable, choose File and
    extract the downloaded ZIP into the root of the ADV card. It adds:
-     Utilities/IZ2S-ADV-0.21.bin
+     Utilities/IZ2S-ADV.bin
      IZ2S/input.json
    The pairing key stays private to this PC and ADV. Preserve existing Wi-Fi
    configuration; do not replace it with an empty template. Do not remove the
    other firmware. The image is an application, not a bootloader/address-zero
    flash image; M5Launcher must remain installed.
 3. Eject the storage normally, exit USB storage and select
-   SD -> Utilities -> IZ2S-ADV-0.21.bin in M5Launcher to install/run the app.
+   SD -> Utilities -> IZ2S-ADV.bin in M5Launcher to install/run the app.
 4. Choose the local Wi-Fi that can reach the PC. Keys 1-5 select an access point,
    N/P change pages and M enters an SSID manually. Type the password on the ADV
    keyboard and press Enter. Tab shows/hides it; it starts hidden. Keyboard
    controls are displayed in the footer. A failed connection returns to Wi-Fi
    selection; holding G0 for two seconds while idle reopens setup.
 5. If iz2s-adv.local does not resolve, enter the IP shown on the ADV screen in
-   Device settings. A plain IP is accepted. Guest Wi-Fi/client isolation or a
+   Device setup and connections -> Addresses and advanced settings. A plain IP is accepted. Guest Wi-Fi/client isolation or a
    firewall can block this even when ADV shows connected.
 6. Move the USB DATA cable from the PC to Switch 2. The panel detects USB
    readiness automatically over Wi-Fi; no console LAN session is needed.
+   Confirm the connection by pressing Enter on ADV (firmware 0.21.4) or using
+   Confirm connection beside the cable icon in the USB -> Switch 2 card.
+   This also works while the dock is still showing Waiting USB host. Confirmation does not send keys
+   or declare USB ready: actual typing waits for host keyboard configuration.
+   Older firmware supports confirmation in the panel only. The manual connection choice is shown as Connected (manual) and lasts for
+   the current ADV boot; automatic USB recovery does not clear it. It records
+   the cable selection separately from measured keyboard readiness. Switching settings tabs preserves the confirmation.
    Complete the source entry/save stage, fully restart Switch 2, open fresh
-   SmileBASIC Direct and follow Launch. The six panel stages are firmware,
-   Wi-Fi, USB to Switch, entry/save, console restart and Launch.
+   SmileBASIC Direct and follow Launch. Device setup and connections contains
+   firmware, Wi-Fi and USB. Console session contains First Setup (entry/save)
+   and Launch after restarting the console.
 
 KEYBOARD AND RECOVERY
 Use the expected SmileBASIC English/US layout. Set Switch keyboard Caps Lock

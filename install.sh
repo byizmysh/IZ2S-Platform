@@ -21,7 +21,7 @@ while [ "$#" -gt 0 ]; do
 done
 case "$(uname -s):$(uname -m)" in
   Linux:x86_64) IZ2S_ARCH=x64;; Linux:aarch64|Linux:arm64) IZ2S_ARCH=arm64;;
-  *) echo 'Open Install.cmd on Windows or Install.command on macOS. This entry point supports Linux x64/ARM64.' >&2; exit 1;;
+  *) echo 'This release supports Linux x64/ARM64 only.' >&2; exit 1;;
 esac
 iz2s_missing() {
   for iz2s_tool in python3 curl tar xz ssh; do

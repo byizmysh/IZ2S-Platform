@@ -5,4 +5,21 @@ layout(set=0,binding=0,std430) buffer Input {uint w[];} pad;
 uint izPadRead(uint i){return pad.w[i];}
 void izPadWrite(uint i,uint value){pad.w[i]=value;}
 #include "../../sdk/include/pad-merge.glsl"
-void main(){if(uint(pad.w.length())>=2097152u)izNormalizePad();}
+// Platform-owned gesture state sits in the reserved SDK header gap. It is
+// independent of an application's scratch words and survives skipped PC polls.
+void menuGesture(){
+ const uint g=(0x7f0000u+576u)/4u,clock=0x700d70u/4u;
+ bool held=(pad.w[2]&32u)!=0u;
+ if(pad.w[g]!=0x495a5233u){for(uint i=0u;i<8u;i++)pad.w[g+i]=0u;pad.w[g]=0x495a5233u;pad.w[g+1u]=held?1u:0u;}
+ if(!held)pad.w[g+2u]=1u;
+ bool valid=pad.w[clock+2u]==31250000u;
+ if(held&&pad.w[g+1u]==0u&&pad.w[g+2u]!=0u&&valid){
+  uint lo=pad.w[clock],hi=pad.w[clock+1u],delta=lo-pad.w[g+3u],upper=hi-pad.w[g+4u]-uint(lo<pad.w[g+3u]);
+  bool twice=pad.w[g+5u]!=0u&&upper==0u&&delta>0u&&delta<=15625000u;
+  if(twice)pad.w[1016u/4u]=1u;
+  pad.w[g+3u]=lo;pad.w[g+4u]=hi;pad.w[g+5u]=twice?0u:1u;
+ }
+ pad.w[g+1u]=held?1u:0u;
+ if(!valid)pad.w[g+5u]=0u;
+}
+void main(){if(uint(pad.w.length())>=2097152u){izNormalizePad();menuGesture();}}

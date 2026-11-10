@@ -21,7 +21,7 @@ void text(int x,int y,const String &value,uint16_t color=TEXT,bool large=false){
 void begin(const char *section){
   auto &c=canvas();c.fillScreen(BG);c.fillRect(0,0,240,21,PANEL);c.fillRect(0,20,240,1,EDGE);
   c.fillRoundRect(6,5,4,11,2,LIME);text(15,2,"IZ2S",TEXT,true);
-  text(60,7,section,MUTED);text(174,7,"ADV / 0.21",LIME);
+  text(60,7,section,MUTED);text(162,7,"ADV / 0.22.4",LIME);
 }
 void end(const char *help,const char *second=""){
   auto &c=canvas();c.fillRect(0,109,240,26,PANEL);c.drawFastHLine(0,109,240,EDGE);
@@ -56,17 +56,18 @@ void networks(int count,int page,bool retry){
     if(WiFi.encryptionType(index)!=WIFI_AUTH_OPEN){c.drawRoundRect(217,y+6,7,6,1,MUTED);c.drawCircle(220,y+5,2,MUTED);}
   }end("1-5 SELECT    N/P PAGE","R RESCAN      M MANUAL");
 }
-void status(bool wifi,const String &ip,bool usb,const String &usbState,bool busy,bool sd,const String &job,
+void status(bool wifi,const String &ip,bool usb,const String &usbState,bool confirmed,bool busy,bool sd,const String &job,
             uint32_t line,uint32_t total,const String &error){
   begin(busy?"TYPING":"INPUT");auto &c=canvas();
   c.fillRoundRect(7,26,226,33,5,PANEL);text(14,31,"WI-FI",MUTED);
   c.fillCircle(220,34,3,wifi?LIME:RED);text(14,41,wifi?ip:"Connecting...",wifi?CYAN:TEXT,true);
   c.fillRoundRect(7,64,226,22,4,PANEL);text(14,71,"USB",MUTED);
-  const char *usbLabel=usb?"Keyboard ready":usbState=="reconnecting"?"Reconnecting USB":usbState=="suspended"?"USB inactive":usbState=="attached"?"Configuring USB":"Waiting USB host";
+  const char *usbLabel=usb?"Keyboard + Pad":usbState=="reconnecting"?"Reconnecting USB":usbState=="suspended"?"USB inactive":usbState=="attached"?"Configuring USB":"Waiting USB host";
   text(51,67,usbLabel,usb?LIME:TEXT,true);
-  String detail=!sd?"Insert the paired SD card":error.length()?error:busy?String("Typing ")+line+" / "+total:job=="complete"?"Input complete":job=="cancelled"?"Input stopped":"Waiting for panel";
+  String detail=!sd?"Insert the paired SD card":error.length()?error:busy?String("Typing ")+line+" / "+total:job=="complete"?"Input complete":job=="cancelled"?"Input stopped":confirmed?"Switch confirmed in setup":"Waiting for panel";
   text(10,96,fit(detail,220),!sd||error.length()?RED:busy?CYAN:MUTED);
   if(busy&&total){c.fillRoundRect(9,106,222,2,1,EDGE);c.fillRoundRect(9,106,max(2,int(min(line,total)*222/total)),2,1,LIME);}
-  end(busy?"G0 STOP INPUT":"G0 HOLD 2s: WI-FI SETUP");
+  if(busy)end("G0 STOP INPUT");
+  else end("ENTER: CONFIRM SWITCH","G0 HOLD 2s: WI-FI SETUP");
 }
 } // namespace Screen

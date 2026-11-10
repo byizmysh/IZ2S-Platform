@@ -1,0 +1,17 @@
+/build/
+/dist/
+/packages/
+node_modules/
+__pycache__/
+*.pyc
+*.core
+*.log
+*.tmp
+.env
+.env.*
+*.pem
+*.key
+/user-games/
+/user-bios/
+/data/
+/.sdk/

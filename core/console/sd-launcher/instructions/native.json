@@ -1,0 +1,11 @@
+{
+  "format": "iz2s.local-instructions-native-v1",
+  "abi": 2,
+  "bytes": 5736,
+  "sha256": "61871d400a63780f56167877eff1a8571ff74a9dc9ee7d7dde43e6f138878a59",
+  "sourceSha256": "0c85e92848aaace056ee4c30edfd528c9fe169af90ce409f93798d0f28bf75ca",
+  "checkpointSha256": "eeae1b0c45ea45bd13ab01dac4f13528d229cde6c94f9fb39c6afad5430243e2",
+  "nativeAbiSha256": "2362e0283a4f137e2c08eb9dcf593a1ba15e6ddd28c98eddc4aee72336f6f52e",
+  "pic": true,
+  "entryOffset": 0
+}

@@ -39,9 +39,9 @@ void psButton(vec2 p,inout vec3 col,vec2 center,ivec4 label){
 }
 ivec4 psDigit(uint n){if(n==0u)return PS_DIGIT0;if(n==1u)return PS_DIGIT1;if(n==2u)return PS_DIGIT2;if(n==3u)return PS_DIGIT3;if(n==4u)return PS_DIGIT4;if(n==5u)return PS_DIGIT5;if(n==6u)return PS_DIGIT6;if(n==7u)return PS_DIGIT7;if(n==8u)return PS_DIGIT8;return PS_DIGIT9;}
 float psAppTitlePixel(ivec2 q,uint base){if(any(lessThan(q,ivec2(0)))||q.x>=int(c.atlas[base+25625u])||q.y>=int(c.atlas[base+25626u]))return 0.0;uint n=uint(q.y)*512u+uint(q.x);return float((c.atlas[base+30720u+(n>>4u)]>>((n&15u)*2u))&3u)/3.0;}
-float psAppTitle(vec2 p,vec2 origin,uint base,float scale){vec2 q=(p-origin)/scale;ivec2 at=ivec2(floor(q));vec2 f=fract(q);return mix(mix(psAppTitlePixel(at,base),psAppTitlePixel(at+ivec2(1,0),base),f.x),mix(psAppTitlePixel(at+ivec2(0,1),base),psAppTitlePixel(at+ivec2(1),base),f.x),f.y);}
+float psAppTitle(vec2 p,vec2 origin,uint base,float scale){if(c.atlas[base+25624u]!=0x50534356u)return focusLabel(p,origin,base,scale);vec2 q=(p-origin)/scale;ivec2 at=ivec2(floor(q));vec2 f=fract(q);return mix(mix(psAppTitlePixel(at,base),psAppTitlePixel(at+ivec2(1,0),base),f.x),mix(psAppTitlePixel(at+ivec2(0,1),base),psAppTitlePixel(at+ivec2(1),base),f.x),f.y);}
 float psCoverTitlePixel(ivec2 q,uint base){if(any(lessThan(q,ivec2(0)))||q.x>=256||q.y>=64)return 0.0;uint n=uint(q.y*256+q.x);return float((c.atlas[base+29696u+(n>>4u)]>>((n&15u)*2u))&3u)/3.0;}
-float psCoverTitle(vec2 p,vec2 origin,uint base){vec2 q=(p-origin)/.8;ivec2 at=ivec2(floor(q));vec2 f=fract(q);return mix(mix(psCoverTitlePixel(at,base),psCoverTitlePixel(at+ivec2(1,0),base),f.x),mix(psCoverTitlePixel(at+ivec2(0,1),base),psCoverTitlePixel(at+ivec2(1),base),f.x),f.y);}
+float psCoverTitle(vec2 p,vec2 origin,uint base){if(c.atlas[base+25624u]!=0x50534356u)return focusLabel(p,origin,base,min(.8,176.0/max(1.0,float(c.atlas[base+25600u]))));vec2 q=(p-origin)/.8;ivec2 at=ivec2(floor(q));vec2 f=fract(q);return mix(mix(psCoverTitlePixel(at,base),psCoverTitlePixel(at+ivec2(1,0),base),f.x),mix(psCoverTitlePixel(at+ivec2(0,1),base),psCoverTitlePixel(at+ivec2(1),base),f.x),f.y);}
 void psHeader(vec2 p,inout vec3 col){
  // Brand mark and wordmark share the header's optical center.
  col=psBrandMark(p,col,vec2(64,62));psLabel(p,col,vec2(136,66),PS_BRAND,PS_WHITE);
@@ -85,6 +85,7 @@ vec3 psMenuContent(vec2 p,vec3 col){
   vec2 halfSize=PS_CARD_HALF;float d=box(p,center,halfSize,7);
   if(on)col+=PS_CYAN*exp(-abs(d)/14)*.28;
   if(d<1.0){vec2 uv=(p-center+halfSize)/(halfSize*2.0);vec3 cover=psCover(uv,base);if(c.atlas[base+25624u]!=0x50534356u){cover=vec3(.07,.16,.31);vec4 ic=focusIcon(p,center,base,170);cover=mix(cover,ic.rgb,ic.a);}col=mix(col,cover,fill(d));}
+  if(!picker)col=menuStorageDraw(p,col,center-halfSize+vec2(14),base);
   col=mix(col,PS_WHITE,psCoverTitle(p,center+vec2(-88,96),base));
   col=mix(col,on?PS_CYAN:vec3(.58,.69,.9),line(d,on?2.7:.5)*(on?1.0:.25));
   if(picker&&(c.bagMeta.z&(1u<<actual))!=0u){vec2 badge=center+vec2(halfSize.x-22,-halfSize.y+24);col=mix(col,PS_CYAN,fill(length(p-badge)-12));float mark=min(stroke(p,badge-vec2(6,0),badge+vec2(-1,5)),stroke(p,badge+vec2(-1,5),badge+vec2(7,-5)));col=mix(col,vec3(.03,.14,.38),fill(mark-1.4));}
@@ -112,6 +113,8 @@ void psFooter(vec2 p,inout vec3 col){
  col=mix(col,PS_WHITE,fill(box(p,vec2(960,1024),vec2(928,.4),0))*.14);
  ivec4 hints[5]=ivec4[5](PS_SELECT,PS_BACK,PS_LIBHINT,PS_FIND,PS_FILTER);float cursor=PS_EDGE+10.0;
  for(int i=0;i<5;i++){vec2 key=vec2(cursor,1056);col=mix(col,PS_MUTED,line(length(p-key)-10.0,.9));uint ch=i==0?65u:i==1?66u:i==2?88u:i==3?89u:82u;col=mix(col,PS_WHITE,focusAscii((p-key)/.48,vec2(-9,-10),ch));col=mix(col,PS_MUTED,psText(p,key+vec2(18,-float(hints[i].w)*.5),hints[i],1));cursor+=18.0+float(hints[i].z)+34.0;}
+ bool removable=c.transition.y==0.0&&focusOrdinal(c.state.x,false)<focusCount(false)&&c.piece.x==0&&c.rows[1]==0u&&c.bagMeta.y==0u&&c.state.x<min(c.library.x,15u);
+ if(removable){vec2 key=PS_REMOVE_KEY;col=mix(col,PS_MUTED,line(length(p-key)-10.0,.9));col=mix(col,PS_WHITE,focusAscii((p-key)/.48,vec2(-9,-10),45u));col=mix(col,PS_MUTED,psText(p,key+vec2(18,-float(PS_REMOVE_HINT.w)*.5),PS_REMOVE_HINT,1));cursor+=18.0+float(PS_REMOVE_HINT.z)+34.0;}
  if(psScrollMax()>0.0){vec2 at=vec2(cursor,1056);float arrow=min(stroke(p,at+vec2(-5,-2),at+vec2(0,3)),stroke(p,at+vec2(0,3),at+vec2(5,-2)));col=mix(col,PS_MUTED,fill(arrow-.9));psLabel(p,col,vec2(cursor+18.0,1050),PS_UPDOWN,PS_MUTED);}
  psLabel(p,col,vec2(PS_HEADER_RIGHT-float(PS_FOOTER.z),1049),PS_FOOTER,PS_WHITE);
 

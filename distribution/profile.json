@@ -1,7 +1,7 @@
 {
   "id": "iz2s-platform",
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "shells": [
     "izlauncher",
     "izpslauncher"
@@ -16,12 +16,14 @@
   "modules": [
     "iz-exchange",
     "iz-exchange-fs",
-    "book-reader"
+    "book-reader",
+    "izpsx"
   ],
   "moduleDirectories": [
     "iz-exchange",
     "iz-exchange-fs",
-    "BookReader"
+    "BookReader",
+    "izpsx"
   ],
   "hostPlatforms": [
     "linux-x64",
@@ -33,15 +35,14 @@
   ],
   "installerPlatforms": [
     "linux-x64",
-    "linux-arm64",
-    "win32-x64",
-    "darwin-x64",
-    "darwin-arm64"
+    "linux-arm64"
   ],
-  "experimentalInstallerPlatforms": [
-    "win32-x64",
-    "darwin-x64",
-    "darwin-arm64"
+  "experimentalInstallerPlatforms": [],
+  "publicationStatus": "local-candidate",
+  "integratedTools": [
+    "super-file-bros"
   ],
-  "publicationStatus": "published"
+  "sourceComponents": [
+    "sources/izpsx"
+  ]
 }

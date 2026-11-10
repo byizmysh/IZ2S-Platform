@@ -68,6 +68,7 @@ vec3 focusSearchDraw(vec2 p,vec3 col){
  col=mix(col,MUTED,focusText(p,vec2(570,785),F_ASELECT,1));col=mix(col,MUTED,focusText(p,vec2(765,785),F_BBACK,1));
  return col;
 }
+#include "menu-install.glsl"
 #include "ps-draw.glsl"
 #include "ps-removal.glsl"
 #include "resilience-draw.glsl"
@@ -91,5 +92,5 @@ void main(){
  video=streamDraw(p);
  outColor=vec4(c.atlas[SB+41u]==1u?notification(p,video):video,1);return;}
 #endif
- vec3 col=psMenu(p);if(c.rows[1]!=0u)col=focusSearchDraw(p,col);col=psRemovalDraw(p,col);col=rsDraw(p,notification(p,col));outColor=vec4(col*(1.0-c.transition.x),1);
+ vec3 col=psMenu(p);if(c.rows[1]!=0u)col=focusSearchDraw(p,col);col=psRemovalDraw(p,col);col=menuInstallDraw(p,col);col=menuLaunchErrorDraw(p,col);col=rsDraw(p,notification(p,col));outColor=vec4(col*(1.0-c.transition.x),1);
 }

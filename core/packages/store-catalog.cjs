@@ -13,6 +13,8 @@ function createPolicy() {
     'izbrowser-offline-v3-20261101',
     'izbrowser-offline-v4-20261101',
     'izbrowser-wifi-20261101',
+    'izdoom-audio-test',
+    'izpsx-sd-test',
     'izdoom-native18',
     'izdoom-wide18',
     'izoff-012',
@@ -38,7 +40,7 @@ function createPolicy() {
   const izVariants = new Set(['izlauncher', 'izpslauncher']);
 
   function visible(descriptor) {
-    return !hidden.has(descriptor.id);
+    return !hidden.has(descriptor.id) && !/^ps2-(?:cold-r|cpu-accounting-r|sd-admit-r|sd-engine-r)/.test(descriptor.id) && !['test','diagnostic'].includes(descriptor.store?.channel);
   }
 
   function engineAvailable(loader, variant) {

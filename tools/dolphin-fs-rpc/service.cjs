@@ -3,28 +3,30 @@ const path = require('node:path');
 const net = require('node:net');
 const crypto = require('node:crypto');
 const lib = require('./library.cjs');
+const transfer = require('./transfer.cjs');
 const {saveJson} = require('../../core/session/ledger.cjs');
 
-function createBroker({library = lib, firstPort = 2122, persist = value => saveJson(path.join(lib.ROOT, 'data/state/dolphin-fs-rpc/export.json'), value)} = {}) {
+function createBroker({library = lib, firstPort = 2122, checkpointFile, persist = value => saveJson(path.join(lib.ROOT, 'data/state/dolphin-fs-rpc/export.json'), value)} = {}) {
   let state = {status: 'idle'}, task, cancellation, storage, mutations = Promise.resolve(), writes = Promise.resolve();
   const publish = update => {
     state = {...state, ...update, at: new Date().toISOString(), pid: process.pid};
+    if(state.status!=='failed')delete state.error;
     const snapshot = {...state};
     const next = writes.then(() => persist(snapshot)); writes = next.catch(() => {});
     return next;
   };
-  const snapshot = () => ({...state, pid: process.pid});
+  const snapshot = () => ({...state, pid: process.pid,protocolVersion:2});
   let nextPort = firstPort;
   const downloads = new Map();
   async function releaseDownload(token) {
     const record = downloads.get(token); downloads.delete(token);
     if (record?.file && storage) await storage.close(record.file);
   }
-  const sd = require('./writes.cjs').create({getStorage: () => storage, lease: () => state.lease, busy: () => downloads.size > 0});
+  const sd = require('./writes.cjs').create({getStorage: () => storage, lease: () => state.lease, busy: () => downloads.size > 0, checkpointFile});
   async function stop(lease, cancelDownloads = false) {
     if (lease && state.lease !== lease) return {...snapshot(), skipped: true};
-    if (sd.count() && !cancelDownloads) throw Error('An upload is in progress. Cancel it or wait for completion.');
-    if (cancelDownloads) await sd.close();
+    if (sd.active() && !cancelDownloads) throw Error('An upload is in progress. Cancel it or wait for completion.');
+    if (cancelDownloads) {if(storage)await sd.close();else await sd.detach();}
     if (downloads.size && !cancelDownloads) throw Error('A download is in progress. Cancel it or wait for completion.');
     if (cancelDownloads) for (const token of [...downloads.keys()]) await releaseDownload(token);
     if (task) {await publish({status: 'stopping', progress: 'Releasing game files…'}); cancellation.abort(); await task;}
@@ -33,7 +35,7 @@ function createBroker({library = lib, firstPort = 2122, persist = value => saveJ
   async function start(title, mode = 'game') {
     title = mode === 'storage' ? 'storage' : library.titleId(title);
     const session = {...await library.findSession()};
-    if (task && state.title === title && state.identity === session.identity) return snapshot();
+    if (task && state.title === title && state.identity === session.identity && ['preparing','ready'].includes(state.status)) return snapshot();
     const games = mode === 'storage' ? [{title, name: 'SD & console storage'}] : await library.gamesFor(session);
     const game = games.find(game => game.title === title);
     if (!game) throw Error('Game not found. Refresh the game list.');
@@ -49,20 +51,23 @@ function createBroker({library = lib, firstPort = 2122, persist = value => saveJ
       progress: message => {void publish({progress: message}).catch(() => {});},
       ready: async result => {await publish({status: 'ready', progress: 'Read-only FTP is ready', ...result});},
       storageReady: value => {storage = value;},
+      browserBusy: () => sd.count() > 0 || downloads.size > 0,
     };
     task = (mode === 'storage' ? library.exportStorage(session, options) : library.exportGame(session, title, options))
       .then(() => publish({status: 'closed', progress: 'Filesystem export disconnected'}))
       .catch(error => publish({status: cancellation.signal.aborted && error.code === 'FTP_CANCELLED' ? 'closed' : 'failed', error: error.message}))
-      .finally(() => {task = null; storage = null;});
+      .finally(async() => {await sd.detach();task = null; storage = null;});
     return snapshot();
   }
   async function handle(request) {
+    await sd.ready;
     for (const [token, record] of downloads) if (record.deadline < Date.now()) await releaseDownload(token);
-    if (request.method === 'status') return {...snapshot(), downloads: downloads.size, uploads: sd.count()};
+    if (request.method === 'status') return {...snapshot(), downloads: downloads.size, uploads: sd.count(), resume:sd.progress()};
     if (request.method === 'list') {
       const session = await library.findSession();
       return {session, games: await library.gamesFor(session, {refresh: request.refresh === true})};
     }
+    if(request.method==='sd-upload-list')return sd.handle(request.method,request);
     if (request.method?.startsWith('sd-')) {
       if (state.mode !== 'storage' || state.status !== 'ready' || !storage) throw Error('Start SD & console storage first');
       return sd.handle(request.method, request);
@@ -76,7 +81,7 @@ function createBroker({library = lib, firstPort = 2122, persist = value => saveJ
         if (state.lease !== request.lease) throw Error('The filesystem export changed. Start the download again.');
         const stat = await storage.stat(cwd), token = crypto.randomBytes(24).toString('hex');
         downloads.set(token, {root: cwd, file: null, deadline: Date.now() + 120000});
-        return {token, stat, lease: state.lease};
+        return {token, stat, lease: state.lease, chunkBytes: transfer.chunkBytes(storage)};
       }
       return {cwd, entries: await storage.list(cwd), mounts: storage.mounts, unavailable: storage.unavailable, writable: cwd === '/sd' || cwd.startsWith('/sd/')};
     }
@@ -88,7 +93,7 @@ function createBroker({library = lib, firstPort = 2122, persist = value => saveJ
       if (request.method === 'download-touch') return {ok: true};
       if (request.method === 'download-read') {
         if (!record.file || !Number.isSafeInteger(request.offset) || request.offset < 0 ||
-            !Number.isInteger(request.length) || request.length < 1 || request.length > 32768) throw Error('Invalid download read');
+            !Number.isInteger(request.length) || request.length < 1 || request.length > transfer.chunkBytes(storage)) throw Error('Invalid download read');
         return {data: (await storage.read(record.file, request.offset, request.length)).toString('base64')};
       }
       if (request.method === 'download-close') {
@@ -109,7 +114,7 @@ function createBroker({library = lib, firstPort = 2122, persist = value => saveJ
     return action;
   }
   let requests = Promise.resolve();
-  const serialHandle = request => {if (request.method === 'status') return Promise.resolve({...snapshot(), downloads: downloads.size, uploads: sd.count()}); const result = requests.then(() => handle(request)); requests = result.catch(() => {}); return result;};
+  const serialHandle = request => {if (request.method === 'status') return sd.ready.then(()=>({...snapshot(), downloads: downloads.size, uploads: sd.count(), resume:sd.progress()})); const result = requests.then(() => handle(request)); requests = result.catch(() => {}); return result;};
   return {handle: serialHandle, snapshot, close: () => serialHandle({method: 'stop', cancelDownloads: true})};
 }
 
@@ -127,7 +132,7 @@ async function serve() {
     }
   }
   const previous = await require('../../core/session/ledger.cjs').readJson(path.join(lib.ROOT, 'data/state/dolphin-fs-rpc/export.json'), {});
-  const broker = createBroker({firstPort: previous.port >= 2122 && previous.port < 2199 ? previous.port + 1 : 2122});
+  const broker = createBroker({checkpointFile:path.join(lib.ROOT,'data/state/dolphin-fs-rpc/uploads.json'),firstPort: previous.port >= 2122 && previous.port < 2199 ? previous.port + 1 : 2122});
   console.log = () => {};
   const server = net.createServer(socket => {
     let input = '', received = false;
@@ -136,10 +141,10 @@ async function serve() {
     socket.on('data', bytes => {
       if (received) return;
       input += bytes;
-      if (input.length > 65536) {socket.destroy(); return;}
+      if (input.length > transfer.REQUEST_BYTES) {socket.destroy(); return;}
       if (!input.includes('\n')) return;
       received = true;
-      Promise.resolve().then(() => broker.handle(JSON.parse(input.split('\n')[0])))
+      Promise.resolve().then(() => {const command=JSON.parse(input.split('\n')[0]);if(command.method==='sd-upload-resume')socket.setTimeout(900000,()=>socket.destroy());return broker.handle(command);})
         .then(result => socket.end(JSON.stringify(result)), error => socket.end(JSON.stringify({error: error.message})));
     });
   });

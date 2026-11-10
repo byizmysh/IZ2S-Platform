@@ -1,0 +1,2 @@
+Pillow>=10,<13
+pyelftools>=0.31,<1

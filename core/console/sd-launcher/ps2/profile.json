@@ -1,0 +1,45 @@
+{
+  "format": "iz-ps2-native-startup-profile-v1",
+  "moduleId": "ps2-cold-r176",
+  "version": "0.1.176",
+  "moduleSha256": "e92be149c153dcfe59f90d929c9a31b14755c81a5e0d5a1153a398ea7005eaec",
+  "imageSha256": "0b55d3cfacb89d9da2a819e193e5551452a42afb4c19cca4f69f260e585e6303",
+  "codeBytes": 39693208,
+  "dataBytes": 69238416,
+  "codeSha256": "ef93abae94bd3b8232a6cdb0ca604d89cfc7df0c76b9c66139450dd912534265",
+  "dataSha256": "f722d47b4ceadae890a7175690bfcd6ba7d57b760d306cf754c0ddba0e1a8415",
+  "mainBytes": 66060288,
+  "jitBytes": 110100480,
+  "gsOffset": 108003328,
+  "sourcePins": {
+    "server/config.cjs": "4dfc533d56e67ea8495fb2aa7a18caf82fb94ea728962022388caf76ee1986d4",
+    "server/startup.cjs": "513efdf52c323a2abb53345de4b38b0aa83e2725ca93fd0570c6e0269184192f",
+    "server/jit-shadow-domains-v1.cjs": "92d353bccc3fefcd965beb0bb311cb4ea3014648a09aa0b9aa98b3cb15559600",
+    "server/native-hwgs-entry-ledger-v1.cjs": "7ed165bc6a799013fe44b88c85fd6abd73e78bbeaa4f65b6fdf20a1148d910ad",
+    "server/native/report.json": "131f84a641273d475c088dd9cf1e01e8660f303aab98e93262b4ed5d247c229e",
+    "server/sdk-bytecuts.json": "885d9e5a8b320f29d59c170748819cfcf922afd063f305d3e11e60dd02791ce1",
+    "server/sd.cjs": "ee860122a37771b6e5f61dc5609f2f5d762afaaf39976472f5b9ce36fd13e1a3",
+    "server/sd-layout-v1.cjs": "2cd63dd2842e594a9b4ef31c111f98681e58edcf15f0d22be6f1f92e1a5aed45",
+    "server/game-picker-v1.cjs": "e3a2d8290e652cc8c7599ee908adf8d8c9fd6d6fa167b14986b01d38f4647c6b"
+  },
+  "platformPins": {
+    "core/console/abi/ipc-functions.json": "ebb9d45e46bf344a6fe4c6ba58da2c7e6adc6c0123916e18b08067191e5bb27d",
+    "core/console/abi/sdk-functions.json": "53364e1a8596323b0e4d106ed25c67dc927d5ae4ed068be5c07c3eb3e3589d0e"
+  },
+  "sdkStorage": {
+    "send": {
+      "offset": 1307440,
+      "hex": "fd7bbfa9fd030091e80302aa027c409269d03bd53f0101eba0000054e00301aae10308aa4264009403000014e00302aa3d6400940854001229c09e521f01096b"
+    },
+    "close": {
+      "offset": 1410028,
+      "hex": "c10200d4c0035fd6"
+    }
+  },
+  "engineReferencePins": {
+    "data/ps2-cold-work/build/r103-io-copy-source-v3/native_ifile.c": "6c9a88ee746ba119ac688d3ffd7eacb564c1448fb50472d2f1f8475248762c84",
+    "data/ps2-cold-work/build/native-persistent-spirv-source-v2/candidate/native_sd_write.c": "9b95353d75115c4185b9f028ee9948e04aa76b57fc714654a2f415b29d6da848",
+    "data/ps2-cold-work/src/native_ifile.h": "9023fcf8a90229c4b55f861456a3e6872781eec2baf396125e5af134328ec8e0",
+    "data/ps2-cold-work/src/native_sd_write.h": "05d404832dfbc218ad18995a49bad1d05223e3cc618075f0a853a1951ed0bd13"
+  }
+}

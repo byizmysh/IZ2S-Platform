@@ -1,0 +1,37 @@
+{
+  "device": "M5Stack Cardputer ADV",
+  "version": "0.22.4",
+  "file": "IZ2S-ADV-CIV.bin",
+  "type": "esp32s3-application",
+  "inputApiVersion": 2,
+  "textStorage": "SD content package; PC selects named action and raw source line",
+  "inputModes": [
+    "basic",
+    "raw-text",
+    "raw-lines",
+    "gamepad"
+  ],
+  "usb": "native-otg-dual-hid-keyboard-switch-gamepad",
+  "usbInterfaces": 2,
+  "gamepadFormat": "switch-hori-8-byte",
+  "install": "M5Launcher SD application",
+  "bytes": 1077600,
+  "sha256": "fd1dda4732ae986f4b3a68b1f92dc6895ce808f0d42805599e532f2f0482eee6",
+  "platformio": "6.2.0",
+  "platform": "espressif32@6.9.0",
+  "arduinoEsp32": "2.0.17",
+  "sources": {
+    "platformio.ini": "650b43e458139c927a475a7d1b6b336ed412089398f162be7241220b299a490b",
+    "patch_usb.py": "fd28684e47a0bf064445a369c8d866b1ac8e193b51ebe6ff67d6b31f554aa432",
+    "src/main.cpp": "e82d0c0704c35e8a1e7ac633ce20b3cce1146899661afeb565c90cd4105f2874",
+    "src/screen.h": "e9d357aaeb60eeb8b39de5ee59ab8957d4950e4c3ff7ffecdd98498bbef112b8",
+    "src/usb_recovery.h": "d88b5d755e70271c145cf094b11ee3450624439671d1bc536e384e6f487387ac",
+    "src/dual_hid.h": "780265bb493d732fa00a8023bd1a55e13863e6cd31fd34f0b3174cde3d7c7d09",
+    "src/switch_reports.h": "34ef1128ab86120926f0d13a9ff4407221ebdf4f932393f67611c97e387a46ad",
+    "src/tinyusb_hid_dual.c": "d6f1274bbadac1bc7becf99b13803090f2d09e125662c4daeb5643c2992b3801",
+    "src/raw_lines.h": "8273899e76a984dc10566328f58b7952a1816602f55968064f321752c1494e5c",
+    "src/contact_policy.h": "c48992188bb51be4e09e41527ddc3c67509b318fca57549dc359a5414d468e15"
+  },
+  "profile": "civswitch",
+  "batchRawLines": true
+}

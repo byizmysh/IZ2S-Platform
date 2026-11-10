@@ -1,0 +1,27 @@
+{
+  "device": "M5Stack Cardputer ADV",
+  "version": "0.21.3",
+  "file": "IZ2S-ADV-SB4.bin",
+  "type": "esp32s3-application",
+  "inputApiVersion": 2,
+  "textStorage": "SD content package; execution by named action",
+  "usb": "native-otg-boot-keyboard-8-byte",
+  "install": "M5Launcher SD application",
+  "bytes": 1070736,
+  "sha256": "73c8a2f114dd225db208a4e86f02d927a7c6c51e7d402db3be54a1925e718d2f",
+  "platformio": "6.2.0",
+  "platform": "espressif32@6.9.0",
+  "arduinoEsp32": "2.0.17",
+  "sources": {
+    "platformio.ini": "d4322ba5e32581eaa48c8e8b670bbebd8f5b031472839a4193a8b628cb2ab663",
+    "patch_usb.py": "f2e225f20df09286873220f3df1a09cace47dd1a798347ce19ce2a5f08682202",
+    "src/main.cpp": "9da4c514005aad95518416140e0ce7f04533ed20d88aa617eeb4e4ba7be6f1f8",
+    "src/screen.h": "03e025f410cb84bd45275b7dfb6c026b2e39326e1e61531a55d5ed97dda6884a",
+    "src/usb_recovery.h": "d88b5d755e70271c145cf094b11ee3450624439671d1bc536e384e6f487387ac"
+  },
+  "profile": "smilebasic4",
+  "usbInterfaces": 1,
+  "gamepadInput": false,
+  "provenance": "Preserved 0.21.3 release binary; not rebuilt.",
+  "sourceRoot": "hardware/agents/cardputer-adv-sb4-0.21.3"
+}

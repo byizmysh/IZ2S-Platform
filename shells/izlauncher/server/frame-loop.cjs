@@ -15,9 +15,11 @@ async function main(directory,attempt='',instance=''){
  const prepared=JSON.parse(await fs.readFile(path.join(directory,stem+'.json'))),module=JSON.parse(await fs.readFile(path.join(directory,'compatibility-module.json')));
  check(prepared.ready&&prepared.scratchRestored&&prepared.session===rpc.a.session,'Shader preparation incomplete');
  const qualified=JSON.parse(await fs.readFile(path.join(directory,stem+'-check.json')));check(qualified.session===rpc.a.session&&qualified.passed&&qualified.scratchRestored,'Launcher input checks incomplete');
+ if(process.env.IZ2S_SD_LAUNCHER==='1')return require('../../../core/console/sd-launcher/runtime.cjs').main({directory,menu:prepared,shell:'izlauncher'});
  const file=path.join(directory,loopStem+'-loop.json');await fs.writeFile(file,'{}',{flag:'wx'});
  const report={session:rpc.a.session,started:new Date().toISOString(),batches:[],resourcesRetained:true};
  const save=()=>require('../../../core/session/ledger.cjs').saveJson(file,report);
+ const startup=require('../../../core/packages/startup-timing.cjs').create({report});
  const telemetry=require('../../../core/packages/telemetry.cjs').create({write:save,label:'IZlauncher render telemetry'});
  const residentAppTelemetry=require('../../../core/packages/telemetry.cjs').create({write:()=>require('../../../core/session/ledger.cjs').saveJson(path.join(directory,'app-runtime.json'),runtime.report),label:'IZlauncher resident app telemetry'});
  const diagnostics=require('../../../core/packages/runtime-log.cjs').create({directory,stateRoot:process.env.IZ11_STATE_DIR||path.join(require('../../../core/root.cjs'),'data/state/current')});
@@ -25,12 +27,15 @@ async function main(directory,attempt='',instance=''){
  let stop=false;process.on('SIGINT',()=>stop=true);process.on('SIGTERM',()=>stop=true);
  const stopping=async()=>stop||await fs.access(path.join(directory,'launcher-loop.stop')).then(()=>true,()=>false);
  const sdkImage=require('../../../core/console/abi/sdk-checks.cjs');
- const residentMode=process.env.IZ18_RESIDENT_GRAPHICS==='1';let resident=null;let thread=null,lastHeartbeat=0n,lastRefresh=0,lastConnected;
- let runtime;
+ const features=await require('../../../core/session/launcher-features.cjs').read(directory);
+ const residentMode=process.env.IZ18_RESIDENT_GRAPHICS==='1',mixedMode=features.mixedMenu;let resident=null;let thread=null,lastHeartbeat=0n,lastRefresh=0,lastConnected;
+ let runtime,ordinaryController,frameMapped=prepared.controls.mapped;
  let sdkRuntime;
  try{
+ startup.phase('application catalog');
  await diagnostics.stage('initialize-app-runtime',{},true);
- runtime=await require('../../../core/services/app-runtime.cjs').create({rpc,menu:prepared,directory,resident:residentMode,prepareMenu:()=>require('./scene-state.cjs').initialize({rpc,mapped:prepared.controls.mapped})});
+ runtime=await require('../../../core/services/app-runtime.cjs').create({rpc,menu:prepared,directory,resident:residentMode,deferMenuUpload:!residentMode,rasterMenu:require('./raster.cjs').raster,prepareMenu:()=>require('./scene-state.cjs').initialize({rpc,mapped:prepared.controls.mapped})});
+ startup.phase('frame function verification');
  for(const c of [...Object.values(code),timing.tick]){
   const expected=Buffer.from(c.bytes,'hex').subarray(0,256);await rpc.request({command:'verify-function',address:sdk+c.offset,hex:expected.toString('hex')});
  }
@@ -65,9 +70,11 @@ async function main(directory,attempt='',instance=''){
  // Check dynamic selection with the final swapchain index before launching.
  const last=r.images.length-1;await rpc.callAddress(lookup,[semObject,last]);check((await rpc.read(semObject+0x28,8)).readBigUInt64LE()===BigInt(r.semaphores[last]),'Semaphore selector differs');
  await diagnostics.stage('initialize-input',{},true);
+ startup.phase('controllers and console services');
  sdkRuntime=await require('../../../core/console/host/runtime.cjs').create({rpc,mapped:prepared.controls.mapped,directory});
  report.sdk={joyMouse:!!sdkRuntime.hardware.joyMouse,joyMouseError:sdkRuntime.hardware.joyMouseError};await save();
  await sdkRuntime.atBoundary();report.sdk.controllers=sdkRuntime.hardware.controllers;await save();
+ startup.phase('shell graphics and application previews');
  let packageManager;
  if(residentMode){
   const finiteAudio=process.env.IZ18_RESIDENT_FINITE_AUDIO==='1';
@@ -75,14 +82,16 @@ async function main(directory,attempt='',instance=''){
   resident=await require('../resident/prepare.cjs').prepare({rpc,menu:prepared,directory,catalog:runtime.report.catalog,finiteAudio});
   prepared.commands=resident.commands;report.resident={ready:true,graphics:true,audio:false,audioMode:resident.audio.status().mode,slots:resident.report.slots.map(s=>({id:s.id,slot:s.slot}))};await save();
   const ramMenu={...prepared,controls:resident.menu.controls,commands:resident.menu.gpu.commands};
-  await runtime.close();runtime=await require('../../../core/services/app-runtime.cjs').create({rpc,menu:ramMenu,directory,resident:true});
+  await runtime.close();runtime=await require('../../../core/services/app-runtime.cjs').create({rpc,menu:ramMenu,directory,resident:true,rasterMenu:require('./raster.cjs').raster});
   packageManager=await require('./package-manager.cjs').create({rpc,menu:ramMenu,directory,runtime,
    prepareShell:async()=>resident.menu.gpu,
    packageEligible:pkg=>(finiteAudio?pkg.residentAudio:pkg.resident)?.compatible===true,
    validateCandidate:async(app,current)=>resident.plan([...current.filter(a=>a.id!==app.id),app]),
    validateRemoval:async()=>{throw Error('This application stays in RAM until the resident session ends. Start a new session to free its memory.');},
    redrawProgress:()=>require('./progress-frame.cjs').present({rpc,menu:ramMenu,idle:()=>thread===null})});
- }else packageManager=await require('./package-manager.cjs').create({rpc,menu:prepared,directory,runtime,redrawProgress:()=>require('./progress-frame.cjs').present({rpc,menu:prepared,idle:()=>thread===null&&!runtime.active})});
+ }else packageManager=await require('./package-manager.cjs').create({rpc,menu:prepared,directory,runtime,
+  acquireStorageLease:async()=>{check(thread===null&&!runtime.active&&(!ordinaryController||ordinaryController.held),'SD access requires the joined menu renderer');let held=true;return {get active(){return held&&thread===null&&!runtime.active&&(!ordinaryController||ordinaryController.held);},async release(){check(thread===null&&!runtime.active,'SD menu ownership changed');held=false;}};},
+  redrawProgress:()=>require('./progress-frame.cjs').present({rpc,menu:prepared,idle:()=>thread===null&&!runtime.active&&(!ordinaryController||ordinaryController.held)})});
  // Switch to the post-menu shell only after the original qualification passes.
  for(let phase=0;phase<prepared.commands.length;phase++){
   const handles=Buffer.alloc(prepared.commands[phase].length*8);prepared.commands[phase].forEach((v,i)=>handles.writeBigUInt64LE(BigInt(v),i*8));await rpc.write(control+0x1060+phase*0x100,handles);
@@ -93,12 +102,12 @@ async function main(directory,attempt='',instance=''){
  add(sdk+timing.tick.offset,[]);
  for(let f=0;f<frameCount;f++){
   const obj=control+0x1000+(f%prepared.commands.length)*0x100;
-  const frameInput=sdkRuntime.hardware.frameCalls(prepared.controls.mapped);
-  if(!frameInput.some(call=>call.args[0]===prepared.controls.mapped))add(input.target,[prepared.controls.mapped,control+0x230]);
+  const frameInput=sdkRuntime.hardware.frameCalls(frameMapped);
+  if(!frameInput.some(call=>call.args[0]===frameMapped))add(input.target,[frameMapped,control+0x230]);
   for(const call of frameInput){verified.add(call.function);add(call.function,call.args);}
-  add(touch.target,[prepared.controls.mapped+128]);
-  streamClock.append(calls,{sdk,base,mapped:prepared.controls.mapped,tick:sdk+timing.tick.offset});
+  add(touch.target,[frameMapped+128]);
   add(prepared.functions.vkAcquireNextImage2KHR,[device.toString(),control+0x100,control],true);
+  streamClock.append(calls,{sdk,base,mapped:frameMapped,tick:sdk+timing.tick.offset});
   add(lookup,[obj,{u32:control}]);add(lookup,[semObject,{u32:control}]);
   add(prepared.functions.vkQueueSubmit,[queue.toString(),1,obj+0x80,0],true);
   add(prepared.functions.vkQueuePresentKHR,[queue.toString(),control+0x600],true);
@@ -106,7 +115,7 @@ async function main(directory,attempt='',instance=''){
  }
  add(sdk+timing.tick.offset,[]);
  logicalCalls=calls;
- await rpc.write(prepared.controls.mapped+streamClock.FREQUENCY_OFFSET,streamClock.frequencyWord(frequency));
+ await rpc.write(frameMapped+streamClock.FREQUENCY_OFFSET,streamClock.frequencyWord(frequency));
  const fingerprint=crypto.createHash('sha256').update(JSON.stringify(calls)).digest('hex');
  if(program&&fingerprint===planFingerprint){report.reusedFramePlans=(report.reusedFramePlans||0)+1;await save();return;}
  program=await require('../../../core/console/native/repeating.cjs').prepare(rpc,{base,code,calls,verified});frame=program.frame;proof=program.proof;
@@ -115,9 +124,10 @@ async function main(directory,attempt='',instance=''){
  await fs.writeFile(path.join(directory,loopStem+'-loop-frame.bin'),frame);
 
  }
- await prepareFrame();
+ startup.phase(mixedMode?'native SD dispatcher':'frame program');
+ if(!mixedMode){await prepareFrame();startup.finish();}await save();
  await fs.writeFile(path.join(directory,'game-audio-source.json'),JSON.stringify({session:rpc.a.session,mapped:prepared.controls.mapped}));
- console.log('IZ launcher game event source ready.');
+ if(!mixedMode)console.log('IZ launcher game event source ready.');
  const frameRate=require('../../../core/services/frame-rate.cjs').create();
  async function startWorker(){
   check(thread===null,'Worker already running');
@@ -133,6 +143,14 @@ async function main(directory,attempt='',instance=''){
  }
  const nativeDisplayHandoff=require('../../../core/console/native/display-handoff.cjs').create({directory,session:rpc.a.session,stopWorker,startWorker,report,save});
  report.displayHandoffVersion=1;
+ if(mixedMode){
+  await require('../../../core/console/sd-launcher/ordinary.cjs').main({rpc,menu:prepared,directory,runtime,manager:packageManager,sdk:sdkRuntime,report,save,stopping,diagnostics,
+   onReady:async()=>{startup.finish();await save();},registerBoundary:value=>{ordinaryController=value;},hostRunning:()=>thread!==null,startHost:startWorker,stopHost:stopWorker,
+   prepareHost:async(commands,controls=prepared.controls)=>{frameMapped=controls.mapped;check(commands.length===r.images.length,'App swapchain command count differs');const handles=Buffer.alloc(commands.length*8);commands.forEach((v,i)=>handles.writeBigUInt64LE(BigInt(v),i*8));await rpc.write(control+0x1060,handles);await sdkRuntime.hardware.refreshControllers?.();await prepareFrame();},
+   observeHost:async()=>{const spans=[{address:frameMapped,length:1024},{address:frameMapped+0x7f0800,length:2052},{address:program.addresses.at(-1),length:8},{address:program.results,length:logicalCalls.length*8}],parts=rpc.readMany?await rpc.readMany(spans):await (async()=>{const out=[];for(const span of spans)out.push(await rpc.read(span.address,span.length));return out;})();
+    const heartbeat=parts[2].readBigUInt64LE();if(heartbeat&&heartbeat!==lastHeartbeat){const failures=checks.filter(i=>parts[3].readBigUInt64LE(i*8)!==0n).map(i=>({call:i,result:String(parts[3].readBigUInt64LE(i*8))}));check(!failures.length,'Continuous graphics call failed: '+JSON.stringify(failures));const sample=frameRate.sample(parts[0].readUInt32LE(88),performance.now()),batch={status:'continuous',counter:String(heartbeat),frames:sample?.frames||0,interval:sample?.interval||null,at:new Date().toISOString()};report.batches.push(batch);if(report.batches.length>300)report.batches.shift();lastHeartbeat=heartbeat;await telemetry.sample();await packageManager.sample(batch);}return {state:parts[0],mailbox:parts[1]};}
+  });await diagnostics.complete();report.completed=new Date().toISOString();await save();return;
+ }
  let screen,offline=false,servicing=false;
  try{
   await startWorker();console.log('IZ launcher continuous native frame loop running.');
@@ -170,8 +188,8 @@ async function main(directory,attempt='',instance=''){
      servicing=true;await diagnostics.stage('resident-ram-admission',{},true);await stopWorker();
      if((await resident.observe()).slot===0){
       await packageManager.perform(await rpc.read(resident.menu.controls.mapped,1024));
-      await runtime.afterBatch();await packageManager.preparingRAM();await resident.refresh(runtime.report.catalog,{workerStopped:true});
-      await packageManager.atBoundary();prepared.commands=resident.commands;
+      await runtime.afterBatch();await packageManager.preparingRAM();const menuReset=await resident.refresh(runtime.report.catalog,{workerStopped:true});
+      await packageManager.atBoundary({menuReset});prepared.commands=resident.commands;
       for(let phase=0;phase<prepared.commands.length;phase++){
        const handles=Buffer.alloc(prepared.commands[phase].length*8);prepared.commands[phase].forEach((v,i)=>handles.writeBigUInt64LE(BigInt(v),i*8));await rpc.write(control+0x1060+phase*0x100,handles);
       }
@@ -197,12 +215,12 @@ async function main(directory,attempt='',instance=''){
    // Only explicit app/service transitions or controller reconnects pause rendering.
    servicing=true;
    await diagnostics.stage('stop-render-worker',{appRequest,serviceRequest,connectionChanged,packageRequest,hostRequest},true);
-   await stopWorker();await diagnostics.stage('sdk-boundary',{},true);await sdkRuntime.atBoundary(runtime.active?.app);
+   await stopWorker();await diagnostics.stage('sdk-boundary',{},true);const sdkBoundary=await require('../../../core/console/host/transition.cjs').begin(sdkRuntime,{app:runtime.active?.app,appRequest,serviceRequest,connectionChanged});
    await diagnostics.stage('load-package',{},true);await packageManager.perform(state);
-   await diagnostics.stage('publish-app-catalog',{},true);const previousApp=runtime.active?.app;await runtime.afterBatch();
+   await diagnostics.stage('publish-app-catalog',{},true);await runtime.afterBatch();
    await diagnostics.stage('publish-menu',{},true);await packageManager.atBoundary();await screen.refresh();screen?.setVideoStorage(prepared.streamStorage);
    const commands=runtime.active?runtime.active.gpu.commands[0]:prepared.commands[0];
-   if(runtime.active?.app!==previousApp)await sdkRuntime.atBoundary(runtime.active?.app);
+   await sdkBoundary.finish(runtime.active?.app);
    check(commands.length===r.images.length,'App swapchain command count differs');const handles=Buffer.alloc(commands.length*8);commands.forEach((v,i)=>handles.writeBigUInt64LE(BigInt(v),i*8));await rpc.write(control+0x1060,handles);
    await diagnostics.stage('restart-render-worker',{},true);lastRefresh=(await rpc.read(prepared.controls.mapped+104,4)).readFloatLE();await prepareFrame();await startWorker();
    screen?.setAvailable(!runtime.active);
@@ -217,7 +235,7 @@ async function main(directory,attempt='',instance=''){
    await offlinePolicy.waitForStop(stopping);
   }else{primaryError=error;await diagnostics.fail(error);throw error;}
  }finally{if(!offline)await cleanup(primaryError,[['screen',()=>screen?.close()],['worker',()=>stopWorker()],['resident-audio',()=>resident?.audio.close({workerStopped:thread===null})],['packages',()=>packageManager.close()]],diagnostics.cleanup);}
- }catch(error){primaryError||=error;await diagnostics.fail(primaryError);throw primaryError;}finally{if(!report.threadRunning)await cleanup(primaryError,[['sdk',()=>sdkRuntime?.close()],['data/app-links',()=>runtime?.close()]],diagnostics.cleanup);}
+ }catch(error){primaryError||=error;await diagnostics.fail(primaryError);throw primaryError;}finally{if(!report.threadRunning&&!report.nativeMenuRetained)await cleanup(primaryError,[['sdk',()=>sdkRuntime?.close()],['data/app-links',()=>runtime?.close()]],diagnostics.cleanup);}
  await diagnostics.complete();report.completed=new Date().toISOString();await save();console.log('IZ launcher stopped; resources retained.');
 }
 if(require.main===module)main(process.argv[2],process.argv[3],process.argv[4]).catch(e=>{console.error(e);process.exitCode=1;});

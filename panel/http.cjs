@@ -19,21 +19,40 @@ async function createWindowServer({
     mutationEpoch = 0,
     stateRead = null,
     lastSnapshot = null,
-    snapshotSequence = 0;
+    snapshotSequence = 0,
+    startupRead = null,
+    startupComplete = false;
   const stateJobs = new Set();
   const statusUnavailable = message => Object.assign(Error(message), {statusCode: 503});
-  function snapshot() {
+  function readSnapshot() {
+    Promise.resolve().then(() => manager.refresh()).catch(() => {});
+    const sequence=++snapshotSequence,epoch=mutationEpoch;
+    const job = Promise.resolve().then(() => manager.snapshot());
+    stateJobs.add(job);
+    const release = () => { stateJobs.delete(job); };
+    job.then(value=>{if(epoch===mutationEpoch&&sequence===snapshotSequence)lastSnapshot={value,at:Date.now()};release();}, release);
+    return job;
+  }
+  function snapshot({startup = false} = {}) {
+    // The first inventory verifies every installed archive. On a cold PC this
+    // exceeds the ordinary status deadline. Keep one shared read alive instead
+    // of starting another inventory whenever a window retries or is reopened.
+    if (startup && !startupComplete) {
+      if (!startupRead) {
+        const job = [...stateJobs].at(-1) || readSnapshot();
+        startupRead = job.then(value => {
+          startupComplete = true;
+          return value;
+        }).finally(() => { startupRead = null; });
+      }
+      return startupRead;
+    }
     if (!stateRead) {
       // A timed-out snapshot cannot be cancelled. Bound detached work while
       // allowing one replacement read to recover from a single stalled job.
-      if (stateJobs.size >= 2)
+      if (!startupRead && stateJobs.size >= 2)
         return Promise.reject(statusUnavailable('Status is still busy. Try again shortly.'));
-      Promise.resolve().then(() => manager.refresh()).catch(() => {});
-      const sequence=++snapshotSequence,epoch=mutationEpoch;
-      const job = Promise.resolve().then(() => manager.snapshot());
-      stateJobs.add(job);
-      const release = () => { stateJobs.delete(job); };
-      job.then(value=>{if(epoch===mutationEpoch&&sequence===snapshotSequence)lastSnapshot={value,at:Date.now()};release();}, release);
+      const job = startupRead || readSnapshot();
       let deadline;
       const pending = new Promise((resolve, reject) => {
         deadline = setTimeout(() => reject(statusUnavailable('Status read timed out. Try again shortly.')), stateReadTimeoutMs);
@@ -47,9 +66,13 @@ async function createWindowServer({
     return stateRead;
   }
   const assets = {
-    '/': ['index.html', 'text/html; charset=utf-8'],
+    '/reconnect.svg': ['reconnect.svg', 'image/svg+xml'],
+    '/': ['panel.html', 'text/html; charset=utf-8'],
     '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+    '/storage.js': ['storage.js', 'text/javascript; charset=utf-8'],
+    '/startup.js': ['startup.js', 'text/javascript; charset=utf-8'],
     '/cardputer-setup.js': ['cardputer-setup.js', 'text/javascript; charset=utf-8'],
+    '/civswitch.js': ['civswitch.js', 'text/javascript; charset=utf-8'],
     '/style.css': ['style.css', 'text/css; charset=utf-8'],
     '/icon.svg': ['icon.svg', 'image/svg+xml'],
   };
@@ -69,17 +92,17 @@ async function createWindowServer({
   }
   function fail(res, error) {
     try {
-      reply(res, error?.statusCode === 503 ? 503 : 400, {error: redact(error?.message || String(error)).slice(0, 1200)});
+      reply(res, error?.statusCode === 503 ? 503 : 400, {error: require('../language/error-text.js').canonical(redact(error?.message || String(error))).slice(0,1200)});
     } catch {
       if (!res.destroyed) res.destroy();
     }
   }
-  async function readBody(req) {
+  async function readBody(req, limit = 16384) {
     let size = 0,
       chunks = [];
     for await (const chunk of req) {
       size += chunk.length;
-      if (size > 16384) throw Error('Request is too large');
+      if (size > limit) throw Error('Request is too large');
       chunks.push(chunk);
     }
     return JSON.parse(Buffer.concat(chunks).toString() || '{}');
@@ -100,7 +123,7 @@ async function createWindowServer({
       if (await require('../language/server.cjs').serve(req, res)) return;
       if (req.method === 'GET' && url.pathname === '/health')
         return reply(res, 200, {
-          version: 21,
+          version: 22,
           pid: process.pid,
           preview: manager.preview === true,
         });
@@ -123,6 +146,9 @@ async function createWindowServer({
       if (req.method === 'GET' && url.pathname === '/api/state') {
         return reply(res, 200, await snapshot());
       }
+      if (req.method === 'GET' && url.pathname === '/api/startup') {
+        return reply(res, 200, await snapshot({startup: true}));
+      }
       if (req.method === 'GET' && url.pathname === '/api/loader-source') {
         const source = await manager.source(url.searchParams.get('id'));
         return await sendFile(res, source.file, {
@@ -130,11 +156,17 @@ async function createWindowServer({
           'content-disposition': 'attachment; filename=' + source.name + '.bas',
         });
       }
-      if (req.method === 'GET' && url.pathname === '/api/cardputer/firmware')
-        return await sendFile(res, require('../hardware/cardputer.cjs').firmwarePath(root), {'content-type':'application/octet-stream','content-disposition':'attachment; filename="IZ2S-ADV-0.21.bin"'});
+      if (req.method === 'GET' && url.pathname === '/api/cardputer/firmware') {
+        const firmware=require('../hardware/cardputer.cjs'),profile=url.searchParams.get('profile')||'sb4';
+        return await sendFile(res, firmware.firmwarePath(root,profile), {'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+firmware.profileFile(profile)+'"'});
+      }
       if (req.method === 'GET' && url.pathname === '/api/cardputer/package')
         return await sendFile(res, require('../hardware/cardputer.cjs').packagePath(root), {'content-type':'application/zip','content-disposition':'attachment; filename="iz2s-cardputer-adv-sd.zip"'});
       if (req.method === 'GET' && url.pathname === '/api/input-package') {
+        if(url.searchParams.get('format')==='installer'){
+          const file=await require('../hardware/agents.cjs').installer(root,url.searchParams.get('profile')||'sb4');
+          return await sendFile(res,file,{'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+path.basename(file)+'"'});
+        }
         const file=await require('../hardware/agents.cjs').archive(root);
         return await sendFile(res, file, {'content-type':'application/gzip','content-disposition':'attachment; filename="iz2s-arm-input.tar.gz"'});
       }
@@ -156,7 +188,7 @@ async function createWindowServer({
         return reply(res, 403, {
           error: 'The request must come from this application',
         });
-      const body = await readBody(req);
+      const body = await readBody(req, url.pathname === '/api/civswitch-ldn' ? 131072 : 16384);
       // Emergency stop must bypass a blocked ordinary mutation queue.
       if (url.pathname === '/api/hard-stop') {
         mutationEpoch++;
@@ -169,6 +201,11 @@ async function createWindowServer({
         stateRead = null;
         lastSnapshot = null;
         return reply(res, 200, result);
+      }
+      if(url.pathname==='/api/cardputer/cancel'){
+        const cancelled=await manager.cancelCardputerSD(body);
+        stateRead=null;lastSnapshot=null;
+        return reply(res,200,cancelled);
       }
       if (url.pathname === '/api/stop') {
         mutationEpoch++;
@@ -205,7 +242,7 @@ async function createWindowServer({
           const module = await require('../core/modules.cjs').read(root,body.id);
           const tab = await workspace.register(root,{id:'settings-'+body.id,
             title:module.descriptor.name+' · Settings',url:result.url,moduleId:body.id,kind:'settings',ownerPid:process.pid,
-            sessionId:current.connected?current.active?.id:undefined});
+            sessionId:undefined});
           return {...result,tab};
         }
         if (url.pathname === '/api/workspace/stop') {
@@ -225,7 +262,7 @@ async function createWindowServer({
             const current=await snapshot();
             const result=await require('../core/module-settings.cjs').open(root,previous.moduleId);
             return {ok:true,tab:await workspace.register(root,{...previous,url:result.url,automatic:false,requestId:undefined,
-              ownerPid:process.pid,panelInstance:undefined,sessionId:current.connected?current.active?.id:undefined})};
+              ownerPid:process.pid,panelInstance:undefined,sessionId:undefined})};
           }
           if(previous.state!=='running'){
             if(previous.controlUrl)return require('../core/session-workspace.cjs').request(previous.controlUrl,'start',previous.moduleId);
@@ -260,25 +297,30 @@ async function createWindowServer({
           return manager.configureLaunch(body);
         if (url.pathname === '/api/ns2hb/check')
           return manager.inspectNS2HB();
-        if (url.pathname === '/api/cardputer/prepare') return manager.prepareCardputerSD();
+        if (url.pathname === '/api/cardputer/confirm-usb') return manager.confirmCardputerUsb();
+        if (url.pathname === '/api/cardputer/prepare') return manager.prepareCardputerSD(body);
         if (url.pathname === '/api/cardputer/install') return manager.installCardputerSD(body);
         if (url.pathname === '/api/input/install') return manager.installInput(body);
         if (url.pathname === '/api/hardware/open') return manager.openHardwareApp();
         if (url.pathname === '/api/check') return manager.refresh(true);
         if (url.pathname === '/api/connection')
           return manager.configureConnection(body);
+        if(url.pathname==='/api/connection/restore')return manager.restoreConnection();
         if (url.pathname === '/api/start') return manager.begin(body);
         if (url.pathname === '/api/setup') return manager.setupAction(body);
+        if (url.pathname === '/api/civswitch') return manager.civswitchAction(body);
+        if (url.pathname === '/api/civswitch-ldn') return manager.civswitchLdnAction(body);
         if (url.pathname === '/api/retry') return manager.retry();
         if (url.pathname === '/api/load') {
-          await manager.loadPackages(body.ids);
+          await manager.loadPackages(body.ids,{target:body.target,targets:body.targets});
           return { ok: true };
         }
         if(url.pathname==='/api/unload'){
           if(manager.preview)throw Error('Preview cannot remove console modules');
-          await manager.unloadPackages(body.ids);
+          await manager.unloadPackages(body.ids,body.target);
           return {ok:true};
         }
+        if(url.pathname==='/api/sd/refresh')return manager.refreshSdInventory();
         if (url.pathname === '/api/delete') {
           await manager.remove(body.id);
           return { ok: true };

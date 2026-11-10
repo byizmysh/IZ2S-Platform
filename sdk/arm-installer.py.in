@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""IZ2S ARM installer: USB keyboard + controller for Civ7 and SmileBASIC 4."""
+import argparse
+import base64
+import hashlib
+import importlib.util
+import io
+import json
+import os
+from pathlib import Path
+import sys
+import tarfile
+import tempfile
+
+ARCHIVE_SHA256 = '__IZ2S_SHA256__'
+ARCHIVE_BASE64 = '__IZ2S_PAYLOAD__'
+
+
+def payload():
+    archive = base64.b64decode(ARCHIVE_BASE64, validate=True)
+    if hashlib.sha256(archive).hexdigest() != ARCHIVE_SHA256:
+        raise ValueError('Installer archive checksum mismatch. Download it again.')
+    files = {}
+    with tarfile.open(fileobj=io.BytesIO(archive), mode='r:gz') as bundle:
+        for member in bundle.getmembers():
+            parts = member.name.split('/')
+            if len(parts) != 2 or parts[0] != 'arm-input' or not member.isfile() or not member.size <= 2 * 1024 * 1024:
+                raise ValueError('Invalid installer entry')
+            name = parts[1]
+            if not name or name in ('.', '..') or '\\' in name or name in files:
+                raise ValueError('Invalid installer entry name')
+            files[name] = bundle.extractfile(member).read()
+    sums = json.loads(files['checksums.json'])
+    expected = sums['files']
+    if sums['algorithm'] != 'sha256' or set(files) != set(expected) | {'checksums.json'}:
+        raise ValueError('Installer file inventory mismatch')
+    for name, digest in expected.items():
+        if hashlib.sha256(files[name]).hexdigest() != digest:
+            raise ValueError('Installer checksum mismatch: ' + name)
+    package = json.loads(files['package.json'])
+    if package['id'] != 'arm-input' or not {'usb-keyboard', 'usb-gamepad', 'automatic-chat'} <= set(package['capabilities']):
+        raise ValueError('This installer requires the keyboard + controller package')
+    return files, package
+
+
+def check_host():
+    if not sys.platform.startswith('linux'):
+        raise RuntimeError('Run this installer on the ARM Linux input device.')
+    if not Path('/run/systemd/system').is_dir():
+        raise RuntimeError('A running systemd installation is required on ARM.')
+    controllers = list(Path('/sys/class/udc').glob('*'))
+    if len(controllers) != 1:
+        raise RuntimeError('One USB device/OTG controller is required. Enable the board USB device driver first.')
+    return controllers[0].name
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--check-package', action='store_true', help='Verify the embedded package without changing this computer')
+    mode.add_argument('--check', action='store_true', help='Verify the package and ARM prerequisites without installing')
+    parser.add_argument('--folder', default='/opt/iz2s/arm-input')
+    parser.add_argument('--hid', default='/dev/hidg0')
+    args = parser.parse_args()
+    files, package = payload()
+    if args.check_package:
+        print(json.dumps({'verified': True, 'version': package['version'], 'capabilities': package['capabilities']}))
+        return
+    controller = check_host()
+    if args.check:
+        print(json.dumps({'verified': True, 'usbController': controller, 'version': package['version']}))
+        return
+    if os.geteuid() != 0:
+        raise RuntimeError('Use sudo python3 ' + Path(sys.argv[0]).name + ' on the ARM device.')
+    with tempfile.TemporaryDirectory(prefix='iz2s-arm-install-') as temporary:
+        folder = Path(temporary)
+        for name, data in files.items():
+            (folder / name).write_bytes(data)
+        spec = importlib.util.spec_from_file_location('iz2s_arm_install', folder / 'install.py')
+        installer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installer)
+        encoded = {name: base64.b64encode(data).decode() for name, data in files.items()}
+        result = installer.install(args.folder, encoded, args.hid, dual_hid=True)
+    print(json.dumps(result))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (Exception, KeyboardInterrupt) as error:
+        print('Installation stopped: ' + (str(error) or 'cancelled'), file=sys.stderr)
+        sys.exit(1)

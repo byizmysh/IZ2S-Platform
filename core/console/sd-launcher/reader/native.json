@@ -1,0 +1,13 @@
+{
+  "format": "iz2s.local-reader-native-v1",
+  "abi": 2,
+  "bytes": 6664,
+  "sha256": "44484919fb893e582cd5914e93a68be3cc0c4a8426d1bb790509f41d15ccdea7",
+  "sources": {
+    "runtime.c": "22363852bd140d2661776f2ea9944cc40ed0d33d8e16abdf4a3dd302d9f29391",
+    "format.h": "b39d4633e97b0e8daa876b1fbb57d154850c2b6508d0c4bcaf19ef4ff7b13cec",
+    "../native/native-app.h": "46a7c82ea4761d08bbb661fe84175260c4b84218592c57d2d5fc39ade82618fc"
+  },
+  "pic": true,
+  "entryOffset": 0
+}

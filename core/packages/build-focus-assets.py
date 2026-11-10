@@ -6,8 +6,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from language.fonts import font
 from language.progress_type import paint as progress_type
 R=Path(__file__).resolve().parents[2];S=R/'shells/izlauncher/app';FONT=font();MONO=font('DejaVuSansMono.ttf');BOLD=font('DejaVuSans-Bold.ttf')
-labels=[('TITLE','IZlauncher',76),('VERSION','0.21',20),('READY','Ready to open',34),('PLAY','Ready to play',34),('ADD','Add package',62),('BROWSE','Browse your package library',22),('OPEN','Open',23),('LOAD','Load package',23),('ADDSMALL','Add app',20),('LIBRARY','YOUR LIBRARY',17),('PACKAGES','PACKAGE LIBRARY',17),('LOADED','Loaded successfully',19),('SUCCESS','Package loaded',20),('WORKING','Loading package',20),('EMPTY','Press X to add an app',22),('ALL','All',23),('GAMES','Games',23),('TOOLS','Tools',23),('SEARCH','Search',23),('Y','Y',22),('X','X',18),('NORESULTS','No matches',55),('SEARCHHELP','Try another name or filter',22),('FIND','Find an app',27),('DONE','Done',19),('CLEAR','Clear',17),('SPACE','Space',17),('CREDIT','Created by IZMYSH (@byizmysh)',21),('BACK','Back',23),('INSTALL','Load',23),('BROWSEBTN','Browse',23),('ASELECT','A Select',18),('BBACK','B Back',18)]
-im=Image.new('L',(768,1408));d=ImageDraw.Draw(im);y=2;header=['// ORBIT FOCUS: 2-bit coverage in the original atlas free area.','const uint FOCUS_TYPE=16384u;','const uint FOCUS_WIDTH=768u;']
+labels=[('TITLE','IZlauncher',76),('VERSION','0.22',20),('READY','Ready to open',34),('PLAY','Ready to play',34),('ADD','Add package',62),('BROWSE','Browse your package library',22),('OPEN','Open',23),('LOAD','Load package',23),('ADDSMALL','Add app',20),('LIBRARY','YOUR LIBRARY',17),('PACKAGES','PACKAGE LIBRARY',17),('LOADED','Loaded successfully',19),('SUCCESS','Package loaded',20),('WORKING','Loading package',20),('EMPTY','Press X to add an app',22),('ALL','All',23),('GAMES','Games',23),('TOOLS','Tools',23),('SEARCH','Search',23),('Y','Y',22),('X','X',18),('NORESULTS','No matches',55),('SEARCHHELP','Try another name or filter',22),('FIND','Find an app',27),('DONE','Done',19),('CLEAR','Clear',17),('SPACE','Space',17),('CREDIT','Created by IZMYSH (@byizmysh)',21),('BACK','Back',23),('INSTALL','Load',23),('BROWSEBTN','Browse',23),('ASELECT','A Select',18),('BBACK','B Back',18),('REMOVE','Remove',23)]
+im=Image.new('L',(768,1408));d=ImageDraw.Draw(im);y=2;metrics={};header=['// ORBIT FOCUS: 2-bit coverage in the original atlas free area.','const uint FOCUS_TYPE=16384u;','const uint FOCUS_WIDTH=768u;']
 for name,text,size in labels:
  f=ImageFont.truetype(BOLD if name=='TITLE' else MONO if name in ('LIBRARY','PACKAGES','READY','PLAY','CREDIT') else FONT,size);b=d.textbbox((0,0),text,font=f);h=b[3]-b[1];tracking=3 if name=='CREDIT' else 2 if name in ('READY','PLAY') else 0
  w=round(sum(f.getlength(ch) for ch in text)+tracking*(len(text)-1)) if tracking else b[2]-b[0];assert w<764
@@ -15,8 +15,13 @@ for name,text,size in labels:
   x=2
   for ch in text:d.text((x,y-b[1]),ch,font=f,fill=255);x+=f.getlength(ch)+tracking
  else:d.text((2-b[0],y-b[1]),text,font=f,fill=255)
+ metrics[name]=(w,h)
  header.append(f'const ivec4 F_{name}=ivec4(2,{y},{w},{h});');y+=h+5
 
+# Keep input hit testing at the same position as the footer's flow layout.
+x=95+35+metrics['OPEN'][0]+48+35+metrics['ADDSMALL'][0]+48
+w=metrics['REMOVE'][0]
+header.extend([f'const vec2 F_REMOVE_KEY=vec2({x},1008);',f'const vec2 F_REMOVE_CENTER=F_REMOVE_KEY+vec2({(35+w-19)/2},0);',f'const vec2 F_REMOVE_HALF=vec2({(35+w+19)/2},24);'])
 for n in range(11):
  text=str(n) if n<10 else '/';f=ImageFont.truetype(MONO,20);b=d.textbbox((0,0),text,font=f);w,h=b[2]-b[0],b[3]-b[1];d.text((2-b[0],y-b[1]),text,font=f,fill=255);header.append(f'const ivec4 F_NUM_{n}=ivec4(2,{y},{w},{h});');y+=h+4
 header.append(f'const ivec4 F_ASCII=ivec4(0,{y},24,32);')

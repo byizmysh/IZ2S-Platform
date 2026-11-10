@@ -1,0 +1,23 @@
+{
+  "id": "iz-reconnect",
+  "bytes": 143840,
+  "sha256": "13f75283f433eec07d0dcb09abed4150bcc974decf36751632f7e8647e5adbed",
+  "native": {
+    "format": "iz2s.native-app",
+    "abi": 1,
+    "bytes": 152,
+    "sha256": "90f764926f119e2c77bbb1dd0c6c16c4fbc6a73c7cb661f2eda1b19bea430dce",
+    "pic": true,
+    "entryOffset": 0
+  },
+  "sources": {
+    "app.json": "741f5670e667af5decaa07b9f72bbf65e668d70fe90103f6aa2766985dd3930f",
+    "icon.png": "e1070a56e2b898849c05cfdacda283a051f12446c32ce6022bf34b4709631898",
+    "shaders/app.frag": "a3d790ba9771bd00770024087a2645f2888097a93f5173832012b8298bc99951",
+    "shaders/app.comp": "200932bd23412b72ca8317d0100638cdf4018f0f556a94be74c1a71fd0822a6c",
+    "shaders/app.vert": "c8cf087c168d99e14a3a5a22a3da2025385e5fab2d4e61a7e210b8329e9078e9"
+  },
+  "sourceSha256": "f9b5d29587f247e5448603691ed17782a97173ab55a897fb570636114b5be217",
+  "nativeAbiSha256": "46a7c82ea4761d08bbb661fe84175260c4b84218592c57d2d5fc39ade82618fc",
+  "hardwareQualified": false
+}

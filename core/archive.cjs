@@ -171,8 +171,21 @@ function decode(bytes) {
   return entries;
 }
 function inspect(bytes) {
-  const files = decode(bytes),
-    byName = new Map(files.map((f) => [f.name, f.bytes]));
+  const inspected = inspectFiles(decode(bytes));
+  return { ...inspected, sha256: sha(bytes), packageBytes: bytes.length };
+}
+// The same content validation for already extracted, session-pinned files.
+// Do not ZIP/compress/decompress them merely to reconstruct an inventory.
+function inspectFiles(files) {
+  assert(Array.isArray(files) && files.length > 0 && files.length <= MAX_FILES, 'Too many package files');
+  const seen = new Set(); let total = 0;
+  for (const {name, bytes} of files) {
+    relative(name);
+    assert(!seen.has(name.toLowerCase()), 'Duplicate package path'); seen.add(name.toLowerCase());
+    assert(Buffer.isBuffer(bytes) && bytes.length <= MAX_FILE, 'Package file too large');
+    total += bytes.length; assert(total <= MAX_EXPANDED, 'Expanded package too large');
+  }
+  const byName = new Map(files.map((f) => [f.name, f.bytes]));
   assert(byName.has('module.json') && byName.has('checksums.json'), 'Not an IZM module');
   assert(
     byName.get('module.json').length <= 65536 && byName.get('checksums.json').length <= 1024 * 1024,
@@ -219,8 +232,6 @@ function inspect(bytes) {
   return {
     descriptor,
     files,
-    sha256: sha(bytes),
-    packageBytes: bytes.length,
     expandedBytes: files.reduce((n, f) => n + f.bytes.length, 0),
   };
 }
@@ -280,6 +291,7 @@ module.exports = {
   encode,
   decode,
   inspect,
+  inspectFiles,
   pack,
   unpack,
 };

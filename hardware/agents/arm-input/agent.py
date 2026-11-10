@@ -2,11 +2,23 @@
 import fcntl,importlib.util,json,os,platform,re,select,signal,subprocess,sys,time
 from pathlib import Path
 HERE=Path(__file__).resolve().parent
+sys.path.insert(0,str(HERE))
+from gamepad import Gamepad
+import usb_gadget
 JOBS=Path('/run/ns2jb-keyboard-jobs')
 def identifier(value):
  if not isinstance(value,str) or not re.fullmatch(r'[a-f0-9-]{36}',value):raise ValueError('Invalid input job identifier')
  return value
-def device():return json.loads((HERE/'input-config.json').read_text()).get('hidDevice','/dev/hidg0')
+def configuration():
+ try:return json.loads((HERE/'input-config.json').read_text())
+ except FileNotFoundError:return {}
+def device():return configuration().get('hidDevice','/dev/hidg0')
+def controller():return configuration().get('gamepadDevice')
+def controller_ready():
+ try:
+  value=usb_gadget.config_paths(HERE)
+  return value.get('usbGadget')==usb_gadget.NAME and bool(usb_gadget.read(usb_gadget.ROOT/usb_gadget.NAME/'UDC')) and usb()
+ except (OSError,ValueError,KeyError,RuntimeError):return False
 def usb():return Path(device()).exists() and any(p.read_text().strip()=='configured' for p in Path('/sys/class/udc').glob('*/state'))
 def busy():
  for file in Path('/run').glob('ns2jb-keyboard-jobs*/current.json'):
@@ -18,7 +30,7 @@ def busy():
 def sender():
  spec=importlib.util.spec_from_file_location('protected_hid',HERE/'type-bootstrap.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
-def status():return {'reachable':True,'moduleReady':os.geteuid()==0 and Path('/run/systemd/system').is_dir() and all((HERE/n).is_file() for n in ['type-bootstrap.py']),'keyboard':usb(),'keyboardBusy':busy(),'usbState':', '.join(p.read_text().strip() for p in Path('/sys/class/udc').glob('*/state')) or 'not attached','architecture':platform.machine(),'service':'izlauncher-input','installed':True}
+def status():return {'reachable':True,'moduleReady':os.geteuid()==0 and Path('/run/systemd/system').is_dir() and all((HERE/n).is_file() for n in ['type-bootstrap.py']),'keyboard':usb(),'keyboardBusy':busy(),'usbState':', '.join(p.read_text().strip() for p in Path('/sys/class/udc').glob('*/state')) or 'not attached','architecture':platform.machine(),'service':'izlauncher-input','installed':True,'rawTextInput':True,'sourceLineSelection':True,'boundedLineInput':True,'batchRawLines':True,'gamepadInput':controller_ready(),'gamepadReady':controller_ready()}
 def enqueue(body):
  key=identifier(body.get('requestId'));job=JOBS/key
  if body.get('action')!='plan':raise ValueError('Input jobs require an engine-provided plan')
@@ -36,8 +48,21 @@ def enqueue(body):
    (job/'done.json').write_text(json.dumps({'ok':False,'error':'Input task did not start'}));raise
  return {'accepted':True}
 def typed_plan(body,report):
- module=sender();special={**module.SPECIAL,'up':82,'down':81,'tab':43};keyboard=module.Keyboard(device(),.06,.08)
+ through=body.get('sourceThrough')
+ if through is None:return typed_line(body,report)
+ start=body.get('sourceLine');lines=body.get('source','').splitlines()
+ if body.get('sourceMode')!='raw-lines' or type(start) is not int or type(through) is not int or not 0<=start<=through<len(lines):raise ValueError('Invalid stored line range')
+ for index in range(start,through+1):
+  typed_line({**body,'sourceLine':index},report)
+  report('Stored line committed',line=index+1,total=len(lines),committedLine=index+1)
+def typed_line(body,report):
+ pad=None
+ if any(step.get('type')=='gamepad' for step in body.get('steps',[])):
+  if not controller_ready():raise RuntimeError('Prepare ARM USB keyboard + controller before automatic input')
+  pad=Gamepad(controller())
+ module=sender();special={**module.SPECIAL,'up':82,'down':81,'tab':43};keyboard=None
  try:
+  keyboard=module.Keyboard(device(),.06,.08)
   # Observe the actual USB LED report; a silent host never receives a plan.
   for _ in range(2):keyboard.isolated_tap(0,special['capslock']);time.sleep(.4)
   leds=None
@@ -46,10 +71,15 @@ def typed_plan(body,report):
   caps=bool(leds[0]&2)
   def text(value):
    for ch in value:
+    if pad:pad.check()
     key=ch.swapcase() if caps and ch.isalpha() else ch
     keyboard.isolated_tap(*module.KEYS[key])
   def source(value):
    lines=value.replace('\r\n','\n').replace('\r','\n').splitlines()
+   if body.get('sourceMode')=='raw-lines':
+    index=body.get('sourceLine')
+    if not isinstance(index,int) or isinstance(index,bool) or not 0<=index<len(lines):raise ValueError('Invalid raw source line selection')
+    text(lines[index]);report('Entered selected text line',line=index+1,total=len(lines));return
    for number,line in enumerate(lines,1):
     keyboard.isolated_tap(module.SHIFT,special['home']);keyboard.isolated_tap(0,special['delete']);text(line)
     if line.strip():keyboard.isolated_tap(0,special['escape']);time.sleep(.2)
@@ -61,12 +91,24 @@ def typed_plan(body,report):
    if body.get('source') is not None and at==body.get('sourceAfter',len(steps)):source(body['source'])
    if at==len(steps):break
    step=steps[at]
-   if step['type']=='line':
+   when=step.get('when')
+   if when:
+    if body.get('sourceMode')!='raw-lines' or when not in ('first-line','not-last-line'):raise ValueError('Invalid conditional input step')
+    index=body['sourceLine'];total=len(body['source'].splitlines())
+    if when=='first-line' and index!=0 or when=='not-last-line' and index>=total-1:continue
+   if pad:pad.check()
+   if step['type']=='gamepad':pad.tap(step['button'],step.get('holdMs',50));time.sleep(step.get('delayMs',500)/1000)
+   elif step['type']=='line':
     report('Typing generated connection command' if step['text'].startswith('V=START(') else 'Typing plan line',step=at+1,total=len(steps));text(step['text']);keyboard.isolated_tap(0,special['escape']);time.sleep(.5);keyboard.isolated_tap(0,special['enter']);time.sleep(step.get('delayMs',500)/1000)
+   elif step['type']=='text':text(step['text']);time.sleep(step.get('delayMs',500)/1000)
    elif step['type']=='key':keyboard.isolated_tap(0,special[step['key']]);time.sleep(step.get('delayMs',500)/1000)
    elif step['type']=='sleep':time.sleep(step['ms']/1000)
    else:raise ValueError('Unsupported typed plan step')
- finally:keyboard.close()
+ finally:
+  try:
+   if keyboard:keyboard.close()
+  finally:
+   if pad:pad.close()
 def execute(key):
  job=JOBS/identifier(key);file=job/'request.json';body=json.loads(file.read_text());file.unlink()
  def report(detail,**fields):
@@ -101,6 +143,9 @@ def halt(body):
    module=sender();keyboard=module.Keyboard(device(),.06,.08)
    try:keyboard.write(module.RELEASE,timeout=.3)
    finally:keyboard.close()
+   if controller_ready():
+    pad=Gamepad(controller())
+    pad.close()
   (job/'request.json').unlink(missing_ok=True);(job/'done.json').write_text(json.dumps({'ok':False,'stopped':True}))
  return {'stopped':True}
 if __name__=='__main__':

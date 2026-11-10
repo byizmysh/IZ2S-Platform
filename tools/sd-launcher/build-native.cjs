@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('node:fs/promises'),path=require('node:path'),{execFileSync}=require('node:child_process');
+async function build(source,output,{abi=1}={}){
+ if(![1,2,3,4,5,6].includes(abi))throw Error('Unsupported native SD ABI');
+ source=path.resolve(source);output=path.resolve(output);await fs.mkdir(output,{recursive:true});const native=path.resolve(__dirname,'../../core/console/sd-launcher/native'),object=path.join(output,'native.o'),elf=path.join(output,'native.elf'),binary=path.join(output,'native.bin'),script=path.join(output,'native.ld');
+ execFileSync('clang',['--target=aarch64-none-elf','-std=c11','-Os','-ffreestanding','-fno-builtin','-fPIC','-fno-stack-protector','-fno-unwind-tables','-fno-asynchronous-unwind-tables','-fno-jump-tables','-mbranch-protection=bti','-mgeneral-regs-only','-mno-outline-atomics','-ffunction-sections','-fdata-sections','-Wall','-Wextra','-Werror','-I',native,'-c',source,'-o',object],{stdio:'inherit'});
+ require('../../core/console/native/pic.cjs').verifyObject(object);
+ await fs.writeFile(script,'ENTRY(iz_app)\nSECTIONS { . = 0; .text : { KEEP(*(.text.iz_app)) *(.text*) *(.rodata*) } .data : { *(.data*) *(.got*) } .bss : { *(.bss*) *(COMMON) } /DISCARD/ : { *(.comment*) *(.note*) *(.eh_frame*) } }\n');
+ execFileSync('ld.lld',['-T',script,'--no-undefined','--build-id=none',object,'-o',elf],{stdio:'inherit'});if(execFileSync('llvm-nm',['--undefined-only',elf],{encoding:'utf8'}).trim())throw Error('Unresolved native imports');if(!execFileSync('llvm-readelf',['-r',elf],{encoding:'utf8'}).includes('There are no relocations'))throw Error('Native code requires unsupported relocations');
+ const sections=execFileSync('llvm-readelf',['-S','--wide',elf],{encoding:'utf8'});for(const line of sections.split('\n'))if(/\.(?:data|bss|got)\s/.test(line)){const match=line.match(/\.(?:data|bss|got)\s+\S+\s+[0-9a-f]+\s+[0-9a-f]+\s+([0-9a-f]+)/i);if(!match||parseInt(match[1],16))throw Error('Mutable native state must use app->data');}
+ execFileSync('llvm-objcopy',['-O','binary',elf,binary]);const raw=await fs.readFile(binary),bytes=Buffer.alloc(Math.ceil(raw.length/4)*4);raw.copy(bytes);await fs.writeFile(binary,bytes);const sha256=require('node:crypto').createHash('sha256').update(bytes).digest('hex');const report={format:'iz2s.native-app',abi,bytes:bytes.length,sha256,pic:true,entryOffset:0};await fs.writeFile(path.join(output,'native.json'),JSON.stringify(report,null,2)+'\n');return {file:binary,...report};
+}
+if(require.main===module)build(process.argv[2],process.argv[3]).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e);process.exitCode=1;});module.exports={build};

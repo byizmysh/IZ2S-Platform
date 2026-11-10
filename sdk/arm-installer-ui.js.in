@@ -1,0 +1,13 @@
+// Convert the existing archive download when a running older panel server
+// cannot yet serve the standalone installer. No server restart is required.
+(function(root){
+ const template='__INSTALLER_TEMPLATE__';
+ async function create(archive){
+  const bytes=new Uint8Array(archive);
+  if(bytes.length<32||bytes.length>4*1024*1024||bytes[0]!==31||bytes[1]!==139||bytes[2]!==8)throw Error('Invalid ARM input archive');
+  const digest=Array.from(new Uint8Array(await root.crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+  const chunks=[];for(let at=0;at<bytes.length;at+=8192)chunks.push(String.fromCharCode(...bytes.subarray(at,at+8192)));
+  return template.replace('__IZ2S_SHA256__',digest).replace('__IZ2S_PAYLOAD__',root.btoa(chunks.join('')));
+ }
+ root.IZ2S_ARM_INSTALLER={create};
+})(globalThis);

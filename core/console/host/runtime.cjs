@@ -8,21 +8,25 @@ function validateManifest(value){
  return {capabilities:[...new Set(value.capabilities)],endpoints:endpoints.map(require('./network.cjs').endpoint)};
 }
 async function create({rpc,mapped,directory,hardware:providedHardware}){
- const hardware=providedHardware??await require('./hardware.cjs').create(rpc);let nfc,network,lastSequence=0,owner=null;
+ const hardware=providedHardware??await require('./hardware.cjs').create(rpc);let nfc,network;const owners=new Map();
  try{await hardware.startSensors?.(mapped);}catch(error){
   // Creation has not returned ownership to the frame loop yet.
   try{await hardware.close();}catch(cleanup){error.cleanupError=cleanup.message;}
   throw error;
  }
- const base=mapped+L.OFFSET;
- return {hardware,async atBoundary(app=null){
-  const identity=app?.fingerprint??'launcher';
-  if(owner!==identity){owner=identity;lastSequence=0;await rpc.write(base+L.FIELD.request,Buffer.alloc(6144));}
+ return {hardware,retireControls(controls){owners.delete(controls?.mapped??mapped);},async atBoundary(app=null,controls){
+  const target=controls?.mapped??mapped;if(!Number.isSafeInteger(target)||target<4096||target>2**39-8388608)throw Error('Invalid SDK control allocation');
+  const base=target+L.OFFSET,identity=(app?.fingerprint??'launcher')+':'+(controls?.execution||0);let owner=owners.get(target),fresh=false;
+  if(!owner||owner.identity!==identity){owner={identity,sequence:0};owners.set(target,owner);fresh=true;}
+  const current=()=>owners.get(target)===owner;
+  async function write(address,bytes){if(!current())return false;await rpc.write(address,bytes);return current();}
+  if(fresh&&!await write(base+L.FIELD.request,Buffer.alloc(6144)))return;
   const state=await hardware.poll();
-  if(hardware.consoleSensors?.supported){const {OFFSET,BYTES}=require('./console-sensors.cjs');await rpc.write(base,state.subarray(0,OFFSET));await rpc.write(base+OFFSET+BYTES,state.subarray(OFFSET+BYTES));}
-  else await rpc.write(base,state);
+  if(!current())return;
+  if(hardware.consoleSensors?.supported){const {OFFSET,BYTES}=require('./console-sensors.cjs');if(!await write(base,state.subarray(0,OFFSET)))return;if(!await write(base+OFFSET+BYTES,state.subarray(OFFSET+BYTES)))return;if(target!==mapped){const snapshot=await rpc.read(mapped+L.OFFSET+OFFSET,BYTES);if(!await write(base+OFFSET,snapshot))return;}}
+  else if(!await write(base,state))return;
   const request=await rpc.read(base+L.FIELD.request,1056),sequence=request.readUInt32LE();
-  if(!sequence||sequence===lastSequence)return;lastSequence=sequence;
+  if(!current()||!sequence||sequence===owner.sequence)return;owner.sequence=sequence;
   const op=request.readUInt32LE(4),reply=Buffer.alloc(1056);reply.writeUInt32LE(sequence);
   const config=app?validateManifest(app.manifest.sdk):{capabilities:['vibration','nfc'],endpoints:[]};
   const capability=({1:'vibration',2:'nfc',3:'udp',4:'vibration'})[op];let status=L.STATUS.ok,payload=Buffer.alloc(0);
@@ -43,7 +47,7 @@ async function create({rpc,mapped,directory,hardware:providedHardware}){
     else{network??=await require('./network.cjs').create(rpc,directory);payload=await network.exchange(config.endpoints[index],request.subarray(32,32+length));}
    }
   }catch(error){status=error.code==='ETIMEDOUT'?L.STATUS.timeout:L.STATUS.native;payload=Buffer.from(error.message).subarray(0,1024);}
-  reply.writeUInt32LE(status,4);reply.writeUInt32LE(payload.length,8);payload.copy(reply,32);await rpc.write(base+L.FIELD.response,reply);
+  reply.writeUInt32LE(status,4);reply.writeUInt32LE(payload.length,8);payload.copy(reply,32);await write(base+L.FIELD.response,reply);
  },async close(){await hardware.close();}};
 }
 module.exports={create,validateManifest};

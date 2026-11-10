@@ -6,14 +6,19 @@ from ps_fonts import font as ps_font
 apps=json.loads(Path(sys.argv[1]).read_text());slots=bytearray(Path(sys.argv[2]).read_bytes())
 font=ps_font('DejaVuSans-Bold.ttf')
 colors=[(29,107,158),(169,69,23),(136,28,33),(40,58,119),(47,106,110),(106,46,132)]
+backgrounds={}
 for i,app in enumerate(apps):
- w,h=256,384;accent=colors[i%len(colors)];im=Image.new('RGB',(w,h));px=im.load()
- for y in range(h):
-  for x in range(w):
-   a=max(0,1-((x-100)**2+(y-95)**2)**.5/380)
-   px[x,y]=tuple(int(8+c*a*.72) for c in accent)
- d=ImageDraw.Draw(im)
- for n in range(5):d.line([(w+100-n*38,-20),(-80+n*8,h)],fill=tuple(int(c*.38) for c in accent),width=1)
+ w,h=256,384;accent=colors[i%len(colors)]
+ if accent not in backgrounds:
+  background=Image.new('RGB',(w,h));px=background.load()
+  for y in range(h):
+   for x in range(w):
+    a=max(0,1-((x-100)**2+(y-95)**2)**.5/380)
+    px[x,y]=tuple(int(8+c*a*.72) for c in accent)
+  d=ImageDraw.Draw(background)
+  for n in range(5):d.line([(w+100-n*38,-20),(-80+n*8,h)],fill=tuple(int(c*.38) for c in accent),width=1)
+  backgrounds[accent]=background
+ im=backgrounds[accent].copy()
  icon=Image.open(app['icon']).convert('RGBA');icon=ImageOps.contain(icon,(242,242),Image.Resampling.LANCZOS)
  # Icons retain their real artwork and are set on a full portrait cover.
  im.paste(icon,((w-icon.width)//2,36+(242-icon.height)//2),icon)

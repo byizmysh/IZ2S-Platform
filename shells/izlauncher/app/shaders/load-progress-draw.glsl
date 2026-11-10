@@ -5,6 +5,7 @@ float loadProgressGlyphPixel(ivec2 q,uint glyph,uint weight){
  uint pixel=uint(at.y)*1024u+uint(at.x);return float((c.atlas[98304u+(pixel>>4u)]>>((pixel&15u)*2u))&3u)/3.0;
 }
 float loadProgressGlyph(vec2 q,uint glyph,uint weight){
+ q.x+=float(LOAD_GLYPH_X);
  ivec2 at=ivec2(floor(q));vec2 f=fract(q);
  return mix(mix(loadProgressGlyphPixel(at,glyph,weight),loadProgressGlyphPixel(at+ivec2(1,0),glyph,weight),f.x),mix(loadProgressGlyphPixel(at+ivec2(0,1),glyph,weight),loadProgressGlyphPixel(at+ivec2(1),glyph,weight),f.x),f.y);
 }

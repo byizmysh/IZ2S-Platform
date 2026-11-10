@@ -1,0 +1,28 @@
+{
+  "format": "izlauncher.engine",
+  "apiVersion": 1,
+  "id": "civswitch",
+  "directory": "CivSwitch",
+  "name": "CivSwitch · Civilization VII",
+  "version": "0.22.0",
+  "entry": "adapter.cjs",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "modes": [
+    "original"
+  ],
+  "consolePort": 9026,
+  "order": 30,
+  "requirements": {
+    "game": "Civilization VII, Switch 1 cartridge, version 1.0.0"
+  },
+  "settingsSchema": [],
+  "defaultSettings": {},
+  "integrationStatus": "Core only · ADV keyboard + controller / ARM guided input",
+  "upstream": {
+    "repository": "https://github.com/Gezine/CivSwitch",
+    "license": "MIT"
+  }
+}

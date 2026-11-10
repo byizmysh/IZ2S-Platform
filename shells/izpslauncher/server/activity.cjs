@@ -15,13 +15,14 @@ async function raster(events,apps,directory,label='activity'){
  return {header:bytes.subarray(0,128),text:bytes.subarray(128)};
 }
 function create({rpc,mapped,directory,stateRoot}){
- let stamp='',bytes;
- return {async publish(apps){
+ let stamp='',bytes,uploadedStamp=null,uploadedGeneration=null;
+ return {async publish(apps,{generation,force=false}={}){
   const events=select(await require('../../../core/packages/jobs.cjs').all(stateRoot));
   const next=JSON.stringify({events,apps:apps.map(a=>({id:a.id,name:a.name}))});
   if(next!==stamp){bytes=await raster(events,apps,directory,'izps-activity');stamp=next;}
+  if(!force&&generation!==undefined&&uploadedGeneration===generation&&uploadedStamp===stamp)return;
   // The common storage may have belonged to a module since the previous boundary.
-  await rpc.write(mapped+1024+DATA,bytes.text);await rpc.write(mapped+1024+HEADER,bytes.header);
+  await rpc.write(mapped+1024+DATA,bytes.text);await rpc.write(mapped+1024+HEADER,bytes.header);uploadedGeneration=generation;uploadedStamp=stamp;
  }};
 }
 module.exports={select,raster,create,HEADER,DATA,TEXT_BYTES,MAGIC,MAX_EVENTS};

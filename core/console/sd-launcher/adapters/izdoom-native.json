@@ -1,0 +1,11 @@
+{
+  "format": "iz2s.sd-adapter-v1",
+  "id": "izdoom-prime18",
+  "abi": 2,
+  "bytes": 1948,
+  "sha256": "deb47a031b660ba11dfd543ed387b3dbcce6471ff825fbdbc43332cb9837f1ad",
+  "sourceSha256": "e6261b0ce24971e7b53018c9a7a1b5f38b11897f70adf45d7b3698b45462e005",
+  "nativeAbiSha256": "46a7c82ea4761d08bbb661fe84175260c4b84218592c57d2d5fc39ade82618fc",
+  "pic": true,
+  "entryOffset": 0
+}

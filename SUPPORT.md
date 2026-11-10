@@ -1,15 +1,19 @@
-# IZ2S support
+# Support for IZ2S Platform 0.22
 
-The panel server supports Linux x64. Linux ARM64 is a declared target whose complete physical configuration is not qualified by the local release checks. Experimental Windows/macOS PC installers and Start entries are included. They require real OS testing; current native engine/shell/hardware session declarations remain Linux-only. See COMPATIBILITY.md and distribution/HOST-TESTING.md.
+For an issue, record the platform version, host OS/architecture, game and game version, connection engine, launcher and app version. State whether the app is loaded in RAM or installed on SD, and whether this was First Setup, a fresh Launch or recovery.
 
-The common network layer uses Node.js APIs and has no iproute2 or ping dependency. Linux SD identification reads device/mount metadata through an optional host adapter; findmnt is not required. DejaVu fonts are bundled. Host-only checks require Node.js 20.20+ and Python/Pillow, plus OpenSSH for ARM input. Shader compiler/validator checks apply to developer builds. The installer automates runtime dependencies for apt/pacman/dnf systems; other distributions can supply the same portable runtimes and use --no-system-packages. Windows/macOS native port/qualification remains pending; private Node/Python/Pillow bootstrap code is provided for installation/panel tests. This candidate is local and unpublished; see distribution/PORTABILITY.md.
+## Useful evidence
 
-Local checks cover packaged resource completeness, both launchers, source hashes, module packaging and dependency resolution, reader storage/layout/import, authenticated settings, ARM package integrity and compiled shader validation. They do not prove successful native FS memory acquisition on every console boot.
+1. Reproduce once from the required game screen and note the time.
+2. Open Attempts, select that attempt and export its full log.
+3. Include the exact error and the action that caused it; state whether the console still responds.
+4. For uploads, provide the transfer phase, whether Continue upload selected the same file, and the source file size. Do not upload a commercial game/BIOS as evidence.
+5. Distinguish Linux installer, browser/panel and native-console failures. Windows and macOS are outside this release scope.
 
-The Cardputer ADV 0.21.0 USB test on a Linux PC passed printable characters and workflow keystrokes. Its Switch compatibility issue led to firmware 0.21.1 using a boot keyboard interface and unnumbered eight-byte reports. Firmware 0.21.1 subsequently completed its launch keyboard job on a physical Switch 2: USB boot protocol was selected, report errors remained zero, and the console TCP connection reached the FS acquisition stage. That attempt then failed during native FS memory acquisition; a complete launcher start is not claimed from this check.
+Review diagnostics before sharing. Remove tokens, pairing files, personal paths, keys, BIOS/game data and unrelated filenames. Do not attach the whole `data/` directory. A previous attempt's log is history, not proof that it blocked a new attempt.
 
-If native memory acquisition reports retained resources, restart the console before another attempt. Preserve local diagnostics for troubleshooting, but remove private paths, addresses, keys, file listings and book names before sharing them publicly.
+If memory/native cleanup is unconfirmed, fully close/restart the game as instructed before trying again. Closing a browser view, dismissing a message or deleting history does not release console resources. Do not hide a retained-resource condition with repeated Launch presses.
 
-A subsequent physical run completed FS initialization and all 43 IZPSlauncher GPU checks, then lost the local HTTP RPC connection during input initialization. The release disables pooled HTTP sockets in both bundled engines. Local fault checks reproduce a reset with the former pooled client and pass with the updated clients, including rejection without command replay after an unknown outcome. After this change, a physical Switch 2 launch using Cardputer ADV and IZ2S Core completed initialization and reached the running IZPSlauncher frame loop, reporting approximately 60 frames per second. This verifies that launch path; long-running sessions, all modules and every hardware combination are not qualified by that check.
+Public platform issues: https://github.com/byizmysh/IZ2S-Platform/issues
 
-New Windows/macOS setup paths prepare private Node 24, uv-managed Python 3.12 and Pillow 12.0.0, plus an existing or portable Windows SSH client. Their scripts, source-copy policy and interpreter routing can be checked locally, but no Windows/macOS OS result is claimed from Linux checks. The release notes compare the complete current feature set and migration requirements with v0.16.0-rc.5, commit d7a0df16e7e0c68acf78d2f68da8496ef3d9fd6b.
+The IZPSX standalone repository is prepared locally; its remote repository has not yet been created by this preparation. Until a maintainer publishes it, report bundled integration issues with the exact module version to the platform project.

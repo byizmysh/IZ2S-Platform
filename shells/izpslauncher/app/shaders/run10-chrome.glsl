@@ -61,5 +61,6 @@ void menuFooter(vec2 p,inout vec3 col){
  b=vec2(cursor,1008);
  if(showB){col=mix(col,INK,line(length(p-b)-19.0,1.4));col=mix(col,INK,text(p,b-vec2(TEXT_BUTTON_B.zw)*.5,TEXT_BUTTON_B));col=mix(col,INK,focusText(p,b+vec2(35,-float(F_BACK.w)*.5),F_BACK,1));cursor+=35.0+float(F_BACK.z)+48.0;}
  x=vec2(cursor,1008);
- if(showX){col=mix(col,INK,line(length(p-x)-19.0,1.4));col=mix(col,INK,focusText(p,x-vec2(F_X.zw)*.5,F_X,1));col=mix(col,INK,focusText(p,x+vec2(35,-float(F_ADDSMALL.w)*.5),F_ADDSMALL,1));}
+ if(showX){col=mix(col,INK,line(length(p-x)-19.0,1.4));col=mix(col,INK,focusText(p,x-vec2(F_X.zw)*.5,F_X,1));col=mix(col,INK,focusText(p,x+vec2(35,-float(F_ADDSMALL.w)*.5),F_ADDSMALL,1));cursor+=35.0+float(F_ADDSMALL.z)+48.0;}
+ if(appSelected&&c.transition.y==0.0){vec2 key=F_REMOVE_KEY;col=mix(col,INK,line(length(p-key)-19.0,1.4));col=mix(col,INK,fill(box(p,key,vec2(7,1),1)));col=mix(col,INK,focusText(p,key+vec2(35,-float(F_REMOVE.w)*.5),F_REMOVE,1));}
 }

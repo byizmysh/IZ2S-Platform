@@ -17,6 +17,7 @@ async function createConnections({
   run,
   interfaces = () => os.networkInterfaces(),
   isWireless = require('../platform/network.cjs').isWireless,
+  isTunnel = require('../platform/network.cjs').isTunnel,
   routeSource = require('../platform/network.cjs').routeSource,
   networkEnabled = !!run,
   discover = network.discover,
@@ -169,6 +170,7 @@ async function createConnections({
       hosts = (
         await Promise.all(
           Object.entries(interfaces()).map(async ([name, list]) => {
+            if(await isTunnel(name))return [];
             const mode = (await isWireless(name)) ? 'wifi' : 'lan';
             return list
               .filter(

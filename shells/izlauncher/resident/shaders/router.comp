@@ -27,10 +27,10 @@ void main(){
  r.w[16]=low;r.w[17]=high;r.w[18]=freq;r.w[19]=delta;
  r.w[20]=low;r.w[21]=high;r.w[22]=valid?1u:0u;
  uint held=buttons(),pressed=held&~r.w[10];r.w[10]=held;r.w[9]+=uint(bitCount(pressed));
- bool minus=(pressed&2048u)!=0u,home=false;
- if(minus&&current!=0u){
+ bool r3=(pressed&32u)!=0u,home=false;
+ if(r3&&current!=0u&&r.w[11]==0u){
   uint elapsed=low-r.w[13],upper=high-r.w[14]-(low<r.w[13]?1u:0u);
-  home=valid&&r.w[12]!=0u&&upper==0u&&elapsed<=9375000u;
+  home=valid&&r.w[12]!=0u&&upper==0u&&elapsed>0u&&elapsed<=15625000u;
   r.w[12]=home?0u:1u;r.w[13]=low;r.w[14]=high;
  }
  uint request=r.w[5];r.w[5]=0u;

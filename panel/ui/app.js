@@ -1,6 +1,301 @@
 'use strict';
+// BEGIN STARTUP
+'use strict';
+// Saved choices are suggestions for this game/menu only; enabling loading is
+// deliberately not persisted. Legacy global choices never become selections.
+(function(root){
+ function scope(state){
+  const civ=['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId);
+  return (civ?'civ7':'sb4')+':'+(civ?state?.civLauncher?.shell||'izlauncher':state?.platform?.variant||'original');
+ }
+ function create(preferences){
+  const selected=new Set();let current=null;
+  function activate(state){
+   const next=scope(state);if(next===current)return false;
+   current=next;selected.clear();
+   try{const ids=JSON.parse(preferences?.getItem('iz2s.startupChoices.v2.'+current)||'[]');if(Array.isArray(ids))for(const id of ids)if(typeof id==='string'&&/^[a-z0-9][a-z0-9-]{0,47}$/.test(id))selected.add(id);}catch{}
+   return true;
+  }
+  function save(){if(!current)return;try{preferences?.setItem('iz2s.startupChoices.v2.'+current,JSON.stringify([...selected]));}catch{}}
+  function payload(enabled){return {moduleIds:enabled?[...selected]:[],restoreInstalled:false};}
+  return {selected,activate,save,payload};
+ }
+ const api={scope,create};root.IZ2S_STARTUP=api;if(typeof module==='object'&&module.exports)module.exports=api;
+})(globalThis);
+// END STARTUP
+// BEGIN ERROR TEXT
+/* Canonical English diagnostics; localized UI labels never become log sources. */
+'use strict';
+(function(root){
+ if(root.IZ2S_ERRORS){if(typeof module==='object'&&module.exports)module.exports=root.IZ2S_ERRORS;return;}
+ let dictionary={},matcher;
+ const cyrillic=/[\u0400-\u04ff]/;
+ function configure(messages={}){
+  const candidates=new Map();
+  for(const [english,translated] of Object.entries(messages)){
+   if(!cyrillic.test(english)&&cyrillic.test(translated)&&translated.length>=3&&!candidates.has(translated))candidates.set(translated,english);
+  }
+  dictionary=Object.fromEntries(candidates);const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const keys=[...candidates.keys()].sort((a,b)=>b.length-a.length);
+  matcher=keys.length?new RegExp(keys.map(escape).join('|'),'g'):null;
+ }
+ function canonical(value){
+  const source=String(value?.message??value??'');
+  if(!cyrillic.test(source))return source;
+  // Filenames/paths remain data, even when they contain non-English characters.
+  const protectedParts=[];
+  let text=source.replace(/(?:[A-Za-z]:[\\/]|\/)[^\s"'<>]+|`[^`]*`/g,part=>{protectedParts.push(part);return '\u0001'+(protectedParts.length-1)+'\u0002';});
+  if(matcher)text=text.replace(matcher,p=>dictionary[p]);
+  const legacy={'\u041e\u0448\u0438\u0431\u043a\u0430':'Error','\u043e\u0448\u0438\u0431\u043a\u0430':'error','\u041f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u043a':'Restart','\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435':'Connection','\u043a\u043e\u043d\u0441\u043e\u043b\u044c':'console','\u041a\u043e\u043d\u0441\u043e\u043b\u044c':'Console','\u0424\u0430\u0439\u043b':'File','\u0444\u0430\u0439\u043b\u043e\u0432':'files','\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e':'stopped','\u0432\u044b\u0431\u0440\u0430\u043d\u043e':'selected','\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e':'completed','\u0412\u0432\u043e\u0434 \u043e\u0442\u043c\u0435\u043d\u0451\u043d. \u041f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0435 \u043a\u043e\u043d\u0441\u043e\u043b\u044c \u043f\u0435\u0440\u0435\u0434 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u0439 \u043f\u043e\u043f\u044b\u0442\u043a\u043e\u0439.':'Input was cancelled. Restart the console before another attempt.'};
+  for(const [ru,en]of Object.entries(legacy).sort((a,b)=>b[0].length-a[0].length))text=text.split(ru).join(en);
+  // Unknown legacy prose is kept in the original downloadable log, never
+  // spliced into an English/Spanish/Chinese interface or a native stack trace.
+  text=text.split('\n').map(line=>cyrillic.test(line)?'Original diagnostic is available in the full log.':line).join('\n');
+  return text.replace(/\u0001(\d+)\u0002/g,(_,i)=>protectedParts[Number(i)]);
+ }
+ function describe(value){
+  const detail=canonical(value),s=(String(value?.message??value??'')+' '+detail).toLowerCase();let title,action;
+  if(/fs rpc memory acquisition failed|fs acquisition stopped|overwrite missed.*canary/.test(s)){title='Filesystem access was not acquired in this attempt.';action='Fully close and reopen the game, open a fresh Direct, then start a new session.';}
+  else if(/resources retained|uncertain|did not (?:finish|terminate)|restart required|native execution/.test(s)){title='Native execution could not be confirmed.';action='Restart the game before starting a new session.';}
+  else if(/9026|loader.*not (?:respond|found)|awaiting payload/.test(s)){title='The game loader is not responding.';action='Open Load Game on Switch, wait for Awaiting payload, then check the connection.';}
+  else if(/package changed|selected package|version.*(?:differ|mismatch)/.test(s)){title='The selected package has changed.';action='Refresh App library and select the current version.';}
+  else if(/failed to fetch|socket hang up|disconnected|connection.*(?:lost|refused|ended)|server.*unavailable/.test(s)){title='Connection was interrupted.';action='Check the network and restore the connection when the console is ready.';}
+  else if(/timeout|timed out|aborted due/.test(s)){title='The operation timed out.';action='Check the device and connection before trying again.';}
+  else if(/cancelled|canceled/.test(s)){title='The operation was cancelled.';action='Review the current console screen before continuing.';}
+  else {title=detail.split('\n').find(l=>l.trim())||'The operation failed.';if(title.length>220)title='The operation failed.';action='Open technical details or download the full log.';}
+  return {title,action,detail};
+ }
+ const api={canonical,describe,configure};root.IZ2S_ERRORS=api;
+ if(typeof module==='object'&&module.exports){module.exports=api;configure(require('./ru/ui.json'));}
+})(globalThis);
+// END ERROR TEXT
+// BEGIN PRESENTATION
+'use strict';
+(function(root){
+ function session(state){
+  const civ=state?.civLauncher,active=state?.active;
+  const running=active?.status==='running'||civ?.state==='running';
+  const retained=!!active||['running','offline','starting','stopping'].includes(civ?.state);
+  const offline=civ?.state==='offline'||active?.status==='offline'||!!state?.offline||retained&&!!state?.link&&['waiting-for-dock','waiting-for-network','offline'].includes(state.link.state);
+  const stopping=active?.status==='stopping'||civ?.state==='stopping';
+  const unconfirmed=stopping&&(active?.nativeParentRetention?.awaitingActualClose||civ?.shutdownUnconfirmed);
+  return {running,offline,stopping,unconfirmed:!!unconfirmed,compact:running||offline||stopping&&active?.kind!=='bootstrap',title:unconfirmed?'Shutdown unconfirmed':stopping?'Disconnecting\u2026':offline?'Connection interrupted':running?'Session is running':'Connection',game:['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?'Civilization VII':'SmileBASIC 4',launcher:(civ?.shell||state?.platform?.variant)==='izpslauncher'?'IZPSlauncher':(civ?.shell||state?.platform?.variant)==='original'?'Core only':'IZlauncher'};
+ }
+ function directNetwork(state){
+  if(!state?.platform||['civswitch','civswitch-ldn'].includes(state.platform.loaderId)||state.active?.kind==='bootstrap')return false;
+  const initializing=state.active?.kind==='launch'&&state.active.launchStage==='initializing';
+  return !!state.connected||initializing||session(state).compact||connectionMode(state).available;
+ }
+ function deviceLinks(cards){
+  return cards.slice(1).map((next,i)=>{
+   const card=cards[i],sameRow=Math.abs(card.y-next.y)<2;
+   const a=sameRow?{x:card.x+card.width,y:card.y+card.height/2}:{x:card.x+card.width/2,y:card.y+card.height};
+   const b=sameRow?{x:next.x,y:next.y+next.height/2}:{x:next.x+next.width/2,y:next.y};
+   const x=(a.x+b.x)/2,y=(a.y+b.y)/2;
+   let d;
+   if(sameRow)d=`M ${a.x} ${a.y} C ${x} ${a.y} ${x} ${b.y} ${b.x} ${b.y}`;
+   else if(Math.abs(a.x-b.x)<2)d=`M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+   else {const direction=Math.sign(b.x-a.x),r=Math.max(0,Math.min(6,(b.y-a.y)/4));d=`M ${a.x} ${a.y} V ${y-r} Q ${a.x} ${y} ${a.x+direction*r} ${y} H ${b.x-direction*r} Q ${b.x} ${y} ${b.x} ${y+r} V ${b.y}`;}
+   return {d,x,y,tone:card.tone==='lost'||next.tone==='lost'?'lost':card.tone==='ready'&&next.tone==='ready'?'ready':'waiting'};
+  });
+ }
+ function job(job){
+  const complete=['complete','ready'].includes(job.status),removed=job.operation==='remove';
+  return {complete,removed,label:complete?(removed?(job.target==='sd'?'Removed from SD':'Removed from session'):job.target==='sd'?'Installed on SD':'Ready in menu'):job.status,failed:job.status==='failed',active:['queued','loading','publishing'].includes(job.status)};
+ }
+ const phases={verify:'Checking files',prepare:'Preparing on PC',graphics:'Preparing graphics',install:'Installing on PC',transfer:'Sending files to console','sd-prepare':'Preparing SD application','sd-write':'Writing to SD','sd-verify':'Verifying SD','sd-publish':'Waiting for the SD menu'};
+ function transfer(state){
+  const rows=(state?.jobs||[]).filter(j=>['queued','loading','publishing'].includes(j.status));
+  const current=rows.filter(j=>j.status!=='queued').sort((a,b)=>String(b.progress?.updated||'').localeCompare(String(a.progress?.updated||'')))[0]||rows[0];if(!current)return null;
+  const p=current.progress||{},known=Number.isFinite(p.totalBytes)&&p.totalBytes>0&&Number.isFinite(p.completedBytes),completed=known?Math.max(0,Math.min(p.totalBytes,p.completedBytes)):null;
+  return {id:current.id,name:current.name||current.packageId,count:rows.length,label:phases[p.phase]||'Waiting for console',percent:known?Math.floor(100*completed/p.totalBytes):null,completed,total:known?p.totalBytes:null,target:current.target==='sd'?'SD':'RAM'};
+ }
+ function connectionMode(state){
+  const active=state?.active,link=state?.link,retained=active?.kind==='launch'&&['running','offline'].includes(active?.status);
+  const available=!!retained&&link?.protocol===3&&link?.recoveryAvailable===true;
+  const online=available&&state.connected===true&&active.status==='running'&&link.state==='connected';
+  const synchronizing=available&&['synchronizing','waiting-for-command-completion'].includes(link.state);
+  return {available,online,synchronizing,retained:!!active,preferred:available?'restore':'new',canRestore:available&&!online&&!synchronizing,
+   label:online?'Connection restored':synchronizing?'Synchronizing session…':'Restore connection',
+   note:online?'Connected to the existing launcher. Its applications remain loaded.':synchronizing?'Authenticating the console and synchronizing pending commands.':available?'Keep the launcher open on Switch. Select Restore connection here or the Restore connection tile on the console.':active?.status==='stopping'?'Session is stopping. Wait for confirmed cleanup before reconnecting.':active?'This active session has no available recovery service. Stop it before starting a new session.':'Restore is available while this PC server retains a launcher session with automatic recovery enabled.'};
+ }
+ function versions(state,pkg){
+  const has=row=>(typeof row==='string'?row:row?.id)===pkg.id,session=!state.platform?.sdLauncher&&(state.installed||[]).find(has),sd=[...(state.sdInstalled||[]),...(state.platform?.sdLauncher?state.installed||[]:[])].find(has);
+  return {pc:pkg.version,session:session?.version||null,sd:sd?.versionVerified?sd.version:null,onSd:!!sd,onSession:!!session,sdUnknown:!!sd&&!sd.versionVerified,sdUpdate:!!sd?.versionVerified&&sd.sourceSha256!==pkg.sha256};
+ }
+ function library(state){
+  const packages=[...(state.library||[])],known=new Set(packages.map(p=>p.id));
+  if(['civswitch','civswitch-ldn'].includes(state.platform?.loaderId))return packages;
+  for(const entry of [...(state.sdInstalled||[]),...(state.platform?.sdLauncher?state.installed||[]:[])]){
+   const row=typeof entry==='string'?{id:entry}:entry;if(!row?.id||known.has(row.id))continue;known.add(row.id);
+   packages.push({...row,name:row.name||row.id,version:row.versionVerified?row.version:null,bytes:row.bytes||0,icon:row.id==='iz-reconnect'?'/reconnect.svg':row.icon||'/icon.svg',description:'Installed on SD. The PC package is not available.',supported:false,sdOnly:true,sd:{compatible:true}});
+  }
+  return packages;
+ }
+ // Console inventory only: never infer RAM presence from PC files or startup choices.
+ function consoleApps(state){
+  if(!state?.connected)return [];
+  const civ=['civswitch','civswitch-ldn'].includes(state.platform?.loaderId),sdMode=!!state.platform?.sdLauncher;
+  const ram=new Set((sdMode?[]:state.installed||[]).map(row=>typeof row==='string'?row:row.id));
+  const sd=new Set((civ?[]:[...(state.sdInstalled||[]),...(sdMode?state.installed||[]:[])]).map(row=>typeof row==='string'?row:row.id));
+  const packages=library(state),known=new Set(packages.map(p=>p.id));
+  for(const entry of state.installed||[]){const row=typeof entry==='string'?{id:entry}:entry;if(row?.id&&!known.has(row.id)){packages.push({id:row.id,name:row.name||row.id,icon:row.id==='iz-reconnect'?'/reconnect.svg':row.icon||'/icon.svg'});known.add(row.id);}}
+  return packages.filter(p=>ram.has(p.id)||sd.has(p.id)).map(p=>({id:p.id,name:p.name,icon:p.icon||'/icon.svg',ram:ram.has(p.id),sd:sd.has(p.id)}));
+ }
+ // Status is evaluated for the selected destination, so “Not installed + SD”
+ // also finds apps which already have a separate RAM copy.
+ function libraryFilter(state,{query='',status='all',location='all',focusId=null}={}){
+  state||={};const q=query.trim().toLocaleLowerCase(),rows=library(state).filter(p=>(!focusId||p.id===focusId)&&(!q||[p.name,p.description,p.id].join(' ').toLocaleLowerCase().includes(q)));
+  const present=p=>{const v=versions(state,p);return location==='ram'?v.onSession:location==='sd'?v.onSd:v.onSession||v.onSd;};
+  const installed=rows.filter(present).length;
+  return {ids:rows.filter(p=>status==='uninstalled'?!present(p):status==='installed'||location!=='all'?present(p):true).map(p=>p.id),total:rows.length,installed,uninstalled:rows.length-installed};
+ }
+ const terminal=new Set(['failed','cancelled','complete','stopped']);
+ const errorLabels={filesystem:'Filesystem access',network:'Connection',timeout:'Timeout',input:'Input',graphics:'Graphics',application:'Application',native:'Native execution',cancelled:'Cancellation',other:'Other'};
+ function errorType(row){
+  if(['cancelled','stopped'].includes(row.status))return 'cancelled';
+  const text=(String(row.error||'')+' '+(root.IZ2S_ERRORS?.canonical(row.error)||'')).toLowerCase();
+  if(/fs[ -]?rpc|filesystem|file system|acquiring fs|fs memory|\u0444\u0430\u0439\u043b\u043e\u0432|\u0444\u0441 rpc/.test(text))return 'filesystem';
+  if(/did not terminate|native execution|resources retained|uncertain.*native|native batch/.test(text))return 'native';
+  if(/timeout|timed out|time.?out|\u0432\u0440\u0435\u043c\u044f \u043e\u0436\u0438\u0434\u0430\u043d\u0438\u044f/.test(text))return 'timeout';
+  if(/fetch|socket|network|9026|connection|econn|host.*unreachable|game loader|awaiting payload|wi-fi|\u043f\u043e\u0434\u043a\u043b\u044e\u0447|\u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d/.test(text))return 'network';
+  if(/hid|keyboard|input|chat|receipt|\u0432\u0432\u043e\u0434|\u043a\u043b\u0430\u0432\u0438\u0430\u0442/.test(text))return 'input';
+  if(/vulkan|render|graphics|display|gpu|\u0433\u0440\u0430\u0444\u0438\u043a/.test(text))return 'graphics';
+  if(/package|application|module|launcher stopped|\.izm|\u043f\u0440\u0438\u043b\u043e\u0436|\u043c\u043e\u0434\u0443\u043b/.test(text))return 'application';
+  return 'other';
+ }
+ function attempt(row,{activeId}={}){
+  const success=['complete','running'].includes(row.status)||!!row.connectedAt&&['running','offline','stopped'].includes(row.status);
+  const outcome=success?'successful':terminal.has(row.status)?'unsuccessful':'pending';
+  const label={failed:'Failed',cancelled:'Cancelled',complete:'Completed',stopped:success?'Completed':'Stopped',running:'Running',offline:'Connection interrupted',starting:'Starting',typing:'Entering commands',stopping:'Stopping'}[row.status]||'Interrupted';
+  return {success,outcome,label,errorType:outcome==='unsuccessful'?errorType(row):null,tone:outcome==='unsuccessful'?'error':success?'success':'neutral',deletable:terminal.has(row.status)&&row.id!==activeId};
+ }
+ function inPeriod(row,period,now){
+  if(period==='all')return true;const created=new Date(row.created),today=new Date(now);if(!Number.isFinite(created.getTime()))return false;
+  today.setHours(0,0,0,0);const since=new Date(today);if(period==='week')since.setDate(since.getDate()-6);
+  const until=new Date(today);until.setDate(until.getDate()+1);return created>=since&&created<until;
+ }
+ function statistics(rows,{period='today',now=Date.now()}={}){
+  const result={total:0,successful:0,unsuccessful:0,pending:0,errors:{}};
+  for(const row of rows){if(!inPeriod(row,period,now))continue;const info=attempt(row);result.total++;result[info.outcome]++;if(info.errorType)result.errors[info.errorType]=(result.errors[info.errorType]||0)+1;}
+  return result;
+ }
+ function history(rows,{query='',kind='all',category='all',period='all',now=Date.now(),limit=10}={}){
+  const q=query.trim().toLowerCase();const filtered=rows.filter(r=>{
+   const info=attempt(r);return (kind==='all'||info.outcome===kind||r.status===kind)&&(category==='all'||info.errorType===category)&&inPeriod(r,period,now)&&(!q||[r.error,r.created,r.kind,r.status].join(' ').toLowerCase().includes(q));
+  }).sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')));
+  return {rows:filtered.slice(0,limit),total:filtered.length,more:filtered.length>limit};
+ }
+ const api={session,connectionMode,directNetwork,deviceLinks,job,transfer,versions,library,consoleApps,libraryFilter,attempt,history,statistics,errorLabels};root.IZ2S_PRESENTATION=api;if(typeof module==='object'&&module.exports)module.exports=api;
+})(globalThis);
+// END PRESENTATION
+// BEGIN ARM INSTALLER
+// Convert the existing archive download when a running older panel server
+// cannot yet serve the standalone installer. No server restart is required.
+(function(root){
+ const template="#!/usr/bin/env python3\n\"\"\"IZ2S ARM installer: USB keyboard + controller for Civ7 and SmileBASIC 4.\"\"\"\nimport argparse\nimport base64\nimport hashlib\nimport importlib.util\nimport io\nimport json\nimport os\nfrom pathlib import Path\nimport sys\nimport tarfile\nimport tempfile\n\nARCHIVE_SHA256 = '__IZ2S_SHA256__'\nARCHIVE_BASE64 = '__IZ2S_PAYLOAD__'\n\n\ndef payload():\n    archive = base64.b64decode(ARCHIVE_BASE64, validate=True)\n    if hashlib.sha256(archive).hexdigest() != ARCHIVE_SHA256:\n        raise ValueError('Installer archive checksum mismatch. Download it again.')\n    files = {}\n    with tarfile.open(fileobj=io.BytesIO(archive), mode='r:gz') as bundle:\n        for member in bundle.getmembers():\n            parts = member.name.split('/')\n            if len(parts) != 2 or parts[0] != 'arm-input' or not member.isfile() or not member.size <= 2 * 1024 * 1024:\n                raise ValueError('Invalid installer entry')\n            name = parts[1]\n            if not name or name in ('.', '..') or '\\\\' in name or name in files:\n                raise ValueError('Invalid installer entry name')\n            files[name] = bundle.extractfile(member).read()\n    sums = json.loads(files['checksums.json'])\n    expected = sums['files']\n    if sums['algorithm'] != 'sha256' or set(files) != set(expected) | {'checksums.json'}:\n        raise ValueError('Installer file inventory mismatch')\n    for name, digest in expected.items():\n        if hashlib.sha256(files[name]).hexdigest() != digest:\n            raise ValueError('Installer checksum mismatch: ' + name)\n    package = json.loads(files['package.json'])\n    if package['id'] != 'arm-input' or not {'usb-keyboard', 'usb-gamepad', 'automatic-chat'} <= set(package['capabilities']):\n        raise ValueError('This installer requires the keyboard + controller package')\n    return files, package\n\n\ndef check_host():\n    if not sys.platform.startswith('linux'):\n        raise RuntimeError('Run this installer on the ARM Linux input device.')\n    if not Path('/run/systemd/system').is_dir():\n        raise RuntimeError('A running systemd installation is required on ARM.')\n    controllers = list(Path('/sys/class/udc').glob('*'))\n    if len(controllers) != 1:\n        raise RuntimeError('One USB device/OTG controller is required. Enable the board USB device driver first.')\n    return controllers[0].name\n\n\ndef main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    mode = parser.add_mutually_exclusive_group()\n    mode.add_argument('--check-package', action='store_true', help='Verify the embedded package without changing this computer')\n    mode.add_argument('--check', action='store_true', help='Verify the package and ARM prerequisites without installing')\n    parser.add_argument('--folder', default='/opt/iz2s/arm-input')\n    parser.add_argument('--hid', default='/dev/hidg0')\n    args = parser.parse_args()\n    files, package = payload()\n    if args.check_package:\n        print(json.dumps({'verified': True, 'version': package['version'], 'capabilities': package['capabilities']}))\n        return\n    controller = check_host()\n    if args.check:\n        print(json.dumps({'verified': True, 'usbController': controller, 'version': package['version']}))\n        return\n    if os.geteuid() != 0:\n        raise RuntimeError('Use sudo python3 ' + Path(sys.argv[0]).name + ' on the ARM device.')\n    with tempfile.TemporaryDirectory(prefix='iz2s-arm-install-') as temporary:\n        folder = Path(temporary)\n        for name, data in files.items():\n            (folder / name).write_bytes(data)\n        spec = importlib.util.spec_from_file_location('iz2s_arm_install', folder / 'install.py')\n        installer = importlib.util.module_from_spec(spec)\n        spec.loader.exec_module(installer)\n        encoded = {name: base64.b64encode(data).decode() for name, data in files.items()}\n        result = installer.install(args.folder, encoded, args.hid, dual_hid=True)\n    print(json.dumps(result))\n\n\nif __name__ == '__main__':\n    try:\n        main()\n    except (Exception, KeyboardInterrupt) as error:\n        print('Installation stopped: ' + (str(error) or 'cancelled'), file=sys.stderr)\n        sys.exit(1)\n";
+ async function create(archive){
+  const bytes=new Uint8Array(archive);
+  if(bytes.length<32||bytes.length>4*1024*1024||bytes[0]!==31||bytes[1]!==139||bytes[2]!==8)throw Error('Invalid ARM input archive');
+  const digest=Array.from(new Uint8Array(await root.crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+  const chunks=[];for(let at=0;at<bytes.length;at+=8192)chunks.push(String.fromCharCode(...bytes.subarray(at,at+8192)));
+  return template.replace('__IZ2S_SHA256__',digest).replace('__IZ2S_PAYLOAD__',root.btoa(chunks.join('')));
+ }
+ root.IZ2S_ARM_INSTALLER={create};
+})(globalThis);
+// END ARM INSTALLER
+// BEGIN STORAGE CONTROLS
+'use strict';
+// Shared destination policy and controls for the library and module tabs.
+// Rendering reads the existing snapshot only; it never polls the console.
+(function(root){
+ const civ=state=>['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId);
+ const targets=['session','sd'],label={session:'Session memory',sd:'SD card'},idOf=row=>typeof row==='string'?row:row?.id;
+ function installed(state,id){return {session:!state?.platform?.sdLauncher&&(state?.installed||[]).some(row=>idOf(row)===id),sd:[...(state?.sdInstalled||[]),...(state?.platform?.sdLauncher?state?.installed||[]:[])].some(row=>idOf(row)===id)};}
+ function compatible(state,pkg,target){
+  if(target==='session')return !state?.platform?.sdLauncher&&pkg?.session?.compatible!==false;
+  return target==='sd'&&!civ(state)&&pkg?.supported!==false;
+ }
+ function destination(state,pkg,preferences){
+  if(pkg?.sdOnly)return 'sd';
+  if(civ(state))return 'session';
+  if(state?.platform?.sdLauncher)return 'sd';
+  const chosen=preferences.get(pkg.id);if(targets.includes(chosen))return chosen;
+  return pkg?.session?.compatible===false?'sd':'session';
+ }
+ function reason(state,pkg,target,{remove=false}={}){
+  if(!targets.includes(target))return 'Choose an installation destination';
+  if(state?.preview)return 'Preview · device commands disabled';
+  if(civ(state)&&target==='sd')return 'Civilization VII currently loads applications into session memory.';
+  if(!remove&&civ(state)&&pkg?.session?.compatible===false)return pkg.session.reason||'Unavailable for this game';
+  if(!state?.connected)return 'Connect Switch 2 and start the launcher first';
+  if(!remove&&pkg?.supported===false)return 'This module is unavailable for this launcher';
+  if(target==='session'){
+   if(state?.platform?.sdLauncher)return 'Session memory requires the PC launcher mode';
+   if(!remove&&pkg?.session?.compatible===false)return pkg.session.reason||'This application requires the autonomous SD launcher';
+   if(state?.platform?.residentGraphics){if(remove&&state.active)return 'Restart the resident session to change its prepared app set';const candidate=state.platform.residentFiniteAudio?pkg?.residentAudio:pkg?.resident;if(!remove&&candidate?.compatible!==true)return candidate?.userReason||'This application is unavailable in the retained memory mode';}
+  }else{
+   if(state?.platform?.sdLauncher){if(state.sdRuntime?.poisoned)return 'SD ownership is uncertain; restart the console before changing files';}
+   else if(state?.platform?.residentGraphics||!state?.sdStorage?.enabled)return 'Start a fresh ordinary launcher session to enable SD installation';
+   else if(state.sdStorage.state==='uncertain')return 'SD ownership is uncertain; restart the console before changing files';
+  }
+  if((state?.jobs||[]).some(j=>j.packageId===pkg?.id&&['queued','loading','publishing'].includes(j.status)))return 'Operation queued…';
+  return '';
+ }
+ function filesystemWarning(state,pkg,target){
+  return target==='session'&&state?.connected&&pkg?.session?.requiresFilesystem&&state?.fsRpc?.state!=='ready'
+   ? 'Filesystem access is unavailable. This app can be stored in RAM, but cannot run in this session. Start a new session with Filesystem access enabled.' : '';
+ }
+ function payload(state,ids,preferences){
+  if(!Array.isArray(ids)||!ids.length||ids.length>16)throw Error('Select available applications');
+  const destinations={};for(const id of new Set(ids)){const pkg=state.library?.find(p=>p.id===id);if(!pkg)throw Error('Application is no longer available');const target=destination(state,pkg,preferences),error=reason(state,pkg,target);if(error)throw Error(error);destinations[id]=target;}
+  if(Object.values(destinations).filter(target=>target==='sd').length>15)throw Error('Choose up to 15 SD applications');const uniform=[...new Set(Object.values(destinations))];return {ids:[...new Set(ids)],targets:destinations,...(uniform.length===1?{target:uniform[0]}:{})};
+ }
+ function create({document,getState,getBusy=()=>false,invoke,changed=()=>{},notice,confirm=()=>true,preferences:storage}){
+  const preferences=new Map();try{for(const [id,value]of JSON.parse(storage?.getItem('iz2s.installTargets')||'[]'))if(/^[a-z0-9][a-z0-9-]{0,47}$/.test(id)&&targets.includes(value))preferences.set(id,value);}catch{}
+  const el=(tag,className,text)=>{const e=document.createElement(tag);e.className=className||'';if(text!==undefined)e.textContent=text;return e;};
+  const text=(node,value)=>{if(node.dataset.sourceText!==value){node.dataset.sourceText=value;node.textContent=value;}};
+  const action=fn=>()=>Promise.resolve().then(fn).catch(error=>notice?.(error.message));
+  function choose(id,target){preferences.set(id,target);try{storage?.setItem('iz2s.installTargets',JSON.stringify([...preferences].slice(-128)));}catch{}updateAll();changed();}
+  function remove(pkg,target){return action(async()=>{
+   const error=reason(getState(),pkg,target,{remove:true});if(error)throw Error(error);
+   const question=target==='sd'?'Remove this application from SD? Games, BIOS files and saves will stay on the card.':'Remove this application from session memory and the next startup? Its SD copy and PC package will stay available.';
+   if(!await confirm(question,pkg.name||pkg.id))return;
+   await invoke('/api/unload',{ids:[pkg.id],target});
+  });}
+  function mount(pkg){
+   const box=el('div','app-storage');box.dataset.appId=pkg.id;const field=el('label','storage-destination'),select=el('select','storage-target');field.append(el('span','','Install to'));
+   select.setAttribute('aria-label','Installation destination');for(const target of targets){const option=el('option','',label[target]);option.value=target;select.append(option);}select.onchange=()=>choose(pkg.id,select.value);field.append(select);
+   const hint=el('p','storage-hint'),badge=el('p','storage-installed'),identity=el('p','storage-versions'),actions=el('div','storage-actions'),install=el('button','secondary module-install');install.type='button';install.onclick=action(()=>invoke('/api/load',payload(getState(),[pkg.id],preferences)));actions.append(install);
+   const manage=el('details','storage-more'),manageBody=el('div','storage-more-body');manage.append(el('summary','','Manage installation'),manageBody);
+   for(const target of targets){const button=el('button','secondary module-unload storage-remove-'+target,target==='sd'?'Remove from SD':'Remove from session');button.type='button';button.onclick=remove(pkg,target);manageBody.append(button);}
+   badge.append(el('span','storage-badge-session','In RAM'),el('span','storage-badge-sd','On SD'));
+   box.append(field,identity,hint,badge,actions,manage);update(box,pkg);return box;
+  }
+  function update(box,pkg){
+   if(!box)return;const state=getState(),target=destination(state,pkg,preferences),select=box.querySelector('.storage-target'),error=reason(state,pkg,target),present=installed(state,pkg.id),busy=getBusy();
+   select.value=target;select.disabled=busy||pkg.sdOnly===true;for(const option of select.children){option.disabled=!compatible(state,pkg,option.value);option.hidden=civ(state)&&option.value==='sd';}
+   const warning=filesystemWarning(state,pkg,target);
+   const note=pkg.sdOnly?'Installed on SD. The PC package is not available.':error||(warning?'RAM storage only. Enable FS in a new session to run.':null)||(target==='sd'?(pkg?.sd?.compatible&&!pkg.sd.hostRequired?'Runs from SD without the PC.':'Requires the PC server when launched.'):'Cleared when the game closes.');text(box.querySelector('.storage-hint'),note);box.querySelector('.storage-hint').title=warning||note;box.querySelector('.storage-hint').dataset.tone=warning&&!error?'warning':'';
+   const badge=box.querySelector('.storage-installed');badge.hidden=!present.session&&!present.sd;box.querySelector('.storage-badge-session').hidden=!present.session;box.querySelector('.storage-badge-sd').hidden=!present.sd;
+   const install=box.querySelector('.module-install');install.disabled=busy||!!error;install.title=error||warning;const versions=(root.IZ2S_PRESENTATION?.versions||((state,pkg)=>{const sd=state.sdInstalled?.find(r=>r.id===pkg.id);return {pc:pkg.version,onSession:!!state.installed?.find(r=>r.id===pkg.id),onSd:!!sd,sd:sd?.versionVerified?sd.version:null,session:state.installed?.find(r=>r.id===pkg.id)?.version};}))(state,pkg);
+   const identity=box.querySelector('.storage-versions');const menu=(state.sessionCatalog||[]).find(r=>r.id===pkg.id);identity.hidden=!versions.onSession&&!versions.onSd; text(identity,(versions.onSession?'Session: '+(versions.session||'version unknown'):'')+(versions.onSd?(versions.onSession?' · ':'')+'SD: '+(versions.sd||'version unknown'):'')+(menu?.version&&menu.version!==pkg.version?' · Console catalog: '+menu.version:''));
+   identity.title=identity.textContent;
+   if(pkg.sdOnly){const blocked=reason(state,pkg,'sd',{remove:true});install.disabled=busy||!!blocked;install.title=blocked;install.onclick=remove(pkg,'sd');text(install,'Remove from SD');}
+   else text(install,target==='sd'?(present.sd?(versions.sd&&versions.sd!==versions.pc?'Update on SD':'Reinstall on SD'):'Install on SD'):'Load into session');
+   box.querySelector('.storage-more').hidden=pkg.sdOnly||!present.session&&!present.sd;
+   for(const place of targets){const button=box.querySelector('.storage-remove-'+place);button.hidden=!present[place];const blocked=reason(state,pkg,place,{remove:true});button.disabled=busy||!!blocked;button.title=blocked;}
+  }
+  function updateAll(){for(const box of document.querySelectorAll('.app-storage')){const pkg=(root.IZ2S_PRESENTATION?.library(getState())||getState()?.library)?.find(p=>p.id===box.dataset.appId);if(pkg)update(box,pkg);}}
+  function selection(ids){return payload(getState(),ids,preferences);}
+  function selectionError(ids){try{selection(ids);return '';}catch(e){return e.message;}}
+  return {mount,update,updateAll,selection,selectionError,preferences};
+ }
+ const api={installed,compatible,destination,reason,filesystemWarning,payload,create};root.IZ2S_STORAGE=api;if(typeof module==='object'&&module.exports)module.exports=api;
+})(globalThis);
+// END STORAGE CONTROLS
 // BEGIN WORKSPACE TABS
-globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke}) {
+globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storageControls}) {
   const tabs=document.getElementById('workspace-tabs'),home=document.getElementById('workspace-home'),panes=document.getElementById('workspace-tools'),dock=document.getElementById('workspace-dock');
   const rows=new Map(),records=new Map(),seen=new Map(),modules=new Map(),moduleViews=new Set(),closed=new Map();
   let active='home',snapshot,available=true;
@@ -29,7 +324,7 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke}) {
     const row=rows.get(id);if(!row)return;
     const order=['home',...rows.keys()],previous=order[Math.max(0,order.indexOf(id)-1)];
     const record=records.get(id);if(record)closed.set(id,record.requestId);
-    remember();row.pane.remove();row.tab.remove();rows.delete(id);if(active===id)select(previous);else selection();renderDock();
+    remember();row.pane.remove();row.tab.remove();rows.delete(id);if(active===id)select('home');else selection();renderDock();
   }
   function make(id,title) {
     if(rows.has(id)){const row=rows.get(id);row.title=title;label(row.button,title);row.button.title=title;row.dismiss.setAttribute('aria-label','Close view: '+title);return row;}
@@ -86,27 +381,28 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke}) {
     const url=new URL(record.url);if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.username||url.password)throw Error('Module interface must be local');
     const previous=records.get(record.id);record={...record,...(record.kind==='files'?{title:'Super File Bros.'}:{}),pending:previous?.pending,opening:previous?.opening};
     records.set(record.id,record);const fresh=seen.get(record.id)!==record.requestId;seen.set(record.id,record.requestId);
-    if(force||fresh&&!record.opening&&closed.get(record.id)!==record.requestId&&record.state!=='stopped'){closed.delete(record.id);remember();renderRecord(record);select(record.id);}
+    if(force||fresh&&!record.opening&&closed.get(record.id)!==record.requestId&&record.state!=='stopped'){closed.delete(record.id);remember();renderRecord(record);if(force||record.kind!=='files'&&!record.automatic)select(record.id);}
     else if(rows.has(record.id))renderRecord(record);
     renderDock();
   }
-  function dockRow(id,title,status,callback,kind) {
+  function dockRow(id,title,status,callback,kind,state='stopped') {
     const row=el('div',null,'workspace-dock-row'),open=action('',callback,'workspace-dock-open'),text=el('span',null,'workspace-dock-text');
-    row.dataset.workspaceId=id;open.title=title;text.append(el('span',title,'workspace-dock-name'));open.append(icon(kind==='files'?'i-folder':'i-grid'),text);row.append(open,el('small',status,'workspace-dock-state'));return {row,open};
+    row.dataset.workspaceId=id;row.dataset.state=state;open.title=title;text.append(el('span',title,'workspace-dock-name'));open.append(icon(kind==='files'?'i-folder':'i-grid'),text);row.append(open,el('small',status,'workspace-dock-state'));return {row,open};
   }
   function renderDock() {
     const stamp=JSON.stringify([available,!!snapshot?.preview,[...records.values()].map(r=>[r.id,r.title,r.url,r.requestId,r.state,r.pending,r.opening,r.moduleId]),[...moduleViews].map(id=>[id,moduleTitle(id),snapshot?.installed,snapshot?.moduleStates])]);
     if(dock.dataset.stamp===stamp){selection();return;}dock.dataset.stamp=stamp;dock.replaceChildren();
     for(const record of records.values()){
-      const {row,open}=dockRow(record.id,record.title,statusText(record),()=>['running','retained'].includes(record.state)?openRequest(record,true):startRecord(record.id),record.kind),stop=action('Stop',()=>stopRecord(record.id),'workspace-dock-stop');
+      const {row,open}=dockRow(record.id,record.title,statusText(record),()=>['running','retained'].includes(record.state)?openRequest(record,true):startRecord(record.id),record.kind,record.pending?'pending':record.opening?'opening':record.state),stop=action('',()=>stopRecord(record.id),'workspace-dock-stop');
+      stop.append(icon('i-stop'));
       stop.setAttribute('aria-label','Stop '+record.title);stop.title='Stop '+record.title;stop.disabled=!!record.pending||!!record.opening||['stopped','retained'].includes(record.state)||(!record.moduleId&&record.kind!=='files')||!available||!!snapshot?.preview;open.disabled=!!record.pending||!!record.opening;row.append(stop);dock.append(row);
     }
     for(const id of moduleViews){
       const module=modules.get(id);if(!module||[...records.values()].some(record=>record.moduleId===id&&record.kind==='module'))continue;
       const loaded=snapshot?.installed?.some(item=>(typeof item==='string'?item:item.id)===id),running=snapshot?.moduleStates?.some(item=>item.id===id&&item.state==='running');
-      dock.append(dockRow('module-info-'+id,moduleTitle(id),running?'Running':loaded?'Loaded on console':'Not running',()=>openModule(id),'module').row);
+      dock.append(dockRow('module-info-'+id,moduleTitle(id),running?'Running':loaded?'Loaded on console':'Not running',()=>openModule(id),'module',running?'running':loaded?'loaded':'stopped').row);
     }
-    dock.hidden=!dock.childElementCount;document.getElementById('workspace-dock-title').hidden=dock.hidden;selection();
+    dock.hidden=!dock.childElementCount;document.getElementById('workspace-dock-title').hidden=dock.hidden;document.getElementById('workspace-dock-section')?.toggleAttribute('hidden',dock.hidden);const count=document.getElementById('workspace-dock-count');if(count)label(count,String(dock.childElementCount));selection();
   }
   function moduleContent(id) {
     const module=modules.get(id),row=rows.get('module-info-'+id);if(!module||!row)return;
@@ -114,10 +410,14 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke}) {
     const loaded=snapshot?.installed?.some(item=>(typeof item==='string'?item:item.id)===id),running=snapshot?.moduleStates?.some(item=>item.id===id&&item.state==='running'),toolbar=el('div',null,'workspace-tool-bar'),controls=el('div',null,'workspace-tool-actions'),status=el('span',row.modulePending?'Operation in progress…':running?'Running':loaded?'Loaded on console':'Not running','workspace-status');
     status.dataset.state=running?'running':'stopped';status.setAttribute('role','status');row.pane.setAttribute('aria-busy',String(!!row.modulePending));toolbar.append(status,controls);
     const taskButton=(title,fn,disabled=false)=>{const button=action(title,async()=>{if(row.modulePending)return;row.modulePending=true;moduleContent(id);try{await fn();}finally{row.modulePending=false;if(rows.has('module-info-'+id))moduleContent(id);}},'secondary');button.disabled=disabled||!!row.modulePending;controls.append(button);};
-    if(module.switch)taskButton(loaded?'Remove from console':'Load on console',()=>invoke(loaded?'/api/unload':'/api/load',{ids:[id]}),!available||!snapshot?.connected||!!snapshot?.preview||!!(snapshot?.platform?.residentGraphics&&snapshot?.active));
+    if(module.switch&&storageControls)controls.append(storageControls.mount(snapshot?.library?.find(pkg=>pkg.id===id)||{...module,id}));
     if(module.server&&!module.switch)taskButton(running?'Stop module':'Start module',()=>invoke(running?'/api/module/stop':'/api/module/start',{id}),!available||!!snapshot?.preview);
     if(module.server?.settings)taskButton(module.server.settings.label||'Settings',async()=>{const result=await api('/api/module/settings',{id});openRequest(result.tab,true);},!available||!!snapshot?.preview);
-    const content=el('div',null,'workspace-module-copy');content.append(el('h1',module.name),el('p',module.description||'','subtitle'));
+    const pkg=snapshot?.library?.find(item=>item.id===id),content=el('div',null,'workspace-module-copy'),heading=el('h1',module.name);
+    heading.setAttribute('translate','no');content.append(heading,el('p',module.version||pkg?.version||'','hint'),el('p',pkg?.description||module.description||'','subtitle'));
+    if(pkg?.session?.compatible===false)content.append(el('p',pkg.session.reason||'Unavailable for this game','hint'));
+    else if(pkg?.session?.requiresFilesystem)content.append(el('p','Requires filesystem access','hint'));
+    content.append(action('App library',()=>{select('home');document.querySelector('[data-view="apps"]')?.click();},'secondary'));
     if(module.switch)content.append(el('p','This module runs on the console. Use this tab to load or remove it.','hint'));
     row.pane.append(toolbar,content);
   }
@@ -127,11 +427,13 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke}) {
     const row=make('module-info-'+id,moduleTitle(id));moduleViews.add(id);moduleContent(id);select('module-info-'+id);renderDock();return row;
   }
   function updateModules(state) {
-    const stamp=JSON.stringify([state.moduleCatalog,state.moduleStates,state.installed,state.connected,state.preview,state.platform?.residentGraphics]);
+    const stamp=JSON.stringify([state.moduleCatalog,state.moduleStates,state.installed,state.sdInstalled,state.sdStorage,state.jobs?.map(j=>[j.packageId,j.target,j.status]),state.library?.map(p=>[p.id,p.name,p.version,p.description,p.module,p.session,p.sd]),state.connected,state.preview,state.platform?.residentGraphics,state.platform?.sdLauncher]);
     const ended=snapshot?.connected&&(!state.connected||snapshot.active?.id!==state.active?.id);
     snapshot=state;if(updateModules.stamp===stamp&&!ended)return;updateModules.stamp=stamp;
     if(ended)for(const id of [...moduleViews]){moduleViews.delete(id);close('module-info-'+id);}
     modules.clear();for(const module of state.moduleCatalog||[])modules.set(module.id,module);
+    // Imported IZM packages also have a details page, even without a source module.
+    for(const pkg of state.library||[]){const id=pkg.module?.id||pkg.id;if(!modules.has(id))modules.set(id,{...pkg.module,id,name:pkg.name,version:pkg.version,switch:pkg.module?.switch||{}});}
     for(const id of moduleViews){if(!modules.has(id)){close('module-info-'+id);moduleViews.delete(id);}else if(rows.has('module-info-'+id)){make('module-info-'+id,moduleTitle(id));moduleContent(id);}}
     for(const [id,record]of records)if(rows.has(id))renderRecord(record);renderDock();
   }
@@ -167,6 +469,8 @@ const RUN21_CATALOG = (function createPolicy() {
     'izbrowser-offline-v3-20261101',
     'izbrowser-offline-v4-20261101',
     'izbrowser-wifi-20261101',
+    'izdoom-audio-test',
+    'izpsx-sd-test',
     'izdoom-native18',
     'izdoom-wide18',
     'izoff-012',
@@ -192,7 +496,7 @@ const RUN21_CATALOG = (function createPolicy() {
   const izVariants = new Set(['izlauncher', 'izpslauncher']);
 
   function visible(descriptor) {
-    return !hidden.has(descriptor.id);
+    return !hidden.has(descriptor.id) && !/^ps2-(?:cold-r|cpu-accounting-r|sd-admit-r|sd-engine-r)/.test(descriptor.id) && !['test','diagnostic'].includes(descriptor.store?.channel);
   }
 
   function engineAvailable(loader, variant) {
@@ -237,6 +541,7 @@ const $ = (id) => document.getElementById(id),
   selection = new Set();
 let hardStopping = false;
 let stopTask = null, pendingStart = false, actionGeneration = 0;
+let cardputerRequest=null;
 let state = null,
   serverUnavailable = false,
   step = 'launch',
@@ -253,39 +558,34 @@ let state = null,
   logFollow = true,
   logWriting = false,
   backendNotice = '';
-const startupSelection = new Set();
+let startupPreferences;try{startupPreferences=localStorage;}catch{}
+const startupChoices=globalThis.IZ2S_STARTUP.create(startupPreferences);
+const startupSelection=startupChoices.selected;
 let startupStamp = '';
 // The manual-input design is a local UI preview, separate from session settings.
 let inputDesign = 'arm', manualDesignStage = 1;
-const advSetup = globalThis.IZ2S_ADV_SETUP.create({document, changed:()=>{if(state)renderWizard();}, openSetup:()=>chooseStep('bootstrap')});
+const advSetup = globalThis.IZ2S_ADV_SETUP.create({document, changed:()=>{if(state)renderControls();}, confirmUsb:()=>act('/api/cardputer/confirm-usb',{})});
+const civStartup=()=>startupChoices.payload($('preload-enabled').checked);
+const civswitchLdnUI = globalThis.IZ2S_CIVSWITCH_LDN.create({document,act,getStartup:civStartup,isUnavailable:()=>serverUnavailable});
+const civswitchUI = globalThis.IZ2S_CIVSWITCH.create({document, act,getStartup:civStartup,isUnavailable:()=>serverUnavailable,downloadArm:()=>downloadArmInstaller('civ7'),setupInput:()=>openDeviceSettings(state?.platform?.configuration?.inputAdapter==='cardputer-wifi'?{tab:1}:{})});
 let workspaceReady = false;
-const workspace = globalThis.IZ2S_WORKSPACE.create({document,api,notice,invoke:act,onSelect:tab=>{
+let installPreferences;try{installPreferences=localStorage;}catch{}
+const storageControls=globalThis.IZ2S_STORAGE.create({document,getState:()=>state,getBusy:()=>busy||serverUnavailable,invoke:act,changed:()=>renderControls(),notice,confirm:(message,name)=>confirmRemoval(message,name),preferences:installPreferences});
+const workspace = globalThis.IZ2S_WORKSPACE.create({document,api,notice,invoke:act,storageControls,onSelect:tab=>{
   const selected=document.querySelector('.view:not([hidden])')?.id||'setup';
-  const title=tab.id==='home'?({setup:'Connection',apps:'App library',history:'Failed attempts'}[selected]||'IZ2S'):tab.title;
+  const title=tab.id==='home'?({setup:'Connection',apps:'App library',history:'Attempts'}[selected]||'IZ2S'):tab.title;
   document.querySelectorAll('.sidebar [data-view]').forEach(button=>{const current=tab.id==='home'&&button.dataset.view===selected;button.classList.toggle('active',current);if(current)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
   $('view-title').textContent=title;document.title=title+' · IZ2S Platform';
 }});
 const manualDesignConfirmed = new Set();
-try {
-  for (const id of JSON.parse(
-    (localStorage.getItem('iz2s.startupModules') ?? localStorage.getItem('iz15.startupModules')) || '[]',
-  ))
-    startupSelection.add(id);
-} catch {}
-function saveStartup() {
-  localStorage.setItem(
-    'iz2s.startupModules',
-    JSON.stringify([...startupSelection]),
-  );
-  localStorage.setItem(
-    'iz2s.startupEnabled',
-    $('preload-enabled').checked ? '1' : '0',
-  );
+function syncStartupChoices(){
+ if(state&&startupChoices.activate(state)){
+  $('preload-enabled').checked=false;
+  startupStamp='';
+ }
 }
-try {
-  $('preload-enabled').checked =
-    (localStorage.getItem('iz2s.startupEnabled') ?? localStorage.getItem('iz15.startupEnabled')) === '1';
-} catch {}
+function saveStartup(){startupChoices.save();}
+$('preload-enabled').checked=false;
 const words = {
   server: ['Server x64 PC', 'i-server'],
   arm: ['ARM PC', 'i-arm'],
@@ -299,7 +599,7 @@ const element = (tag, className, text) => {
   return e;
 };
 function setText(node, value) {
-  const text = String(value ?? '');
+  const text = node.closest?.('[translate="no"],.app-name,pre,code')?String(value??''):globalThis.RUN21_LANGUAGE?.t(value)||String(value??'');
   if (node.textContent !== text) node.textContent = text;
 }
 function placeChild(parent, child, index) {
@@ -342,7 +642,7 @@ async function api(route, data, options = {}) {
       ...(controller ? { signal: controller.signal } : {}),
     });
     const result = await res.json();
-    if (!res.ok) throw Error(result.error || 'The server did not respond');
+    if (!res.ok) throw Object.assign(Error(result.error || 'The server did not respond'), {statusCode: res.status});
     return result;
   } finally {
     if (deadline !== null) clearTimeout(deadline);
@@ -355,7 +655,10 @@ function notice(message, type = 'error', identity = message) {
   $('toast').classList.toggle('success', type === 'success');
   $('toast-title').textContent =
     type === 'success' ? 'All set.' : 'Something needs attention.';
-  $('toast-text').textContent = message;
+  const problem=globalThis.IZ2S_ERRORS.describe(message);
+  $('toast-text').textContent = type==='success'?message:problem.title;
+  $('toast-action').hidden=type==='success';$('toast-action').textContent=problem.action;
+  $('toast-details').hidden=type==='success';$('toast-diagnostic').textContent=problem.detail;$('toast-text').setAttribute('translate',type==='error'?'no':'yes');
   $('toast').querySelector('.toast-symbol').textContent =
     type === 'success' ? '✓' : '!';
 }
@@ -396,7 +699,11 @@ function stopSession() {
   stopTask = Promise.resolve().then(async () => {
     try {
       const result = await api('/api/stop', {});
-      await poll();
+      if(result?.retained)notice(result.error||'Shutdown unconfirmed','error');
+      // Completion must not wait on catalog, workspace or an older status read.
+      const previousPoll = polling;
+      if (previousPoll) void previousPoll.then(() => poll());
+      else void poll();
       return result;
     } catch (error) {notice(error.message);}
     finally {stopTask = null; busy = false; renderControls();}
@@ -404,8 +711,9 @@ function stopSession() {
   renderControls();
   return stopTask;
 }
-function switchView(id) {
+function switchView(id,{focusApp=false}={}) {
   if (!['setup', 'apps', 'history'].includes(id)) return;
+  if(id==='apps'&&!focusApp&&libraryContext)leaveLibraryContext();
   workspace.select('home');
   const previous = document.querySelector('.view:not([hidden])')?.id;
   if (inputDesign === 'own' && id !== 'setup') {
@@ -416,7 +724,7 @@ function switchView(id) {
   document
     .querySelectorAll('.sidebar [data-view]')
     .forEach((e) => {const current=e.dataset.view===id;e.classList.toggle('active',current);if(current)e.setAttribute('aria-current','page');else e.removeAttribute('aria-current');});
-  const title = { setup: 'Connection', apps: 'App library', history: 'Failed attempts' }[id] || 'IZ2S Platform';
+  const title = { setup: 'Connection', apps: 'App library', history: 'Attempts' }[id] || 'IZ2S Platform';
   $('view-title').textContent = title;
   document.title = title + ' · IZ2S Platform';
   if (previous !== id) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -442,7 +750,25 @@ function deliveryDirty() {
     fieldsDirty($('delivery-fields'), state.platform.loaderSettings)
   );
 }
+let sessionModeChoice=null,sessionModeScope='';
+function renderSessionConnectionMode(){
+ const view=globalThis.IZ2S_PRESENTATION.connectionMode(state),scope=state?.active?.id||'idle';
+ if(scope!==sessionModeScope){sessionModeScope=scope;sessionModeChoice=null;}
+ const mode=sessionModeChoice||view.preferred,visible=step==='launch'&&state?.platform?.izModules===true&&!['civswitch','civswitch-ldn'].includes(state.platform.loaderId);
+ $('session-mode').hidden=!visible;
+ for(const value of ['new','restore']){const button=$('session-mode-'+value);button.classList.toggle('selected',mode===value);button.setAttribute('aria-pressed',String(mode===value));button.disabled=busy||serverUnavailable||value==='new'&&view.retained||value==='restore'&&!view.available;}
+ $('session-mode-note').textContent=mode==='restore'||view.retained?view.note:'After a full console restart, open SmileBASIC 4 → Make a Program → Direct, then start a new launcher session. Recovery reconnects to the same running launcher.';
+ $('session-mode-restore').title=view.note;
+ if(!visible)return;
+ const panel=$('session-mode'),summary=$('console-apps')||$('session-summary');
+ if(globalThis.IZ2S_PRESENTATION.session(state).compact){if(summary?.after&&panel.previousElementSibling!==summary)summary.after(panel);}
+ else if(panel.parentElement!==$('iz-flow')&&$('iz-flow')?.insertBefore)$('iz-flow').insertBefore(panel,$('delivery-options'));
+ const restore=mode==='restore';
+ $('restore-connection').hidden=!restore;$('restore-connection').disabled=serverUnavailable||busy||state.preview||!view.canRestore;$('restore-connection').textContent=view.label;
+ if(restore){$('start').hidden=true;$('session-confirmation').hidden=true;$('launch-modules').hidden=true;$('delivery-options').hidden=true;$('gate-message').textContent=view.note;}
+}
 function renderControls() {
+  syncStartupChoices();
   document.querySelectorAll('.segmented button,[data-step]').forEach(button=>button.setAttribute('aria-pressed',String(button.classList.contains('selected'))));
   if(state?.platform)renderArmSetup(state.platform);
   renderPlatformControls();
@@ -458,7 +784,7 @@ function renderControls() {
     state.platform.variant,
   );
   const residentLaunch=initial&&(step==='launch'||reboot)&&state?.platform?.residentGraphics===true&&['izlauncher','izpslauncher'].includes(state?.platform?.variant);
-  const startupIds=$('preload-enabled').checked?[...startupSelection]:[];
+  const startupIds=state?.platform?.sdLauncher?[]:$('preload-enabled').checked?[...startupSelection]:[];
   const residentBad=residentLaunch?startupIds.map(id=>state.library.find(p=>p.id===id)).filter(p=>!residentEligibility(p)?.compatible):[];
   const residentAudioCount=startupIds.map(id=>(state?.library||[]).find(p=>p.id===id)).filter(p=>residentEligibility(p)?.code==='finite-audio-candidate').length;
   const residentIssue=residentLaunch?(residentAudioCount>1?'Select one qualified game for retained audio.':(state.library.some(p=>!residentEligibility(p))?'Restart the panel to enable module compatibility checks.':residentBad.length?'Remove incompatible apps from the retained set: '+residentBad.map(p=>p?.name||'unknown module').join(', ')+'.':!startupIds.length?'Select at least one compatible app at startup.':'')):'';
@@ -468,13 +794,17 @@ function renderControls() {
     busy || !initial || !state?.recoverySetupAvailable;
   if (state && !state.recoverySetupAvailable)
     $('recovery-enabled').checked = false;
-  $('launch-modules').hidden = step !== 'launch' && !reboot;
+  $('launch-app-library').hidden = step !== 'launch' && !reboot;
+  const civMode=['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId);
+  if(!civMode&&$('launch-modules').parentElement!==$('iz-flow'))$('iz-flow').insertBefore($('launch-modules'),document.querySelector('#iz-flow .launch-row'));
+  $('launch-modules').hidden = civMode?$('launch-modules').hidden:state?.platform?.sdLauncher===true || (step !== 'launch' && !reboot);
   $('preload-options').hidden = !$('preload-enabled').checked;
-  $('preload-enabled').disabled = busy || !initial;
-  $('preload-clear').disabled = busy || !initial;
+  const preloadLocked = busy || serverUnavailable || !initial || (civMode && !!(state.platform.loaderId === 'civswitch-ldn' ? state.civswitchLdn?.busy : state.civswitch?.busy));
+  $('preload-enabled').disabled = preloadLocked;
+  $('preload-clear').disabled = preloadLocked;
   document
     .querySelectorAll('#preload-list input')
-    .forEach((e) => (e.disabled = busy || !initial || e.dataset.unavailable === 'true' || (e.dataset.residentUnavailable === 'true'&&!e.checked)));
+    .forEach((e) => (e.disabled = preloadLocked || e.dataset.unavailable === 'true' || (e.dataset.residentUnavailable === 'true'&&!e.checked)));
   $('preload-count').textContent = startupSelection.size + ' selected';
   $('start').disabled =
     busy ||
@@ -514,7 +844,7 @@ function renderControls() {
       : !state?.setupWizard
         ? 'Restart Platform to activate the updated setup flow'
         : active && !reboot
-          ? 'Leave the console on the indicated screen.'
+          ? state.active.status==='running'?'The console session is running.':'Leave the console on the indicated screen.'
           : state?.preview
             ? 'Preview · device commands disabled'
             : !ready
@@ -528,18 +858,20 @@ function renderControls() {
   $('stop').disabled = !!stopTask || state?.active?.status === 'stopping';
   $('stop').textContent =
     stopTask || state?.active?.status === 'stopping'
-      ? 'Disconnecting…'
+      ? state?.active?.nativeParentRetention?.awaitingActualClose && !stopTask ? 'Shutdown unconfirmed' : 'Disconnecting…'
       : state?.active?.kind === 'bootstrap'
         ? 'Cancel setup'
-        : 'Stop and return to Launch';
+        : 'Stop session';
   $('screen-ready').disabled = !initial || busy;
   $('screen-ready').parentElement.hidden = !initial;
   document
     .querySelectorAll('[data-step]')
     .forEach((e) => (e.disabled = active || busy));
   $('recheck').disabled = !!state?.active?.inputActive || busy;
-  $('load').disabled =
-    busy || !state?.connected || !selection.size || !!state?.preview;
+  const destinationError=selection.size?storageControls.selectionError([...selection]):'';
+  $('load').disabled = busy || !state?.connected || !selection.size || !!state?.preview || !!destinationError;
+  $('load').title=destinationError;
+  storageControls.updateAll();
   document.querySelectorAll('.module-host-actions button').forEach(button => {
     const source = button.closest('.local-module')?.querySelector('.local-source');
     button.disabled = busy || !!state?.preview || button.dataset.unavailable === 'true' || (!!source && !source.value.trim());
@@ -574,12 +906,14 @@ function renderControls() {
   $('restart-setup').disabled = busy;
   $('edit-readings').disabled = busy;
   renderManualInputDesign();
-  advSetup.render({state,step,busy,serverUnavailable,manual:inputDesign==='own'});
+  advSetup.render({state,step,busy,serverUnavailable,manual:inputDesign==='own',preparation:cardputerRequest||state?.hardwareOperation});
+  renderSessionConnectionMode();
   renderServerAvailability();
+  if(state?.platform)renderMenuLayout();
 }
 function renderWizard() {
   if (state?.platform && !state.platform.izModules) {
-    renderPlatformControls();
+    renderControls();
     renderEngineInstall();
     return;
   }
@@ -596,7 +930,7 @@ function renderWizard() {
     stage = setup?.stage || 'prepare',
     show = step === 'bootstrap' || !!setup;
   $('wizard-results').hidden = !setup?.comparison || !['mismatch', 'save'].includes(stage);
-  $('wizard-steps').hidden = !show || state.platform?.configuration?.inputAdapter === 'cardputer-wifi';
+  $('wizard-steps').hidden = !show;
   renderInstallationSlot();
   const source =
       setup ||
@@ -703,7 +1037,7 @@ function renderWizard() {
       save_confirmation:'Confirm the saved file on Switch 2.',
       reboot:'Fully restart Switch 2 and open fresh SmileBASIC Direct.',
     };
-    $('step-description').textContent = show ? brief[stage] || brief.prepare : 'ADV: Wi-Fi on, USB to Switch 2. Restart Switch 2 and open fresh Direct.';
+    $('step-description').textContent = state.active?.status==='running'?'The launcher is running. Open App library to manage applications.':state.active?.status==='offline'?'The console session is retained. Restore the connection when the console is ready.':show ? brief[stage] || brief.prepare : 'ADV: Wi-Fi on, USB to Switch 2. Restart Switch 2 and open fresh Direct.';
     $('screen-label').textContent = show && stage !== 'reboot'
       ? 'Direct is open; slot ' + sourceSlot + ' is empty; English (US), Caps Lock ' + (capsOn ? 'on.' : 'off.')
       : 'Switch 2 was fully restarted; fresh Direct is open.';
@@ -905,7 +1239,7 @@ function renderConsoleConnections(card, preference, locked, supported) {
                   ? ' · ' + path.latencyMs.toFixed(2) + ' ms'
                   : '')
               : 'Unavailable');
-    status.title = path?.error || (lastKnown?'Verified '+lastKnown.verifiedAt+'; current connection not confirmed':'');
+    status.title = (path?.error?globalThis.IZ2S_ERRORS.canonical(path.error):'') || (lastKnown?'Verified '+lastKnown.verifiedAt+'; current connection not confirmed':'');
     status.classList.toggle('available', !!path?.ready && !path?.pending && enabled);
     status.classList.toggle(
       'active',
@@ -914,10 +1248,19 @@ function renderConsoleConnections(card, preference, locked, supported) {
   }
   card.querySelector('.console-paths')?.remove();
 }
+function openDeviceSettings({tab,addresses=false,focus}={}) {
+  const panel=$('hardware-options');
+  panel.open=true;
+  if(tab)advSetup.select(tab);
+  if(addresses)$('hardware-addresses').open=true;
+  panel.scrollIntoView({block:'start',behavior:'smooth'});
+  (focus ? panel.querySelector(focus) : tab ? $('adv-tab-'+tab) : panel.querySelector('summary'))?.focus({preventScroll:true});
+}
 function renderArmSetup(meta) {
   const panel = $('arm-setup');
   panel.hidden = meta.configuration.inputAdapter !== 'ssh-gadget';
   if (panel.hidden) return;
+  $('arm-manual-command').textContent='sudo python3 '+(meta.loaderId==='civswitch'?'iz2s-civ7-arm-input.run':'iz2s-arm-input.run');
   const source = meta.profiles?.[meta.configurationId] || {};
   const fields = { 'arm-setup-address': source.armAddress || meta.configuration.settings?.armAddress || '', 'arm-setup-user': source.armUser || 'root', 'arm-setup-key': source.sshIdentity || '' };
   if(panel.dataset.configuration!==meta.configurationId){panel.dataset.configuration=meta.configurationId;panel.open=!state.checks.items.find(x=>x.id==='arm')?.ready;}
@@ -955,7 +1298,9 @@ function renderDeviceDetail(container, row) {
   }
   const extended = detail.length > 70 || detail.includes('\n');
   const first = detail.split(/\.(?:\s|$)|\n/)[0];
-  setText(container.querySelector('.detail-text'), extended
+  const connectionLost=row.id==='lan'&&globalThis.IZ2S_PRESENTATION.session(state).offline;
+  const civPending=row.id==='lan'&&row.pending&&['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)&&!state.connected;
+  setText(container.querySelector('.detail-text'), connectionLost?'Connection lost. Restore the connection to manage applications.':civPending?(state.platform.loaderId==='civswitch-ldn'?'Waiting for the game loader after LDN delivery.':'Wireless lobby may pause LAN. The loader is checked after input.'):row.id === 'lan' && state?.connected ? 'Console connected' : row.id === 'lan' && row.pending ? (state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected' ? 'Console connected · preparing launcher' : state?.active ? 'Waiting for a Switch session.' : 'Start the launcher below to connect Switch.') : extended
     ? (first.length <= 55 ? first.replace(/[.;]$/, '') + '.' : row.pending ? 'Waiting for connection.' : row.ready ? 'Ready.' : 'Setup required.')
     : detail);
   container.querySelector('.detail-help').hidden = !extended;
@@ -977,6 +1322,12 @@ $('connection-files').addEventListener('keydown', (event) => {
 });
 function renderDevicePicker(card, row) {
   if (!['server', 'arm'].includes(row.id)) return;
+  if(row.id==='server'){
+    card.querySelector('.device-picker')?.remove();
+    card.querySelector('h3').hidden=false;
+    setText(card.querySelector('h3'),state.platform.host?.architecture==='arm64'?'Server ARM64PC':'Server x64 PC');
+    return;
+  }
   const meta = state.platform,
     architecture = meta.host?.architecture,
     serverName = architecture === 'arm64' ? 'Server ARM64PC' : architecture === 'x64' ? 'Server x64 PC' : 'Server',
@@ -1046,6 +1397,7 @@ function renderDevicePicker(card, row) {
       }
       picker.open = false;
       picker.querySelector('summary').focus();
+      if(row.id==='arm'&&choice.id!=='own')openDeviceSettings({tab:choice.id==='cardputer'?1:undefined});
     };
     options.append(button);
   }
@@ -1058,12 +1410,13 @@ function renderManualInputDesign() {
   $('manual-input-design').hidden = !shown;
   if (shown) $('iz-flow').hidden = true;
   else if (wasShown) {
-    $('iz-flow').hidden = !meta.izModules;
+    $('iz-flow').hidden = !meta.izModules||['civswitch','civswitch-ldn'].includes(meta.loaderId);
     renderEngineInstall();
   }
-  const arm = $('device-arm'), usb = $('device-usb');
-  if (usb) usb.hidden = shown;
-  $('devices').style.setProperty('--device-count', state.checks.items.filter(row => !shown || row.id !== 'usb').length);
+  const arm = $('device-arm');
+  // One owner controls tile visibility in every render path, including the
+  // busy frame before Restore connection returns a new status snapshot.
+  renderDeviceTopology();
   if (arm) {
     arm.classList.toggle('manual-preview', shown);
     let note = $('manual-device-description');
@@ -1077,7 +1430,7 @@ function renderManualInputDesign() {
     if (row) renderDevicePicker(arm, row);
   }
   document.querySelector('.network-caption').hidden = shown;
-  $('hardware-options').hidden = shown;
+  $('hardware-options').hidden = shown || meta.loaderId==='civswitch-ldn';
   if (!shown) return;
   $('arm-setup').hidden = true;
   $('cardputer-setup').hidden = true;
@@ -1133,11 +1486,55 @@ $('manual-next').onclick = () => {
   if (manualDesignStage !== 7) { manualDesignStage = manualDesignStage === 6 ? ($('manual-fs-preview').checked ? 7 : 1) : manualDesignStage + 1; renderManualInputDesign(); }
 };
 $('manual-exit').onclick = () => { inputDesign = 'arm'; renderDevices(); renderControls(); };
+function retainDeviceControls(rows=state.checks.items){
+  for(const card of $('devices').children||[]){card.classList.remove('civ-run-console');card.classList.remove('awaiting-loader');}
+  for(const prefix of ['civ','ldn']){const endpoint=$(prefix+'-run-endpoint'),home=$(prefix+'-run-connection'),selected=state.platform?.loaderId==='civswitch-ldn'?'ldn':state.platform?.loaderId==='civswitch'?'civ':'';if(endpoint&&home&&$('devices').contains(endpoint)&&(prefix!==selected||!state.checks.items.some(row=>row.id==='lan')))home.append(endpoint);}
+  const confirmation=$('adv-usb-next'),devices=$('devices');
+  // This shared control lives in the USB tile while it exists. Keep it alive
+  // when changing to a game that has no USB tile.
+  if(confirmation&&devices.contains(confirmation)&&!rows.some(row=>row.id==='usb'))devices.after(confirmation);
+}
+function renderDeviceConnections(){
+ const devices=$('devices');if(!devices)return;
+ devices.classList.add('network-topology');
+ const cards=[...devices.children].filter(card=>!card.hidden&&card.offsetWidth>0).map(card=>({x:card.offsetLeft,y:card.offsetTop,width:card.offsetWidth,height:card.offsetHeight,tone:card.classList.contains('connection-lost')?'lost':card.classList.contains('ready')&&!card.classList.contains('pending')?'ready':'waiting'}));
+ const width=devices.clientWidth,height=Math.max(0,...cards.map(card=>card.y+card.height)),links=globalThis.IZ2S_PRESENTATION.deviceLinks(cards);
+ const stamp=JSON.stringify([width,height,links]);if(devices.dataset.connections===stamp)return;devices.dataset.connections=stamp;
+ const colors={ready:'#8bd0ff',waiting:'#d6b05a',lost:'#ef9494'};
+ const content=links.map(link=>{const color=colors[link.tone];return `<path d="${link.d}" fill="none" stroke="${color}" stroke-opacity=".55"/><circle cx="${link.x}" cy="${link.y}" r="5" fill="#171d19" stroke="${color}" stroke-opacity=".5"/><circle cx="${link.x}" cy="${link.y}" r="2.5" fill="${color}"/>`;}).join('');
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${content}</svg>`;
+ devices.style.setProperty('--network-paths',links.length?`url("data:image/svg+xml,${encodeURIComponent(svg)}")`:'none');
+}
+// Change the topology only at the handoff from input hardware to networking.
+// Repeated status polls keep the same DOM and never replay this transition.
+function renderDeviceTopology(){
+ const devices=$('devices'),direct=globalThis.IZ2S_PRESENTATION.directNetwork(state),mode=direct?'direct':'input';
+ const changed=devices.dataset.topology!==mode,previous=devices.dataset.topology;
+ const animate=changed&&previous&&devices.getBoundingClientRect().height>0&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const before=animate?devices.getBoundingClientRect():null,positions=new Map();
+ if(animate)for(const card of devices.children)if(!card.hidden)positions.set(card.id,card.getBoundingClientRect());
+ if(changed){devices.getAnimations().forEach(animation=>animation.cancel());for(const card of devices.children)card.getAnimations().forEach(animation=>animation.cancel());}
+ devices.classList.toggle('direct-network',direct);devices.classList.toggle('network-interrupted',direct&&globalThis.IZ2S_PRESENTATION.session(state).offline);
+ for(const id of ['arm','usb']){const card=$('device-'+id);if(!card)continue;const hidden=direct||id==='usb'&&inputDesign==='own';if(hidden&&card.contains(document.activeElement))$('recheck').focus({preventScroll:true});card.hidden=hidden;}
+ devices.style.setProperty('--device-count',[...devices.children].filter(card=>!card.hidden).length);
+ devices.dataset.topology=mode;
+ if(!renderDeviceTopology.observer&&typeof ResizeObserver==='function'){renderDeviceTopology.observer=new ResizeObserver(renderDeviceConnections);renderDeviceTopology.observer.observe(devices);}
+ if(!animate){renderDeviceConnections();return;}
+ const after=devices.getBoundingClientRect(),timing={duration:280,easing:'cubic-bezier(.2,.75,.25,1)'};
+ devices.animate([{height:before.height+'px'},{height:after.height+'px'}],timing);
+ for(const card of devices.children){if(card.hidden)continue;const old=positions.get(card.id),next=card.getBoundingClientRect();
+  card.animate(old?[{transformOrigin:'top left',transform:`translate(${old.x-next.x}px,${old.y-next.y}px) scale(${old.width/next.width},${old.height/next.height})`,opacity:.75},{transformOrigin:'top left',transform:'none',opacity:1}]:[{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],timing);
+ }
+ renderDeviceConnections();
+}
 function renderDevices() {
+  const rows=state.platform?.loaderId==='civswitch-ldn'?state.checks.items.filter(row=>['server','lan','ldn'].includes(row.id)):state.checks.items;
+  retainDeviceControls(rows);
   const config = state.connections;
-  for(const card of [...$('devices').children])if(!state.checks.items.some(row=>card.id==='device-'+row.id))card.remove();
-  $('devices').style.setProperty('--device-count',state.checks.items.length);
-  for (const [index, row] of state.checks.items.entries()) {
+  $('devices').classList.toggle('ldn-devices',state.platform?.loaderId==='civswitch-ldn');
+  for(const card of [...$('devices').children])if(!rows.some(row=>card.id==='device-'+row.id))card.remove();
+  $('devices').style.setProperty('--device-count',rows.length);
+  for (const [index, row] of rows.entries()) {
     const deviceInfo = words[row.id] || [row.label || 'Device', document.getElementById(row.icon)?.tagName.toLowerCase() === 'symbol' ? row.icon : 'i-server'];
     let card = $('device-' + row.id);
     const preference = config?.devices?.[row.id];
@@ -1268,24 +1665,57 @@ function renderDevices() {
     placeChild($('devices'), card, index);
     setText(card.querySelector('h3'), row.label || deviceInfo[0]);
     renderDevicePicker(card, row);
-    card.classList.toggle('ready', row.ready);
-    card.classList.toggle('pending', !!row.pending);
-    setText(card.querySelector('.state'), row.ready
+    const connectionLost=row.id==='lan'&&globalThis.IZ2S_PRESENTATION.session(state).offline;
+    card.classList.toggle('connection-lost',connectionLost);
+    card.classList.toggle('ready', row.ready&&!connectionLost);
+    card.classList.toggle('pending', !!row.pending && !connectionLost && !(row.id === 'lan' && state?.connected));
+    setText(card.querySelector('.state'), connectionLost?'CONNECTION LOST':row.id === 'lan' && state?.connected ? '✓ READY' : row.ready
       ? row.pending
-        ? 'WAITING'
+        ? (row.id === 'lan' && state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected' ? 'INITIALIZING' : row.id === 'lan' && !state?.active ? 'START SESSION' : 'WAITING')
         : '✓ READY'
       : state.preview
         ? 'PREVIEW'
         : '○ WAITING');
+    if(row.id==='usb'&&state.platform?.configuration?.inputAdapter==='cardputer-wifi'){
+      const connection=card.querySelector('.fixed-transport');
+      connection.classList.add('usb-connection-actions');
+      if($('adv-usb-next').parentElement!==connection)connection.append($('adv-usb-next'));
+    }
     const detailRow = row.id === 'usb' && state.platform?.configuration?.inputAdapter === 'cardputer-wifi'
       ? {...row, detail: globalThis.IZ2S_ADV_SETUP.usbDescription(state, state.checks.items.find(item => item.id === 'arm'), row)}
       : row;
     renderDeviceDetail(card.querySelector('.device-detail'), detailRow);
+    let settingsButton=card.querySelector('.device-setup-button');
+    const adv=state.platform?.configuration?.inputAdapter==='cardputer-wifi';
+    const configurable=row.id==='arm'&&inputDesign!=='own'||row.id==='usb'&&adv;
+    if(configurable&&!settingsButton){
+      settingsButton=element('button','device-setup-button quiet');settingsButton.type='button';
+      settingsButton.onclick=()=>openDeviceSettings({tab:state.platform.configuration.inputAdapter==='cardputer-wifi'?(row.id==='usb'?3:1):undefined});
+      card.append(settingsButton);
+    }
+    if(settingsButton){
+      settingsButton.hidden=!configurable;
+      settingsButton.textContent=row.id==='usb'?'USB settings':adv?'Setup and firmware':'Device setup';
+      settingsButton.disabled=serverUnavailable;
+    }
     const ping = card.querySelector('.device-ping');
-    ping.hidden = false;
+    ping.hidden = !Number.isFinite(row.latencyMs);
     setText(ping, Number.isFinite(row.latencyMs)
       ? 'Last ping · ' + row.latencyMs.toFixed(2) + ' ms'
       : '\u00a0');
+    const transport=card.querySelector('.transport-choice');
+    if(transport){
+      transport.hidden=row.id==='ldn';
+      for(const option of transport.children)option.hidden=option.classList.contains('ldn-transport');
+    }
+    if(state.platform.loaderId==='civswitch-ldn'){
+      if(transport){
+        let badge=transport.querySelector('.ldn-transport');
+        if(!badge){badge=element('span','ldn-transport');badge.append(transport.querySelector('[data-transport="wifi"] svg').cloneNode(true),element('span','','Wi-Fi · LDN'));transport.append(badge);}
+        for(const option of transport.children)option.hidden=option!==badge;
+      }
+      const editor=card.querySelector('.address-editor');if(editor)editor.hidden=true;continue;
+    }
     if (preference) {
       const locked = busy || !!config.locked || !!state.preview;
       const cardputer = row.id === 'arm' && state.platform.configuration.inputAdapter === 'cardputer-wifi';
@@ -1296,8 +1726,7 @@ function renderDevices() {
         cardputerAddress = element('button', 'cardputer-address quiet');
         cardputerAddress.type = 'button';
         cardputerAddress.onclick = () => {
-          $('hardware-options').open = true;
-          $('hardware-options').querySelector('[name="cardputerEndpoint"]')?.focus();
+          openDeviceSettings({addresses:true,focus:'[name="cardputerEndpoint"]'});
         };
         card.append(cardputerAddress);
       }
@@ -1448,10 +1877,28 @@ function renderDevices() {
         .querySelectorAll('button')
         .forEach((button) => (button.disabled = locked));
     } else if (row.id !== 'usb') {
+      if(row.id==='ldn'){
+        card.querySelector('.transport-choice').hidden=true;
+        card.querySelector('.address-editor').hidden=true;
+      }
       card
         .querySelectorAll('button,input,select')
         .forEach((e) => (e.disabled = true));
     }
+  }
+  // Give every endpoint the same header / connection / settings rows.
+  for(const card of $('devices').children){
+    const heading=card.querySelector('.device-heading'),connection=card.querySelector('.transport-choice,.fixed-transport');
+    let controls=card.querySelector('.device-controls');
+    if(!controls){controls=element('div','device-controls');card.append(controls);}
+    for(const node of [...card.children])if(node!==heading&&node!==connection&&node!==controls)controls.append(node);
+    const editor=card.querySelector('.address-editor');
+    if(editor&&!editor.querySelector('.address-popover')){
+      const content=element('div','address-popover');
+      for(const node of [...editor.children])if(node.tagName!=='SUMMARY')content.append(node);
+      editor.append(content);
+    }
+
   }
   const consoleState = state.consoleState,
     known = state.connected && consoleState && !consoleState.stale;
@@ -1494,7 +1941,9 @@ function renderDevices() {
         )
         .join('  ·  ')
     : 'Restart Platform to enable connection choices.';
-  $('network-help').textContent = config?.locked
+  $('network-help').textContent = state.platform.loaderId==='civswitch-ldn'
+    ? 'CIV7 LAN uses the PC Wi-Fi radio for LDN. ADV and USB input are not required. Ethernet stays connected.'
+    : config?.locked
     ? 'Connections are locked for this session. Stop it before changing networks.'
     : state.platform.configuration.inputAdapter === 'cardputer-wifi'
       ? 'Cardputer receives commands over Wi-Fi and types on Switch over USB. Use the IP shown on its screen.'
@@ -1507,21 +1956,23 @@ function residentEligibility(pkg) {
   return state?.platform?.residentFiniteAudio ? pkg?.residentAudio : pkg?.resident;
 }
 function selectedShellName() {
-  return state?.platform?.shells?.find(shell => shell.id === state.platform.variant)?.name ||
-    (state?.platform?.variant === 'izpslauncher' ? 'IZPSlauncher' : 'IZlauncher');
+  const id=['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?state.civLauncher?.shell||'izlauncher':state?.platform?.variant;
+  return id==='original'?'Core only':state?.platform?.shells?.find(shell=>shell.id===id)?.name||(id==='izpslauncher'?'IZPSlauncher':'IZlauncher');
 }
 
 function renderStartupModules() {
+  syncStartupChoices();
   const resident=state.platform?.residentGraphics===true&&['izlauncher','izpslauncher'].includes(state.platform?.variant);
   const stamp = JSON.stringify(
-    [resident,state.platform?.residentFiniteAudio,state.library.map((p) => [p.id, p.name, p.version, p.icon, p.supported,p.resident,p.residentAudio])],
+    [resident,state.moduleErrors,state.platform?.sdLauncher,state.platform?.residentFiniteAudio,state.library.map((p) => [p.id, p.name, p.version, p.icon, p.supported,p.resident,p.residentAudio,p.session])],
   );
   if (stamp === startupStamp) return;
   startupStamp = stamp;
-  const valid = new Set(state.library.filter(p => p.supported !== false).map(p => p.id));
+  const valid = new Set(state.library.filter(p => p.supported !== false&&p.session?.compatible!==false).map(p => p.id));
   for (const id of startupSelection)
     if (!valid.has(id)) startupSelection.delete(id);
   $('preload-list').replaceChildren();
+  if(!state.library.length)$('preload-list').append(element('p','hint',state.moduleErrors?.length?'Could not read the modules. Open App library for details.':'No modules installed. Open App library to add applications.'));
   for (const pkg of state.library) {
     const eligibility=residentEligibility(pkg);
     const label = element('label', 'preload-item'),
@@ -1532,7 +1983,8 @@ function renderStartupModules() {
     input.checked = startupSelection.has(pkg.id);
     input.dataset.unavailable = String(pkg.supported === false);
     input.dataset.residentUnavailable=String(resident&&eligibility?.compatible!==true);
-    input.disabled = pkg.supported === false || (resident&&eligibility?.compatible!==true&&!input.checked);
+    input.disabled = pkg.supported === false || pkg.session?.compatible===false || (resident&&eligibility?.compatible!==true&&!input.checked);
+    if(pkg.session?.compatible===false)input.dataset.unavailable='true';
     if(resident&&eligibility?.compatible!==true)label.title=eligibility?.userReason||'Restart the panel to check compatibility.';
     input.setAttribute('aria-label', 'Load ' + pkg.name + ' at startup');
     input.addEventListener('change', () => {
@@ -1545,10 +1997,11 @@ function renderStartupModules() {
     image.src = pkg.icon;
     image.alt = '';
     text.append(
-      element('strong', '', pkg.name),
+      element('strong', 'app-name', pkg.name),
       element('small', '', pkg.version),
     );
-    if(resident)text.append(element('small','',eligibility?.userReason||'Compatibility has not been checked.'));
+    if(pkg.session?.compatible===false)text.append(element('small','',pkg.session.reason||'Unavailable for this game'));
+    else if(resident)text.append(element('small','',eligibility?.userReason||'Compatibility has not been checked.'));
     label.append(input, image, text);
     $('preload-list').append(label);
   }
@@ -1565,30 +2018,58 @@ $('preload-clear').addEventListener('click', () => {
   saveStartup();
   renderControls();
 });
+let libraryContext=null;
+function leaveLibraryContext(){
+  if(!libraryContext)return;const previous=libraryContext;libraryContext=null;
+  $('library-context').hidden=true;$('library-search').value=previous.query;$('library-status').value=previous.status;$('library-location').value=previous.location;
+  return previous;
+}
+function openConsoleApplication(app){
+  libraryContext={id:app.id,name:app.name,query:$('library-search').value,status:$('library-status').value,location:$('library-location').value,scroll:window.scrollY};
+  switchView('apps',{focusApp:true});$('library-search').value='';$('library-status').value='all';$('library-location').value='all';
+  $('library-context').hidden=false;$('library-context-name').textContent=app.name;renderLibrary();$('library-back').focus({preventScroll:true});
+}
+$('library-back').onclick=()=>{const previous=leaveLibraryContext();switchView('setup');if(previous){window.scrollTo({top:previous.scroll,left:0,behavior:'auto'});document.querySelector('#console-apps [data-app-id="'+CSS.escape(previous.id)+'"]')?.focus({preventScroll:true});}};
+$('library-context-all').onclick=()=>{leaveLibraryContext();applyLibrarySearch();};
+function renderConsoleApps(){
+  const box=$('console-apps'),list=$('console-apps-list');if(!box||!list)return;
+  const apps=globalThis.IZ2S_PRESENTATION.consoleApps(state);box.hidden=!apps.length;
+  const stamp=JSON.stringify(apps);if(list.dataset.stamp===stamp)return;list.dataset.stamp=stamp;list.replaceChildren();
+  for(const app of apps){
+    const item=element('button','console-app'),img=element('img'),copy=element('span','console-app-copy'),name=element('strong','',app.name),places=element('span','console-app-places');
+    item.type='button';item.dataset.appId=app.id;item.title=app.name;img.src=app.icon;img.alt='';name.setAttribute('translate','no');
+    for(const [available,label]of [[app.ram,'RAM'],[app.sd,'SD']])if(available){const badge=element('small',label==='SD'?'source-sd':'source-ram',label);badge.setAttribute('translate','no');places.append(badge);}
+    copy.append(name,places);item.append(img,copy);item.onclick=()=>openConsoleApplication(app);list.append(item);
+  }
+}
+$('console-apps-library').onclick=()=>switchView('apps');
 function renderLibrary() {
+  const packages=globalThis.IZ2S_PRESENTATION?.library?.(state)||state.library;
   const errors = $('module-errors');
   if (errors) {
     errors.hidden = !state.moduleErrors?.length;
-    errors.textContent = (state.moduleErrors || []).map(row => (row.id || row.path || 'Module') + ': ' + row.error).join(' · ');
+    errors.setAttribute('translate','no');errors.textContent = (state.moduleErrors || []).map(row => (row.id || row.path || 'Module') + ': ' + globalThis.IZ2S_ERRORS.canonical(row.error)).join(' · ');
   }
-  const available = new Set(state.library.filter(pkg => pkg.supported !== false).map(pkg => pkg.id));
+  const civ=['civswitch','civswitch-ldn'].includes(state.platform?.loaderId);
+  const available = new Set(packages.filter(pkg => pkg.supported !== false&&(!civ||pkg.session?.compatible!==false)).map(pkg => pkg.id));
   for (const id of selection) if (!available.has(id)) selection.delete(id);
   const stamp = JSON.stringify(
-    state.library.map((p) => [p.id, p.version, p.bytes, p.name, p.icon, p.description, p.supported, p.contents]),
+    [state.platform?.sdLauncher,packages.map((p) => [p.id, p.version, p.bytes, p.name, p.icon, p.description, p.supported, p.contents, p.sd, p.session])],
   );
   if (stamp !== packageStamp) {
     packageStamp = stamp;
     $('library').replaceChildren();
-    if(!state.library.length){const empty=element('div','empty');empty.append(element('h2','','No modules installed'),element('p','','Open the Modules folder and add an IZM package.'));$('library').append(empty);}
+    if(!packages.length){const empty=element('div','empty');empty.append(element('h2','','No modules installed'),element('p','','Open the Modules folder and add an IZM package.'));$('library').append(empty);}
     $('module-host-actions').dataset.stamp = '';
-    for (const pkg of state.library) {
+    for (const pkg of packages) {
       const card = element('article', 'app-card'),
         label = element('label', 'app-select'),
         input = element('input'),
         img = element('img');
-      card.dataset.appId = pkg.id;
+      card.dataset.appId = pkg.id;label.title=pkg.name;
       input.type = 'checkbox';
-      input.disabled = pkg.supported === false;
+      input.disabled = !available.has(pkg.id);
+      if(state.platform?.sdLauncher&&(!pkg.sd?.compatible||pkg.sd?.hostRequired))label.title='Stored on SD; uses the PC executor when launched.';
       if (input.disabled) selection.delete(pkg.id);
       input.checked = selection.has(pkg.id);
       input.setAttribute('aria-label', 'Select ' + pkg.name);
@@ -1602,15 +2083,18 @@ function renderLibrary() {
       label.append(
         input,
         img,
-        element('strong', '', pkg.name),
+        element('strong', 'app-name', pkg.name),
         element(
           'small',
           '',
-          pkg.version + ' / IZM ' + (pkg.bytes / 1024).toFixed(1) + ' KiB',
+          (pkg.sdOnly?'SD: ':'PC: ')+(pkg.version||'version unknown') + ' · ' + (pkg.bytes / 1024).toFixed(1) + ' KiB',
         ),
-        element('p', '', pkg.description),
+        element('p', 'app-description', pkg.description),
       );
+      if(civ&&pkg.session?.compatible===false)label.append(element('small','app-requirement',pkg.session.reason||'Unavailable for this game'));
+      else if(pkg.session?.requiresFilesystem)label.append(element('small','app-requirement','Requires filesystem access'));
       card.append(label, element('div', 'module-host-actions'));
+      if(state.platform?.sdLauncher&&(!pkg.sd?.compatible||pkg.sd?.hostRequired))card.append(element('p','hint','Stored on SD; uses the PC executor when launched.'));
       if (pkg.contents) {
         const details = element('details', 'module-contents');
         details.append(
@@ -1656,41 +2140,46 @@ function renderLibrary() {
         };
         actions.append(configure);
       }
-      const openModule=element('button','secondary','Open module');openModule.type='button';openModule.onclick=()=>workspace.openModule(pkg.module?.id||pkg.id);actions.append(openModule);
-      actions.append(folderButton('module', pkg.module?.id || pkg.id, 'Open module folder'));
-      const unload=element('button','secondary module-unload','Remove from console');
-      unload.type='button';unload.title='Unload this module from the console menu. The PC package remains available.';
-      unload.onclick=async()=>{if(!window.confirm('Remove '+pkg.name+' from the console menu? You can load it again from this PC.'))return;selection.delete(pkg.id);await act('/api/unload',{ids:[pkg.id]});};
-      actions.append(unload);
+      const openModule=element('button','secondary','App details');openModule.type='button';openModule.onclick=()=>{try{workspace.openModule(pkg.module?.id||pkg.id);}catch(error){notice(error.message);}};actions.append(openModule);
+      const folder=folderButton('module',pkg.module?.id||pkg.id,'Folder');folder.title='Open module folder';folder.setAttribute('aria-label','Open module folder');actions.append(folder);
+      card.append(storageControls.mount(pkg));
       card.append(element('small','app-memory',''));
+      const technical=element('details','app-more'),summary=element('summary','','More'),detailBody=element('div','app-more-body');technical.append(summary,detailBody);detailBody.append(element('p','app-full-description',pkg.description));if(pkg.sdOnly){const location=element('code');location.textContent=pkg.displayPath||'SD:/IZ2S/Homebrew/Modules/'+pkg.id+'/';detailBody.append(location);}
+      const detailActions=element('div','app-detail-actions');detailBody.append(detailActions);
+      const cardActions=card.querySelector('.module-actions');if(cardActions){for(const button of [...cardActions.children])if(!button.classList.contains('module-configure'))if(!pkg.sdOnly)detailActions.append(button);else button.remove?.();const contents=card.querySelector('.module-contents');if(contents)detailBody.append(contents);cardActions.append(technical);}
+      for(const child of [...card.children])if(child.tagName==='P'&&child.classList.contains('hint'))detailBody.append(child);
+      card.querySelector('.app-select')?.querySelector('strong')?.setAttribute('translate','no');
       $('library').append(card);
     }
   }
-  const installed = new Set((state.installed || []).map(app => typeof app === 'string' ? app : app.id));
+  const sdRefresh=$('library-sd-refresh');sdRefresh.hidden=civ;const sdError=globalThis.IZ2S_STORAGE?.reason?.(state,{id:'sd-inventory'},'sd',{remove:true})||'';sdRefresh.disabled=busy||serverUnavailable||!!sdError;sdRefresh.title=sdError;
+  const installed = new Set([...(state.installed||[]),...(state.sdInstalled||[])].map(app => typeof app === 'string' ? app : app.id));
   for (const card of $('library').querySelectorAll('.app-card')) {
     const loaded = installed.has(card.dataset.appId);
-    card.classList.toggle('installed', loaded);
+    card.classList.toggle('installed', loaded);const presence=globalThis.IZ2S_STORAGE?.installed?.(state,card.dataset.appId)||{session:loaded,sd:false};card.classList.toggle('in-ram',presence.session);card.classList.toggle('on-sd',presence.sd);
     card.dataset.installed = String(loaded);
     card.querySelector('img').title = loaded ? 'Loaded on console' : 'Not loaded on console';
     const retained=state.residentMemory?.apps?.find(app=>app.id===card.dataset.appId),memoryLabel=card.querySelector('.app-memory');
     if(memoryLabel){memoryLabel.hidden=!retained;setText(memoryLabel,retained?(state.connected?'Retained in RAM':'Previously retained')+' · '+(retained.bufferBytes/1048576).toFixed(1)+' MiB':'');}
-    const unload=card.querySelector('.module-unload'),pending=state.jobs.some(job=>job.packageId===card.dataset.appId&&['queued','loading','publishing'].includes(job.status));
-    unload.hidden=!loaded;unload.disabled=busy||state.preview||!state.connected||pending||!!(state.platform?.residentGraphics&&state.active);
-    setText(unload,pending?'Operation queued…':'Remove from console');
+    storageControls.update(card.querySelector('.app-storage'),packages.find(pkg=>pkg.id===card.dataset.appId));
   }
   renderModuleHostActions();
-  setText($('app-count'), state.library.length);
+  setText($('app-count'), packages.length);
   const libraryConnection = $('library-connection');
   libraryConnection.classList.toggle('online', !!state.connected);
   const connectionLabel = state.connected ? 'Switch 2 connected' : 'Switch 2 not connected';
   if (libraryConnection.querySelector('span').textContent !== connectionLabel)
     libraryConnection.querySelector('span').textContent = connectionLabel;
-  $('library-note').textContent = state.platform?.residentGraphics && state.active
+  $('load').textContent=state.platform?.sdLauncher?'Install selected on SD':'Install / load selected';
+  $('library-note').textContent = state.platform?.sdLauncher
+    ? 'Applications are installed in SD:/IZ2S/Homebrew/Modules/. The console discovers and opens them locally. Modules requiring PC services or a separate native entry are unavailable in this mode.'
+    : state.platform?.residentGraphics && state.active
     ? 'Compatible apps remain in memory for this session. '+(state.residentMemory?'Session memory: '+(state.residentMemory.usedBytes/1048576).toFixed(1)+' / '+(state.residentMemory.budgetBytes/1048576).toFixed(0)+' MiB. ':'')+'Add apps from the menu while the PC is available. Select the full set before a retained-audio session.'
     : state.connected
-    ? 'Switch 2 connected · ' + selection.size + ' selected'
-    : 'Connect Switch 2 and start ' + selectedShellName() + ' to load apps.';
+    ? 'Choose an installation destination on each card. Selected: ' + selection.size
+    : selectedShellName()==='Core only'?'Choose a launcher in Connection to load applications.':'Connect Switch 2 and start ' + selectedShellName() + ' to load apps.';
   renderJobs();
+  applyLibrarySearch();
   const url = state.streamUrl;
   try {
     const u = new URL(url);
@@ -1712,17 +2201,17 @@ function renderModuleHostActions() {
     const target = cards.get(module.id)?.querySelector('.module-host-actions') || hostList;
     for (const pkg of module.server?.localPackages || []) {
       const record = state.hostModules?.[pkg.id];
-      if (record?.installed) continue;
+      if (record?.installed && module.id!=='vacootube') continue;
       const key = 'runtime:' + module.id + ':' + pkg.id;
       let box = existing.get(key);
       if (!box) {
-        box = element('details', 'local-module module-setup'); box.dataset.hostActionKey = key;
+        box = element('div', 'local-module module-setup'); box.dataset.hostActionKey = key;
         const text = element('div', 'module-setup-body');
         text.append(element('p', 'hint'));
-        box.append(element('summary', '', 'PC setup'), text, element('button', 'secondary'));
+        box.append(element('strong', '', 'PC setup'), text, element('button', 'secondary'));
       }
       const text = box.querySelector('.module-setup-body'), button = box.querySelector('button');
-      setText(text.querySelector('.hint'), pkg.importSource
+      setText(text.querySelector('.hint'), record?.installed ? 'Installed on this PC' : pkg.importSource
         ? 'Choose the local game folder. Saved games stay in the original installation.'
         : record?.missingFiles?.length ? 'Local runtime files are missing. Reinstall this component.'
         : 'External component is downloaded separately from the IZM package.');
@@ -1738,7 +2227,7 @@ function renderModuleHostActions() {
         };
       } else if (input) { input.remove(); input = null; }
       button.type = 'button';
-      setText(button, pkg.importSource ? 'Import local runtime' : 'Install on this PC');
+      setText(button, record?.installed ? 'Reinstall on this PC' : pkg.importSource ? 'Import local runtime' : 'Install on this PC');
       button.dataset.unavailable = String(record?.supported === false);
       button.disabled = serverUnavailable || busy || state.preview || record?.supported === false || (!!input && !input.value.trim());
       button.onclick = () => act('/api/install-host', {id:pkg.id, ...(input ? {source:input.value.trim()} : {})});
@@ -1766,44 +2255,95 @@ function renderModuleHostActions() {
     target.hidden = !target.childElementCount;
   }
 }
-function renderJobs() {
-  const container = $('jobs'), existing = new Map([...container.children].map(row => [row.dataset.jobId, row]));
-  const rank = job => ['loading', 'publishing'].includes(job.status) ? 0 : job.status === 'queued' ? 1 : 2;
-  const jobs = [...state.jobs].sort((a, b) => rank(a) - rank(b) || b.created.localeCompare(a.created)).slice(0, 8);
-  const retained = new Set(jobs.map(job => job.id));
-  for (const [id, row] of existing) if (!retained.has(id)) row.remove();
-  jobs.forEach((job, index) => {
-    let row = existing.get(job.id);
-    if (!row) {
-      row = element('div', 'job'); row.dataset.jobId = job.id;
-      const progress = element('progress'); progress.max = 100;
-      row.append(element('strong'), element('span', 'job-status'), progress, element('small', 'job-detail'));
-    }
-    const className = 'job ' + job.status + (job.progress ? ' with-progress' : '');
-    if (row.className !== className) row.className = className;
-    setText(row.querySelector('strong'), job.name);
-    setText(row.querySelector('.job-status'), ['complete', 'ready'].includes(job.status)
-      ? job.operation === 'remove' ? 'Removed from console' : 'Loaded' : job.status);
-    const progress = row.querySelector('progress'), detail = row.querySelector('.job-detail');
-    progress.hidden = detail.hidden = !job.progress;
-    if (job.progress) {
-      progress.setAttribute('aria-label', 'Loading ' + job.name);
-      if (Number.isFinite(job.progress.percent)) {
-        if (!progress.hasAttribute('value') || progress.value !== job.progress.percent) progress.value = job.progress.percent;
-      } else if (progress.hasAttribute('value')) progress.removeAttribute('value');
-      const labels = {verify:'Checking files', prepare:'Preparing on PC', graphics:'Preparing graphics', install:'Installing on PC', transfer:'Updating console menu', ready:'Ready in menu', failed:'Load failed'};
-      let text = labels[job.progress.phase] || job.progress.label || job.status;
-      if (Number.isFinite(job.progress.totalBytes) && job.progress.totalBytes > 0) {
-        const size = n => ((Number.isFinite(n) ? n : 0) / 1048576).toFixed(1) + ' MiB';
-        text += ' · ' + size(job.progress.completedBytes) + ' of ' + size(job.progress.totalBytes) + ' · remaining ' + size(job.progress.remainingBytes);
-      }
-      if (Number.isFinite(job.progress.percent)) text += ' · ' + job.progress.percent + '%';
-      setText(detail, text);
-    }
-    row.title = job.error || '';
-    placeChild(container, row, index);
-  });
+function renderTransferStatus(){
+ const box=$('transfer-status');if(!box)return;const item=globalThis.IZ2S_PRESENTATION.transfer(state);box.hidden=!item;if(!item)return;
+ setText($('transfer-name'),item.name);setText($('transfer-target'),item.target);setText($('transfer-phase'),item.label);setText($('transfer-count'),item.count>1?'+'+(item.count-1):'');
+ const progress=$('transfer-progress');if(item.percent===null)progress.removeAttribute('value');else progress.value=item.percent;
+ setText($('transfer-bytes'),item.total===null?'':item.percent+'% · '+(item.completed/1048576).toFixed(1)+' / '+(item.total/1048576).toFixed(1)+' MiB');
 }
+let jobsStamp='';
+function renderJobs() {
+  const stamp=JSON.stringify(state.jobs);if(stamp===jobsStamp)return;jobsStamp=stamp;
+  const active=$('jobs'),completed=$('completed-job-list');active.replaceChildren();completed.replaceChildren();
+  for(const job of [...state.jobs].sort((a,b)=>{const pa=globalThis.IZ2S_PRESENTATION.job(a),pb=globalThis.IZ2S_PRESENTATION.job(b);return Number(pb.active||pb.failed)-Number(pa.active||pa.failed)||b.created.localeCompare(a.created);}).slice(0,24)){
+    const info=globalThis.IZ2S_PRESENTATION.job(job),row=element('article','job '+job.status);row.dataset.jobId=job.id;
+    const name=element('strong','',job.name);name.setAttribute('translate','no');row.append(name,element('span','job-status',info.label));
+    if(info.active){const progress=element('progress');progress.max=100;progress.setAttribute('aria-label','Progress: '+job.name);if(Number.isFinite(job.progress?.percent))progress.value=job.progress.percent;
+      const labels={verify:'Checking files',prepare:'Preparing on PC',graphics:'Preparing graphics',transfer:'Updating console menu','sd-prepare':'Preparing SD application','sd-write':'Writing to SD','sd-verify':'Verifying SD','sd-publish':'Waiting for the SD menu'};
+      const p=job.progress,bytes=p?.totalBytes>0?' · '+(p.completedBytes/1048576).toFixed(1)+' / '+(p.totalBytes/1048576).toFixed(1)+' MiB':'';
+      row.append(progress,element('small','job-detail',(labels[p?.phase]||info.label)+bytes));
+    }
+    if(info.failed)appendProblem(row,job.error||'The operation failed.');
+    (info.active||info.failed?active:completed).append(row);
+  }
+  $('completed-jobs').hidden=!completed.children.length;
+}
+function appendProblem(container,message){
+  const problem=globalThis.IZ2S_ERRORS.describe(message),box=element('div','operation-problem');box.setAttribute('role','status');
+  const title=element('p','problem-title',problem.title);title.setAttribute('translate','no');box.append(title,element('p','hint',problem.action));
+  const details=element('details','technical-details'),pre=element('pre','',problem.detail);pre.setAttribute('translate','no');details.append(element('summary','','Technical details'),pre);box.append(details);container.append(box);
+}
+const sessionActionHomes=new Map();
+function placeSessionActions(view){
+ const civ=state.platform?.loaderId,selected=civ==='civswitch-ldn'?'ldn-stop':civ==='civswitch'?'civ-stop':'stop';
+ const target=$('session-summary-session-actions');
+ for(const id of ['stop','restore-connection','civ-stop','ldn-stop']){
+  const button=$(id);if(!button||!target)continue;
+  const show=view.compact&&(id===selected||id==='restore-connection'&&selected==='stop');
+  if(show){if(!sessionActionHomes.has(id))sessionActionHomes.set(id,{parent:button.parentElement,next:button.nextSibling});if(button.parentElement!==target)target.append(button);}
+  else {const home=sessionActionHomes.get(id);if(home?.parent&&button.parentElement!==home.parent){if(home.next?.parentElement===home.parent)home.parent.insertBefore(button,home.next);else home.parent.append(button);}}
+ }
+}
+let configurationOpen=false,libraryBatch=false,historyLimit=10;
+function renderSessionPresentation(){
+ const view=globalThis.IZ2S_PRESENTATION.session(state),setup=$('setup');
+ setup.classList.toggle('session-compact',view.compact);setup.classList.toggle('session-offline',view.offline||view.unconfirmed);setup.classList.toggle('session-configuration-open',configurationOpen);
+ if(view.offline){$('mode').textContent='Connection interrupted';$('mode').dataset.state='offline';}
+ const consoleCard=$('device-lan');if(view.offline&&consoleCard){consoleCard.classList.remove('ready','pending');consoleCard.classList.add('connection-lost');setText(consoleCard.querySelector('.state'),'CONNECTION LOST');setText(consoleCard.querySelector('.detail-text')||consoleCard.querySelector('.device-detail'),['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)?'Connection lost. Stop this session, restart Civilization VII and open Load Game.':'Connection lost. Restore the connection to manage applications.');}
+ if(consoleCard){consoleCard.classList.toggle('shutdown-unconfirmed',view.unconfirmed);if(view.unconfirmed){consoleCard.classList.remove('ready','pending','connection-lost');setText(consoleCard.querySelector('.state'),'Shutdown unconfirmed');setText(consoleCard.querySelector('.detail-text')||consoleCard.querySelector('.device-detail'),'Restart Civilization VII before starting a new session.');}}
+ $('session-summary').hidden=!view.compact;$('session-summary-state').textContent=view.title;$('session-summary-title').textContent=view.launcher;placeSessionActions(view);
+ $('session-summary-game').textContent=view.game;
+ $('session-summary-copy').textContent=view.stopping?'':(view.offline?'Waiting for connection':state.fsRpc?.state==='ready'?'Filesystem access active':state.connected?'Console connected':'Connection pending');
+ $('session-summary-copy').hidden=view.stopping;
+ $('session-summary-note').hidden=view.stopping||!view.offline&&!!state.connected;$('session-summary-note').textContent='The console session is retained. Restore the connection to manage applications.';
+ if(['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)&&(view.offline||view.unconfirmed)){$('session-summary-note').hidden=false;$('session-summary-note').textContent=view.unconfirmed?'Restart Civilization VII before starting a new session.':'Connection lost. Stop this session, restart Civilization VII and open Load Game.';}
+ const savedLoader=state.civswitchLdn?.saveInstallation||state.civswitch?.saveInstallation;
+ if(view.running&&state.connected&&['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)&&savedLoader?.state==='installed'){$('session-summary-note').hidden=false;$('session-summary-note').textContent='Save installed. Next time: Civilization VII → Load Game, then Launch in this panel.';}
+ $('session-settings-label').textContent=configurationOpen?'Hide connection settings':'Connection settings';$('session-settings-toggle').setAttribute('aria-expanded',String(configurationOpen));
+ if((view.running||view.offline)&&state.platform?.izModules)$('progress-note').textContent=state.connected?'Use App library to manage applications.':'The console session is retained. Restore the connection to manage applications.';
+ for(const prefix of ['civ','ldn'])if(state.civLauncher?.state==='offline'){$(prefix+'-result-title').textContent='Connection interrupted';$(prefix+'-result-detail').textContent=globalThis.IZ2S_ERRORS.canonical(state.civLauncher.error||'The console session is retained.');$(prefix+'-result-detail').setAttribute('translate','no');}
+ for(const prefix of ['civ','ldn'])if(state.civLauncher?.state==='running'){$(prefix+'-result-title').textContent='Launcher is running';$(prefix+'-result-detail').textContent=state.connected?'Console connected':'The console session is retained.';$(prefix+'-launch').hidden=true;}
+ $('apps').classList.toggle('batch-selection',libraryBatch);$('library-batch').setAttribute('aria-pressed',String(libraryBatch));$('library-batch').textContent=libraryBatch?'Finish selection':'Select multiple';
+ document.querySelector('.library-bar').hidden=!libraryBatch;
+ applyLibrarySearch();
+ renderDeviceTopology();
+}
+function applyLibrarySearch(){
+  const status=$('library-status').value,location=$('library-location').value,query=$('library-search').value;
+  const result=globalThis.IZ2S_PRESENTATION.libraryFilter(state,{query,status,location,focusId:libraryContext?.id});const ids=new Set(result.ids);
+  for(const card of $('library').children)card.hidden=!!card.dataset.appId&&!ids.has(card.dataset.appId);
+  const filtered=!!query.trim()||status!=='all'||location!=='all';$('library-reset').hidden=!filtered;
+  $('library-result-count').textContent=result.ids.length+' / '+result.total;
+  $('library-empty').hidden=result.ids.length>0||!state?.library?.length;
+  const hidden=[...selection].filter(id=>!ids.has(id)).length;$('library-hidden-selection').hidden=!libraryBatch||!hidden;
+  $('library-hidden-selection').textContent=hidden?'Selected outside this filter: '+hidden:'';
+}
+function resetLibraryFilters(){$('library-search').value='';$('library-status').value='all';$('library-location').value='all';applyLibrarySearch();}
+$('library-reset').onclick=resetLibraryFilters;$('library-empty-reset').onclick=resetLibraryFilters;
+$('library-status').onchange=()=>{if($('library-status').value==='all')$('library-location').value='all';applyLibrarySearch();};
+$('library-location').onchange=()=>{if($('library-location').value!=='all'&&$('library-status').value==='all')$('library-status').value='installed';applyLibrarySearch();};
+document.addEventListener('click',event=>{for(const details of document.querySelectorAll('#library .app-more[open],#library .storage-more[open]'))if(!details.contains(event.target))details.open=false;});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')for(const details of document.querySelectorAll('#library .app-more[open],#library .storage-more[open]')){details.open=false;details.querySelector('summary')?.focus();}});
+
+$('session-settings-toggle').onclick=()=>{configurationOpen=!configurationOpen;renderSessionPresentation();};
+$('session-summary-library').onclick=()=>switchView('apps');
+$('library-search').oninput=applyLibrarySearch;
+$('library-batch').onclick=()=>{libraryBatch=!libraryBatch;if(!libraryBatch){selection.clear();for(const input of document.querySelectorAll('.app-select input'))input.checked=false;}renderSessionPresentation();renderControls();};
+$('history-search').oninput=()=>{historyLimit=10;historyStamp='';renderHistory();};
+for(const id of ['history-filter','history-period','history-error-type'])$(id).onchange=()=>{if(id==='history-error-type'&&$(id).value!=='all')$('history-filter').value='unsuccessful';historyLimit=10;historyStamp='';renderHistory();};
+for(const [id,kind]of [['history-today-all','all'],['history-today-success','successful'],['history-today-errors','unsuccessful'],['history-today-pending','pending']])$(id).onclick=()=>{$('history-period').value='today';$('history-filter').value=kind;$('history-error-type').value='all';historyLimit=10;historyStamp='';renderHistory();};
+$('history-more').onclick=()=>{historyLimit+=10;historyStamp='';renderHistory();};
+
 let historyStamp = '';
 let savedLogAttempt = null;
 let savedLogGeneration = 0;
@@ -1814,6 +2354,7 @@ function logTime(value) {
   });
 }
 function logMessage(event) {
+  event={...event,message:globalThis.IZ2S_ERRORS.canonical(event.message)};
   const owner = [event.source, event.stream].filter(Boolean).join('/');
   const elapsed = Number.isFinite(event.elapsedMs) ? ` +${event.elapsedMs}ms` : '';
   const pid = event.pid ? ` pid=${event.pid}` : '';
@@ -1868,52 +2409,56 @@ async function openSavedLog(attempt) {
     if (generation === savedLogGeneration && dialog.open) dialog.setAttribute('aria-busy', 'false');
   }
 }
-function renderHistory() {
-  const stamp = JSON.stringify(state.history);
-  $('fail-count').textContent = state.history.length;
-  if (stamp === historyStamp) return;
-  historyStamp = stamp;
-  $('attempts').replaceChildren();
-  if (!state.history.length) {
-    const box = element('div', 'empty');
-    box.append(
-      element('h2', '', 'No failed attempts'),
-      element('p', '', 'Session diagnostics appear here after a failed or cancelled attempt.'),
-    );
-    $('attempts').append(box);
-  }
-  for (const attempt of state.history) {
-    const row = element('article', 'attempt'),
-      body = element('div', 'body');
-    body.append(
-      element(
-        'h3',
-        '',
-        attempt.kind === 'bootstrap'
-          ? 'Bootstrap installation'
-          : 'Launcher session',
-      ),
-      element('time', '', date(attempt.created)),
-      element(
-        'p',
-        '',
-        attempt.error ||
-          'Input cancelled. Restart the console before trying again.',
-      ),
-    );
-    const view = element('button', '', 'View log'),
-      remove = element('button', 'delete', 'Delete log');
-    view.addEventListener('click', () => openSavedLog(attempt));
-    remove.addEventListener('click', () =>
-      act('/api/delete', { id: attempt.id }),
-    );
-    row.append(body, view, folderButton('session', attempt.id, 'Open log folder'), remove);
-    $('attempts').append(row);
-  }
+function historyRows(){
+ const rows=new Map((state.history||[]).map(row=>[row.id,row]));
+ for(const row of [state.lastAttempt,state.active])if(row?.id)rows.set(row.id,row);
+ return [...rows.values()].sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')));
 }
+let historyClearing=false;
+function confirmRemoval(message,name=''){
+ const dialog=$('removal-dialog');if(dialog.open)return Promise.resolve(false);
+ setText($('removal-message'),message);$('removal-name').hidden=!name;setText($('removal-name'),name);dialog.returnValue='';
+ return new Promise(resolve=>{dialog.addEventListener('close',()=>resolve(dialog.returnValue==='delete'),{once:true});dialog.showModal();});
+}
+async function deleteAttemptLogs(ids){
+ if(historyClearing||!ids.length)return;
+ const question=ids.length===1?'Delete this attempt and its full log?':'Clear all completed attempt logs? The active session and installed apps will stay.';
+ if(!await confirmRemoval(question))return;
+ historyClearing=true;historyStamp='';renderHistory();
+ try{for(const id of ids)await api('/api/delete',{id});}
+ catch(error){notice(error.message);}
+ finally{historyClearing=false;historyStamp='';await poll();}
+}
+$('history-clear').onclick=()=>deleteAttemptLogs(historyRows().filter(row=>globalThis.IZ2S_PRESENTATION.attempt(row,{activeId:state.active?.id}).deletable).map(row=>row.id));
+$('library-sd-refresh').onclick=()=>act('/api/sd/refresh',{});
+function renderHistory() {
+ const rows=historyRows(),options={query:$('history-search').value,kind:$('history-filter').value,category:$('history-error-type').value||'all',period:$('history-period').value||'today',limit:historyLimit},stamp=JSON.stringify([rows.map(row=>[row.id,row.created,row.kind,row.status,row.error,row.connectedAt]),options,historyClearing,state.active?.id,state.historyAll,new Date().toDateString()]);
+ setText($('fail-count'),rows.length);$('history-scope-note').hidden=state.historyAll===true;if(stamp===historyStamp)return;historyStamp=stamp;
+ const presentation=globalThis.IZ2S_PRESENTATION,today=presentation.statistics(rows);
+ setText($('history-today-total'),today.total);setText($('history-today-success-count'),today.successful);setText($('history-today-error-count'),today.unsuccessful);setText($('history-today-pending-count'),today.pending);
+ const typeSelect=$('history-error-type');if(typeSelect.children.length===1)for(const [key,name]of Object.entries(presentation.errorLabels)){const option=element('option','',name);option.value=key;typeSelect.append(option);}
+ $('history-error-types').replaceChildren();for(const [key,count]of Object.entries(today.errors).sort((a,b)=>b[1]-a[1])){const button=element('button','quiet');button.append(element('span','',presentation.errorLabels[key]),element('strong','',String(count)));button.setAttribute('aria-pressed',String(options.category===key));button.onclick=()=>{$('history-period').value='today';$('history-filter').value='unsuccessful';$('history-error-type').value=key;historyLimit=10;historyStamp='';renderHistory();};$('history-error-types').append(button);}
+ if(!today.unsuccessful)$('history-error-types').append(element('span','hint','No errors today'));
+ const selected=presentation.history(rows,options);$('attempts').replaceChildren();setText($('history-count'),historyClearing?'Clearing history…':selected.rows.length+' / '+selected.total);$('history-more').hidden=!selected.more;
+ $('history-clear').disabled=historyClearing||!rows.some(row=>globalThis.IZ2S_PRESENTATION.attempt(row,{activeId:state.active?.id}).deletable);
+ if(!selected.rows.length)$('attempts').append(element('p','empty','No matching attempts'));
+ const groups=new Map();
+ for(const key of ['successful','unsuccessful','pending']){const groupRows=selected.rows.filter(row=>presentation.attempt(row).outcome===key);if(!groupRows.length)continue;const group=element('section','attempt-group');group.append(element('h2','attempt-group-title',{successful:'Successful',unsuccessful:'Unsuccessful',pending:'Not finished'}[key]));$('attempts').append(group);groups.set(key,group);}
+ for(const row of selected.rows){
+  const info=globalThis.IZ2S_PRESENTATION.attempt(row,{activeId:state.active?.id}),card=element('article','attempt attempt-compact'),badge=element('span','attempt-status '+info.tone,info.label),body=element('div','attempt-copy'),heading=element('div','attempt-heading');
+  heading.append(element('strong','',row.kind==='bootstrap'?'First Setup':'Launcher session'),element('time','',date(row.created)));body.append(heading);
+  if(row.error){const detail=element('p','attempt-detail');detail.setAttribute('translate','no');detail.textContent=globalThis.IZ2S_ERRORS.describe(row.error).title;detail.title=globalThis.IZ2S_ERRORS.canonical(row.error);body.append(detail);}
+  else body.append(element('p','attempt-detail hint',info.success?'Launcher started successfully.':info.label));
+  const actions=element('div','attempt-actions'),view=element('button','','View log');view.onclick=()=>openSavedLog(row);actions.append(view);
+  const remove=element('button','quiet','Delete log');remove.disabled=historyClearing||!info.deletable;remove.title=info.deletable?'Delete this attempt and its full log.':'The active attempt cannot be deleted.';remove.onclick=()=>deleteAttemptLogs([row.id]);actions.append(remove);
+  card.append(badge,body,actions);groups.get(info.outcome).append(card);
+ }
+}
+
 function renderActivity() {
   const list = state.log.filter((e) => $('log-details').checked || e.type !== 'detail').slice(-250),
-    stamp = JSON.stringify(list),
+    sessionActive = !!state.active || ['starting','running','offline','stopping'].includes(state.civLauncher?.state),
+    stamp = JSON.stringify([list, sessionActive]),
     log = $('log');
   $('download-session-log').disabled = !(state.active || state.lastAttempt)?.id;
   if (log.dataset.stamp === stamp) return;
@@ -1933,15 +2478,15 @@ function renderActivity() {
     let row = existing.get(key);
     if (!row) {
       row = element('div', 'log-row ' + item.type); row.dataset.logKey = key;
-      row.append(element('time', '', logTime(item.at)), element('span', '', logMessage(item)));
+      const message=element('span');message.setAttribute('translate','no');message.textContent=logMessage(item);
+      row.append(element('time', '', logTime(item.at)),message);
     }
     placeChild(log, row, index);
   });
   if (!list.length) {
-    if (!existing.has('empty')) {
-      const empty = element('p', 'hint', 'No active attempt. Device checks do not send console commands.');
-      empty.dataset.logKey = 'empty'; placeChild(log, empty, 0);
-    }
+    let empty=existing.get('empty');
+    if(!empty){empty=element('p','hint');empty.dataset.logKey='empty';placeChild(log,empty,0);}
+    setText(empty,sessionActive?'Waiting for session messages.':'No active attempt. Device checks do not send console commands.');
   }
   requestAnimationFrame(() => {
     if (logFollow && log.clientHeight) log.scrollTop = log.scrollHeight;
@@ -1950,29 +2495,51 @@ function renderActivity() {
 }
 
 function renderConnectionStatus() {
-  const stopping = state?.active?.status === 'stopping';
+  const transferring=state?.active?.status==='running'&&!state?.offline&&(state.jobs||[]).some(j=>['loading','publishing'].includes(j.status))&&(!state.link||state.link.state==='connected');
+  const stopping = state?.active?.status === 'stopping'||state?.civLauncher?.state==='stopping';
+  const offline = state?.active?.status==='offline'||state?.civLauncher?.state==='offline';
+  const unconfirmed=stopping&&(state?.active?.nativeParentRetention?.awaitingActualClose||state?.civLauncher?.shutdownUnconfirmed);
+  const civNetwork=state?.platform?.loaderId==='civswitch'&&state?.civswitch?.networkReachable&&!state?.connected;
+  const civUsbWaiting=state?.platform?.loaderId==='civswitch'&&state?.civswitch?.wirelessNetworkPending&&state?.civswitch?.inputStatus?.keyboard;
   const connectionMode = serverUnavailable
     ? ['disconnected', 'Server unavailable']
     : state?.simulated
       ? ['preview', 'Simulated devices']
       : state?.preview
         ? ['preview', 'Design preview']
+        : unconfirmed
+          ? ['disconnected','Shutdown unconfirmed']
         : stopping
           ? ['checking', 'Stopping…']
+        : offline
+          ? ['disconnected','Connection interrupted']
+          : transferring
+            ? ['transferring', 'Transferring files…']
           : state?.active && state?.link?.state === 'waiting-for-dock'
             ? ['connecting', 'Reconnecting…']
             : state?.active?.kind === 'bootstrap'
               ? ['checking', 'Setup in progress…']
               : state?.connected
                 ? ['connected', 'Console connected']
+                : state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected'
+                  ? ['checking', 'Console connected · preparing launcher']
+                : civNetwork
+                  ? ['checking', 'Console on LAN · CivSwitch :9026 not verified']
+                : civUsbWaiting
+                  ? ['checking', 'CivSwitch · waiting for LAN; USB input available']
                 : state?.active
                   ? ['connecting', 'Connecting…']
-                  : ['disconnected', 'Not connected'];
+                : state?.platform?.loaderId==='civswitch-ldn'
+                  ? ['idle', 'Game loader not started']
+                  : state?.checks?.ready
+                    ? ['idle', 'Session not started']
+                    : ['disconnected', 'Not connected'];
   setText($('mode'), connectionMode[1]);
   $('mode').dataset.state = connectionMode[0];
+  $('connection').classList.toggle('idle', connectionMode[0] === 'idle');
   $('mode').classList.toggle('preview', !serverUnavailable && !!state?.preview);
-  $('connection').classList.toggle('online', !serverUnavailable && !!state?.connected && !stopping);
-  $('connection').classList.toggle('working', !serverUnavailable && (!!state?.active && (!state?.connected || stopping)));
+  $('connection').classList.toggle('online', !serverUnavailable && !!state?.connected && !stopping && !offline);
+  $('connection').classList.toggle('working', !serverUnavailable && ['checking','connecting'].includes(connectionMode[0]));
   const text = connectionMode[1];
   if ($('connection').lastChild.textContent !== text)
     $('connection').lastChild.textContent = text;
@@ -1987,6 +2554,7 @@ function renderServerAvailability() {
   renderLocalActionAvailability();
   $('panel-main').classList.toggle('server-unavailable', serverUnavailable);
   if (!serverUnavailable) return;
+  civswitchUI.render(state);civswitchLdnUI.render(state);
   renderConnectionStatus();
   for (const card of document.querySelectorAll('#devices > .device')) {
     setText(card.querySelector('.state'), 'UNVERIFIED');
@@ -2005,11 +2573,14 @@ function renderServerAvailability() {
   if (state?.active) setText($('progress-title'), 'Session status unavailable');
   $('dolphin-open').disabled = true;
   setText($('dolphin-status'), 'Server unavailable · FS status cannot be checked.');
-  document.querySelectorAll('#start,#load,#retry,#engine-download,#engine-rescan,#arm-install,#hardware-form button,.module-host-actions button,.module-unload,.module-configure,.folder-button,[data-folder],[data-variant],[data-loader],.address-form button,.transport-choice button,.transport-choice input,.detected-peer,.up-start,.up-save,.up-confirm')
+  document.querySelectorAll('#start,#load,#retry,#engine-download,#engine-rescan,#arm-install,#hardware-form button,.module-host-actions button,.module-unload,.module-install,.sd-inventory-refresh,.module-configure,.folder-button,[data-folder],[data-variant],[data-loader],.address-form button,.transport-choice button,.transport-choice input,.detected-peer,.up-start,.up-save,.up-confirm')
     .forEach(control => { control.disabled = true; });
 }
 function render() {
   const attempt = state.active;
+  renderTransferStatus();
+  $('restore-connection').hidden=state.active?.status==='stopping'||!state.link?.recoveryAvailable||state.link?.protocol!==3||state.connected&&state.active?.status!=='offline';
+  $('restore-connection').disabled=serverUnavailable||state.preview||!attempt;
   workspace.updateModules(state);
   renderPlatform();
   const ended = state.lastAttempt;
@@ -2021,11 +2592,14 @@ function render() {
   }
   renderDevices();
   renderStartupModules();
+  civswitchUI.render(state);civswitchLdnUI.render(state);
   renderLibrary();
+  renderConsoleApps();
   renderHistory();
   renderActivity();
   renderWizard();
   renderManualInputDesign();
+  advSetup.render({state,step,busy,serverUnavailable,manual:inputDesign==='own',preparation:cardputerRequest||state?.hardwareOperation});
   renderConnectionStatus();
   const applicationRecovery = state.applicationRecovery;
   $('application-recovery').hidden = !applicationRecovery;
@@ -2039,6 +2613,8 @@ function render() {
     $('application-recovery').textContent = labels[applicationRecovery.state] || 'App recovery state is unknown.';
   }
   $('progress-box').hidden = !attempt;
+  $('progress').hidden=['running','offline','complete'].includes(attempt?.status);
+  $('progress-value').hidden=$('progress').hidden;
   $('progress-title').textContent = attempt
     ? {
         starting: attempt.inputActive?'Entering launch commands…':state.link?.state==='connected'||attempt.launchStage==='initializing'?'Console connected · preparing launcher':attempt.launchStage==='waiting-console'?'Input complete · waiting for console':'Preparing launcher',
@@ -2096,7 +2672,28 @@ function render() {
     backendNotice = '';
   }
   renderServerAvailability();
+  renderMenuLayout();
+  renderSessionPresentation();
 }
+function renderMenuLayout() {
+  const id=state?.platform?.loaderId,civ=['civswitch','civswitch-ldn'].includes(id);
+  $('devices').hidden=false;
+  $('device-toolbar').hidden=false;
+  $('connection-files').hidden=civ;
+  $('mode').hidden=civ;
+  $('network-caption').hidden=civ;
+  for(const [button,engine]of [['civ-mode-usb','civswitch'],['civ-mode-ldn','civswitch-ldn']]){
+    const needsRestart=engine==='civswitch-ldn'&&state.platform.civswitchLdnAvailable!==true;
+    $(button).disabled=serverUnavailable||busy||state.platform.locked||needsRestart;
+    $(button).title=needsRestart?(state.platform.locked||busy?'Restart the panel after ending the current session to enable CIV7 LAN.':'Restart the panel to enable CIV7 LAN.'):'';
+  }
+  document.querySelector('[data-view="apps"]').hidden=!state?.platform?.izModules&&!civ;
+  $('hardware-options').hidden=id==='civswitch-ldn';
+  if(id==='civswitch-ldn')$('adv-usb-next').hidden=true;
+  $('civ-input-settings').hidden=true;
+  if(civ){$('iz-flow').hidden=true;$('installation-options').hidden=true;}
+}
+
 let platformMenuStamp = '',
   configurationStamp = '';
 const upstreamSteps = { izmysh: 'launch' };
@@ -2174,22 +2771,33 @@ function renderAutomaticRpcStatus(meta) {
   }
   status.dataset.state = fs?.state || 'automatic';
   setText($('delivery-rpc-label'), fs?.state === 'ready'
-    ? 'Native + FS RPC · Active'
-    : fs?.state === 'starting' ? 'FS RPC · Connecting'
-    : fs?.state === 'failed' ? 'FS RPC · Unavailable' : 'Native RPC · Automatic');
+    ? 'Filesystem access · Active'
+    : fs?.state === 'starting' ? 'Filesystem access · Connecting'
+    : fs?.state === 'failed' ? 'Filesystem access · Unavailable' : meta.loaderSettings?.fsRpcMode ? 'Enabled for next launch' : 'Disabled');
   const note = dirty ? 'Saving session settings…'
-    : fs?.state === 'ready' ? 'FS endpoint is active for this session.'
-    : fs?.state === 'starting' ? 'Waiting for the FS endpoint.'
-    : fs?.state === 'failed' ? fs.error || 'FS endpoint is unavailable for this session.'
+    : fs?.state === 'ready' ? 'Filesystem access is active for this session.'
+    : fs?.state === 'starting' ? 'Connecting to the console filesystem…'
+    : fs?.state === 'failed' ? globalThis.IZ2S_ERRORS.canonical(fs.error) || 'Filesystem access is unavailable for this session.'
     : state.active ? 'Session settings are locked until this session ends.'
-    : meta.loaderSettings?.fsRpcMode ? 'FS endpoint is enabled for the next session. Applies to First Setup and Launch.'
-    : 'Native RPC is automatic. Enable FS endpoint before starting a session.';
+    : meta.loaderSettings?.fsRpcMode ? 'Filesystem access will be requested before the launcher starts.'
+    : 'Enable filesystem access before starting a session.';
   setText($('delivery-rpc-note'), note);
 }
 function renderPlatform() {
   const meta = state?.platform;
   if (!meta) return;
-  const shellId = meta.izModules ? meta.variant || 'izlauncher' : null;
+  const civ=['civswitch','civswitch-ldn'].includes(meta.loaderId);
+  $('civ-mode-selector').hidden=!civ;
+  for(const [id,engine] of [['civ-mode-usb','civswitch'],['civ-mode-ldn','civswitch-ldn']]){
+    $(id).classList.toggle('selected',meta.loaderId===engine);
+    $(id).setAttribute('aria-pressed',String(meta.loaderId===engine));
+  }
+  for(const [id,selectedGame]of [['game-sm4',!civ],['game-civ7',civ]]){
+    $(id).classList.toggle('selected',selectedGame);$(id).setAttribute('aria-pressed',String(selectedGame));$(id).disabled=busy||meta.locked;
+  }
+  document.querySelector('.launch-selector').hidden=false;
+  $('engine-options').hidden=civ;
+  const shellId = civ?(state.civLauncher?.shell||'izlauncher'):meta.izModules?meta.variant||'izlauncher':null;
   const shellName = meta.shells?.find(item => item.id === shellId)?.name || (meta.izModules ? 'IZlauncher' : 'Core only');
   for (const button of document.querySelectorAll('[data-folder="shell"]')) {
     button.hidden = !shellId;
@@ -2200,7 +2808,7 @@ function renderPlatform() {
   $('footer-shell').textContent = shellName;
   const locked = busy || meta.locked,
     selected = meta.loaderId;
-  const engineChoices = meta.loaders.filter(loader => meta.variant === 'original' || RUN21_CATALOG.engineAvailable(loader, meta.variant));
+  const engineChoices = meta.loaders.filter(loader => !['civswitch','civswitch-ldn'].includes(loader.id)&&(meta.variant === 'original' || RUN21_CATALOG.engineAvailable(loader, meta.variant)));
   const inventoryStamp = JSON.stringify(
     engineChoices.map((l) => [l.id, l.name, l.integrationStatus]),
   );
@@ -2236,26 +2844,26 @@ function renderPlatform() {
       const b = element('button', '', v.name);
       b.type = 'button';
       b.dataset.variant = v.id;
-      b.onclick = () => act('/api/launch-settings', { variant: v.id });
+      b.onclick = () => ['civswitch','civswitch-ldn'].includes(state.platform.loaderId)?act('/api/'+state.platform.loaderId,{action:'select-shell',launcher:v.id}):act('/api/launch-settings', { variant: v.id });
       shellSelect.append(b);
     }
   }
   document.querySelector('[data-step=bootstrap]').hidden =
     meta.loaders.find((l) => l.id === selected)?.menu?.sourceSetup === false;
-  document.querySelector('[data-view=apps]').disabled = !meta.izModules;
-  document.querySelector('[data-view=apps]').title = meta.izModules
+  document.querySelector('[data-view=apps]').disabled = !meta.izModules&&!civ;
+  document.querySelector('[data-view=apps]').title = meta.izModules||civ
     ? ''
     : 'Select IZlauncher or IZPSlauncher to use IZM modules';
-  if (!meta.izModules && !$('apps').hidden) switchView('setup');
-  $('iz-flow').hidden = !meta.izModules;
+  if (!meta.izModules && !civ && !$('apps').hidden) switchView('setup');
+  $('iz-flow').hidden = !meta.izModules||['civswitch','civswitch-ldn'].includes(meta.loaderId);
   const label = meta.loaders.find((l) => l.id === selected)?.name || selected;
   setText($('engine-folder-name'), label);
   setText($('engine-folder-path'), meta.loaders.find(loader => loader.id === selected)?.folder || 'Folder path is unavailable. Use the Engine button above.');
   const errors = $('extension-errors');
   if (errors) {
     errors.hidden = !meta.extensionErrors?.length;
-    errors.textContent = (meta.extensionErrors || [])
-      .map((e) => e.id + ': ' + e.error)
+    errors.setAttribute('translate','no');errors.textContent = (meta.extensionErrors || [])
+      .map((e) => e.id + ': ' + globalThis.IZ2S_ERRORS.canonical(e.error))
       .join(' · ');
   }
   $('delivery-summary').textContent = label;
@@ -2274,14 +2882,15 @@ function renderPlatform() {
     deliveryStamp = JSON.stringify(meta.loaderSettings);
   if (deliveryForm.dataset.schema !== deliverySchemaStamp) {
     buildFields($('delivery-fields'), deliverySchema.map(field => field.key === 'fsRpcMode'
-      ? {...field, description: '', help: ''} : field), meta.loaderSettings);
+      ? {...field, label: 'Filesystem access', description: '', help: ''} : field), meta.loaderSettings);
     const fsInput = $('delivery-fields').querySelector('[name=fsRpcMode]');
     if (fsInput) {
-      fsInput.setAttribute('aria-describedby', 'delivery-rpc-note');
+      fsInput.setAttribute('aria-describedby', 'delivery-rpc-note delivery-fs-help');
     }
     deliveryForm.dataset.schema = deliverySchemaStamp;
     delete deliveryForm.dataset.stamp;
   }
+  $('delivery-fs-help').hidden = !deliverySchema.some(field => field.key === 'fsRpcMode');
   if (deliveryForm.dataset.stamp !== deliveryStamp) {
     for (const input of $('delivery-fields').querySelectorAll('input,select')) {
       const field = deliverySchema.find(item => (item.id || item.key || item.name) === input.name),
@@ -2325,7 +2934,7 @@ function renderPlatform() {
   document.querySelectorAll('[data-variant]').forEach((button) => {
     button.classList.toggle(
       'selected',
-      button.dataset.variant === meta.variant,
+      button.dataset.variant === (civ?state.civLauncher?.shell||'izlauncher':meta.variant),
     );
     button.disabled = locked;
   });
@@ -2368,7 +2977,7 @@ function renderPlatform() {
   if (menuStamp !== platformMenuStamp) {
     platformMenuStamp = menuStamp;
     $('upstream-menus').replaceChildren();
-    for (const loader of meta.loaders) {
+    for (const loader of meta.loaders.filter(loader => !['civswitch','civswitch-ldn'].includes(loader.id))) {
       const id = loader.id;
       upstreamSteps[id] ??= 'launch';
       const panel = element('section', 'installation upstream-menu');
@@ -2475,7 +3084,7 @@ function renderPlatform() {
           'secondary up-confirm',
           'Source saved · continue',
         ),
-        stop = element('button', 'soft-stop up-stop', 'Stop and return to Launch'),
+        stop = element('button', 'soft-stop up-stop danger', 'Stop session'),
         hard = element('button', 'hard-stop up-hard', '! STOP'),
         status = element('span', 'hint up-status');
       start.onclick = () =>
@@ -2603,7 +3212,20 @@ function renderPlatformControls() {
   const meta = state?.platform;
   if (!meta) return;
   const locked = serverUnavailable || busy || meta.locked;
-  document.querySelectorAll('[data-variant]').forEach(button => { button.disabled = locked; });
+  $('game-sm4').disabled=locked;$('game-civ7').disabled=locked;
+  $('library-source-options').hidden=meta.variant==='original'||meta.loaderId==='civswitch';
+  $('library-source').value=meta.sdLauncher?'sd':'pc';$('library-source').disabled=locked;
+  $('library-source-note').textContent=meta.sdLauncher?'Install compatible apps to console SD in App library first. This source requires filesystem access.':'Load apps from the PC into RAM using Startup modules or App library. They are cleared when the game closes.';
+  $('library-source-lock').textContent=state.active||meta.locked?'Stop the session to change the application source.':'Choose the source before starting the launcher.';
+  const sdSource=$('library-source').querySelector('option[value=sd]');if(sdSource){sdSource.disabled=meta.loaderId!=='izmysh';sdSource.title=sdSource.disabled?'SD mode currently requires IZ2S Core':'';}
+
+  $('native-recovery-option').hidden=meta.variant==='original';
+  $('native-recovery-enabled').checked=meta.nativeRecovery===true;
+  $('native-recovery-enabled').disabled=true;
+  document.querySelectorAll('[data-variant]').forEach(button => {
+    button.disabled = locked;
+    button.setAttribute('aria-pressed', String(button.classList.contains('selected')));
+  });
   document.querySelectorAll('[data-loader]').forEach(button => {
     const available = RUN21_CATALOG.engineAvailable(meta.loaders.find(loader => loader.id === button.dataset.loader), meta.variant);
     button.disabled = locked || !available;
@@ -2724,6 +3346,10 @@ document
       (button.onclick = () =>
         act('/api/launch-settings', { loaderId: button.dataset.loader })),
   );
+$('game-civ7').onclick=()=>act('/api/launch-settings',{loaderId:state?.platform?.civswitchLdnAvailable===true?'civswitch-ldn':'civswitch',variant:'original'});
+$('civ-mode-usb').onclick=()=>act('/api/launch-settings',{loaderId:'civswitch',variant:'original'});
+$('civ-mode-ldn').onclick=()=>act('/api/launch-settings',{loaderId:'civswitch-ldn',variant:'original'});
+$('game-sm4').onclick=()=>act('/api/launch-settings',{loaderId:['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?'izmysh':state.platform.loaderId,variant:state?.platform?.variant==='original'?'izlauncher':state.platform.variant});
 document
   .querySelectorAll('[data-variant]')
   .forEach(
@@ -2746,22 +3372,28 @@ $('hardware-form').onsubmit = (e) => {
 
 let polling = null;
 let initialRenderComplete = false;
-let dolphinAutoAttempt = null;
 let dolphinOpening = false;
 let dolphinMessage = '';
 function dolphinReady() {
   return !serverUnavailable && !!state?.connected && state?.active?.status === 'running' && state?.fsRpc?.state === 'ready' && !state?.preview;
 }
 function renderDolphin() {
-  const button = $('dolphin-open'), status = $('dolphin-status');
+  const button = $('dolphin-open'), status = $('dolphin-status'), entry = $('console-files-entry');
   if (!button || !status) return;
-  const ready = dolphinReady();
+  const ready = dolphinReady(), connecting=state?.fsRpc?.state==='starting';
+  const tone=serverUnavailable?'offline':dolphinOpening?'opening':ready?'ready':connecting?'waiting':'unavailable';
   button.disabled = !ready || dolphinOpening;
-  button.title = ready ? 'Open Super File Bros. inside IZ2S. Choose a file manager there when needed.' : 'Available after FS RPC connects';
-  setText(status, serverUnavailable ? 'Server unavailable · FS status cannot be checked.' : dolphinOpening ? 'Opening Super File Bros. tab…' : ready
-    ? dolphinMessage || 'FS RPC is connected. Open the Super File Bros. tab.'
-    : state?.fsRpc?.state === 'starting' ? 'Waiting for FS RPC to connect.'
-    : 'Available when FS RPC is connected.');
+  button.title=ready?'Open console files in Super File Bros.':'Requires an active session with Filesystem access';
+  button.setAttribute('aria-busy',String(dolphinOpening));
+  if(entry){
+    entry.hidden=serverUnavailable||!state?.connected;
+    entry.dataset.state=tone;
+  }
+  setText(status, serverUnavailable ? 'Server unavailable · FS status cannot be checked.' : dolphinOpening ? 'Opening file manager…' : ready
+    ? dolphinMessage || 'Ready to open'
+    : connecting ? 'Connecting to console files…'
+    : state?.active?.status==='running'&&!state?.connected ? 'Restore the console connection to open files.'
+    : 'Start a session with Filesystem access to open files.');
 }
 async function openDolphin(automatic = false) {
   if (!dolphinReady() || dolphinOpening) return;
@@ -2813,16 +3445,24 @@ function poll() {
   if (polling) return polling;
   if (!initialRenderComplete) {
     $('startup-retry').disabled = true;
-    setText($('startup-message'), 'Connecting to the local server.');
+    setText($('startup-message'), 'Preparing the app library. The panel will open automatically.');
   }
+  const generation = actionGeneration;
   polling = (async () => {
     let readingState = true;
     try {
-      const snapshot = await api('/api/state', undefined, {timeoutMs: 15000});
+      const snapshot = await api(initialRenderComplete ? '/api/state' : '/api/startup', undefined,
+        {timeoutMs: initialRenderComplete ? 15000 : 120000});
+      if (generation !== actionGeneration) return;
       readingState = false;
       state = RUN21_CATALOG.normalizeSnapshot(snapshot);
-      await readFsRpcProof(state);
-      try {const tools=await api('/api/workspace',undefined,{timeoutMs:5000});workspaceReady=true;workspace.sync(tools.tabs||[]);} catch {workspaceReady=false;}
+      if(['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)){
+        workspaceReady=false;workspace.sync([]);
+      }else{
+        await readFsRpcProof(state);
+        try {const tools=await api('/api/workspace',undefined,{timeoutMs:5000});workspaceReady=true;workspace.sync(tools.tabs||[]);} catch {workspaceReady=false;}
+      }
+      if (generation !== actionGeneration) return;
       if (serverUnavailable && notificationKey === 'server-unavailable') $('toast').hidden = true;
       serverUnavailable = false;
       render();
@@ -2833,12 +3473,9 @@ function poll() {
         $('panel-main').hidden = false;
         $('panel-startup').hidden = true;
       }
-      if (workspaceReady && dolphinReady() && dolphinAutoAttempt !== state.active.id) {
-        dolphinAutoAttempt = state.active.id;
-        dolphinMessage = '';
-        void openDolphin(true);
-      }
+
     } catch (e) {
+      if (generation !== actionGeneration) return;
       if (!readingState) {
         console.error('IZ2S panel rendering failed', e);
         const message = 'The panel could not display the server response. Try again or reopen IZ2S.';
@@ -2847,6 +3484,21 @@ function poll() {
           $('startup-retry').hidden = false;
           $('startup-retry').disabled = false;
         } else notice(message, 'error', 'panel-render-failed');
+        return;
+      }
+      if (!initialRenderComplete && (e.name === 'AbortError' || e.statusCode === 503)) {
+        serverUnavailable = false;
+        setText($('startup-message'), 'Preparation is taking longer than usual. The panel will retry automatically.');
+        $('startup-retry').hidden = false;
+        $('startup-retry').disabled = false;
+        return;
+      }
+      if (!initialRenderComplete && e.statusCode === 400) {
+        serverUnavailable = false;
+        setText($('startup-message'), 'The app library could not be prepared. Try again.');
+        $('startup-retry').hidden = false;
+        $('startup-retry').disabled = false;
+        console.error('IZ2S startup preparation failed', e);
         return;
       }
       serverUnavailable = true;
@@ -2880,6 +3532,7 @@ $('recovery-enabled').addEventListener('change', () => {
   requestId = null;
   renderWizard();
 });
+for(const value of ['new','restore'])$('session-mode-'+value).addEventListener('click',()=>{const view=globalThis.IZ2S_PRESENTATION.connectionMode(state);if(value==='restore'&&!view.available||value==='new'&&view.retained)return;sessionModeChoice=value;renderWizard();});
 $('screen-ready').addEventListener('change', renderControls);
 $('recheck').addEventListener('click', () => act('/api/check', {}));
 $('startup-retry').addEventListener('click', () => poll());
@@ -2890,16 +3543,15 @@ $('start').addEventListener('click', () => {
     screenReady: $('screen-ready').checked,
     requestId,
     recovery: $('recovery-enabled').checked,
-    moduleIds: $('preload-enabled').checked ? [...startupSelection] : [],
+    moduleIds: state.platform?.sdLauncher?[]:$('preload-enabled').checked ? [...startupSelection] : [],
+    restoreInstalled: false,
   });
 });
 $('stop').addEventListener('click', async () => {
   const result=await act('/api/stop', {});
   if(result?.ok){requestId=null;pendingSetup=null;$('screen-ready').checked=false;chooseStep('launch');}
 });
-$('load').addEventListener('click', () =>
-  act('/api/load', { ids: [...selection] }),
-);
+$('load').addEventListener('click', () => {try{return act('/api/load',storageControls.selection([...selection]));}catch(error){notice(error.message);}});
 $('about').addEventListener('click', () => $('about-dialog').showModal());
 document
   .querySelectorAll('[data-close]')
@@ -3078,10 +3730,11 @@ $('arm-install-form').onsubmit=async(event)=>{
   event.preventDefault();
   $('arm-install-result').textContent='Installing the verified package over SSH…';
   const result=await act('/api/input/install',{address:$('arm-setup-address').value.trim(),user:$('arm-setup-user').value.trim(),identity:$('arm-setup-key').value.trim(),confirm:$('arm-install-confirm').checked});
-  if(result?.ok){$('arm-install-result').textContent=result.keyboard?'Installed. Check the console USB connection before launch.':'Installed. Connect/configure the board’s USB keyboard gadget, then check again.';for(const id of ['arm-setup-address','arm-setup-user','arm-setup-key'])delete $(id).dataset.edited;}else $('arm-install-result').textContent='Installation was not confirmed. Check the error above, or use the manual package.';
+  if(result?.ok){$('arm-install-result').textContent=result.keyboard?'Installed. Check the console USB connection before launch.':'Installed. Connect the USB data port to Switch and check again.';for(const id of ['arm-setup-address','arm-setup-user','arm-setup-key'])delete $(id).dataset.edited;}else $('arm-install-result').textContent='Installation was not confirmed. Check the error above, or use the manual package.';
 };
 $('arm-check').onclick=()=>act('/api/check', {});
-$('arm-package-download').onclick=async()=>{try{const response=await fetch('/api/input-package',{headers:{'x-iz-key':key}});if(!response.ok)throw Error((await response.json()).error);const url=URL.createObjectURL(await response.blob()),link=element('a');link.href=url;link.download='iz2s-arm-input.tar.gz';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){notice(error.message);}};
+async function downloadArmInstaller(profile){try{const response=await fetch('/api/input-package?format=installer&profile='+profile,{headers:{'x-iz-key':key}});if(!response.ok)throw Error((await response.json()).error);const body=await response.arrayBuffer(),standalone=(response.headers.get('content-disposition')||'').includes('.run'),installer=standalone?new Blob([body],{type:'application/octet-stream'}):new Blob([await IZ2S_ARM_INSTALLER.create(body)],{type:'application/octet-stream'});const url=URL.createObjectURL(installer),link=element('a');link.href=url;link.download=profile==='civ7'?'iz2s-civ7-arm-input.run':'iz2s-arm-input.run';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){notice(error.message);}}
+$('arm-package-download').onclick=()=>downloadArmInstaller(state?.platform?.loaderId==='civswitch'?'civ7':'sb4');
 
 
 window.addEventListener('run21:languagechange', () => {
@@ -3093,7 +3746,7 @@ window.addEventListener('run21:languagechange', () => {
 });
 
 for (const placeholder of document.querySelectorAll('[data-folder]')) {
-  const button = folderButton(placeholder.dataset.folder, null, placeholder.textContent.trim());
+  const button = folderButton(placeholder.dataset.folder, null, globalThis.RUN21_LANGUAGE?.source(placeholder.textContent.trim())||placeholder.textContent.trim());
   button.id = placeholder.id;
   button.dataset.folder = placeholder.dataset.folder;
   button.className += ' ' + placeholder.className;
@@ -3118,17 +3771,44 @@ async function downloadCardputerPackage() {
   if(!response.ok)throw Error((await response.json()).error);
   const url=URL.createObjectURL(await response.blob()),link=element('a');link.href=url;link.download='iz2s-cardputer-adv-sd.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-$('cardputer-install').onclick=async()=>{
-  $('cardputer-setup-result').textContent='Copying to the ADV SD card…';
-  const result=await act('/api/cardputer/install',{});
-  $('cardputer-setup-result').textContent=result?.verified?'Copied. Start IZ2S-ADV-0.21.bin from M5Launcher.':'Copy failed. Open M5Launcher USB storage and mount its SD card.';
-};
-$('cardputer-file').onclick=async()=>{
-  const result=await act('/api/cardputer/prepare',{});
-  if(result?.ok){try{await downloadCardputerPackage();$('cardputer-setup-result').textContent='Extract the ZIP to the SD card, then start IZ2S-ADV-0.21.bin in M5Launcher.';}catch(error){notice(error.message);}}
+async function prepareCardputer(action){
+  if(busy||cardputerRequest)return;
+  cardputerRequest={id:crypto.randomUUID(),kind:action==='install'?'firmware':'package',stopping:false};
+  $('cardputer-setup-result').textContent=action==='install'?'Copying to the ADV SD card…':'Preparing the SD package…';
+  try{
+    const result=await act('/api/cardputer/'+action,{requestId:cardputerRequest.id});
+    if(result?.cancelled){$('cardputer-setup-result').textContent='Cancelled. Incomplete SD files were removed. Existing firmware and Wi-Fi settings are preserved.';return;}
+    if(action==='install')$('cardputer-setup-result').textContent=result?.verified?'Copied. Start '+result.filename.replace(/^Utilities\//,'')+' from M5Launcher.':'Copy failed. Open M5Launcher USB storage and mount its SD card.';
+    else if(result?.ok){await downloadCardputerPackage();$('cardputer-setup-result').textContent='Extract the ZIP to the SD card, then start IZ2S-ADV.bin in M5Launcher.';}
+  }catch(error){notice(error.message);}
+  finally{cardputerRequest=null;renderControls();}
+}
+$('cardputer-install').onclick=()=>prepareCardputer('install');
+$('cardputer-file').onclick=()=>prepareCardputer('prepare');
+$('cardputer-cancel').onclick=async()=>{
+  const operation=cardputerRequest||state?.hardwareOperation;if(!operation||operation.stopping)return;
+  operation.stopping=true;renderControls();
+  $('cardputer-setup-result').textContent='Cancelling… Waiting for the current SD write to close safely. Keep ADV connected.';
+  try{await api('/api/cardputer/cancel',{requestId:operation.id});await poll();}
+  catch(error){operation.stopping=false;notice(error.message);}
+  finally{renderControls();}
 };
 $('cardputer-check').onclick=()=>act('/api/check',{});
 $('adv-usb-check').onclick=()=>act('/api/check',{});
-$('adv-address').onclick=()=>{$('hardware-options').open=true;$('hardware-options').querySelector('[name="cardputerEndpoint"]')?.focus();};
+$('adv-address').onclick=()=>openDeviceSettings({addresses:true,focus:'[name="cardputerEndpoint"]'});
+
+$('library-source').addEventListener('change',()=>act('/api/launch-settings',{sdLauncher:$('library-source').value==='sd'}));
+$('native-recovery-enabled').addEventListener('change',()=>act('/api/launch-settings',{nativeRecovery:$('native-recovery-enabled').checked}));
+$('restore-connection').addEventListener('click',()=>act('/api/connection/restore',{}));
+
+// Address editors are small non-modal popovers; only one is open at a time.
+document.addEventListener('click',event=>{
+ const selected=event.target.closest?.('.address-editor');
+ for(const editor of document.querySelectorAll('.address-editor[open]'))if(editor!==selected)editor.open=false;
+});
+document.addEventListener('keydown',event=>{
+ if(event.key!=='Escape')return;
+ for(const editor of document.querySelectorAll('.address-editor[open]')){editor.open=false;editor.querySelector('summary')?.focus();}
+});
 
 } // Ordinary panel; the standalone files preview above never starts polling.

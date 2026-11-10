@@ -1,0 +1,27 @@
+{
+  "format": "hblauncher.gpu-app",
+  "abi": 1,
+  "id": "iz-reconnect",
+  "name": "Restore connection",
+  "version": "1.0.0",
+  "description": "Request connection recovery and return to the menu",
+  "icon": "icon.png",
+  "initialState": "state.bin",
+  "data": "data.bin",
+  "shaders": {
+    "vertex": "app.vert.spv",
+    "fragment": "app.frag.spv",
+    "compute": "app.comp.spv"
+  },
+  "sdk": {
+    "version": 1,
+    "capabilities": []
+  },
+  "sdOnly": true,
+  "native": {
+    "format": "iz2s.native-app",
+    "abi": 1,
+    "code": "native/native.bin",
+    "dataBytes": 4096
+  }
+}

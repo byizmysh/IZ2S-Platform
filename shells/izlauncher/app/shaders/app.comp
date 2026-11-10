@@ -7,7 +7,9 @@ layout(local_size_x=1) in;
 #include "resilience.glsl"
 #include "focus-layout.glsl"
 #include "focus-library.glsl"
+#include "iz2-layout.glsl"
 #include "menu-removal.glsl"
+#include "menu-install.glsl"
 #include "features.glsl"
 #include "app-menu.glsl"
 #if defined(IZ_CALC) || defined(IZ_STREAM) || defined(IZ_CONTROLLERS)
@@ -43,7 +45,7 @@ void launchSelection(){uint count=min(c.library.x,15u);if(c.state.x>=count){c.pi
 void launcherStep(){
  uint pressed=hbPressed();c.motion.x+=FOCUS_DT;c.state.z++;
  if(loadProgressVisible()&&c.atlas[LOAD_PROGRESS+2u]>=6u){if(c.atlas[LOAD_PROGRESS+5u]>0u)c.atlas[LOAD_PROGRESS+5u]--;else c.atlas[LOAD_PROGRESS]=0u;}
- if(loadProgressBusy()){c.rows[1]=0u;c.transition=vec4(0);hbEndFrame();return;}
+ if(loadProgressBusy()){c.rows[12]=0u;c.rows[13]=0u;c.rows[1]=0u;c.transition=vec4(0);hbEndFrame();return;}
  if(c.atlas[TOAST]==0x495a4e31u){uint seq=c.atlas[TOAST+1u];if(seq!=c.atlas[TOAST+3u]){c.atlas[TOAST+3u]=seq;c.atlas[TOAST+4u]=floatBitsToUint(TOAST_SECONDS);}else c.atlas[TOAST+4u]=floatBitsToUint(max(0.0,uintBitsToFloat(c.atlas[TOAST+4u])-FOCUS_DT));}
 #ifdef IZ_CALC
  if(c.atlas[CB+7u]==CMAGIC&&c.atlas[CB+1u]==1u){calcInput(pressed);return;}
@@ -58,9 +60,12 @@ streamInput(pressed);return;}}
 #ifdef IZ_CONTROLLERS
  if(c.atlas[CB+7u]==CMAGIC&&c.atlas[CB+1u]==3u){controllerHubInput(pressed);return;}
 #endif
+ if(menuLaunchErrorInput(pressed))return;
+ if(menuInstallInput(pressed))return;
  if(menuRemovalInput(pressed))return;
  if(c.transition.y!=0.0){c.transition.x=min(1.0,c.transition.x+1.0/15.0);if(c.transition.x>=1.0)c.reserved.y=c.state.x+1u;hbEndFrame();return;}
  c.transition.x=max(0.0,c.transition.x-1.0/15.0);
+ float scroll=iz2ScrollInput(pressed);
  bool wasSearch=c.rows[1]!=0u;
  if((pressed&HB_Y)!=0u&&!wasSearch)c.rows[1]=1u;
  if(wasSearch){focusSearchInput(pressed);focusRebuild(c.piece.x!=0);hbEndFrame();return;}
@@ -75,22 +80,25 @@ streamInput(pressed);return;}}
  if(move!=0&&c.bagMeta.y==0u)selected=uint((int(selected)+move+int(count))%int(count));
  bool open=(pressed&HB_A)!=0u,touch=hbTouchCount()>0u&&(c.touch[6]&2u)==0u;vec2 p=touch?hbTouch(0u)*1.5:vec2(c.flow.z,c.flow.w);
  if(touch&&c.library.w==0u){c.flow.z=p.x;c.flow.w=p.y;c.bag[7]=0u;}
- if(touch&&c.library.w!=0u&&abs(p.x-c.flow.z)>85.0&&abs(p.y-c.flow.w)<90.0&&c.bagMeta.y==0u){int direction=p.x<c.flow.z?1:-1;selected=uint((int(selected)+direction+int(count))%int(count));c.bag[7]=1u;c.flow.z=p.x;}
+ if(touch&&p.y+scroll<650.0&&c.library.w!=0u&&abs(p.x-c.flow.z)>85.0&&abs(p.y-c.flow.w)<90.0&&c.bagMeta.y==0u){int direction=p.x<c.flow.z?1:-1;selected=uint((int(selected)+direction+int(count))%int(count));c.bag[7]=1u;c.flow.z=p.x;}
+ if(touch&&c.library.w!=0u&&(c.bag[7]==2u||abs(p.y-c.flow.w)>12.0)&&abs(p.x-c.flow.z)<90.0){float target=clamp(uintBitsToFloat(c.rows[12])+c.flow.w-p.y,0.0,iz2ScrollMax());c.rows[12]=floatBitsToUint(target);c.bag[7]=2u;c.flow.w=p.y;}
  bool tap=!touch&&c.library.w!=0u&&c.bag[7]==0u;
  if(tap&&c.bagMeta.y==0u){
-  if(realCount>0u&&(all(lessThan(abs(p-FOCUS_PREV),vec2(25,38)))||all(lessThan(abs(p-FOCUS_NEXT),vec2(25,38))))){int step=p.x<960.0?-1:1;selected=uint((int(selected)+step+int(count))%int(count));}
+  vec2 contentPoint=p+vec2(0,scroll);
+  if(iz2ContentHit(p)&&realCount>0u&&(all(lessThan(abs(contentPoint-FOCUS_PREV),vec2(25,38)))||all(lessThan(abs(contentPoint-FOCUS_NEXT),vec2(25,38))))){int step=p.x<960.0?-1:1;selected=uint((int(selected)+step+int(count))%int(count));}
   else if(p.y>=66.0&&p.y<=124.0&&p.x>=1098.0&&p.x<=1560.0){c.rows[0]=p.x<1240.0?0u:p.x<1430.0?1u:2u;focusRebuild(picker);realCount=focusCount(picker);count=picker?max(realCount,1u):realCount+1u;selected=0u;}
   else if(p.y>=66.0&&p.y<=124.0&&p.x>=1660.0&&p.x<=1850.0)c.rows[1]=1u;
-  else if(length(p-ADD_CENTER)<=72.0){if(picker)c.piece.x=0;else open=true;selected=0u;}
-  else if(focusHeroHit(p)){if(realCount==0u&&focusRawCount(picker)>0u)c.rows[1]=1u;else open=true;}
-  else{int first=int(floor(c.flow.x));for(int i=-1;i<7;i++){int index=first+i;if(index<0||index>=int(realCount))continue;vec2 center=focusCardCenter(float(index));if(center.x<280.0||center.x>1870.0)continue;if(focusCardHit(p,float(index))){uint target=picker?uint(index):uint(index)+1u;if(selected==target)open=true;selected=target;}}}
+  else if(iz2ContentHit(p)&&focusAddHit(contentPoint)){if(picker)c.piece.x=0;else open=true;selected=0u;}
+  else if(focusHeroHit(contentPoint)){if(realCount==0u&&focusRawCount(picker)>0u)c.rows[1]=1u;else open=true;}
+  else{int first=int(floor(c.flow.x));for(int i=-1;i<7;i++){int index=first+i;if(index<0||index>=int(realCount))continue;vec2 center=focusCardCenter(float(index));if(center.x<280.0||center.x>1870.0)continue;if(iz2ContentHit(p)&&focusCardHit(contentPoint,float(index))){uint target=picker?uint(index):uint(index)+1u;if(selected==target)open=true;selected=target;}}}
  }
  c.library.w=touch?1u:0u;
  if((pressed&HB_B)!=0u&&c.bagMeta.y==0u)c.piece.x=0;
- if(picker){c.piece.y=int(realCount>0u?focusIndex(selected):0u);if(open&&realCount>0u&&c.bagMeta.y==0u){c.piece.z++;c.piece.w=c.piece.y+1;c.bagMeta.y=1u;}}
+ if(picker){c.piece.y=int(realCount>0u?focusIndex(selected):0u);if(open&&realCount>0u&&c.bagMeta.y==0u){menuInstallOpen(uint(c.piece.y));}}
  else{c.state.x=selected==0u?installed:focusIndex(selected-1u);if(open)launchSelection();}
  float index=picker?float(selected):float(max(int(selected)-1,0)),target=clamp(index-2.0,0.0,max(float(realCount)-7.0,0.0));if(c.stats.y!=(picker?1u:0u)){c.flow.x=target;c.stats.y=picker?1u:0u;}else c.flow.x=mix(c.flow.x,target,.22);if(abs(c.flow.x-target)<.002)c.flow.x=target;
  c.rows[11]=picker?selected:(selected==0u?realCount:selected-1u);
+ iz2Animate(picker,picker?uint(max(c.piece.y,0)):c.state.x,!picker&&c.state.x>=installed,pressed);
  c.motion.y=float(c.state.x);c.motion.z=0;hbEndFrame();
 }
 void main(){izNormalizePad();bool run=rsBegin();if(run)launcherStep();c.state.z=rs(6u);rsEnd();}

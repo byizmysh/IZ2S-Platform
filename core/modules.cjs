@@ -25,14 +25,14 @@ async function packageSnapshot(source) {
   }
   return cached;
 }
-async function read(root, id) {
+async function read(root, id, options = {}) {
   assert(ID.test(id), 'Invalid module id');
-  return readLocated(root, id, modulePaths.home(root, id));
+  return readLocated(root, id, modulePaths.home(root, id), options);
 }
 // A discovered location belongs to this inventory snapshot. Resolving it again
 // for every component would rescan all installed descriptors on the stream loop.
-async function readLocated(root, id, home) {
-  const pinned = require('./module-pins.cjs').read(root, id, home);
+async function readLocated(root, id, home, {pinned: usePins = true} = {}) {
+  const pinned = usePins && require('./module-pins.cjs').read(root, id, home);
   if (pinned) return describe(root, id, pinned, home);
   const source = path.join(home, id + '.izm'),
     snapshot = await packageSnapshot(source),
@@ -63,7 +63,7 @@ async function readLocated(root, id, home) {
       }),
     );
   await inflight.get(key);
-  require('./module-pins.cjs').remember(root, id, pkg);
+  if(usePins)require('./module-pins.cjs').remember(root, id, pkg);
   return describe(root, id, pkg, home);
 }
 function describe(root, id, pkg, home) {
@@ -89,15 +89,20 @@ function describe(root, id, pkg, home) {
 }
 async function capture(root = ROOT) {
   const inventory = await list(root);
-  return { version: 1, root: path.resolve(root), modules: Object.fromEntries(inventory.modules.map(m => [m.id, { sha256: m.sha256, packageBytes: m.packageBytes }])) };
+  return { version: 1, root: path.resolve(root), modules: Object.fromEntries(inventory.modules.map(m => [m.id, { sha256: m.sha256, packageBytes: m.packageBytes, descriptorSha256: archive.sha(m.files.find(f=>f.name==='module.json').bytes) }])) };
 }
-async function list(root = ROOT) {
+async function metadata(root = ROOT) {
+  const inventory=modulePaths.discover(root),modules=[],errors=[...inventory.errors];
+  for(const item of inventory.items)try{modules.push({id:item.id,home:item.home,descriptor:require('./descriptors.cjs').moduleDescriptor(item.descriptor)});}catch(error){errors.push({module:item.id,error:error.message});}
+  return {modules,errors};
+}
+async function list(root = ROOT, options = {}) {
   const modules = [],
     errors = [];
-  const inventory = modulePaths.discover(root);
+  const inventory = modulePaths.discover(root, options);
   errors.push(...inventory.errors);
   for (const item of inventory.items)
-    try { modules.push(await readLocated(root, item.id, item.home)); }
+    try { modules.push(await readLocated(root, item.id, item.home, options)); }
     catch (error) { errors.push({ module: item.id, error: error.message }); }
   return { modules, errors };
 }
@@ -112,13 +117,13 @@ async function loadServer(root, id) {
 }
 // Check the selected modules and their module dependencies before touching a device.
 // This reads metadata and bytes only; it does not import extension code.
-async function verify(root, ids, seen = new Set()) {
+async function verify(root, ids, seen = new Set(), options = {}) {
   for (const id of ids) {
     if (seen.has(id)) continue;
     seen.add(id);
-    const m = await read(root, id);
+    const m = await read(root, id, options);
     for(const d of m.descriptor.dependencies||[])if(d.kind==='module'){
-      const dependency=await read(root,d.id),reason=require('./compatibility.cjs').dependencyReason(d,dependency);assert(!reason,reason);
+      const dependency=await read(root,d.id,options),reason=require('./compatibility.cjs').dependencyReason(d,dependency);assert(!reason,reason);
     }
     for (const file of m.files) {
       const target = local(m.folder, file.name), stat = await fs.lstat(target);
@@ -126,7 +131,7 @@ async function verify(root, ids, seen = new Set()) {
       assert(archive.sha(await fs.readFile(target)) === archive.sha(file.bytes),
         'Installed module file differs: ' + id + '/' + file.name);
     }
-    await verify(root, (m.descriptor.dependencies || []).filter(d => d.kind === 'module').map(d => d.id), seen);
+    await verify(root, (m.descriptor.dependencies || []).filter(d => d.kind === 'module').map(d => d.id), seen, options);
   }
   return [...seen];
 }
@@ -149,16 +154,18 @@ async function localPackage(root, id) {
 }
 async function status(root = ROOT) {
   const result = {};
-  for (const m of (await list(root)).modules)
-    for (const p of m.localPackages) {
+  // Status displays installed runtimes; executable package bytes are verified
+  // by read/verify before a selected module is loaded.
+  for (const m of (await metadata(root)).modules)
+    for (const p of m.descriptor.server?.localPackages || []) {
       const record = await fs
         .readFile(
-          path.join(modulePaths.home(root, m.id), 'runtime', 'installed.json'),
+          path.join(m.home, 'runtime', 'installed.json'),
           'utf8',
         )
         .then(JSON.parse, () => null);
       const missingFiles=[];
-      const home=modulePaths.home(root,m.id),requirements=p.requiredFiles?.[process.platform+'-'+process.arch]||[];
+      const home=m.home,requirements=p.requiredFiles?.[process.platform+'-'+process.arch]||[];
       for(const file of requirements){
         try{const target=local(home,file),resolved=await fs.realpath(target);assert(resolved.startsWith(path.resolve(home)+path.sep),'Runtime file leaves module');assert((await fs.stat(resolved)).isFile(),'Runtime file missing');}
         catch{missingFiles.push(file);}
@@ -260,6 +267,7 @@ module.exports = {
   ROOT,
   read,
   list,
+  metadata,
   loadServer,
   serverEntries,
   local: localPackage,

@@ -17,7 +17,7 @@ async function canRetainRender({ error, workerRunning, servicing, stopping, dire
 }
 async function retain(directory, reason, details = {}) {
   const row = { ...details, state: 'offline', at: new Date().toISOString(), reason: redact(reason || 'Console connection closed'),
-    resourcesRetained: true, consoleExecution: 'unverified after disconnect', automaticReconnect: false, menuReturnRequiresHost: true };
+    resourcesRetained: true, consoleExecution: 'unverified after disconnect', automaticReconnect: false, menuReturnRequiresHost: details.menuReturnRequiresHost ?? true };
   await saveJson(path.join(directory, 'offline-state.json'), row);
   return row;
 }

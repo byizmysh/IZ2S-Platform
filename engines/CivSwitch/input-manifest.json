@@ -1,0 +1,8 @@
+{
+  "coreSha256": "6e6916fc5c1a35bdd3221d8ed642131e6a2206972bcda8a37d73b526b1945c11",
+  "payloadSha256": "239ec7c4d5134327e3ff9d7bab978817a44310d946e41107d06b9cbab9a19833",
+  "lines": 87,
+  "maxLineBytes": 253,
+  "source": "https://github.com/Gezine/CivSwitch",
+  "transport": "upstream base-25 chat lines, automatic controller A and raw ASCII HID text"
+}

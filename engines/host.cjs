@@ -27,6 +27,7 @@ async function main({admission} = {}) {
         settings,
       });
   const workspace = path.join(root, 'data/sessions');
+  if(process.env.IZ2S_SD_LAUNCHER==='1')transport.bootstrap=require('../core/console/sd-launcher/quiet-bootstrap.cjs').select({root,id,bootstrap:transport.bootstrap});
   if (admission !== undefined) {
     if (!admission || typeof admission.verifyRelease !== 'function' ||
         !path.isAbsolute(admission.clientModule || '') ||
@@ -45,6 +46,7 @@ async function main({admission} = {}) {
   };
   let native,
     bridge,
+    recovery,
     endpoint,
     stateWrites = Promise.resolve(),
     actualProtocol = transport.protocol,
@@ -105,6 +107,7 @@ async function main({admission} = {}) {
     native = require('../core/session-api.cjs').validateNative(
       transport.native(connected),
     );
+    if(process.env.IZ2S_SD_LAUNCHER==='1')require('../core/console/sd-launcher/quiet-bootstrap.cjs').verifyHello(await native.read(native.addresses.scratch+0x5400,128),native.addresses);
     record.qualification = await transport.qualify(native);
     const peer = connected.connection.socket.remoteAddress?.replace(
       /^::ffff:/,
@@ -130,9 +133,13 @@ async function main({admission} = {}) {
     // Preserve an in-flight operation during HOME; never replay an uncertain call.
     connected.connection.timeout = 120000;
     record.homeResumeGraceMs = 120000;
-    bridge = await serve(native, directory, admission ? {
-      admission: {verifyRelease: admission.verifyRelease},
-    } : {});
+    if(!admission)recovery=require('../core/console/recovery/host.cjs').create({native,directory,root,peer,onState:event=>{
+      actualProtocol=3;actualResumable=true;record.transport={protocol:3,resumable:true};record.reconnectProtocol='native-control-v3';record.outageDeadline=null;state(event);
+    }});
+    bridge = await serve(native, directory, {
+      ...(admission?{admission:{verifyRelease:admission.verifyRelease}}:{}),
+      ...(recovery?{recovery}:{}),
+    });
     bridge.keepAwake(record.qualification.activity);
     await fs.mkdir(path.join(directory, 'shared'));
     await fs.copyFile(
@@ -146,6 +153,7 @@ async function main({admission} = {}) {
         token: bridge.token,
         addresses: {
           ...native.addresses,
+          ...(process.env.IZ2S_NATIVE_RECOVERY==='1'?{recoveryEnabled:true}:{}),
           session: path.basename(directory),
           target: 'switch2',
         },
@@ -177,7 +185,7 @@ async function main({admission} = {}) {
     }
     console.log('Qualified native session ready for graphics inspection.');
     await new Promise((resolve, reject) => {
-      const socket = connected.connection.socket;
+      const socket = native.connection.socket;
       const done = () => {
         process.removeListener('SIGINT', done);
         process.removeListener('SIGTERM', done);
@@ -188,7 +196,7 @@ async function main({admission} = {}) {
       process.once('SIGINT', done);
       process.once('SIGTERM', done);
       endpoint?.done.then(() => reject(Error('Held FS endpoint exited')), reject);
-      if (socket.destroyed || connected.connection.error) done();
+      if (socket.destroyed || native.connection.error) done();
     });
     if (native.connection.error)
       record.disconnect = native.connection.error.message;
@@ -224,7 +232,7 @@ async function main({admission} = {}) {
             try { if (!endpointAlreadyClosed) await endpoint?.close(); }
             finally { if (!bridgeAlreadyClosing) await bridge?.close(); }
           } finally {
-            await native?.stop();
+            try{await native?.stop();}finally{await recovery?.close();}
           }
         },
       });

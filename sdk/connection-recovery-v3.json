@@ -1,0 +1,194 @@
+{
+  "format": "iz2s.native-recovery-design-v3",
+  "status": "host-integrated-experimental-hardware-handover-and-short-outage-confirmed",
+  "scope": {
+    "launchers": [
+      "izlauncher",
+      "izpslauncher"
+    ],
+    "preserveRunningSdApps": true,
+    "resumeAfterHour": true,
+    "automaticLanWifi": true,
+    "manualRecoveryAction": true,
+    "requiresSameConsoleProcess": true
+  },
+  "currentEvidence": {
+    "standardEngine": "Protocol 1; no reconnect support",
+    "historicalProtocol2": "Finite BASIC retry loop and host 120-second grace; not the selected ordinary engine",
+    "existingApplicationRecovery": "Authenticated telemetry only; does not restore native RPC",
+    "sdExecution": "Switch 2 physically launched and returned from native SD progress and GPU applications offline. Updated GPU point animation and absence of BASIC input sounds were confirmed on launcher-R1nEKO.",
+    "nativeRecoveryCrash": "First hardware worker crashed before foreground suspension. Six ABS64 callback relocations survived as zero-based addresses after static linking; fixed with runtime pointer binding and pre-link object rejection.",
+    "nativeRecovery": "Corrected worker passed all ten staged SDK checks, auxiliary suspend/resume, authenticated handover and BASIC foreground parking. The same session reconnected after physical network loss; a native SDK call succeeded.",
+    "izdoom": "Initial native SD IZDOOM trial closed SmileBASIC after verified installation. Last retained loading sample had read_bytes=46270464 and no observed native entry. Whole-image CPU staging was removed; bounded read-only SD and coherent GPU read probes are prepared. Hardware retry pending a fresh qualified session."
+  },
+  "owners": {
+    "console": "A control worker installed during healthy initial bootstrap, with its own packet buffers, stack and receipt journal; lifetime independent of the PC socket",
+    "sdSupervisor": "Continues rendering, input and app transitions during network loss",
+    "host": "Retains the same session and local RPC endpoint; fences new mutations until authenticated receipt reconciliation"
+  },
+  "identity": {
+    "session": "Fresh random 128-bit process/session identity; survives route changes, never reused after reboot",
+    "pairing": "Per-session private key, challenge-response and signed packet headers",
+    "sd": "May store discovery hints and trigger state; never treat a saved native address as proof of a live process"
+  },
+  "commands": {
+    "commitOrder": [
+      "Host persists immutable request and sequence before transmission",
+      "Console accepts a complete authenticated packet with the expected sequence",
+      "Console records executing before invoking the SDK",
+      "Console caches the complete result before sending a response",
+      "Host persists the result before admitting the next command"
+    ],
+    "lossCases": {
+      "notExecuted": "Resend only after authenticated receipt proves the previous committed sequence",
+      "completed": "Fetch the cached response; do not repeat the operation",
+      "stillExecuting": "Wait; do not retry the SDK call",
+      "differentProcessOrHash": "Refuse native commands; request fresh bootstrap only for a real process restart"
+    }
+  },
+  "network": {
+    "consoleListener": "Keep a healthy wildcard listener across adapter changes; recreate a failed listener with bounded retries and no overall deadline",
+    "hostCandidates": "Enabled LAN/Wi-Fi addresses plus authenticated discovery announcements and prior verified addresses",
+    "attemptBudgetMs": 2000,
+    "outageDeadline": null,
+    "backoffMaxMs": 15000,
+    "manualAction": "Refresh discovery and force one bounded fresh challenge/receipt probe, even if the old TCP socket is open and silent; preserve the same session and pending SDK journal",
+    "discovery": "Signed new-address announcements and same-IP returns after a >5 second beacon gap trigger fresh authentication without waiting for the old SDK read timeout. Initial network-type identification alone keeps a healthy socket.",
+    "routeReplacement": "Only one probe is active. It sends no SDK command; the old peer is retained until authentication succeeds. The serialized drive loop then reconciles the receipt, retrieves cached results or waits for executing commands without re-execution.",
+    "discoveryWake": {
+      "storage": "Resident unsigned 32-bit counter; included repeatedly in signed beacons, no SD write required",
+      "payload": {
+        "bytes": 32,
+        "counterOffset": 24,
+        "featuresOffset": 28,
+        "counterFeatureBit": 0,
+        "legacyZeroFieldsAccepted": true
+      },
+      "retry": "The host retains a wake or post-gap request across failed probes; later signed announcements retry it until a fresh route authenticates. Unknown discovery feature bits are rejected.",
+      "action": "SD application iz-reconnect (Restore connection); Plus is not bound because the user reports it causes disconnects",
+      "application": "Native ABI 1 entry writes the shared-header request once. Supervisor increments the resident counter and the application returns after 60 frames. No PC callback, network operation or thread is owned by the module."
+    }
+  },
+  "ui": {
+    "states": [
+      "Connected",
+      "Connection lost; applications continue",
+      "Searching LAN and Wi-Fi",
+      "Synchronizing session",
+      "Connected"
+    ],
+    "manualAction": "Restore connection",
+    "sdModule": "Bundled SD application iz-reconnect; native startup installs it when recovery is enabled and a menu slot is available. Service lifetime belongs to the resident worker."
+  },
+  "integrationRemaining": [
+    "Qualify mandatory SD startup recovery/foreground parking after the RUN22 ordinary-session harness reproduced Direct input sounds and lost its legacy host on physical LAN removal",
+    "Qualify the native PC picker, pinned install queue, menu edit epoch and return-transition fixes on Switch; both packaged shell shaders passed on the PC GPU",
+    "Qualify the supervisor image with the SD application request word; Plus binding removed after the user reported disconnects",
+    "Qualify the current worker image with its retained menu-wake beacon extension; the recorded physical short-outage test used the preceding worker image",
+    "Exercise physical airplane-mode recovery and both LAN/Wi-Fi transitions",
+    "Exercise DHCP discovery and an hour offline on hardware",
+    "Qualify the SD recovery tile and both shell distributions",
+    "Qualify fresh SD startup with the derived NS2SD BASIC source; current physical sound acceptance used native foreground parking"
+  ],
+  "acceptance": [
+    "Launch SD app with PC disconnected; return and relaunch physically",
+    "Airplane mode then reconnect to the same console process without bootstrap",
+    "LAN to Wi-Fi and Wi-Fi to LAN with one application and stable native addresses",
+    "DHCP address change found through authenticated discovery",
+    "An hour offline and successful resynchronization without time-based session expiration",
+    "Disconnect before packet completion: no SDK execution",
+    "Disconnect after SDK execution: one execution and recovery of the cached reply",
+    "Different console process rejected without touching current resources",
+    "Panel restart reloads persisted pending journal and reconciles; no command replay based on socket state"
+  ],
+  "implementedPieces": [
+    "core/console/recovery/journal.c",
+    "core/console/recovery/journal.cjs",
+    "core/console/recovery/routes.cjs",
+    "core/console/recovery/crypto.c",
+    "core/console/recovery/wire.c",
+    "core/console/recovery/wire.cjs",
+    "core/console/recovery/server.c",
+    "core/console/recovery/connection.cjs",
+    "core/console/recovery/switchable.cjs",
+    "core/console/recovery/discovery.cjs",
+    "core/console/recovery/host.cjs",
+    "core/console/recovery/bootstrap.cjs",
+    "core/console/recovery/native/worker.c",
+    "core/console/native/pic.cjs",
+    "core/console/sd-launcher/quiet-bootstrap.cjs",
+    "core/console/recovery/prepare-sd.cjs"
+  ],
+  "qualification": "Local models and real local TCP pass. Corrected worker passed staged SDK qualification, authenticated native handover, auxiliary suspend/resume and BASIC foreground parking on launcher-R1nEKO. User confirmed no offline input sounds and animated GPU output; same-session native control recovered after network return. Broader route changes and long outages remain unqualified.",
+  "localEvidence": {
+    "journal": "Host restart, cached reply, old journal accepted without expiry, changed identities and failed persistence fenced",
+    "routes": "LAN/Wi-Fi fallback, manual wake, cancellation, silent authentication timeout",
+    "wire": "Host/C byte agreement, SHA/HMAC, partial and corrupt records rejected; AArch64 freestanding compilation",
+    "server": "Production C protocol engine with POSIX adapter over actual local TCP: lost reply, authenticated route replacement, two virtual hours, truncated command and unknown-operation fencing",
+    "consoleIntegration": "Hardware handover and short physical outage confirmed for IZPSlauncher; fresh SD startup and both-shell qualification remain pending",
+    "host": "Stable native interface, serialized healthy handover, independent status/wake, durable lost-result reconciliation",
+    "pic": "Reject ABS64/MOVW absolute/GOT relocations in every raw-image object before static linking removes relocation records",
+    "checks": "116 JavaScript cases passed; 1 historical RUN21 audit skipped. Fourteen C model groups and both menus on the PC GPU; 14/11 incremental core cases and 6 supervisor cases. Mandatory recovery/foreground preparation adds 8 cases. Physical recovery qualification remains separate.",
+    "rpcCompatibility": "Original RPC client source matches the PS2-pinned SHA256. Local bridge HTTP 102 progress keeps an unchanged client alive beyond socket inactivity without committing the final status or replaying SDK work; actual local TCP success/error cases pass.",
+    "nativeAudioIntegration": "Production SD supervisor and native loader load actual host RX code for the IZDOOM adapter. Modeled Vulkan/AudioOut boundaries validate private-memory handoff, startup, two launches, DSP drain before unmapping/freeing and one cached GPU allocation. This is local evidence only.",
+    "silentRouteRecovery": "Production C TCP server + deliberately blackholed old socket + production host manager/discovery: automatic LAN/Wi-Fi address change and same-IP return recover one lost result before SDK read timeout. Exactly one SDK execution; wrong-session/silent probes preserve the old link, executing receipts are not resent, closure cancels probes, and initial type-only discovery does not reauthenticate.",
+    "lastLocalCheck": {
+      "at": "2026-11-08T00:01:05.031Z",
+      "report": "data/diagnostics/sd-launcher-local.json",
+      "hardwareQualified": false,
+      "recoveryImageSha256": "b93e7a85aff33c5e534b2e78d06aeceba9aeaa8b5b251c64d86b0cf47a8b41c6",
+      "sdSupervisorSha256": "bb6ff3e213e82c0a0a9f0f6ac38d2c963533aaf36a886e74447bbac1901fd54e"
+    },
+    "retainedWake": "Signed request counter survives offline periods and failed first-route attempts. Manual requests originate from the native SD recovery application; Plus is not bound. See the latest local report for production supervisor/RX action execution and host recovery tests.",
+    "sdRecoveryModule": {
+      "id": "iz-reconnect",
+      "path": "SD:/IZ2S/Homebrew/Modules/iz-reconnect/launcher.izapp",
+      "sha256": "32d65bf04c5c620bfbab3a208f9f46c2940cf2113bb1c68951b83b706e7c37f1",
+      "artifact": "data/build-cache/sd-reconnect/iz-reconnect.izm",
+      "plusBinding": false,
+      "proof": "Production supervisor + actual host RX native action: one request per launch, return to menu and relaunch. Pressed Plus in modeled input generates no recovery request. Initial verified card installation is reused; full card menu preserves all user applications.",
+      "hardwareQualified": false
+    },
+    "pcPicker": {
+      "report": "data/diagnostics/sd-pc-library-local.json",
+      "negativeControls": "data/diagnostics/sd-menu-negative-controls.json",
+      "nativeQueue": "16 in-process requests, exact ID/SHA binding, no time expiry, acknowledgement only after native SD catalog acceptance or a known rejection",
+      "hostGpu": {
+        "enabled": true,
+        "passed": true,
+        "shells": [
+          "izlauncher",
+          "izpslauncher"
+        ],
+        "shaderSha256": {
+          "izlauncher": "bfc4531bc7848eba0aa5cb85418a8998ff05d80bd55d79f42d9d511358dc69a5",
+          "izpslauncher": "020c480f4129190cff75e3b7b83f58a4a7f5529e0889a7a2b81852c1052770a2"
+        },
+        "qualification": "PC GPU only; no Switch commands"
+      },
+      "availableRealPackages": [
+        "izdoom-prime18"
+      ],
+      "hardwareQualified": false
+    },
+    "sdStartupPreparation": {
+      "required": true,
+      "source": "core/console/recovery/prepare-sd.cjs",
+      "proof": "sd-offline-ready.json",
+      "qualification": "Auxiliary suspend/resume -> foreground parking armed before authenticated handover -> actual parked state verified before every interactive SD supervisor, including attached hardware harnesses. Fresh physical outage qualification remains pending.",
+      "localTestCases": 8,
+      "plusBinding": false
+    }
+  },
+  "hardwareFailureReport": "data/sessions/launcher-IrEODQ/native-recovery-worker.json",
+  "hardwareEvidence": {
+    "session": "launcher-R1nEKO",
+    "qualificationReport": "data/sessions/launcher-R1nEKO/native-recovery-hardware.json",
+    "physicalAcceptance": "data/sessions/launcher-R1nEKO/sd-acceptance.json",
+    "trialCleanup": "data/sessions/launcher-R1nEKO/sd-physical-trial.json"
+  },
+  "hardwareFailureReports": [
+    "data/sessions/launcher-IrEODQ/native-recovery-worker.json",
+    "data/sessions/launcher-R1nEKO/sd-izdoom-hardware.json"
+  ]
+}

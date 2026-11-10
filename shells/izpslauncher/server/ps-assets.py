@@ -10,15 +10,16 @@ light=font('DejaVuSans-ExtraLight.ttf')
 bold=font('DejaVuSans-Bold.ttf')
 italic=font('DejaVuSans-Oblique.ttf')
 labels=[
-('BRAND','IZPSlauncher 0.21',29,bold),('SIGNATURE','by IZMYSH',14,italic),
+('BRAND','IZPSlauncher 0.22',29,bold),('SIGNATURE','by IZMYSH',14,italic),
 ('ALL','All',20,regular),('GAMES','Games',20,regular),('TOOLS','Applications',20,regular),('SEARCH','Search',20,regular),
 ('CLOCK','15:35',32,light),('DATE','YOUR LIBRARY. YOUR RULES.',12,regular),('NEWS','What’s New',36,regular),
 ('EXCHANGE','IZ Exchange',20,regular),('EXCHANGESUB','APPLICATION LIBRARY',12,bold),('HOME','Home',13,regular),
 
 ('COLLECTION','YOUR COLLECTION',12,bold),
 ('ACTIVITY','RECENT ACTIVITY',12,bold),('NO_ACTIVITY','No recent activity',20,regular),
-('REMOVE_TITLE','Remove from console?',28,regular),('REMOVE_BODY','Available to load again from this PC.',17,regular),
-('REMOVE_CONFIRM','A  Remove',18,regular),('REMOVE_CANCEL','B  Cancel',18,regular),('REMOVE_HINT','- Remove',14,regular),('REMOVING','Removing from console…',18,regular),
+('REMOVE_TITLE','Remove from session?',28,regular),('REMOVE_BODY','The PC package stays available.',17,regular),
+('REMOVE_CONFIRM','A  Remove',18,regular),('REMOVE_CANCEL','B  Cancel',18,regular),('REMOVE_HINT','Remove',14,regular),('REMOVING','Removing application…',18,regular),
+('REMOVE_SD_TITLE','Remove from SD?',28,regular),('REMOVE_SD_BODY','Games, BIOS and saves stay on SD.',17,regular),('REMOVE_ERROR','Removal failed. A / B to close.',18,regular),
 ('SPACE','YOUR SPACE',12,bold),('WELCOME','Good to be home.',34,light),('WELCOMESUB','Familiar games. New possibilities.',19,regular),
 ('DISCOVER','Explore your library',23,regular),('DISCOVERSUB','All your applications, together.',16,regular),
 ('LIBRARY','Application Library',28,regular),('LIBRARY_LINE1','Find something you love.',18,regular),('LIBRARY_LINE2','Make it part of your menu.',18,regular),
@@ -35,12 +36,17 @@ labels=[
 ('SCROLL','Scroll to explore',13,regular),('FRESH','Make room for something new.',26,light),('FRESHSUB','Add games and applications from IZ Exchange.',17,regular),('UPDOWN','Scroll',14,regular),
 *[(f'DIGIT{i}',str(i),32,light) for i in range(10)]
 ]
-im=Image.new('L',(1024,2048));d=ImageDraw.Draw(im);y=0;lines=[]
+im=Image.new('L',(1024,2048));d=ImageDraw.Draw(im);y=0;lines=[];metrics={}
 for key,text,size,face in labels:
  f=ImageFont.truetype(face,size);b=d.textbbox((0,0),text,font=f);w,h=b[2]-b[0],b[3]-b[1]
  if y+h+4>=2048:raise ValueError('Type atlas full')
  d.text((-b[0],y-b[1]),text,font=f,fill=255)
+ metrics[key]=(w,h)
  lines.append(f'const ivec4 PS_{key}=ivec4(0,{y},{w},{h});');y+=h+10
+# The minus shortcut participates in the same footer row as A/B/X/Y/R.
+x=42+sum(18+metrics[key][0]+34 for key in ['SELECT','BACK','LIBHINT','FIND','FILTER'])
+w=metrics['REMOVE_HINT'][0]
+lines.extend([f'const vec2 PS_REMOVE_KEY=vec2({x},1056);',f'const vec2 PS_REMOVE_CENTER=PS_REMOVE_KEY+vec2({(18+w-10)/2},0);',f'const vec2 PS_REMOVE_HALF=vec2({(18+w+10)/2},20);'])
 # The progress card uses proportional type instead of the search keyboard's
 # fixed-width glyph cells. Both weights fit in the existing reserved atlas.
 y,progress_header=progress_type(d,y)

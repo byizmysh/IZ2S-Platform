@@ -2,8 +2,8 @@
 // Presentation telemetry for package operations; bytes advance only after acknowledgement.
 const jobs=require('./jobs.cjs');
 const HEADER=1024+0x120000,BYTES=1024,MAGIC=0x495a5031;
-const PHASE={verify:1,prepare:2,graphics:3,install:4,transfer:5,ready:6,failed:7};
-const LABEL={verify:'Checking files',prepare:'Preparing on PC',graphics:'Preparing graphics',install:'Installing on PC',transfer:'Sending menu to console',ready:'Ready in menu',failed:'Loading failed'};
+const PHASE={verify:1,prepare:2,graphics:3,install:4,transfer:5,ready:6,failed:7,'sd-prepare':1,'sd-write':4,'sd-verify':5};
+const LABEL={verify:'Checking files',prepare:'Preparing on PC',graphics:'Preparing graphics',install:'Installing on PC',transfer:'Sending menu to console',ready:'Ready in menu',failed:'Loading failed','sd-prepare':'Preparing SD application','sd-write':'Writing to SD','sd-verify':'Verifying SD'};
 const mib=n=>(n/1048576).toFixed(1)+' MiB';
 function encode(value){
  const b=Buffer.alloc(BYTES),known=Number.isSafeInteger(value.totalBytes)&&value.totalBytes>0;
@@ -12,7 +12,7 @@ function encode(value){
  if(value.phase==='failed')b.writeUInt32LE(0xffffffff,12);
  b.writeUInt32LE(180,20);
  const percent=value.phase==='ready'?100:known?Math.min(100,Math.floor(value.completedBytes*100/value.totalBytes)):null;
- const lines=[value.name||'Module',LABEL[value.phase]||'Waiting',known?percent+'%   '+mib(value.completedBytes)+' / '+mib(value.totalBytes):(percent===null?'':percent+'% - ')+'Module '+value.index+' of '+value.count];
+ const lines=[value.name||'Module',value.label||LABEL[value.phase]||'Waiting',known?percent+'%   '+mib(value.completedBytes)+' / '+mib(value.totalBytes):(percent===null?'':percent+'% - ')+'Module '+value.index+' of '+value.count];
  for(let row=0;row<3;row++)for(const [i,ch]of [...lines[row].replace(/[^\x20-\x7e]/g,'?').slice(0,63)].entries())b.writeUInt32LE(ch.charCodeAt(0),64+row*256+i*4);
  return b;
 }
@@ -22,7 +22,7 @@ function create({rpc,mapped,stateRoot,redraw=async()=>{},clock=Date.now}){
   const changed=job.progress?.phase!==phase;
   const known=Number.isSafeInteger(bytes.totalBytes)&&bytes.totalBytes>0;
   const completed=known?Math.min(bytes.totalBytes,Math.max(0,bytes.completedBytes||0)):0;
-  job.progress={phase,label:LABEL[phase],completedBytes:completed,totalBytes:known?bytes.totalBytes:null,remainingBytes:known?bytes.totalBytes-completed:null,
+  job.progress={phase,label:phase==='ready'&&job.target==='sd'?(job.operation==='remove'?'Removed from SD':'Stored on SD'):LABEL[phase],completedBytes:completed,totalBytes:known?bytes.totalBytes:null,remainingBytes:known?bytes.totalBytes-completed:null,
    percent:known?Math.min(100,Math.floor(completed*100/bytes.totalBytes)):phase==='ready'?100:null,updated:new Date(clock()).toISOString()};
   current={job,index:bytes.index||current?.index||1,count:bytes.count||current?.count||1};
   if(!force&&!changed&&completed!==bytes.totalBytes&&clock()-last<250)return;

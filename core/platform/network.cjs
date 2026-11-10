@@ -4,6 +4,12 @@ const net = require('node:net');
 const dgram = require('node:dgram');
 const fs = require('node:fs/promises');
 
+async function isTunnel(name, {platform = process.platform, access = fs.access} = {}) {
+  if (/^(tailscale|tun|tap|utun|wg|amn|ppp|vpn|proton|nordlynx)/i.test(name)) return true;
+  if (platform !== 'linux') return false;
+  return access('/sys/class/net/' + name + '/tun_flags').then(() => true, () => false);
+}
+
 async function isWireless(name, {platform = process.platform, stat = fs.stat} = {}) {
   if (/^(?:wl|wlan)|wi[ -]?fi|wireless/i.test(name)) return true;
   if (platform !== 'linux') return false;
@@ -34,13 +40,16 @@ function routeSource(address, {socket = () => dgram.createSocket('udp4'), timeou
   });
 }
 
-async function routeTo(address, {interfaces = os.networkInterfaces, source = routeSource} = {}) {
+async function routeTo(address, {interfaces = os.networkInterfaces, source = routeSource, tunnel = isTunnel} = {}) {
   const localAddress = await source(address);
   for (const [name, values] of Object.entries(interfaces())) {
     const local = values?.find(value => !value.internal && value.address === localAddress);
-    if (local) return {dev: name, address: localAddress, netmask: local.netmask};
+    if (local) {
+      if (await tunnel(name)) throw Error('The console route uses a VPN adapter (' + name + '). Connect the PC to the console LAN.');
+      return {dev: name, address: localAddress, netmask: local.netmask};
+    }
   }
   throw Error('No local network adapter for this destination');
 }
 
-module.exports = {isWireless, routeSource, routeTo};
+module.exports = {isWireless, isTunnel, routeSource, routeTo};

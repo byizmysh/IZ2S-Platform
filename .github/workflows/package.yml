@@ -1,7 +1,7 @@
-name: Verify and package IZ2S
+name: Verify and package IZ2S 0.22
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -13,14 +13,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - name: Install build prerequisites
-        run: sudo apt-get update && sudo apt-get install -y python3-pil glslang-tools spirv-tools
-      - name: Build clean release and verify its runtime
+          node-version: 24
+      - name: Build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y python3-pil glslang-tools spirv-tools libvulkan-dev mesa-vulkan-drivers
+      - name: Local regression tests
+        run: npm run test:release
+      - name: Rebuild launchers and package Linux
         run: python3 distribution/release.py --rebuild
       - uses: actions/upload-artifact@v4
         with:
-          name: iz2s-platform
+          name: iz2s-platform-0.22-local-candidates
           if-no-files-found: error
           path: |
             dist/github/*.zip

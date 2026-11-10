@@ -94,7 +94,7 @@ async function probeFtp(host, port = PORT) {
 }
 
 const storageTransports = new Map();
-async function exportStorage(session, {signal, progress = () => {}, ready = () => {}, storageReady = () => {},
+async function exportStorage(session, {signal, progress = () => {}, ready = () => {}, storageReady = () => {}, browserBusy = () => false,
   attachGame = require('../../core/filesystem/ouncecake/engine/session.cjs').attachGame,
   createStorage = require('./storage.cjs').createStorage, moduleRoot = ROOT, probe = probeFtp, checkPort = portInUse,
   createNative = require('../../core/console/host/ftp-native.cjs').create,
@@ -103,7 +103,7 @@ async function exportStorage(session, {signal, progress = () => {}, ready = () =
   const {withCleanup} = require('../../core/filesystem/ouncecake/engine/protocol.cjs');
   if (shouldStop()) return;
   if (await checkPort(session.host, session.port) !== false) throw Error('Console FTP port is unavailable. Disconnect the previous export.');
-  let attachment, server, pumping, stopping = false;
+  let attachment, server, pumping, stopping = false, allowBrowserPause = false;
   await withCleanup(async () => {
     progress('Opening SD and console filesystems…');
     attachment = await attachGame(session.run);
@@ -121,12 +121,18 @@ async function exportStorage(session, {signal, progress = () => {}, ready = () =
     }
     server = createServer({...native, storage, readOnly: true, greeting: 'NS2 FS RPC: SD and console filesystems, read-only'});
     await server.start(session.port);
-    pumping = (async () => {while (!stopping) {await server.pump(); await delay(10);}})();
+    pumping = (async () => {while (!stopping) {
+      // An unused FTP listener must not compete with browser file transfers
+      // for the serialized console channel. Existing FTP clients keep running.
+      if (!allowBrowserPause || !browserBusy() || server.state?.clients > 0) await server.pump();
+      await delay(10);
+    }})();
     pumping.catch(() => {});
     progress('Verifying the filesystem FTP listing…');
     const listing = await probe(session.host, session.port);
     if (shouldStop()) return;
     await ready({url: `ftp://${session.host}:${session.port}/`, listing, mounts: storage.mounts, unavailable: storage.unavailable, moduleDirectories});
+    allowBrowserPause = true;
     let checked = Date.now();
     while (!shouldStop()) {
       await delay(250);

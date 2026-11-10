@@ -5,7 +5,7 @@ async function get(id, name) {
   return (await registry.loadServer(root, id)).load(name);
 }
 async function provider(capability, { optional = false } = {}) {
-  const modules = (await registry.list(root)).modules.filter(
+  const modules = (await registry.metadata(root)).modules.filter(
     (m) => m.descriptor.provides?.[capability],
   );
   if (!modules.length && optional) return null;
