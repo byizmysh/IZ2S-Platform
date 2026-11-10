@@ -10,7 +10,7 @@ Linux x64/ARM64 only. Windows and macOS packages are outside the 0.22 release sc
 
 ## How do I install and open the panel?
 
-Extract every file, open `Install-Linux.desktop` or `Install.cmd`, and follow the OS prompts. On Linux, `sh install.sh --launch` is the terminal alternative. Start the installed app later with its shortcut or `start.sh`/`Start.cmd`. Do not run from inside the ZIP. Installation may download verified runtime dependencies; it does not start a console session.
+Extract every file, open `Install-Linux.desktop`, and follow the desktop prompts. On Linux, `sh install.sh --launch` is the terminal alternative. Start the installed app later with its shortcut or `start.sh`. Do not run from inside the ZIP. Installation may download verified runtime dependencies; it does not start a console session.
 
 ## What screen must SmileBASIC show for Launch?
 
@@ -93,3 +93,13 @@ The bundled module is 0.5.1. Its matching corresponding source is in `sources/iz
 ## How can I report a problem?
 
 See [SUPPORT.md](SUPPORT.md). Include the platform/module version, PC OS and architecture, game/version, selected engine/menu and whether the app is in RAM or on SD. Export only the relevant attempt log after reviewing it for private information. A local automated pass is not physical console qualification.
+
+## Recommended console and network setup
+
+Start SmileBASIC FS acquisition in handheld mode and prefer wired LAN where available. Keep the PC, console and chosen input device reachable on the local network, with guest/client isolation disabled for this setup. These are recommendations, not a success guarantee. [SWFence](https://github.com/byizmysh/SWFence) can restrict console internet traffic on a compatible OpenWrt router while preserving the allowed local network. [90DNS](https://gitlab.com/a/90dns) filters Nintendo domains and is not a general internet firewall. Use local IPv4 addresses when hostname discovery is unavailable. See the [full preparation steps](README.md#recommended-console-and-network-setup).
+
+For repeated SmileBASIC FS failure: stop, fully restart Switch 2, open an installed game for about ten seconds, close it completely, then open SmileBASIC 4 → Make a Program → Direct for a fresh Launch. This is a workaround, not guaranteed recovery; do not retry over uncertain retained native resources.
+
+## Which input device and firmware should I choose?
+
+ADV and ARM are alternatives. Civ7 Wi-Fi LDN needs neither; USB delivery uses the chosen input device. ADV firmware packages are game-specific: the bundled SmileBASIC profile remains 0.21.3, while Civ7/default composite firmware is 0.22.4. Use the package selected by the panel rather than substituting a newer-looking image. [ADV steps](README.md#cardputer-adv) and [ARM steps](README.md#arm-pc) explain firmware/card copying, Wi-Fi/SSH, USB data/OTG and readiness checks.

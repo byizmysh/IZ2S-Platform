@@ -28,8 +28,8 @@
       "executable": false
     },
     "FAQ.md": {
-      "sha256": "4c1ead9c5a475ffa0ee73c4839fb23afc67c81a0c6e83b55658f7205cfdd8181",
-      "bytes": 9037,
+      "sha256": "a36b7b2d561ce4d6dca9940dcd50ae2b1e6d3481e57cbc57545c55dc6fbc1759",
+      "bytes": 10571,
       "executable": false
     },
     "Install-Linux.desktop": {
@@ -48,8 +48,8 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "88f9534a85e89de5e371c8c841a2710f582130711abf9865881ec3618e1429b9",
-      "bytes": 7420,
+      "sha256": "744fd835f79fb43ca79484fd6bb8bb6fcc7a31004a7851937fec709e190c7246",
+      "bytes": 17435,
       "executable": false
     },
     "RELEASE-NOTES.md": {
@@ -2242,24 +2242,29 @@
       "bytes": 6434,
       "executable": false
     },
+    "docs/SCREENSHOTS.md": {
+      "sha256": "a058ba18d6469ac2cabd98410ee891358cfa5c516ecf7ca825b159352ea4f7e9",
+      "bytes": 2204,
+      "executable": false
+    },
     "docs/images/app-library.png": {
-      "sha256": "5263e7173d44da9a2aa9d3d829d2887a73ad66781fa1d337e8f5b2759322de83",
-      "bytes": 221110,
+      "sha256": "56017e8d4bac07313677fceefe88cf8a99a304ed20260f37e4263edb5dd75762",
+      "bytes": 99268,
       "executable": false
     },
     "docs/images/connection.png": {
-      "sha256": "69e3ba905a2af97190feabb36bb0d8626ce2cfca94a1ca61a0e94dd2678cabed",
-      "bytes": 287057,
+      "sha256": "a1c39d80ec46b75687886e86893389c59725ca8135ca5e4ae713ef44d1241887",
+      "bytes": 78553,
       "executable": false
     },
     "docs/images/izlauncher.png": {
-      "sha256": "9778ab448c66e9a221298e5961c6570cdaf996a0598d453871e6a91d5adfef06",
-      "bytes": 715137,
+      "sha256": "dbee2e6c6a78f03ba7f34df2f41799e3a7b462e7419cb0079accf718ba0bb58c",
+      "bytes": 842515,
       "executable": false
     },
     "docs/images/izpslauncher.png": {
-      "sha256": "72f2851bbf71e3ce70b265c0a7b12ba5f7485a6284f0166ad8f065d6df718849",
-      "bytes": 418955,
+      "sha256": "b1f9b7f34da62a2f61154589221991c3d8d118949f6323e1c4b49321dd797a9c",
+      "bytes": 402109,
       "executable": false
     },
     "engines/BermTheSequel/adapter.cjs": {
@@ -5413,8 +5418,8 @@
       "executable": false
     },
     "hardware/devices/cardputer-adv/README.txt": {
-      "sha256": "6f77b372ca8dab2ac386b84b127d4e505cdaca55220691e5c9bf17ca5ba89eb1",
-      "bytes": 6313,
+      "sha256": "18598ede4f5229245865782e848f66629487d6e4a4b83f55a9ee7a62a1b6e2ed",
+      "bytes": 6512,
       "executable": false
     },
     "hardware/devices/cardputer-adv/device.json": {
@@ -15705,6 +15710,11 @@
     "tools/diagnostics/civ7-audio-stall.py": {
       "sha256": "6060d6f09cc66bd0f2d04fda54f57392d0997bb306bd639f1cd001594daea8d9",
       "bytes": 3168,
+      "executable": false
+    },
+    "tools/docs-launcher-previews.cjs": {
+      "sha256": "30011886d7ca351e97c66a907ded415ff06ed4b110457dfe7057b52c203704bc",
+      "bytes": 3479,
       "executable": false
     },
     "tools/dolphin-fs-rpc/bridge.cjs": {

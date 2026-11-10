@@ -1,11 +1,13 @@
 IZ2S Platform - Cardputer ADV input
-Firmware application: 0.22.3 (M5Launcher file IZ2S-ADV.bin)
+Firmware applications: Civ7/default composite 0.22.4; SmileBASIC profile 0.21.3.
+Use the game-specific package and filename offered by the panel.
 
 Select Cardputer ADV as the input device in the panel. ARM PC is not required.
 The PC preloads the text/actions onto ADV SD; later Wi-Fi commands choose an
 action. ADV provides two independent USB HID interfaces: a Switch wired
 controller and a boot keyboard. SM4 uses the keyboard; automatic CivSwitch
-input also presses controller A between chat lines. One IZ2S-ADV.bin serves both.
+input also presses controller A between chat lines. The default composite image supports both HID roles; the panel also preserves
+the separate SmileBASIC keyboard profile and its matching image.
 
 FIRST SETUP
 1. Connect ADV to the PC and choose USB storage in M5Launcher.
