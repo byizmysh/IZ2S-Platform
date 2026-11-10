@@ -22,7 +22,7 @@ jobs:
         run: python3 distribution/release.py --rebuild
       - uses: actions/upload-artifact@v4
         with:
-          name: iz2s-platform-0.22-local-candidates
+          name: iz2s-platform-0.22-linux
           if-no-files-found: error
           path: |
             dist/github/*.zip

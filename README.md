@@ -4,7 +4,7 @@ IZ2S Platform is a local PC control panel and console launcher system for Switch
 
 Support for **Balatro** will be added within a week after the developer receives a physical copy. Balatro is not included in this release.
 
-This is a **locally prepared 0.22.0 release candidate**. Nothing is uploaded or published by the build tools. Release targets are **Linux x64/ARM64 only**. Windows and macOS packages are not included. A supplied archive is not a hardware qualification claim. See [Compatibility](COMPATIBILITY.md).
+**Version 0.22.0** is available in [GitHub Releases](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.22.0). Release targets are **Linux x64/ARM64 only**. Windows and macOS packages are not included. A supplied archive is not a hardware qualification claim. See [Compatibility](COMPATIBILITY.md).
 
 [Screenshots](#screenshots) · [Recommended setup](#recommended-console-and-network-setup) · [Install](#installation) · [Input devices](#input-devices) · [Additional modules](#additional-modules) · [SmileBASIC](#smilebasic-4) · [Civilization VII](#civilization-vii) · [Bundled apps](#included-applications) · [FAQ](FAQ.md) · [Release notes](RELEASE-NOTES.md) · [Support](SUPPORT.md)
 
@@ -39,6 +39,8 @@ Prepare these before First Setup and a fresh native launch:
 For repeated SmileBASIC FS failures, stop the attempt and fully restart Switch 2. The recovery workaround is to open an installed game for about **10 seconds**, close it completely, then open **SmileBASIC 4 → Make a Program → Direct** and try Launch again. It is not guaranteed; do not retry over an uncertain retained native session. [FS and network FAQ](FAQ.md#recommended-console-and-network-setup).
 
 ## Installation
+
+Download the [Linux archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.22.0/iz2s-platform-0.22.0-linux.tar.gz) and optional [SHA256SUMS](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.22.0/SHA256SUMS). The [source archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.22.0/iz2s-platform-0.22.0-source.zip) includes the corresponding IZPSX source and component licenses.
 
 Extract the whole archive into a writable folder. Keep its files together; do not run an entry point from inside a ZIP.
 
@@ -141,4 +143,4 @@ See [BUILDING.md](BUILDING.md). `python3 distribution/release.py --rebuild` buil
 
 ## License and attribution
 
-See [LICENSE](LICENSE), [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [COPYRIGHT](COPYRIGHT) and [THIRD_PARTY.json](THIRD_PARTY.json). Upstream notices and component licenses remain in place. IZPSX includes PCSX-ReARMed under GPL-2.0; its corresponding source and build instructions accompany this candidate.
+See [LICENSE](LICENSE), [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [COPYRIGHT](COPYRIGHT) and [THIRD_PARTY.json](THIRD_PARTY.json). Upstream notices and component licenses remain in place. IZPSX includes PCSX-ReARMed under GPL-2.0; its corresponding source and build instructions accompany this release.

@@ -1,6 +1,6 @@
 # Compatibility for 0.22
 
-Release targets are Linux x64/ARM64 only. This candidate is prepared locally and is not a published or fully qualified release.
+Release targets are Linux x64/ARM64 only. Publication does not imply qualification of every host and console combination; see the verification boundary below.
 
 | Host | Archive/install scope | Native console scope |
 | --- | --- | --- |

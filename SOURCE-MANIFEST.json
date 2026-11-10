@@ -3,8 +3,8 @@
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
   "files": {
     ".github/workflows/package.yml": {
-      "sha256": "1d6e29f8fbc2c68e02244de436c7db8487b5c4c3b64b0e39454154c40239fb4f",
-      "bytes": 946,
+      "sha256": "5c4814a7efedd9ae92ca1c5262469ed7598478d6003755215a56e1dc9b230e6d",
+      "bytes": 935,
       "executable": false
     },
     ".gitignore": {
@@ -13,13 +13,13 @@
       "executable": false
     },
     "BUILDING.md": {
-      "sha256": "43cb2608577432e6739ed0b594a0d3a0d682afb90ca3903914cc8bb7f406870d",
-      "bytes": 2184,
+      "sha256": "c05a5958fb53ead686691ada87cfe3aab8bcd6f700552100637d403455180869",
+      "bytes": 2174,
       "executable": false
     },
     "COMPATIBILITY.md": {
-      "sha256": "490f4dfe9313cd8697b1c3daa39e4e651067496413efef2b6fd2b76999c7199c",
-      "bytes": 2292,
+      "sha256": "29d1edf88aa99e3756b5613ac7ce82988e0a92fc06d34842b91084f7385d3251",
+      "bytes": 2323,
       "executable": false
     },
     "COPYRIGHT": {
@@ -48,13 +48,13 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "744fd835f79fb43ca79484fd6bb8bb6fcc7a31004a7851937fec709e190c7246",
-      "bytes": 17435,
+      "sha256": "bd0b53a1b9cc26d394043b52e2a44d29bbae3816cf034e5ba1714d40ac5ed43a",
+      "bytes": 17867,
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "sha256": "0ea0b0490841d863afa3e3a7b4b9b6ab8e338b13badd89c54de5af66beaccf46",
-      "bytes": 3600,
+      "sha256": "9daa93482fb009798bf1b7f531c75ccb2e065cf2febedca0d700d2345cae2f4f",
+      "bytes": 3832,
       "executable": false
     },
     "SUPPORT.md": {
@@ -2208,8 +2208,8 @@
       "executable": false
     },
     "distribution/profile.json": {
-      "sha256": "86d73d3a58c9ab67a1203f1a466cc1b664dd9ad63e10612a1c1c2b3a326d1e47",
-      "bytes": 836,
+      "sha256": "9b531f5ca672a9074854887dd9a60c49669dbb1260d1e4a0c69a3db816395819",
+      "bytes": 828,
       "executable": false
     },
     "distribution/release.py": {

@@ -38,7 +38,7 @@
     "linux-arm64"
   ],
   "experimentalInstallerPlatforms": [],
-  "publicationStatus": "local-candidate",
+  "publicationStatus": "release",
   "integratedTools": [
     "super-file-bros"
   ],
