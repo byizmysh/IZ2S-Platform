@@ -888,7 +888,7 @@ function createSessionManager({
         require('./runtime-check.cjs').verify(root,
           launchEnvironment.IZ2S_SHELL || launchEnvironment.IZ15_SHELL || 'izlauncher');
       if(launchEnvironment.IZ2S_SD_LAUNCHER==='1'&&moduleIds.length)throw Error('SD mode discovers installed applications on the console; disable PC preloading');
-      if(kind==='launch'&&(launchEnvironment.IZ2S_SD_LAUNCHER==='1'||launchEnvironment.IZ18_RESIDENT_GRAPHICS!=='1'&&launchEnvironment.IZ2S_MIXED_MENU!=='0'))require('../console/sd-launcher/check.cjs').verify();
+      if(kind==='launch'&&(launchEnvironment.IZ2S_SD_LAUNCHER==='1'||launchEnvironment.IZ18_RESIDENT_GRAPHICS!=='1'&&launchEnvironment.IZ2S_MIXED_MENU!=='0'))require('../console/sd-launcher/check.cjs').verifyRuntime();
       const selectedModules =
         kind === 'launch'
           ? await require('./preload.cjs').resolve(root, await require('../packages/installed-session.cjs').selection(root,launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',{moduleIds,restoreInstalled,sd:launchEnvironment.IZ2S_SD_LAUNCHER==='1'}),{shell:launchEnvironment.IZ2S_SHELL||launchEnvironment.IZ15_SHELL||'izlauncher',residentGraphics:launchEnvironment.IZ18_RESIDENT_GRAPHICS==='1',residentFiniteAudio:launchEnvironment.IZ18_RESIDENT_FINITE_AUDIO==='1'})

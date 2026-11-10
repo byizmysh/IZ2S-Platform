@@ -7,6 +7,13 @@ const run = (command, args) => execFileSync(command, args, {
   cwd: root, stdio: 'inherit', env: {...process.env, NODE: process.execPath},
 });
 async function main() {
+  // These companions share native-app.h. Rebuild them together so a header
+  // update cannot leave a valid supervisor paired with stale SD applications.
+  await require('../core/console/sd-launcher/build.cjs').main();
+  await require('../core/console/recovery/build.cjs').main();
+  await require('./sd-launcher/build-reconnect.cjs').main();
+  await require('./sd-launcher/build-reader.cjs').main();
+  require('../core/console/sd-launcher/check.cjs').verifyRuntime();
   run('python3', ['core/packages/build-focus-assets.py']);
   // IZPS consumes the shared base atlas before IZ2Launcher paints its own
   // brand and activity labels. Keep each shell's typography independent.

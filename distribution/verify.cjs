@@ -17,6 +17,7 @@ async function verify({release=process.argv.includes('--release')}={}){
   if(file.endsWith('.json'))JSON.parse(text);
  }
  for(const shell of profile.shells)require('../core/session/runtime-check.cjs').verify(root,shell);
+ require('../core/console/sd-launcher/check.cjs').verifyRuntime();
  const D=require('../core/descriptors.cjs');
  for(const kind of ['engine','shell','profile']){const scan=D.scan(root,kind);assert.deepEqual(scan.errors,[]);assert(scan.items.length);}
  const engines=require('../engines/index.cjs').create(root).list();

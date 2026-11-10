@@ -3,8 +3,8 @@
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
   "files": {
     ".github/workflows/package.yml": {
-      "sha256": "5c4814a7efedd9ae92ca1c5262469ed7598478d6003755215a56e1dc9b230e6d",
-      "bytes": 935,
+      "sha256": "7dc4f3a95e0df369b9a241db62d44f74f68ad1ebc24732e2da4e686049f7a2d7",
+      "bytes": 950,
       "executable": false
     },
     ".gitignore": {
@@ -13,8 +13,8 @@
       "executable": false
     },
     "BUILDING.md": {
-      "sha256": "c05a5958fb53ead686691ada87cfe3aab8bcd6f700552100637d403455180869",
-      "bytes": 2174,
+      "sha256": "e69a421fa34e519a3fcec00002d2429dbc388ce266bfaa6559c631ef4ce57f9b",
+      "bytes": 2513,
       "executable": false
     },
     "COMPATIBILITY.md": {
@@ -448,7 +448,7 @@
       "executable": false
     },
     "core/console/recovery/sd-app/manifest.json": {
-      "sha256": "d76a68630ef743960974f1166d5d438ee0e191fab7e44eceb9fe9346de432e69",
+      "sha256": "d4624f4f9f9546d62401d35ab1124566c90dc0680edabb125457cec03f5fccd6",
       "bytes": 998,
       "executable": false
     },
@@ -598,8 +598,8 @@
       "executable": false
     },
     "core/console/sd-launcher/check.cjs": {
-      "sha256": "4221417177bfbb80b2b8666540eaa925093f09b85a4d895052d3c22d923a13f6",
-      "bytes": 736,
+      "sha256": "9025013ddb61a8c53e39fb542d3803fce21419fee6b0fafe03d22893b3336549",
+      "bytes": 2859,
       "executable": false
     },
     "core/console/sd-launcher/host-frames.cjs": {
@@ -1033,7 +1033,7 @@
       "executable": false
     },
     "core/console/sd-launcher/reader/native.json": {
-      "sha256": "6a5b6f682286856137e7363a7b79283b5d0706baeac712ac88f15cecc8f95e9c",
+      "sha256": "42e6c9a179d2e00d92b7fdcf1ff7081f96a0842004dfce733676cd42822936da",
       "bytes": 476,
       "executable": false
     },
@@ -1958,8 +1958,8 @@
       "executable": false
     },
     "core/session/console-runner.cjs": {
-      "sha256": "f065c0b886e7f5df4b1f64f9152ffc30b3c1c4c123161653bdd95b67b1799290",
-      "bytes": 7928,
+      "sha256": "7bbd8c5482bd8cf9e3c2f909db0861af01822ed5e3f0e4e771d04714887c7f57",
+      "bytes": 7935,
       "executable": false
     },
     "core/session/controller-hub.md": {
@@ -2113,8 +2113,8 @@
       "executable": false
     },
     "core/session/session.cjs": {
-      "sha256": "a5b5dcccab2227363b4b304d3915cff5141c541f7f2054e70aab793c785b6b4e",
-      "bytes": 58927,
+      "sha256": "31d496655ae3d5de247b2947e78e0b7ec915fb4c9f31dec5fb567d55936964e0",
+      "bytes": 58934,
       "executable": false
     },
     "core/session/setup-check.json": {
@@ -2238,8 +2238,8 @@
       "executable": false
     },
     "distribution/verify.cjs": {
-      "sha256": "8c94afba29be3a008bd5de2d2955f7c9a1a7a2bcea0620b1b01e120b016d0c23",
-      "bytes": 6434,
+      "sha256": "f70cd739b0f96816bb01cb30846a6d8a58bdb65f06cca11987a1d46f775d8ec6",
+      "bytes": 6501,
       "executable": false
     },
     "docs/SCREENSHOTS.md": {
@@ -15698,8 +15698,8 @@
       "executable": false
     },
     "tools/build-launchers.cjs": {
-      "sha256": "349ba6f44acae83fb957fc973a857e192e538b31ce3967541e608e9fe2353810",
-      "bytes": 1749,
+      "sha256": "a304e0deb18ae4a430eb0b5456b615d32c97a7dc98d9630205467fdf4b7a54c8",
+      "bytes": 2218,
       "executable": false
     },
     "tools/build-ps2-native-auto-resume.py": {

@@ -2,7 +2,7 @@
 
 ## Targets and tools
 
-Release archives target Linux x64/ARM64 only. Build on Linux with Node.js 24, Python 3 with Pillow, glslangValidator and spirv-val. Keep bundled native engine/toolchain/license notices intact. ADV firmware is supplied as checked images with its corresponding source; rebuilding it separately requires PlatformIO and the pinned dependencies in its platformio.ini.
+Release archives target Linux x64/ARM64 only. Build on Linux with Node.js 24, Python 3 with Pillow, Clang, LLD, LLVM utilities, a host C compiler, glslangValidator and spirv-val. Keep bundled native engine/toolchain/license notices intact. ADV firmware is supplied as checked images with its corresponding source; rebuilding it separately requires PlatformIO and the pinned dependencies in its platformio.ini.
 
 ```sh
 npm run test:release
@@ -14,6 +14,8 @@ The builder stages only allowlisted files outside the checkout, rebuilds both co
 - `iz2s-platform-0.22.0-source.zip`
 - `iz2s-platform-0.22.0-linux.tar.gz`
 - `SHA256SUMS`, `SOURCE-MANIFEST.json`, and an extracted `iz2s-platform/` tree
+
+The launcher build also rebuilds the SD supervisor, recovery worker, Restore connection tile and local Book Reader controller together. Release validation and the existing pre-launch check verify their binaries and source/ABI fingerprints before any console acquisition or input is started.
 
 The Linux archive selects the host runtime at installation; it does not embed a Linux desktop binary for every architecture. No Windows or macOS artifact is generated.
 

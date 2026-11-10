@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 24
       - name: Build prerequisites
-        run: sudo apt-get update && sudo apt-get install -y python3-pil glslang-tools spirv-tools libvulkan-dev mesa-vulkan-drivers
+        run: sudo apt-get update && sudo apt-get install -y clang lld llvm python3-pil glslang-tools spirv-tools libvulkan-dev mesa-vulkan-drivers
       - name: Local regression tests
         run: npm run test:release
       - name: Rebuild launchers and package Linux
