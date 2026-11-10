@@ -45,6 +45,7 @@
   "engine/switch2/memory/capture-workers.cjs",
   "engine/switch2/memory/fs-memory-control.cjs",
   "engine/switch2/memory/fs-root-control.cjs",
+  "engine/switch2/memory/heap-state.cjs",
   "engine/switch2/memory/mounted-rom.cjs",
   "engine/switch2/memory/native-links.cjs",
   "engine/switch2/memory/normalized-path.cjs",

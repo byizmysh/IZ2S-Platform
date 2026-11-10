@@ -19,9 +19,12 @@ async function inspect(directory, fallback, {runtimeError, stage, directFs = fal
       ? pipeline.stages?.find(row => row.status === 'failed') : null;
     const detail = acquisition?.error || stage?.error || pipeline?.error || endpoint?.detail || endpoint?.error;
     const retained = endpoint?.resourcesRetained === true || acquisition?.resourcesRetained === true;
-    const message = acquisition?.resourcesRetained === true
-      ? 'FS RPC memory acquisition failed: native execution did not finish reliably. Resources retained; automatic retry disabled'
-      : String(detail || fallback).split('\n')[0].replace(/^Error:\s*/, '');
+    const heapChanged = /Native allocation counter changed unexpectedly|General-heap allocation changed/i.test(String(detail || ''));
+    const message = heapChanged
+      ? 'FS acquisition stopped: console memory changed during this attempt; automatic retry disabled'
+      : acquisition?.resourcesRetained === true
+        ? 'FS RPC memory acquisition failed: native execution did not finish reliably. Resources retained; automatic retry disabled'
+        : String(detail || fallback).split('\n')[0].replace(/^Error:\s*/, '');
     return {message, stage: stage?.name || endpoint?.failureStage || 'FS RPC initialization',
       resourcesRetained: retained, detail,
       report: acquisition?.attempts?.at(-1)?.report || endpoint?.failureReport};

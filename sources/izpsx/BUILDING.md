@@ -2,7 +2,7 @@
 
 ## Repackage the frozen module
 
-Use Node.js 20.20 or newer and a compatible IZ2S Platform source checkout. The default sibling folder is `../IZ2S-Platform`; otherwise set `IZPSX_PANEL` (or `IZ2S_ROOT`) to the platform root.
+Use Node.js 20.20 or newer, Python 3 with Pillow, spirv-val (SPIRV-Tools) and a compatible IZ2S Platform source checkout. The default sibling folder is `../IZ2S-Platform`; otherwise set `IZPSX_PANEL` (or `IZ2S_ROOT`) to the platform root. On Debian/Ubuntu, install the packaging tools with `sudo apt-get install python3-pil spirv-tools`; native shader rebuilding also uses `glslang-tools`.
 
 ```sh
 export IZPSX_PANEL=/path/to/IZ2S-Platform
@@ -40,7 +40,7 @@ Optional reference-core tools may use `IZPSX_QEMU` or `qemu-aarch64`; emulated L
 
 The source archives omit `.git`, `build/`, `dist/`, private data, games/BIOS and local caches. No native host platform is enabled just by producing one of these archives.
 
-The GitHub check workflow uses the platform's main branch as its SDK. Publish the matching IZ2S Platform 0.22 source first; an older public main may lack the required SD/native ABI. No remote workflow has been executed as part of this local preparation.
+The GitHub check workflow pins the compatible public [IZ2S Platform SDK](https://github.com/byizmysh/IZ2S-Platform/tree/b3de207c32375f9b5fd7191e15608f8ea3a6288b). This keeps package generation reproducible when the platform's main branch changes. Local builds can select a compatible SDK through IZPSX_PANEL.
 
 ## Native UI screenshots
 

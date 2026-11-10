@@ -11,6 +11,7 @@ const {paths, pathPacket, pathPackets} = require("./paths.cjs");
 const normalizedPath = require("./normalized-path.cjs");
 const {packet, response} = require("../../shared/ipc.cjs");
 const functions = require("../../shared/sdk-functions.json");
+const heapState = require("./heap-state.cjs");
 
 async function main() {
   // Fixed geometry and bounded attempts from the Switch 2 hardware run.
@@ -92,7 +93,7 @@ async function main() {
     let reply;
     for (let i = 0; i < 2; i++) reply = await s.ipc('Read gap allocation counters', root, 1009);
     check(!reply.result, 'Allocation counters failed');
-    return Array.from({length: 16}, (_, i) => Number(reply.data.readBigUInt64LE(i * 8)));
+    return heapState.counters(reply.data);
   }
   async function reserveGroupAttempt() {
     const owner = await domain.openDomain(s, 'Gap manager group');
@@ -437,7 +438,7 @@ async function main() {
         }
         rows.push({role: step.name, result: reply ? reply.canonicalResult : 0,
           inline: reply ? reply.data.subarray(0, 16).toString('hex') : bytes.subarray(0, 32).toString('hex'),
-          memory: step.name === 'preRelease' ? Array.from({length: 16}, (_, i) => Number(reply.data.readBigUInt64LE(i * 8))) : undefined,
+          memory: step.name === 'preRelease' ? heapState.counters(reply.data) : undefined,
           startUs: Number(worker.results[index - 1] - origin) * 1e6 / frequency,
           endUs: Number(worker.results[index + 1] - origin) * 1e6 / frequency});
       }
@@ -474,12 +475,12 @@ async function main() {
       delete report.active;
       await save();
       console.log(JSON.stringify(row));
-      if (candidateHandle && !row.restored) {
+      try { heapState.assertRestored(row); }
+      catch (error) {
         report.placementUncertain = true;
-        report.heapDrift = {profile, expected: row.baseline, observed: row.after,
-          difference: row.after - row.baseline};
+        report.heapDrift = error.heapDrift;
         await save();
-        throw Error('General-heap allocation changed while the cache was retained; stop overwrites and recover');
+        throw error;
       }
       if ((isPositive || customPayload) && !row.triggerAborted && !row.allPending) {
         report.placementUncertain = true;
@@ -1075,6 +1076,10 @@ async function main() {
   } catch (error) {
     if (error instanceof StopRequested) report.stopped = true;
     else {
+      if (error.heapStateUncertain) {
+        report.placementUncertain = true;
+        report.heapCounterFailure = {index:error.counterIndex,value:error.counterValue};
+      }
       report.error = error.stack;
       process.exitCode = 1;
       if (runControl.started && await s.ready()) {

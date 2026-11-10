@@ -1272,6 +1272,12 @@ function createSessionManager({
       notification = { type: 'error', message: redact(e.message) };
     }
     log=await require('./session-diagnostics.cjs').mergeDiagnostics(root,row,log);
+    // Finished attempts retain logs, never live transport/service ownership.
+    // Their old connected endpoint/catalog must not leak into a fresh Launch.
+    if (!current || current !== row) {
+      runtime = null; capture = null; link = null;
+      applicationRecovery = null; consoleState = null;
+    }
     const fresh = require('./connection-health.cjs').connected({status:current?.status,runtime,link,jobs});
     return {
       hostModules: await require('./host-modules.cjs').status(root),

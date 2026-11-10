@@ -89,7 +89,10 @@ void ps1_controllers_assign(Ps1Controllers*p,const uint32_t assignment[PS1_PLAYE
  int slots[PS1_PLAYER_COUNT];for(unsigned i=0;i<PS1_PLAYER_COUNT;i++)slots[i]=-1;
  for(unsigned i=0;i<PS1_PLAYER_COUNT;i++)if(selected[i]>=PS1_DEVICE_PAD1&&selected[i]<PS1_DEVICE_COUNT){int slot=selected[i]==PS1_DEVICE_HANDHELD?8:(int)selected[i]-PS1_DEVICE_PAD1,used=0;for(unsigned j=0;j<i;j++)if(slots[j]==slot)used=1;if(!used)slots[i]=slot;}
  for(unsigned i=0;i<PS1_PLAYER_COUNT;i++)if(selected[i]==PS1_DEVICE_AUTO){int slot=(int)i,used=0;for(unsigned j=0;j<PS1_PLAYER_COUNT;j++)if(slots[j]==slot)used=1;if(!used)slots[i]=slot;}
- if(selected[0]==PS1_DEVICE_AUTO&&slots[0]==0&&!p->device[0].connected){int used=0;for(unsigned j=1;j<PS1_PLAYER_COUNT;j++)if(slots[j]==8)used=1;if(!used)slots[0]=8;}
+ /* In handheld mode a wireless Pro may still be connected in slot 0.
+  * Prefer attached controls for AUTO P1 on every poll; docking naturally
+  * restores slot 0. Explicit assignments (including another player) win. */
+ if(selected[0]==PS1_DEVICE_AUTO&&p->device[8].connected){int used=0;for(unsigned j=1;j<PS1_PLAYER_COUNT;j++)if(slots[j]==8)used=1;if(!used)slots[0]=8;}
  for(unsigned i=0;i<PS1_PLAYER_COUNT;i++)if(slots[i]>=0)p->player[i]=p->device[slots[i]];
  memset(&p->menu,0,sizeof p->menu);
  if(p->player[0].connected)p->menu=p->player[0];else for(unsigned i=0;i<9;i++)if(p->device[i].connected){p->menu=p->device[i];break;}

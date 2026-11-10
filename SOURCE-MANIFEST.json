@@ -1978,8 +1978,8 @@
       "executable": false
     },
     "core/session/failure-report.cjs": {
-      "sha256": "30f6d3219b4446f6380173435a0af51fbb477008f398fbcc8c54df246bec242c",
-      "bytes": 2092,
+      "sha256": "e3682b7dc7da8fac79652f93eb0d27be056ea71e828e8da150ec3d9044fddc27",
+      "bytes": 2353,
       "executable": false
     },
     "core/session/host-modules.cjs": {
@@ -2113,8 +2113,8 @@
       "executable": false
     },
     "core/session/session.cjs": {
-      "sha256": "31d496655ae3d5de247b2947e78e0b7ec915fb4c9f31dec5fb567d55936964e0",
-      "bytes": 58934,
+      "sha256": "60554f187ae16170b56cd80cc6b683d76c57e9adab82da1f0eaed66aa675ff8e",
+      "bytes": 59242,
       "executable": false
     },
     "core/session/setup-check.json": {
@@ -2423,8 +2423,8 @@
       "executable": false
     },
     "engines/BermTheSequel/upstream/engine/runtime-files.json": {
-      "sha256": "6c6895fa5e7a5ebaaa522e6d7f7547e91a9843b49109b95ff003e56524baa567",
-      "bytes": 3949,
+      "sha256": "169e446a9667dd43ce19528ede8d34e8ed22a8340104851fad4aceb76587a200",
+      "bytes": 3991,
       "executable": false
     },
     "engines/BermTheSequel/upstream/engine/shared/domain.cjs": {
@@ -2617,6 +2617,11 @@
       "bytes": 7778,
       "executable": false
     },
+    "engines/BermTheSequel/upstream/engine/switch2/memory/heap-state.cjs": {
+      "sha256": "e4ab59805ba5412953101c1315f14c0cae42151b9adce13937a374455de3c421",
+      "bytes": 1059,
+      "executable": false
+    },
     "engines/BermTheSequel/upstream/engine/switch2/memory/mounted-rom.cjs": {
       "sha256": "b0cb30f07c08ff2fd4bffce30a8ffc93e7e3271bdb818b990b65859f50764492",
       "bytes": 2624,
@@ -2638,8 +2643,8 @@
       "executable": false
     },
     "engines/BermTheSequel/upstream/engine/switch2/memory/probe-reserved-gap.cjs": {
-      "sha256": "e8662dd24998df8ffebf72e7c6bc39f437a28ab4f16c1d3257697ce0081a3d90",
-      "bytes": 70901,
+      "sha256": "5eb5125b26cdf5a9ba586ecbb3da51e9ed3f3ba9fd10fc98f90b31b635e28cb1",
+      "bytes": 70872,
       "executable": false
     },
     "engines/BermTheSequel/upstream/engine/switch2/memory/run-control.cjs": {
@@ -4648,8 +4653,8 @@
       "executable": false
     },
     "engines/izmysh/upstream/engine/runtime-files.json": {
-      "sha256": "f1ca4758d79d508cb35dd87f029503ff54537bb187571c42a33b03d0e9d372dc",
-      "bytes": 3985,
+      "sha256": "d3b7ab7e7a9ba31e80f7cbec0fdd85ddc6c24d81c6f782c7d50b0bd144fa60b9",
+      "bytes": 4027,
       "executable": false
     },
     "engines/izmysh/upstream/engine/shared/domain.cjs": {
@@ -4842,6 +4847,11 @@
       "bytes": 7778,
       "executable": false
     },
+    "engines/izmysh/upstream/engine/switch2/memory/heap-state.cjs": {
+      "sha256": "e4ab59805ba5412953101c1315f14c0cae42151b9adce13937a374455de3c421",
+      "bytes": 1059,
+      "executable": false
+    },
     "engines/izmysh/upstream/engine/switch2/memory/mounted-rom.cjs": {
       "sha256": "b0cb30f07c08ff2fd4bffce30a8ffc93e7e3271bdb818b990b65859f50764492",
       "bytes": 2624,
@@ -4863,8 +4873,8 @@
       "executable": false
     },
     "engines/izmysh/upstream/engine/switch2/memory/probe-reserved-gap.cjs": {
-      "sha256": "e8662dd24998df8ffebf72e7c6bc39f437a28ab4f16c1d3257697ce0081a3d90",
-      "bytes": 70901,
+      "sha256": "5eb5125b26cdf5a9ba586ecbb3da51e9ed3f3ba9fd10fc98f90b31b635e28cb1",
+      "bytes": 70872,
       "executable": false
     },
     "engines/izmysh/upstream/engine/switch2/memory/run-control.cjs": {
@@ -5703,8 +5713,8 @@
       "executable": false
     },
     "modules/BookReader/book-reader.izm": {
-      "sha256": "6f66767b9fe28cb1b0cf1cb0904df62dfc4639474f95480111d9613256d11ba9",
-      "bytes": 361555,
+      "sha256": "da8c627d92f01cd2a3cd45a6907fbd645dd6df44954c7f96763c21fd144da4dd",
+      "bytes": 361550,
       "executable": false
     },
     "modules/BookReader/install.sh": {
@@ -5818,7 +5828,7 @@
       "executable": false
     },
     "modules/BookReader/switch/assets/data.bin": {
-      "sha256": "2e2c968a06a15a5cb2359bdbf7cc61345ec7398ee637865818b155283de35b9b",
+      "sha256": "4a8469de42f8c709f00aeeab861ece9bacb41185df353f52633633598e36eabd",
       "bytes": 2099080,
       "executable": false
     },
@@ -6328,17 +6338,17 @@
       "executable": false
     },
     "modules/izpsx/checksums.json": {
-      "sha256": "e45f8e6c75baa48918ed51c5933fdc51f24b2e587dcdcd4811fd821560f6468e",
+      "sha256": "a60bbbf5fc245ff8d406dae2879e281ff3c5670ee217546990041658be790dd1",
       "bytes": 2254,
       "executable": false
     },
     "modules/izpsx/izpsx.izm": {
-      "sha256": "0c00f2e06d1b685fb45dbfd6ab9cd6b17df3b97dca1805652493b89af9a4c238",
-      "bytes": 617662,
+      "sha256": "37a6fe309dfd2d97e0a54980a43d3df727fb22b66fdbc1107ee40e634ca5a4b1",
+      "bytes": 617660,
       "executable": false
     },
     "modules/izpsx/module.json": {
-      "sha256": "a048b54a197a216b834fe3917b8d07b32651b24f9ad6b49034b25da2dc982fbb",
+      "sha256": "bcadda89b572d7d717a106aabb06176350dc98cf1d48539ce28a118f3c0bedf4",
       "bytes": 1075,
       "executable": false
     },
@@ -6398,7 +6408,7 @@
       "executable": false
     },
     "modules/izpsx/switch/app.json": {
-      "sha256": "97b98e81ef94978e963125dff8c9bf613cfc178076648c703998ff0befcbdb13",
+      "sha256": "e63b5ae26a54f2050508b1a6e674bc39fa00676aec5795dc81829dc11acb3de9",
       "bytes": 1131,
       "executable": false
     },
@@ -6417,13 +6427,13 @@
       "bytes": 20911,
       "executable": false
     },
-    "modules/izpsx/switch/native/asset-f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e.izdata": {
-      "sha256": "f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e",
+    "modules/izpsx/switch/native/asset-d6180a3af01f5767e5c07623cfebb7a65daf85df132450cd9344df960fa7bafc.izdata": {
+      "sha256": "d6180a3af01f5767e5c07623cfebb7a65daf85df132450cd9344df960fa7bafc",
       "bytes": 1748288,
       "executable": false
     },
     "modules/izpsx/switch/native/shim.bin": {
-      "sha256": "a93d2e809c23d4f18e5302d704adcb7fa3087553aebfc6c833a9fa1bcc5ecfe5",
+      "sha256": "c010f142139f283188dcacee932de3ede652b59d53418ab97477da3bd70b4f37",
       "bytes": 11776,
       "executable": false
     },
@@ -6443,18 +6453,18 @@
       "executable": false
     },
     "packages/iz2s-arm-input.run": {
-      "sha256": "890bd878218b3f04229395a4f48d07ec41e779d6cd933b84730a1c7d1248b8be",
-      "bytes": 25635,
+      "sha256": "ce2bc3a0f0d125b6cd80d14795d33f4002289b5ea6d2c5afb898b7435879e648",
+      "bytes": 25615,
       "executable": true
     },
     "packages/iz2s-arm-input.tar.gz": {
-      "sha256": "35e742d3a68c1bb10a02b793b029bb0898cfa651f54862fba1b9e564204f6ef9",
-      "bytes": 16074,
+      "sha256": "8fcbc37ddb031efd915a1b3fd900840e43c4913fa58c280fb63869e7a20d3012",
+      "bytes": 16058,
       "executable": false
     },
     "packages/iz2s-civ7-arm-input.run": {
-      "sha256": "890bd878218b3f04229395a4f48d07ec41e779d6cd933b84730a1c7d1248b8be",
-      "bytes": 25635,
+      "sha256": "ce2bc3a0f0d125b6cd80d14795d33f4002289b5ea6d2c5afb898b7435879e648",
+      "bytes": 25615,
       "executable": true
     },
     "panel/controller.cjs": {
@@ -8048,13 +8058,13 @@
       "executable": false
     },
     "sources/izpsx/BUILDING.md": {
-      "sha256": "946920b1d592acdc4a153a267336c991c714a199b843278597e27f0f76322c41",
-      "bytes": 3313,
+      "sha256": "a6da52866b25dff35c2aa1f5f3d75562117a85d759f98efc4d5eca9568aabc4c",
+      "bytes": 3566,
       "executable": false
     },
     "sources/izpsx/CHANGELOG.md": {
-      "sha256": "fbde0c0c67a38f82944659bbcc8eadd5a56ade8fce39a1b415694dafe54baff9",
-      "bytes": 1151,
+      "sha256": "77abac37aaf8b092eda374672e8e5a99a039125c0610f8826ed1fe00dce1e2c7",
+      "bytes": 1754,
       "executable": false
     },
     "sources/izpsx/COMPATIBILITY.md": {
@@ -8083,8 +8093,8 @@
       "executable": false
     },
     "sources/izpsx/README.md": {
-      "sha256": "d58373547309a485f7c1bfc5ee3ba9b868d702a73bd7992273e462da2a74c069",
-      "bytes": 11782,
+      "sha256": "d564fd28f31ceafd2ed962a03c4fd6b3c543092c45a450d3cbfb4e8ab50e67d7",
+      "bytes": 8529,
       "executable": false
     },
     "sources/izpsx/THIRD_PARTY.md": {
@@ -8548,8 +8558,8 @@
       "executable": false
     },
     "sources/izpsx/src/sd-runtime/controllers.c": {
-      "sha256": "006c1e6395e8aace050c2ba7c05e4095fe12eb6ff5380e4e9932027f25c2df30",
-      "bytes": 7372,
+      "sha256": "5f41a7b125b601a3394f98403d080f76188a17ef9bf5bdf87b6c37562dade564",
+      "bytes": 7579,
       "executable": false
     },
     "sources/izpsx/src/sd-runtime/controllers.h": {
@@ -8633,8 +8643,8 @@
       "executable": false
     },
     "sources/izpsx/tests/controllers-model.c": {
-      "sha256": "f15de876176290dbb830245823a95fa836265374a063a55a81117d802fdc7380",
-      "bytes": 7063,
+      "sha256": "ebe1e7094c6b15780afb38d1fd901b3c171684646ee4fb15206ddd0b95cce6dd",
+      "bytes": 9519,
       "executable": false
     },
     "sources/izpsx/tests/file-manager.test.cjs": {

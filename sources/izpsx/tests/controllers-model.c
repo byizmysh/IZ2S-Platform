@@ -7,7 +7,7 @@
 #include "controllers.h"
 #include "settings.h"
 #include "hid-bindings.h"
-static uint32_t connected[9]={[0]=1,[1]=1,[8]=1},set_calls,reject,overrun;
+static uint32_t connected[9]={[0]=1,[1]=1},set_calls,reject,overrun;
 static uint64_t buttons[9]={[0]=1,[1]=2,[8]=4};static int32_t axes[9][4]={[0]={19000,0,0,0},[1]={0,-20000,0,0},[8]={-25000,0,0,0}};
 static uint32_t set_ids(const uint32_t*ids,int32_t n){assert(n==9&&ids[0]==0&&ids[1]==1&&ids[7]==7&&ids[8]==32);set_calls++;return reject;}
 static void pad(void*out,const uint32_t*id){
@@ -27,6 +27,43 @@ static uint32_t get_styles(uint32_t*out){*out=supported_styles;return 0;}
 static uint32_t disconnected_id=99,disconnect_reject;
 static uint32_t disconnect_pad(const uint32_t*id){disconnected_id=*id;if(disconnect_reject)return disconnect_reject;connected[*id]=0;return 0;}
 static void setup(Ps1Controllers*p){memset(p,0,sizeof *p);p->functions[PS1_HID_setIds]=(uintptr_t)set_ids;p->functions[PS1_HID_padFullKey]=(uintptr_t)full;p->functions[PS1_HID_padHandheld]=(uintptr_t)handheld;p->functions[PS1_HID_padJoyDual]=(uintptr_t)dual;p->functions[PS1_HID_padJoyLeft]=(uintptr_t)left;p->functions[PS1_HID_padJoyRight]=(uintptr_t)right;p->functions[PS1_HID_disconnect]=(uintptr_t)disconnect_pad;p->functions[PS1_HID_setStyles]=(uintptr_t)set_styles;p->functions[PS1_HID_getStyles]=(uintptr_t)get_styles;}
+/* A wireless Pro can remain connected after undocking. AUTO must follow
+ * handheld availability rather than waiting for that Pro to disconnect. */
+static void docking_handoff(void){
+ Ps1Controllers p;setup(&p);assert(!ps1_controllers_enable(&p));
+ memset(connected,0,sizeof connected);memset(buttons,0,sizeof buttons);memset(axes,0,sizeof axes);
+ for(unsigned i=0;i<8;i++)styles[i]=PS1_PAD_FULL;
+ connected[0]=connected[1]=connected[2]=connected[3]=1;
+ buttons[0]=1;buttons[1]=2;buttons[2]=4;buttons[3]=8;buttons[8]=0x400;
+ axes[0][0]=21000;axes[8][0]=-23000;
+ for(unsigned cycle=0;cycle<3;cycle++){
+  connected[8]=0;assert(!ps1_controllers_poll(&p));
+  assert(p.player[0].id==0&&p.player[0].style==PS1_PAD_FULL&&p.player[0].buttons==1&&p.player[0].axes[0]==21000);
+  connected[8]=1;assert(!ps1_controllers_poll(&p));
+  assert(p.player[0].id==32&&p.player[0].style==PS1_PAD_HANDHELD&&p.player[0].buttons==0x400&&p.player[0].axes[0]==-23000);
+  assert(p.menu.id==32&&p.menu.buttons==0x400);
+  for(unsigned i=1;i<4;i++)assert(p.player[i].id==i&&p.player[i].buttons==(1u<<i));
+ }
+ connected[8]=0;styles[0]=PS1_PAD_DUAL;assert(!ps1_controllers_poll(&p));
+ assert(p.player[0].id==0&&p.player[0].style==PS1_PAD_DUAL&&p.menu.id==0);
+ connected[0]=0;assert(!ps1_controllers_poll(&p));
+ assert(!p.player[0].connected&&!p.player[0].buttons&&!p.player[0].axes[0]);
+ assert(p.player[1].id==1&&p.player[1].buttons==2);
+ connected[8]=1;assert(!ps1_controllers_poll(&p)&&p.player[0].id==32);
+ connected[0]=1;styles[0]=PS1_PAD_FULL;
+ uint32_t assignment[4]={PS1_DEVICE_PAD1,PS1_DEVICE_AUTO,PS1_DEVICE_AUTO,PS1_DEVICE_AUTO};
+ ps1_controllers_assign(&p,assignment);assert(!ps1_controllers_poll(&p)&&p.player[0].id==0);
+ assignment[0]=PS1_DEVICE_HANDHELD;ps1_controllers_assign(&p,assignment);
+ connected[8]=0;assert(!ps1_controllers_poll(&p)&&!p.player[0].connected);
+ assignment[0]=PS1_DEVICE_AUTO;assignment[1]=PS1_DEVICE_HANDHELD;connected[8]=1;
+ ps1_controllers_assign(&p,assignment);assert(!ps1_controllers_poll(&p));
+ assert(p.player[0].id==0&&p.player[1].id==32); /* No double assignment. */
+ assignment[0]=PS1_DEVICE_OFF;ps1_controllers_assign(&p,assignment);
+ assert(!ps1_controllers_poll(&p)&&!p.player[0].connected);
+ assignment[0]=PS1_DEVICE_AUTO;assignment[1]=PS1_DEVICE_PAD1;
+ ps1_controllers_assign(&p,assignment);assert(!ps1_controllers_poll(&p));
+ assert(p.player[0].id==32&&p.player[1].id==0); /* Reserved external pad. */
+}
 int main(void){
  size_t n=6164480;unsigned char*sdk=mmap(0,n,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_32BIT,-1,0);assert(sdk!=MAP_FAILED);
  for(unsigned i=0;i<PS1_HID_COUNT;i++)memcpy(sdk+ps1_hid_bindings[i].offset,ps1_hid_bindings[i].bytes,64);
@@ -34,7 +71,7 @@ int main(void){
  setup(&p);assert(!ps1_controllers_enable(&p)&&set_calls==1);assert(!ps1_controllers_poll(&p));assert(p.player[0].buttons==1&&p.player[1].buttons==2&&p.player[0].axes[0]==19000&&p.player[1].axes[1]==-20000);
  connected[0]=0;connected[8]=0;assert(!ps1_controllers_poll(&p));assert(!p.player[0].connected&&!p.player[0].buttons&&!p.player[0].axes[0]&&p.player[1].buttons==2);
  connected[8]=1;assert(!ps1_controllers_poll(&p));assert(p.player[0].id==32&&p.player[0].buttons==4&&p.player[1].buttons==2);
- connected[0]=1;connected[1]=0;assert(!ps1_controllers_poll(&p));assert(p.player[0].id==0&&p.player[0].buttons==1&&!p.player[1].connected&&!p.player[1].buttons&&!p.player[1].axes[1]);
+ connected[0]=1;connected[8]=0;connected[1]=0;assert(!ps1_controllers_poll(&p));assert(p.player[0].id==0&&p.player[0].buttons==1&&!p.player[1].connected&&!p.player[1].buttons&&!p.player[1].axes[1]);
  connected[1]=1;buttons[1]=8;assert(!ps1_controllers_poll(&p)&&p.player[1].buttons==8);
  reject=0x1234;assert(ps1_controllers_enable(&p)==0x1234);assert(!ps1_controllers_poll(&p)&&p.player[0].connected&&!p.player[1].connected);
  reject=0;assert(!ps1_controllers_enable(&p));assert(!ps1_controllers_poll(&p));
@@ -52,6 +89,7 @@ int main(void){
  styles[0]=PS1_PAD_DUAL;buttons[0]=0x8000|1;assert(!ps1_controllers_poll(&p)&&p.player[0].buttons==(0x8000|1)&&p.player[0].style==PS1_PAD_DUAL);
  assert(supported_styles==31&&p.restore_styles);styles_reject=0x123;assert(ps1_controllers_restore(&p)==0x123&&p.restore_styles);styles_reject=0;assert(!ps1_controllers_restore(&p)&&supported_styles==7&&!p.restore_styles);
  styles_reject=0x234;assert(ps1_controllers_enable(&p)==0x234&&p.configured&&p.style_error==0x234);styles_reject=0;assert(!ps1_controllers_enable(&p));
+ docking_handoff();
  overrun=1;assert(ps1_controllers_poll(&p)==0xf331&&!p.player[0].buttons&&!p.player[1].buttons);
  assert(ps1_controller_buttons(2)==1&&ps1_controller_buttons(1)==256&&ps1_controller_buttons(0x400)==8&&ps1_controller_buttons(0x800)==0&&ps1_controller_buttons(32)==0);
  munmap(sdk,n);puts("PASS: exact SDK binding; four independent pads and sticks; sideways Joy-Con halves; style restoration; stable slots; neutral disconnect; handheld fallback; reconnect; configuration rejection and overrun guard");
