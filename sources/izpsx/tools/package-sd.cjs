@@ -5,6 +5,7 @@ const BASE=path.resolve(__dirname,'..'),PANEL=path.resolve(process.env.IZPSX_PAN
  const app=await require(path.join(PANEL,'core/services/app-catalog.cjs')).readApp(path.join(OUT,'module/switch'));
  const manifest=JSON.parse(await fs.readFile(path.join(OUT,'module/switch/app.json')));
  assert.equal(manifest.sdOnly,undefined);assert.equal(manifest.hostRuntime,'module:izpsx/launch');assert.equal(manifest.native.abi,5);
+ assert.equal(manifest.name,'IZPSX emulator');
  const html=await fs.readFile(path.join(OUT,'module/server/ui/index.html'),'utf8'),css=await fs.readFile(path.join(OUT,'module/server/ui/style.css'),'utf8');
  assert(!/<a\b/i.test(html),'The author address must remain plain text');
  assert(!/(?:src|href)\s*=\s*["'](?:https?:)?\/\//i.test(html),'UI assets must be local');
@@ -12,6 +13,9 @@ const BASE=path.resolve(__dirname,'..'),PANEL=path.resolve(process.env.IZPSX_PAN
  for(const m of html.matchAll(/(?:src|href)="(\/[^"#]+)"/g))await fs.access(path.join(OUT,'module/server/ui',m[1]));
  const pkg=require(path.join(PANEL,'core/console/sd-launcher/package.cjs'));assert(pkg.eligibility(app).compatible);
  const bundle=await pkg.build(app.root,path.join(OUT,'sd'));const decoded=pkg.decode(bundle.bytes);assert.equal(decoded.id,'izpsx');assert.equal(decoded.nativeAbi,5);
+ const descriptor=JSON.parse(await fs.readFile(path.join(OUT,'module/module.json')));assert.equal(descriptor.name,'IZPSX emulator');assert.equal(descriptor.version,manifest.version);
+ const oldIdentity=/\b(?:pcsx(?:[- _]rearmed)?|retroarch|duckstation|mednafen)\b/i;
+ for(const file of ['README.md','module.json','switch/app.json','server/ui/index.html','server/ui/app.js','server/ui/style.css','server/ui/logo.svg'])assert(!oldIdentity.test(await fs.readFile(path.join(OUT,'module',file),'utf8')),'Legacy product name in '+file);
  const bytes=await require(path.join(PANEL,'core/archive.cjs')).pack(path.join(OUT,'module')),file=path.join(OUT,'izpsx.izm');await fs.writeFile(file,bytes);
  const report={format:'izpsx-package/1',passed:true,consoleExecuted:false,installed:false,package:file,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),sdPackage:bundle.output,sdBytes:bundle.bytes.length,sdSha256:bundle.sha256,sdBundle:bundle.bundle,companionBytes:bundle.assets.reduce((n,x)=>n+x.bytes,0),nativeAbi:5,root:'/sd/IZ2S/Homebrew/Modules/izpsx',hostRuntimeRequired:false,memoryLaunchSupported:true,launchSourceAutomatic:true,gamesAndBiosIncluded:false,localUiAssetsVerified:true,plainAuthorAddressVerified:true};
  await fs.writeFile(path.join(OUT,'package-report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));

@@ -1,4 +1,4 @@
-IZPSX emulator 0.5.0 — @byizmysh
+IZPSX emulator 0.5.1 — @byizmysh
 
 SD:/IZ2S/Homebrew/Modules/izpsx/
   launcher.izapp + declared asset-*.izdata
@@ -16,7 +16,7 @@ Settings: L/R changes tabs.
 Controls: choose Player 1-4 with ZL/ZR or the player selector.
 Each player has separate device, button swap, stick D-pad, deadzone and turbo settings.
 Choose Off to disconnect game input; Disconnect from Switch requests system disconnection.
-B saves both profiles. X resets one setting; Y resets only the selected player.
+B saves all profiles. X resets one setting; Y resets only the selected player.
 Existing shared and two-player settings migrate automatically.
 Multitap: Off keeps two normal PS1 ports. Port 1 / Port 2 enables up to four players.
 Choose the game again after changing Multitap. The game must support Multitap.

@@ -14,6 +14,8 @@ async function build({fromBuild=false}={}){
  const bytes=await archive.pack(home);assert.equal(archive.inspect(bytes).descriptor.version,meta.version);
  const moduleFile=path.join(output,'izpsx-emulator-'+meta.version+'.izm');await fs.writeFile(moduleFile,bytes);
  const app=await catalog.readApp(path.join(home,'switch'));assert.equal(app.manifest.native.abi,5);assert(sd.eligibility(app).compatible);
+ // A release must not carry an asset from a previously packaged app version.
+ await fs.rm(path.join(output,'sd'),{recursive:true,force:true});
  const bundle=await sd.build(app.root,path.join(output,'sd'));assert.equal(sd.decode(bundle.bytes).id,'izpsx');
  const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
  const report={version:meta.version,module:path.basename(moduleFile),moduleSha256:sha(bytes),sdPackageSha256:bundle.sha256,nativeAbi:5,nativeEngineSha256:app.manifest.native.assets[0].sha256,nativeRebuilt:fromBuild,consoleExecuted:false,installed:false,published:false};

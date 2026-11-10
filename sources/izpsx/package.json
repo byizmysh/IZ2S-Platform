@@ -1,6 +1,6 @@
 {
   "name": "izpsx-emulator",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "IZPSX emulator module for IZ2S Platform",
   "license": "GPL-2.0-only",

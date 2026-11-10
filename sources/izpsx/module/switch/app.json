@@ -3,7 +3,7 @@
   "abi": 1,
   "id": "izpsx",
   "name": "IZPSX emulator",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "IZPSX emulator. Up to four players with Multitap and sideways Joy-Con controls, local SD games and persistent memory cards. @byizmysh",
   "transition": "none",
   "hostRuntime": "module:izpsx/launch",
@@ -30,10 +30,10 @@
     ],
     "assets": [
       {
-        "file": "native/asset-0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997.izdata",
-        "path": "asset-0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997.izdata",
-        "bytes": 1748064,
-        "sha256": "0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997"
+        "file": "native/asset-f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e.izdata",
+        "path": "asset-f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e.izdata",
+        "bytes": 1748288,
+        "sha256": "f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e"
       }
     ]
   }

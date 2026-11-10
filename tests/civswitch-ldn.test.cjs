@@ -17,7 +17,7 @@ async function fixture(t, overrides = {}) {
   const options = {root: dir, settings: {}, configuration: {},
     // No ARM/ADV object is supplied: the LAN mode must be independent of HID.
     connections: {snapshot: () => ({devices: {server: {address: '10.42.0.1'}, lan: {address: '10.42.0.20'}}}), update: async () => {}},
-    inspect: async () => ({...setup}), discoverLoader:async()=>['10.42.0.20'], now: () => clock, pause: async ms => {clock += ms;}, loaderWaitMs: 2000,
+    inspect: async () => ({...setup}), discoverNetwork:async()=>['10.42.0.20'], discoverLoader:async()=>['10.42.0.20'], now: () => clock, pause: async ms => {clock += ms;}, loaderWaitMs: 2000,
     launch(program, args) {
       calls.push({program, args});
       const child = new EventEmitter(); child.stdout = new PassThrough(); child.stderr = new PassThrough();
@@ -185,11 +185,11 @@ test('LDN exposes only PC and console tiles and discards old errors without deli
 });
 
 test('LDN delivery needs no console IP and verifies the loader discovered after Wi-Fi restoration',async t=>{
- const found=[];const f=await fixture(t,{discoverLoader:async phy=>{found.push(phy);return ['192.168.1.77'];}});
+ const found=[];const f=await fixture(t,{discoverNetwork:async options=>{found.push(options.mode);return ['192.168.1.77'];},discoverLoader:async()=>{throw Error('Do not restrict restored discovery to the LDN radio');}});
  const before=await f.manager.snapshot();assert.equal(before.civswitchLdn.suggestedHost,'');
- await f.manager.action({action:'configure',host:''});
+ await f.manager.action({action:'configure',host:'',networkMode:'lan'});
  await f.manager.action({action:'start',confirm:true,host:''});const state=await f.wait();
- assert.deepEqual(found,['phy0']);assert.equal(state.connected,true);assert.equal(state.civswitchLdn.host,'192.168.1.77');
+ assert.deepEqual(found,['lan']);assert.equal(state.connected,true);assert.equal(state.civswitchLdn.host,'192.168.1.77');
  assert.equal(state.civswitchLdn.networkRestored,true);
  assert(f.calls.find(call=>call.args.some(arg=>arg.endsWith('probe.py'))).args.includes('192.168.1.77'));
  assert.equal(f.calls.filter(call=>call.args.some(arg=>arg.endsWith('panel-runner.cjs'))).length,1);
@@ -256,4 +256,13 @@ test('radio recovery preserves valid choices and requires an explicit choice for
   f.setup.radios = []; await f.manager.refresh(true);
   assert.match((await f.manager.snapshot()).checks.items[0].detail, /No Wi-Fi radio found/);
   assert.equal(f.calls.length, 0);
+});
+
+
+test('discard removes current failure and retry progress, preserves network preferences and survives reload',async t=>{
+ const f=await fixture(t);await f.manager.action({action:'configure',networkMode:'wifi'});
+ await fs.writeFile(path.join(f.dir,'data/state/civswitchldn.json'),JSON.stringify({phase:'entered',id:'old-attempt',phy:'phy0',hostMode:'auto',networkMode:'wifi',index:19,total:19,error:'No loader',retryStep:3,networkRestored:true}));
+ const manager=create(f.options);await manager.action({action:'discard'});
+ const state=await create(f.options).snapshot();
+ assert.equal(state.civswitchLdn.phase,'idle');assert.equal(state.civswitchLdn.networkMode,'wifi');assert.equal(state.civswitchLdn.error,undefined);assert.equal(state.civswitchLdn.retryStep,undefined);assert.equal(state.civswitchLdn.id,undefined);assert.equal(state.civswitchLdn.index,0);assert.equal(state.civswitchLdn.restoredAttempt,false);assert.equal(f.calls.length,0);
 });

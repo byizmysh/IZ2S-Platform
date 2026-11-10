@@ -1,0 +1,18 @@
+{
+  "version": "0.5.1",
+  "renderer": "unmodified native IZPSX menu renderer",
+  "sourceHashes": {
+    "src/fs-dir.c": "841957362ee05be67afbcc35ddb7d347a801e9464fa4f32110741daedc4f197d",
+    "src/fs-file.c": "5e7fc69c976f160dcc3e33a6234a3ea6a2dcab50d2660188a751cdfdda8d6930",
+    "src/fs-ipc.c": "94a6a63d416717ddab8a82a62ef947b6bbdef4c89285141294b68d26ede612d4",
+    "src/memory-card.c": "d3a017e96782d00419769e54aa97adebdf66d223b2cf639a8aeecba240f2d2c7",
+    "src/native-menu.c": "5578906e6358fc7d6cf528069731d288716b083cd7b4c6b32ad01677ef321e4e",
+    "src/settings-menu.c": "da5a44e362511690208637ecee21b483a3a84dc4c1caa1107f321110cba0ac3a",
+    "src/settings.c": "e0508dc21e0537126367ca4730a9465b8ca4bbf3051d68f56288cff219c9526c",
+    "tests/settings-model.c": "30272e6dbaff1daa946c8aed7b03da83040d9466a4736c96492386fdf5e0c176",
+    "tools/check-pause-menu.c": "3b1ccee96ec49c2b89f9ddfb3af8d7f42abcb40214b4dd7746d51420569c2bbe"
+  },
+  "controllerState": "synthetic test profiles",
+  "consoleCapture": false,
+  "gameExecuted": false
+}

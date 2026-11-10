@@ -2,11 +2,11 @@
 
 ## Is this an independent desktop emulator?
 
-No. This is an IZ2S module and a console-native payload. It requires a compatible IZ2S launcher/SDK; the optional PC UI manages files and launches RAM entries.
+No. IZPSX works only through [IZ2S Panel / IZ2S Platform](https://github.com/byizmysh/IZ2S-Platform) with a compatible launcher and confirmed console FS access. Enable Filesystem access before launch. See the [platform guide](https://github.com/byizmysh/IZ2S-Platform#readme) and [FS FAQ](https://github.com/byizmysh/IZ2S-Platform/blob/main/FAQ.md). The PC UI manages files and RAM launches; the console runs emulation.
 
 ## What does the bundle include?
 
-The 0.5.0 module, matching native SD assets, source/frontend/server code, pinned PCSX-ReARMed source, ABI metadata and licenses. BIOS, commercial games, keys, user saves, crash dumps and private test captures are not included.
+The 0.5.1 module, matching native SD assets, source/frontend/server code, pinned PCSX-ReARMed source, ABI metadata and licenses. BIOS, commercial games, keys, user saves, crash dumps and private test captures are not included.
 
 ## RAM or SD?
 
@@ -22,7 +22,7 @@ Use Continue upload and select the exact same original file. The service verifie
 
 ## How do I return to the launcher?
 
-Open the Minus menu and choose Exit IZPSX emulator. Plus is PS1 Start. R3 has no global exit shortcut in 0.5.0. Follow the single-Joy-Con menu chord when using a sideways controller.
+Open the Minus menu and choose Exit IZPSX emulator. Plus is PS1 Start. R3 has no global exit shortcut in 0.5.1. Follow the single-Joy-Con menu chord when using a sideways controller.
 
 ## Are save states or disc swapping supported?
 

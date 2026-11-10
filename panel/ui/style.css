@@ -5402,3 +5402,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible,select:focus-visi
 .device .network-transport { display:grid;grid-template-columns:32px 32px;gap:4px;width:76px;height:42px;min-height:42px;padding:3px;margin:0;box-sizing:border-box;border:1px solid #46503f;border-radius:var(--radius-card);background:#101611; }
 .device .network-transport > .transport-option { display:grid;place-items:center;width:32px;height:34px;min-height:34px;padding:6px; }
 .device > .civ-server-transport { grid-row:2;align-self:end;justify-self:start; }
+
+/* Keep Civ7 recovery controls reachable at every wizard step. */
+.civ-flow-controls { display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;max-width:100%; }
+.civ-flow-controls>button { min-height:var(--control-height); }

@@ -1,8 +1,9 @@
-"""Build original PCSX-ReARMed as a freestanding image; vendor stays unchanged."""
+"""Build the IZPSX emulator native image; vendor sources stay unchanged."""
 from pathlib import Path
 import argparse,hashlib,json,subprocess,sys
 ROOT=Path(__file__).resolve().parents[1];VENDOR=ROOT/'vendor/pcsx_rearmed';OUT=ROOT/'build/native';TREE=OUT/'tree';OUT.mkdir(parents=True,exist_ok=True)
 from local_build import CC, PREFIX, mirror_link
+from product_brand import apply as apply_product_brand
 p=argparse.ArgumentParser();p.add_argument('--code-base',type=lambda s:int(s,0),default=0x48000000);p.add_argument('--data-base',type=lambda s:int(s,0),default=0x4c000000);a=p.parse_args()
 patches=[]
 for src in VENDOR.rglob('*'):
@@ -28,6 +29,11 @@ for src in VENDOR.rglob('*'):
   patches.append(dict(file=str(rel),purpose='Notify frontend of PS1 card writes; console-local dual-generation persistence',originalSha256=hashlib.sha256(old.encode()).hexdigest(),generatedSha256=hashlib.sha256(new.encode()).hexdigest()))
  elif str(rel)=='include/revision.h':
   if not dest.exists():dest.write_bytes(src.read_bytes())
+ elif str(rel) in ('frontend/libretro.c','frontend/main.c','frontend/libretro_core_options.h','frontend/libretro_core_options_intl.h'):
+  branded=apply_product_brand(str(rel),src.read_text());assert branded is not None
+  if dest.is_symlink():dest.unlink()
+  if not dest.exists()or dest.read_text()!=branded:dest.write_text(branded)
+  patches.append(dict(file=str(rel),purpose='IZPSX emulator display metadata and diagnostics; compatibility identifiers and license notices preserved',originalSha256=hashlib.sha256(src.read_bytes()).hexdigest(),generatedSha256=hashlib.sha256(branded.encode()).hexdigest()))
  else:mirror_link(dest,src)
 names='abs atof atoi isalnum isxdigit memchr memcmp memcpy memmove memset qsort roundf snprintf sprintf sscanf strcasecmp strcasestr strcat strchr strcmp strcpy strerror strftime strlen strncasecmp strncmp strncpy strrchr strstr strtok strtol strtoul tolower toupper vsnprintf vsprintf'.split()
 profile=json.loads((ROOT/'abi/sdk-profile.json').read_text())

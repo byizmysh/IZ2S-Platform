@@ -30,7 +30,7 @@ globalThis.IZ2S_CIVSWITCH={create({document,act,setupInput=()=>{},downloadArm=()
     networkMode:view==='run'?network.mode():undefined,launcher,launchAfterSuccess:auto,confirm:$('civ-prepared').checked,
     sameLobby:$('civ-same-lobby').checked,emptyField:$('civ-empty-field').checked,
     installAfterSuccess:['auto-chat','resume-chat'].includes(action)&&$('civ-save-after').checked,
-    deleteSingleSaves:$('civ-save-after').checked&&$('civ-delete-saves').checked,...(action==='launch'||auto?getStartup():{}),...extra});
+    deleteSingleSaves:$('civ-save-after').checked&&$('civ-delete-saves').checked,...(action==='launch'||auto||extra.launchAfterSuccess?getStartup():{}),...extra});
    if(!result?.ok)return;
    if(['auto-chat','resume-chat','install'].includes(action))$('civ-delete-saves').checked=false;
    if(action==='auto-chat'){step=['entered','checking','ready','installing','installed'].includes(current?.phase)?4:3;$('civ-prepared').checked=false;}
@@ -41,7 +41,7 @@ globalThis.IZ2S_CIVSWITCH={create({document,act,setupInput=()=>{},downloadArm=()
   }finally{posting=false;render(snapshot);}
  }
  for(const action of ['discard','reset','auto-chat','resume-chat','prepare-recovery','check-recovery','watch-input','check-loader','install'])$('civ-'+action).onclick=()=>execute(action);
- $('civ-launch').onclick=()=>execute('launch');
+ $('civ-launch').onclick=()=>view==='setup'&&!current?.loaderReady?execute('check-loader',{automatic:true,launchAfterSuccess:true}):execute('launch');
  $('civ-use-save').onclick=()=>{view='run';viewChosen=true;civViewPreference('civ','run');render(snapshot);};
  $('civ-check-loader').onclick=()=>execute('check-loader',{automatic:true});
  $('civ-connect-ip').onclick=()=>execute('check-loader',{host:$('civ-run-host').value.trim(),automatic:false});
@@ -173,12 +173,12 @@ globalThis.IZ2S_CIVSWITCH_LDN = {create({document, act, getStartup=()=>({}), isU
       const body = {action, launcher,launchAfterSuccess:auto, ...(['configure', 'start', 'check-loader', 'install'].includes(action) ? values() : {}),
         confirm: $('ldn-prepared').checked, freshLobby: $('ldn-prepared').checked,
         installAfterSuccess: action === 'start' && $('ldn-save-after').checked,
-        deleteSingleSaves: $('ldn-save-after').checked && $('ldn-delete-saves').checked, ...(action==='launch'||auto?getStartup():{}), ...extra};
+        deleteSingleSaves: $('ldn-save-after').checked && $('ldn-delete-saves').checked, ...(action==='launch'||auto||extra.launchAfterSuccess?getStartup():{}), ...extra};
       const result = await act('/api/civswitch-ldn', body);
       if (!result?.ok) return;
       if(action==='refresh'&&result.prepared===true)step=2;
       if (action === 'configure') step = 3;
-      if (action === 'discard') step = 1;
+      if (action === 'discard') {step = 1;view='setup';viewChosen=true;civViewPreference('ldn','setup');$('ldn-prepared').checked=false;$('ldn-delete-saves').checked=false;}
       if (action === 'check-loader' || action === 'install'||action==='launch') step = 4;
       if(action==='launch'){view='run';viewChosen=true;}
       if (action === 'start' || action === 'install') {
@@ -186,7 +186,7 @@ globalThis.IZ2S_CIVSWITCH_LDN = {create({document, act, getStartup=()=>({}), isU
       }
     } finally {posting = false; render(snapshot);}
   }
-  $('ldn-launch').onclick=()=>execute('launch');
+  $('ldn-launch').onclick=()=>view==='setup'&&!current?.loaderReady?execute('check-loader',{automatic:true,launchAfterSuccess:true}):execute('launch');
   $('ldn-next-2').onclick = () => execute('configure');
   $('ldn-next-1').onclick = () => execute(current?.loaderReady&&$('ldn-save-after').checked?'install':'refresh');
   $('ldn-use-save').onclick=()=>{view='run';viewChosen=true;civViewPreference('ldn','run');render(snapshot);};
@@ -267,7 +267,10 @@ globalThis.IZ2S_CIVSWITCH_LDN = {create({document, act, getStartup=()=>({}), isU
     $('ldn-status').hidden=!current.busy;
     $('ldn-previous').hidden=!current.restoredAttempt;
     $('ldn-previous-error').textContent=(globalThis.IZ2S_ERRORS?.canonical(current.error||'')||current.error||'');
-    $('ldn-discard').disabled=locked;
+    const launcherOwnsSession=['starting','running','offline','stopping'].includes(state.civLauncher?.state);
+    $('ldn-discard').hidden=!current.error&&!current.restoredAttempt&&!current.index&&['idle','preparing'].includes(current.phase);
+    $('ldn-discard').disabled=locked||launcherOwnsSession;
+    $('ldn-discard').textContent=t('Start over');
     $('ldn-error').hidden = !current.error||!!current.restoredAttempt; $('ldn-error').setAttribute('translate','no');$('ldn-error').textContent = (globalThis.IZ2S_ERRORS?.canonical(current.error||'')||current.error||'');
     $('ldn-progress').textContent = Math.min(current.index, current.total) + ' / ' + current.total;
     $('ldn-dependencies-status').textContent = t(!setup.supported ? 'CIV7 LAN requires native Linux' :
@@ -328,18 +331,23 @@ function renderLauncher(document,prefix,state,current,posting,view){
  const modules=document.getElementById('launch-modules'),flow=document.getElementById(prefix==='ldn'?'civswitch-ldn-flow':'civswitch-flow');
  if(modules&&flow){const bar=flow.querySelector('.civ-action-bar');if(modules.parentElement!==flow||modules.nextElementSibling!==bar)flow.insertBefore(modules,bar);modules.hidden=$('stage-4').hidden||runtime.shell==='original';}
  const automatic=runtime.shell!=='original'&&(view==='run'||!$('save-after').checked);
+ $('check-loader').hidden=!!current.loaderReady||(view==='setup'&&runtime.shell!=='original');
  $('check-loader').textContent=t(automatic?'Connect and start launcher':'Connect automatically');$('check-loader').classList.toggle('primary',automatic&&view==='run');
  const running=runtime.state==='running',active=['running','offline','starting','stopping'].includes(runtime.state);
  $('launcher-panel').hidden=runtime.shell==='original';
  $('launcher').disabled=posting||current.busy;
- $('launch').disabled=active||posting||current.busy||!current.loaderReady||!!state.preview;
+ const connecting=!active&&((current.busy&&['checking','entered'].includes(current.phase))||(runtime.automaticLaunch&&!current.busy));
+ $('launch').disabled=active||posting||current.busy||!!runtime.automaticLaunch||(view==='run'&&!current.loaderReady)||!!state.preview;
+ $('launch').textContent=t(connecting?'Connecting to game loader…':view==='setup'&&!current.loaderReady?'Connect and start launcher':'Start launcher');
+ $('launch').setAttribute('aria-busy',String(connecting));
+ $('launch').title=connecting?t('Delivery is complete. Looking for the game loader; the selected launcher will start automatically. Use Stop operation to cancel.'):'';
   const offline=runtime.state==='offline',stopping=runtime.state==='stopping',unconfirmed=runtime.shutdownUnconfirmed===true;
  const phase=unconfirmed?'Shutdown unconfirmed':stopping?'Disconnecting…':offline?'Connection interrupted':'Preparing the Civ7 launcher.';
  $('launcher-status').hidden=runtime.state==='starting'&&!runtime.error;
  if(active){$('status').hidden=running;$('status').textContent=t(phase);}
 
  for(const id of ['run-instructions','result-hint'])if($(id))$(id).classList.toggle('session-obsolete',running);
- $('launcher-status').textContent=t((runtime.error?globalThis.IZ2S_ERRORS?.canonical(runtime.error)||runtime.error:null)|| (running?'Launcher ready. Open App library or press X on the console for App Store.':offline?'Connection lost. Stop this session, restart Civilization VII and open Load Game.':unconfirmed?'Restart Civilization VII before starting a new session.':stopping?'Disconnecting…':active?'Preparing the Civ7 launcher.':runtime.needsRestart?'Restart Civilization VII and open Load Game before another graphics session':automatic?'The selected launcher starts automatically after connection.':'Applications load into session memory through the PC.'));
+ $('launcher-status').textContent=t(connecting?'Delivery is complete. Looking for the game loader; the selected launcher will start automatically. Use Stop operation to cancel.':(runtime.error?globalThis.IZ2S_ERRORS?.canonical(runtime.error)||runtime.error:null)|| (running?'Launcher ready. Open App library or press X on the console for App Store.':offline?'Connection lost. Stop this session, restart Civilization VII and open Load Game.':unconfirmed?'Restart Civilization VII before starting a new session.':stopping?'Disconnecting…':active?'Preparing the Civ7 launcher.':runtime.needsRestart?'Restart Civilization VII and open Load Game before another graphics session':automatic?'The selected launcher starts automatically after connection.':'Applications load into session memory through the PC.'));
 }
 
 function renderCivView(document,prefix,view,current,posting){
@@ -420,7 +428,8 @@ function civRunNetwork(document,prefix,changed){
   const paired=view==='run'?matches(current):!!current.loaderReady;
   const consoleCard=document.getElementById('device-lan');
   if(consoleCard){
-   const waiting=!paired&&(!current.error||current.restoredAttempt);
+   // An unopened loader is an expected waiting state, not a lost console session.
+   const waiting=!paired&&!state.civLauncher?.shutdownUnconfirmed&&state.civLauncher?.state!=='offline';
    consoleCard.classList.toggle('awaiting-loader',waiting);consoleCard.classList.toggle('ready',paired);consoleCard.classList.toggle('pending',false);
    const label=consoleCard.querySelector('.state');if(label&&(waiting||paired))label.textContent=(globalThis.RUN21_LANGUAGE?.t||(s=>s))(paired?'✓ READY':'AWAITING LOADER');
    const detail=consoleCard.querySelector('.detail-text')||consoleCard.querySelector('.device-detail');

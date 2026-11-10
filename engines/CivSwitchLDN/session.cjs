@@ -124,6 +124,7 @@ function create({root, settings, connections, configuration, preview = false, la
     ready = true; verifiedHost = host; saved.phase = 'ready'; log('Remote JS Loader verified on TCP 9026.');
   }
   async function waitForLoader(host, {once=false,automatic=false}={}) {
+    saved.phase = 'checking'; await persist();
     const deadline = now() + (once?6000:loaderWaitMs);
     for (let attempt = 0;; attempt++) {
       if (interrupted) throw Error('CIV7 LAN stopped');
@@ -159,7 +160,7 @@ function create({root, settings, connections, configuration, preview = false, la
       if (task) throw Error('Wait for the current operation to finish');
       const command = body.action;
       if(command==='discard'){
-        saved={phase:'idle',host:saved.host,hostMode:saved.hostMode,phy:saved.phy,hostMac:saved.hostMac,chatDelay:saved.chatDelay,handshakeScale:saved.handshakeScale,index:0,total:19};
+        saved={phase:'idle',host:saved.host,hostMode:saved.hostMode,networkMode:saved.networkMode,phy:saved.phy,hostMac:saved.hostMac,chatDelay:saved.chatDelay,handshakeScale:saved.handshakeScale,index:0,total:19};
         restoredAttempt=false;ready=false;verifiedHost='';lastAttempt=null;events.length=0;await persist();return {ok:true};
       }
       await refresh(true);
@@ -201,7 +202,7 @@ function create({root, settings, connections, configuration, preview = false, la
           const output = await run(process.execPath, [path.join(p.folder, 'panel-runner.cjs'), saved.phy, saved.hostMac, String(saved.chatDelay), String(saved.handshakeScale)]);
           if (!output.includes('CIV7_LDN_DELIVERY_COMPLETE') || !output.includes('CIV7_LDN_NETWORK_RESTORED')) throw Error('Delivery or Wi-Fi restoration was not confirmed. Check the game before starting over.');
           saved.index = saved.total; saved.phase = 'entered'; await persist();
-          const resolvedHost=await waitForLoader(host);
+          const resolvedHost=await waitForLoader(host,{automatic:true});
           if (body.installAfterSuccess === true) {if (interrupted) throw Error('CIV7 LAN stopped'); await install(resolvedHost);}
         }
         attempt.status = 'complete';

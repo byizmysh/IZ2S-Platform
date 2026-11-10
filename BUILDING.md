@@ -21,7 +21,7 @@ The source manifest records every shipped file's hash, size and execute bit. Reg
 
 ## IZPSX corresponding source
 
-The frozen native module and its source must stay together. `sources/izpsx` contains the exact source, vendor snapshot, licenses and ABI profile used for the included 0.5.0 binary, plus build instructions. Rebuilding native PS1 code is separate from the platform launcher's GPU/resource build. A local standalone repo and matching source/archive assets accompany this release candidate.
+The frozen native module and its source must stay together. `sources/izpsx` contains the exact source, vendor snapshot, licenses and ABI profile used for the included 0.5.1 binary, plus build instructions. Rebuilding native PS1 code is separate from the platform launcher's GPU/resource build. A local standalone repo and matching source/archive assets accompany this release candidate.
 
 ## Exclusions
 

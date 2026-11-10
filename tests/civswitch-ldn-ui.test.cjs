@@ -204,3 +204,45 @@ test('the visible PC LAN/Wi-Fi picker changes the existing console transport and
  $('ldn-view-setup').onclick();assert.equal($('ldn-run-source').hidden,true);
  state.civswitchLdn.busy=true;ui.render(state);$('ldn-view-run').onclick();assert.equal($('ldn-source-lan').disabled,true);assert.equal($('ldn-source-wifi').disabled,true);
 });
+
+
+test('Start over is reachable outside previous-attempt details and returns to preparation without delivery',async()=>{
+ const {$,ui,state,requests}=fixture();
+ Object.assign(state.civswitchLdn,{id:'failed',phase:'entered',index:19,error:'No game loader found',restoredAttempt:false});
+ ui.render(state);assert.equal($('ldn-discard').hidden,false);assert.equal($('ldn-discard').disabled,false);
+ const header=html.slice(html.indexOf('id="civswitch-ldn-flow"'),html.indexOf('id="ldn-mode-help"'));
+ assert(header.includes('id="ldn-discard"'));assert(header.includes('id="ldn-stop"'));
+ $('ldn-prepared').checked=true;$('ldn-delete-saves').checked=true;
+ await $('ldn-discard').onclick();assert.equal(requests.length,1);assert.equal(requests[0].body.action,'discard');
+ assert.equal($('ldn-stage-1').hidden,false);assert.equal($('ldn-prepared').checked,false);assert.equal($('ldn-delete-saves').checked,false);
+ state.civswitchLdn.busy=true;ui.render(state);assert.equal($('ldn-discard').disabled,true);assert.equal($('ldn-stop').hidden,false);
+});
+
+test('an unopened console loader is an expected waiting state even after a timeout',()=>{
+ const {$,state}=fixture(),classes=new Set(),labels={'.state':{textContent:''},'.detail-text':{textContent:''}};
+ const card={classList:{toggle(name,on){on?classes.add(name):classes.delete(name);}},querySelector:q=>labels[q]||null};
+ const document={getElementById:id=>id==='device-lan'?card:$(id),createElement:()=>({}),activeElement:null};
+ const context={document};vm.runInNewContext(source,context);
+ const ui=context.IZ2S_CIVSWITCH_LDN.create({document,act:async()=>({ok:true})});
+ Object.assign(state.civswitchLdn,{phase:'entered',index:19,error:'No game loader found'});ui.render(state);
+ assert.equal(classes.has('awaiting-loader'),true);assert.equal(labels['.state'].textContent,'AWAITING LOADER');
+ state.civLauncher={state:'offline',shell:'izlauncher',error:'Connection lost'};ui.render(state);
+ assert.equal(classes.has('awaiting-loader'),false,'a real retained session disconnect must stay visible');
+});
+
+
+test('the last First Setup step reconnects and launches instead of leaving the launcher action disabled',async()=>{
+ const {$,ui,state,requests}=fixture();Object.assign(state.civswitchLdn,{phase:'installed',loaderReady:false,saveInstallation:{state:'installed'}});
+ state.civLauncher={state:'idle',shell:'izlauncher'};ui.render(state);$('ldn-view-setup').onclick();$('ldn-step-4').onclick();
+ assert.equal($('ldn-launch').hidden,false);assert.equal($('ldn-launch').disabled,false);assert.equal($('ldn-launch').textContent,'Connect and start launcher');assert.equal($('ldn-check-loader').hidden,true);
+ await $('ldn-launch').onclick();assert.equal(requests.length,1);assert.equal(requests[0].body.action,'check-loader');assert.equal(requests[0].body.automatic,true);assert.equal(requests[0].body.launchAfterSuccess,true);assert.equal(requests[0].body.installAfterSuccess,false);
+ state.civswitchLdn.loaderReady=true;ui.render(state);await $('ldn-launch').onclick();assert.equal(requests[1].body.action,'launch');
+ state.civLauncher.state='running';ui.render(state);assert.equal($('ldn-launch').disabled,true);
+});
+
+
+test('automatic post-delivery discovery shows progress instead of an unexplained disabled Connect button',()=>{
+ const {$,ui,state}=fixture();Object.assign(state.civswitchLdn,{phase:'checking',busy:true,index:19});state.civLauncher={state:'idle',shell:'izlauncher',automaticLaunch:true};ui.render(state);
+ assert.equal($('ldn-launch').textContent,'Connecting to game loader…');assert.equal($('ldn-launch').disabled,true);assert.equal($('ldn-stop').hidden,false);assert.equal($('ldn-stop').disabled,false);assert.match($('ldn-launcher-status').textContent,/Delivery is complete.*Stop operation/);
+ state.civswitchLdn.busy=false;state.civLauncher.automaticLaunch=false;ui.render(state);$('ldn-view-setup').onclick();$('ldn-step-4').onclick();assert.equal($('ldn-launch').disabled,false);assert.equal($('ldn-launch').textContent,'Connect and start launcher');
+});

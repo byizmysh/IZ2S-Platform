@@ -2,7 +2,7 @@
 
 ## What does this release contain?
 
-IZlauncher, IZPSlauncher, IZ2S Core, the BermTheSequel alternative engine, input-device support, File Exchange, File Exchange FS, Book Reader, integrated Super File Bros. and IZPSX emulator 0.5.0. Other emulators, streaming apps and test builds are not bundled. See [README](README.md#included-applications).
+IZlauncher, IZPSlauncher, IZ2S Core, the BermTheSequel alternative engine, input-device support, File Exchange, File Exchange FS, Book Reader, integrated Super File Bros. and IZPSX emulator 0.5.1. Other emulators, streaming apps and test builds are not bundled. See [README](README.md#included-applications).
 
 ## Which PC systems are targeted?
 
@@ -88,7 +88,7 @@ No. Runtime `data/`, previous sessions, pairing credentials, keys, logs, user bo
 
 ## Where are the IZPSX source and separate release?
 
-The bundled module is 0.5.0. Its matching corresponding source is in `sources/izpsx`. A separate local Git repository and source/module archives are prepared alongside this platform candidate. No new GitHub repository has been created or published as part of this preparation. That standalone repo's README, build instructions and license describe its own scope.
+The bundled module is 0.5.1. Its matching corresponding source is in `sources/izpsx`. A separate local Git repository and source/module archives are prepared alongside this platform candidate. No new GitHub repository has been created or published as part of this preparation. That standalone repo's README, build instructions and license describe its own scope.
 
 ## How can I report a problem?
 

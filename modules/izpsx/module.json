@@ -4,7 +4,7 @@
   "apiVersion": 1,
   "id": "izpsx",
   "name": "IZPSX emulator",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "author": "@byizmysh",
   "platforms": [
     "linux-x64",
@@ -25,7 +25,7 @@
       "switch/app.vert.spv",
       "switch/data.bin",
       "switch/icon.png",
-      "switch/native/asset-0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997.izdata",
+      "switch/native/asset-f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e.izdata",
       "switch/native/shim.bin",
       "switch/pixels.bin",
       "switch/state.bin"

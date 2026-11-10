@@ -5,7 +5,7 @@ import hashlib,json,os,subprocess,zipfile,tarfile,gzip,io
 ROOT=Path(__file__).resolve().parents[1]
 VERSION=json.loads((ROOT/'package.json').read_text())['version']
 OUT=ROOT/'dist';EPOCH=1794268800
-TOP={'src','shaders','server','tests','assets','vendor','abi','module','tools','.github'}
+TOP={'src','shaders','server','tests','assets','vendor','abi','module','tools','.github','docs'}
 FILES={'README.md','BUILDING.md','FAQ.md','COMPATIBILITY.md','CHANGELOG.md','THIRD_PARTY.md','CONTRIBUTING.md','LICENSE','FONT-LICENSE.txt','package.json','requirements-build.txt','.gitignore','launch-options.cjs'}
 def sha(data):return hashlib.sha256(data).hexdigest()
 def files():

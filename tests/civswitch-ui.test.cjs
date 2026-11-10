@@ -94,7 +94,7 @@ test('Civ USB exposes the ARM installer for ARM input and uses blue standby with
  $('device-lan').classList={toggle:(name,on)=>on?classes.add(name):classes.delete(name)};$('device-lan').querySelector=selector=>labels[selector]||null;
  state.platform.configuration.inputAdapter='ssh-gadget';ui.render(state);
  assert.equal($('civ-arm-installer').hidden,false);assert.equal(classes.has('awaiting-loader'),true);assert.equal(classes.has('ready'),false);assert.equal(labels['.state'].textContent,'AWAITING LOADER');
- state.civswitch.error='Loader did not respond';ui.render(state);assert.equal(classes.has('awaiting-loader'),false);
+ state.civswitch.error='Loader did not respond';ui.render(state);assert.equal(classes.has('awaiting-loader'),true);
  state.civswitch.error='';state.civswitch.loaderReady=true;ui.render(state);assert.equal(classes.has('ready'),true);assert.equal(classes.has('awaiting-loader'),false);
  state.platform.configuration.inputAdapter='cardputer-wifi';ui.render(state);assert.equal($('civ-arm-installer').hidden,true);
 });

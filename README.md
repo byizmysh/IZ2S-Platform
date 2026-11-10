@@ -44,7 +44,7 @@ The release includes exactly these user-facing apps/tools:
 | [File Exchange FS](modules/iz-exchange-fs/README.md) | Retained filesystem exports; depends on File Exchange |
 | [Book Reader](modules/BookReader/README.md) | TXT and unencrypted EPUB library |
 | [Super File Bros.](tools/fs-rpc-browser/README.md) | Integrated browser file manager for browsing and uploads to SD |
-| [IZPSX emulator 0.5.0](modules/izpsx/README.md) | PlayStation emulator; RAM/SD installation, local games/BIOS and persistent memory cards |
+| [IZPSX emulator 0.5.1](modules/izpsx/README.md) | PlayStation emulator; RAM/SD installation, local games/BIOS and persistent memory cards |
 
 Super File Bros. is integrated PC tooling, not an extra console IZM payload. The four console IZM modules are built from their included descriptors and assets on startup. **Games, BIOS, prod.keys, personal books, saves, logs and device credentials are not included.** The matching IZPSX corresponding source is in [sources/izpsx](sources/izpsx).
 

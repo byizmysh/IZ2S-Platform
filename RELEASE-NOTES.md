@@ -11,10 +11,10 @@ Status: locally prepared release candidate. Publication, GitHub tags/releases an
 - App-library cards show RAM/SD state, filters and installation controls. RAM modules require explicit choice; the old selection is not restored into a different game/session.
 - Attempts includes both results, compact entries, date/result/error filtering and history removal. Finished failures are not replayed as new notifications when the panel is reopened.
 - Shared file-service handling and checkpoint-based uploads avoid requiring a second Super File Bros. window. Transfer progress/cancellation are visible; resumed uploads verify the chosen source/checkpoint.
-- Bundled apps: File Exchange, File Exchange FS, Book Reader, Super File Bros. and IZPSX emulator 0.5.0. Experimental/test builds and unrelated streaming/emulator packages are excluded.
+- Bundled apps: File Exchange, File Exchange FS, Book Reader, Super File Bros. and IZPSX emulator 0.5.1. Experimental/test builds and unrelated streaming/emulator packages are excluded.
 - Release packaging produces source and Linux archives only. Windows and macOS packaging and entry points are not part of 0.22.
 
-## IZPSX emulator 0.5.0
+## IZPSX emulator 0.5.1
 
 RAM/SD source detection, local games/BIOS access, persistent memory cards, shared PC file view and per-player control settings are included in the frozen package. Plus is PS1 Start; Minus opens the IZPSX menu/settings. Follow the module's README for controller layouts and Multitap restrictions. The exact corresponding source accompanies the platform and is prepared separately as a local GitHub-ready project.
 
@@ -23,3 +23,7 @@ RAM/SD source detection, local games/BIOS access, persistent memory cards, share
 FS acquisition can still fail in a new session; its estimate is not a guarantee. Unsafe cleanup is not automatically retried. General app suspension/minimization is not implemented. Component native host gates stay in force. This preparation does not claim new hardware, long-session, audio or game-compatibility results for IZPSX.
 
 See [Compatibility](COMPATIBILITY.md), [FAQ](FAQ.md) and the generated local verification report for the precise checks performed on this candidate.
+
+Civ7 First Setup now exposes Start over and Stop beside its mode selector. Reset preserves PC setup, keys and installed saves, clears current progress/errors and retains attempt history. Waiting for an unopened loader is neutral; actual retained-session disconnects remain visible. The final setup launcher action can connect and start the selected shell without repeating LDN delivery. IZPSX is updated to 0.5.1 with matching corresponding source and native-menu screenshots.
+
+After LDN restoration, loader discovery now uses the selected LAN/Wi-Fi transport instead of scanning only the LDN radio. Pending automatic discovery is shown as Connecting to game loader with an available Stop action; a duplicate manual launch cannot race it.

@@ -7,7 +7,7 @@
 
 Use the platform's **First Setup** wizard rather than the standalone CLI instructions below. Import your own keys through the panel, prepare the displayed dependencies and permissions, and choose the Wi-Fi adapter. If Linux renumbers a reconnected adapter, the panel recovers the selection only when exactly one adapter is available; otherwise choose it explicitly.
 
-The panel delivery wrapper isolates only the selected radio and retains Ethernet connectivity. It waits for Wi-Fi restoration before loader discovery. The upstream CLI section below retains its original network behavior. Save installation requires explicit confirmation and deletes single-player saves; make backups first. Later **Launch** connects through LAN or Wi-Fi to the saved loader without repeating LDN delivery.
+The panel delivery wrapper isolates only the selected radio and retains Ethernet connectivity. It waits for Wi-Fi restoration before loader discovery. The upstream CLI section below retains its original network behavior. Save installation requires explicit confirmation and deletes single-player saves; make backups first. **Start over** clears panel attempt progress and errors without repeating delivery or removing keys/saves; history remains available. **Stop operation** waits for radio restoration. These controls are beside First Setup / Launch. At the final step, **Connect and start launcher** can verify the loader and launch the chosen shell without resending LDN. Later **Launch** connects through LAN or Wi-Fi to the saved loader without repeating LDN delivery.
 
 ## Demo (don't blink)
 

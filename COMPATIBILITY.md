@@ -19,7 +19,7 @@ Release targets are Linux x64/ARM64 only. This candidate is prepared locally and
 
 ## Bundled applications
 
-File Exchange, File Exchange FS, Book Reader and IZPSX emulator 0.5.0 are the console IZM modules. Super File Bros. is integrated browser/file-service tooling. Other application and test packages are not included. See each module descriptor for its declared hosts and its own README for FS, controls and runtime requirements.
+File Exchange, File Exchange FS, Book Reader and IZPSX emulator 0.5.1 are the console IZM modules. Super File Bros. is integrated browser/file-service tooling. Other application and test packages are not included. See each module descriptor for its declared hosts and its own README for FS, controls and runtime requirements.
 
 ## Qualification boundary
 

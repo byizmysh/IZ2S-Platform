@@ -1,6 +1,6 @@
 # Compatibility and verification boundary
 
-Version: 0.5.0. Platform integration target: IZ2S Platform 0.22, platform API 1, compatible native launcher ABI 5. Compatibility is checked by the public ABI rather than hardcoding a launcher patch version. A future incompatible ABI still needs an explicit update; "all future versions" is not guaranteed.
+Version: 0.5.1. Platform integration target: IZ2S Platform 0.22, platform API 1, compatible native launcher ABI 5. Compatibility is checked by the public ABI rather than hardcoding a launcher patch version. A future incompatible ABI still needs an explicit update; "all future versions" is not guaranteed.
 
 The selected IZM declares Linux x64 and Linux ARM64 PC hosts. The payload itself runs AArch64 on the console. Windows and macOS builds are outside the 0.22 release scope.
 

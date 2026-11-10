@@ -33,11 +33,15 @@ Optional reference-core tools may use `IZPSX_QEMU` or `qemu-aarch64`; emulated L
 
 ## Artifacts
 
-- `izpsx-emulator-0.5.0.izm`: platform-installable module.
-- `izpsx-emulator-0.5.0-sd.zip`: launcher.izapp and matching native asset under its SD directory.
-- `izpsx-emulator-0.5.0-source.zip` and `.tar.gz`: complete frozen module, corresponding source, vendor snapshot, licenses and build instructions.
+- `izpsx-emulator-0.5.1.izm`: platform-installable module.
+- `izpsx-emulator-0.5.1-sd.zip`: launcher.izapp and matching native asset under its SD directory.
+- `izpsx-emulator-0.5.1-source.zip` and `.tar.gz`: complete frozen module, corresponding source, vendor snapshot, licenses and build instructions.
 - `SHA256SUMS`, `SOURCE-MANIFEST.json`, `release-report.json`: hashes and scope/limits.
 
 The source archives omit `.git`, `build/`, `dist/`, private data, games/BIOS and local caches. No native host platform is enabled just by producing one of these archives.
 
 The GitHub check workflow uses the platform's main branch as its SDK. Publish the matching IZ2S Platform 0.22 source first; an older public main may lack the required SD/native ABI. No remote workflow has been executed as part of this local preparation.
+
+## Native UI screenshots
+
+Run `python3 tools/screenshots.py` with a local C compiler and Pillow. It renders the actual pause/settings code into two PNGs with synthetic controller profiles, without contacting the console. Source hashes and the capture scope are recorded in docs/images/provenance.json.

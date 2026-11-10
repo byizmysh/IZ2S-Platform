@@ -13,12 +13,12 @@
       "executable": false
     },
     "BUILDING.md": {
-      "sha256": "aca10b1170d346f76e99c1438298458c267fe24b6d0d51a147a93f2cd2863339",
+      "sha256": "43cb2608577432e6739ed0b594a0d3a0d682afb90ca3903914cc8bb7f406870d",
       "bytes": 2184,
       "executable": false
     },
     "COMPATIBILITY.md": {
-      "sha256": "d79ae489835d8516256d7932167b340895c79a6ab60a0ef548fb5bb9c01dfe03",
+      "sha256": "490f4dfe9313cd8697b1c3daa39e4e651067496413efef2b6fd2b76999c7199c",
       "bytes": 2292,
       "executable": false
     },
@@ -28,7 +28,7 @@
       "executable": false
     },
     "FAQ.md": {
-      "sha256": "698766ec267b0c321bd1386235938b6c5255803607459b502fd71f9a3ac24421",
+      "sha256": "4c1ead9c5a475ffa0ee73c4839fb23afc67c81a0c6e83b55658f7205cfdd8181",
       "bytes": 9037,
       "executable": false
     },
@@ -48,13 +48,13 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "bc28e914a6af0344fb4c5b59dd11b17136fdb766d39b04992a6e74a161ade22e",
+      "sha256": "88f9534a85e89de5e371c8c841a2710f582130711abf9865881ec3618e1429b9",
       "bytes": 7420,
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "sha256": "7d5a0fd035281c4631aae2a8814202cec8d5f3886969f6c1166c56920a65277b",
-      "bytes": 2860,
+      "sha256": "0ea0b0490841d863afa3e3a7b4b9b6ab8e338b13badd89c54de5af66beaccf46",
+      "bytes": 3600,
       "executable": false
     },
     "SUPPORT.md": {
@@ -4273,8 +4273,8 @@
       "executable": false
     },
     "engines/CivSwitchLDN/README.md": {
-      "sha256": "c1b7fbee8bb934a7f4430285946704011da9267a980e006902c6fe91660c1dc8",
-      "bytes": 6268,
+      "sha256": "642be6cde4bbd7c09e2353d90ef57b685eed375a04cfa73ad9f48a42f064200a",
+      "bytes": 6621,
       "executable": false
     },
     "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md": {
@@ -4433,8 +4433,8 @@
       "executable": false
     },
     "engines/CivSwitchLDN/session.cjs": {
-      "sha256": "2d9bb369c8a4814133997b2a4810bfdaba23e0e49897f7c55f6f008749407397",
-      "bytes": 19001,
+      "sha256": "738e94cc344edbf1c4d68e494a8d2c3aebee366985070a43025e0612d835e77e",
+      "bytes": 19095,
       "executable": false
     },
     "engines/CivSwitchLDN/setup.cjs": {
@@ -5563,8 +5563,8 @@
       "executable": true
     },
     "language/en/ui.json": {
-      "sha256": "397c24d81c3d60fd0e3f3a5c3d68af5dc7c1a9185bcf0ffa5af1a7cc331cfbd0",
-      "bytes": 167559,
+      "sha256": "29715487580b09110c1728dc9467f578021d2c237714d91a346ce9b8cc6b0975",
+      "bytes": 168059,
       "executable": false
     },
     "language/error-text.js": {
@@ -5573,8 +5573,8 @@
       "executable": false
     },
     "language/es/ui.json": {
-      "sha256": "1a787c155199af12df6ce88310818917889afb3b991347c6e60c43b52f5ab6d7",
-      "bytes": 167102,
+      "sha256": "49084c5cd6ee0f9b02e6bef0a5148e66f07aa226e12b84d74694fc4c913d4819",
+      "bytes": 167655,
       "executable": false
     },
     "language/fonts/DejaVuSans-Bold.ttf": {
@@ -5653,8 +5653,8 @@
       "executable": false
     },
     "language/ru/ui.json": {
-      "sha256": "262f37d5ccb29b6b50756ea97c156cd337f472115595a15246871f4418d459fa",
-      "bytes": 281864,
+      "sha256": "ac2e1358b6b93ffc65442e622ff0c0323a1b2003649942ee5a196c7133d90990",
+      "bytes": 282600,
       "executable": false
     },
     "language/runtime.js": {
@@ -5673,8 +5673,8 @@
       "executable": false
     },
     "language/zh/ui.json": {
-      "sha256": "35d456885cb442a818d82ad4085423eeec182fe48cdf5207833ecc5d92520a73",
-      "bytes": 154110,
+      "sha256": "4c74c0340913810d01d21bed5b591a771d738b188484231bb4240b8ef1352e32",
+      "bytes": 154594,
       "executable": false
     },
     "modules/BookReader/FORMAT.md": {
@@ -5903,7 +5903,7 @@
       "executable": false
     },
     "modules/README.md": {
-      "sha256": "210988fc7eef3a9ec2e5b9f52e65d90f915d3bd4f435e4b503666509b21cc424",
+      "sha256": "e82d37e66d6c386f9e84e02480ce0fcd58bd12d5223a2404eaacb0ace0815054",
       "bytes": 1210,
       "executable": false
     },
@@ -6318,22 +6318,22 @@
       "executable": false
     },
     "modules/izpsx/README.md": {
-      "sha256": "e1678af4b15c025ca4645235d7e118039f64911ba2e32f9155f1446ab5d62a45",
-      "bytes": 1713,
+      "sha256": "03f50ce9aaf45988f47814c777d51edbb824f2b210523eab3265c68b4b5a68b7",
+      "bytes": 1712,
       "executable": false
     },
     "modules/izpsx/checksums.json": {
-      "sha256": "a8d03a99b9e50b7aaeb12c9c78429e1549d7100a3ad8a79d0659111ae4e01f9e",
+      "sha256": "e45f8e6c75baa48918ed51c5933fdc51f24b2e587dcdcd4811fd821560f6468e",
       "bytes": 2254,
       "executable": false
     },
     "modules/izpsx/izpsx.izm": {
-      "sha256": "f97b9ba9b8f92f9adcdbfba972242b65b8f8c684b8e09a6133d7be7e2cfd719f",
-      "bytes": 617937,
+      "sha256": "0c00f2e06d1b685fb45dbfd6ab9cd6b17df3b97dca1805652493b89af9a4c238",
+      "bytes": 617662,
       "executable": false
     },
     "modules/izpsx/module.json": {
-      "sha256": "1688efb0ad94b5160f0dd68808f45188f1df83d1784ad5b8c25a91d460859cfc",
+      "sha256": "a048b54a197a216b834fe3917b8d07b32651b24f9ad6b49034b25da2dc982fbb",
       "bytes": 1075,
       "executable": false
     },
@@ -6393,7 +6393,7 @@
       "executable": false
     },
     "modules/izpsx/switch/app.json": {
-      "sha256": "2eaae8d2cfea1c282811b8ebb477d5d165dc45b4a0c21e0921b8b0f4168d6dc8",
+      "sha256": "97b98e81ef94978e963125dff8c9bf613cfc178076648c703998ff0befcbdb13",
       "bytes": 1131,
       "executable": false
     },
@@ -6412,13 +6412,13 @@
       "bytes": 20911,
       "executable": false
     },
-    "modules/izpsx/switch/native/asset-0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997.izdata": {
-      "sha256": "0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997",
-      "bytes": 1748064,
+    "modules/izpsx/switch/native/asset-f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e.izdata": {
+      "sha256": "f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e",
+      "bytes": 1748288,
       "executable": false
     },
     "modules/izpsx/switch/native/shim.bin": {
-      "sha256": "7ead33827bb123e1b3da8b9350a8f37654ead443582f21e97b5141b3bb21602d",
+      "sha256": "a93d2e809c23d4f18e5302d704adcb7fa3087553aebfc6c833a9fa1bcc5ecfe5",
       "bytes": 11776,
       "executable": false
     },
@@ -6493,8 +6493,8 @@
       "executable": false
     },
     "panel/ui/civswitch.js": {
-      "sha256": "d97d209eaf4b7701d5e8bdac6f833c63574b4a30c19c34635a480ce5322db288",
-      "bytes": 36213,
+      "sha256": "18da4316ace81302d6fe85cb42cf4003e963883b270497354eca6e77d21e810b",
+      "bytes": 37831,
       "executable": false
     },
     "panel/ui/icon.svg": {
@@ -6508,8 +6508,8 @@
       "executable": false
     },
     "panel/ui/panel.html": {
-      "sha256": "9c63b8876ce8d9b1ac1fa5850cf1110975c0627119b646a3ccf156bcd734e484",
-      "bytes": 55701,
+      "sha256": "312ec192ff07507b697c97c873e174184be194728ab702fc06c89c4e4ab4997f",
+      "bytes": 55863,
       "executable": false
     },
     "panel/ui/presentation.js": {
@@ -6538,8 +6538,8 @@
       "executable": false
     },
     "panel/ui/style.css": {
-      "sha256": "c4c31c0adbd0f7f740e7cfde141ffad437e144a6b5060d8286e99d94b2aa74a2",
-      "bytes": 162692,
+      "sha256": "43f8acb94fa48db8980ae76ddc92bceb2f3dc14d632f02e96d0c96df1b497a19",
+      "bytes": 162942,
       "executable": false
     },
     "panel/upstream-session.cjs": {
@@ -8033,7 +8033,7 @@
       "executable": false
     },
     "sources/izpsx/.github/workflows/check.yml": {
-      "sha256": "e6eaeca82839bb032f74c0e66dbcd4f71e17848f557e1c76a1434814b1b6a312",
+      "sha256": "0dfd4220c42a1735a88ee8a4d37badb065cc366fa81e5dfd091d6943769e6247",
       "bytes": 907,
       "executable": false
     },
@@ -8043,17 +8043,17 @@
       "executable": false
     },
     "sources/izpsx/BUILDING.md": {
-      "sha256": "117aca47af79495cfae8be73a587e481cced9657298627ff4a0879d33d31a46a",
-      "bytes": 3010,
+      "sha256": "946920b1d592acdc4a153a267336c991c714a199b843278597e27f0f76322c41",
+      "bytes": 3313,
       "executable": false
     },
     "sources/izpsx/CHANGELOG.md": {
-      "sha256": "dde457411006bdbf59cc0e63aa019e7ad7a0cc16c08655640410c538156f8f1b",
-      "bytes": 872,
+      "sha256": "fbde0c0c67a38f82944659bbcc8eadd5a56ade8fce39a1b415694dafe54baff9",
+      "bytes": 1151,
       "executable": false
     },
     "sources/izpsx/COMPATIBILITY.md": {
-      "sha256": "0fe42258baa8d971796e2908fe579e039f833ccce3025a3015d9420068827879",
+      "sha256": "8854cfbaf5d1f0b5164f875cfeb4917f5b0c4b6ef856f78a19b640e0efa9ef77",
       "bytes": 1164,
       "executable": false
     },
@@ -8063,8 +8063,8 @@
       "executable": false
     },
     "sources/izpsx/FAQ.md": {
-      "sha256": "a317f70882c16654e68cb9bdec793f17f57c4a5b26b3c2df93d72aff9390878f",
-      "bytes": 2981,
+      "sha256": "884cc5aeae0d01f886f8fd951d84f368fb36f5008240cfbd890a4752e1fac798",
+      "bytes": 3241,
       "executable": false
     },
     "sources/izpsx/FONT-LICENSE.txt": {
@@ -8078,8 +8078,8 @@
       "executable": false
     },
     "sources/izpsx/README.md": {
-      "sha256": "2944f5b0770dd7056f82b1518d0ed5dfa19a24ddc90925250139ada6931df4fa",
-      "bytes": 5361,
+      "sha256": "d58373547309a485f7c1bfc5ee3ba9b868d702a73bd7992273e462da2a74c069",
+      "bytes": 11782,
       "executable": false
     },
     "sources/izpsx/THIRD_PARTY.md": {
@@ -8122,6 +8122,21 @@
       "bytes": 8579,
       "executable": false
     },
+    "sources/izpsx/docs/images/controller-profiles.png": {
+      "sha256": "48da2f1fcfc6d24fd81b1a713333e89289ce2f5b2b35fe56e08f16741eeadedd",
+      "bytes": 19189,
+      "executable": false
+    },
+    "sources/izpsx/docs/images/pause-menu.png": {
+      "sha256": "bbc03a8b576568c9c9e869761f77f0e4187e094dff99a0f72fef47d6ae519140",
+      "bytes": 12156,
+      "executable": false
+    },
+    "sources/izpsx/docs/images/provenance.json": {
+      "sha256": "23cff6d6ff1f5e4cdac87c26ac60269904ec0f61b05a959226d69384f33c46a8",
+      "bytes": 1038,
+      "executable": false
+    },
     "sources/izpsx/launch-options.cjs": {
       "sha256": "274adc3bd067a40f32321db94fa77d0a70b9d9d9f26d6df3299e9954e8f9d166",
       "bytes": 1182,
@@ -8138,17 +8153,17 @@
       "executable": false
     },
     "sources/izpsx/module/README.md": {
-      "sha256": "e1678af4b15c025ca4645235d7e118039f64911ba2e32f9155f1446ab5d62a45",
-      "bytes": 1713,
+      "sha256": "03f50ce9aaf45988f47814c777d51edbb824f2b210523eab3265c68b4b5a68b7",
+      "bytes": 1712,
       "executable": false
     },
     "sources/izpsx/module/checksums.json": {
-      "sha256": "a8d03a99b9e50b7aaeb12c9c78429e1549d7100a3ad8a79d0659111ae4e01f9e",
+      "sha256": "e45f8e6c75baa48918ed51c5933fdc51f24b2e587dcdcd4811fd821560f6468e",
       "bytes": 2254,
       "executable": false
     },
     "sources/izpsx/module/module.json": {
-      "sha256": "1688efb0ad94b5160f0dd68808f45188f1df83d1784ad5b8c25a91d460859cfc",
+      "sha256": "a048b54a197a216b834fe3917b8d07b32651b24f9ad6b49034b25da2dc982fbb",
       "bytes": 1075,
       "executable": false
     },
@@ -8208,7 +8223,7 @@
       "executable": false
     },
     "sources/izpsx/module/switch/app.json": {
-      "sha256": "2eaae8d2cfea1c282811b8ebb477d5d165dc45b4a0c21e0921b8b0f4168d6dc8",
+      "sha256": "97b98e81ef94978e963125dff8c9bf613cfc178076648c703998ff0befcbdb13",
       "bytes": 1131,
       "executable": false
     },
@@ -8227,13 +8242,13 @@
       "bytes": 20911,
       "executable": false
     },
-    "sources/izpsx/module/switch/native/asset-0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997.izdata": {
-      "sha256": "0af56071e4aa34fe3b4e48670b1696a122d1583747bb5764ea600ea7a90bf997",
-      "bytes": 1748064,
+    "sources/izpsx/module/switch/native/asset-f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e.izdata": {
+      "sha256": "f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e",
+      "bytes": 1748288,
       "executable": false
     },
     "sources/izpsx/module/switch/native/shim.bin": {
-      "sha256": "7ead33827bb123e1b3da8b9350a8f37654ead443582f21e97b5141b3bb21602d",
+      "sha256": "a93d2e809c23d4f18e5302d704adcb7fa3087553aebfc6c833a9fa1bcc5ecfe5",
       "bytes": 11776,
       "executable": false
     },
@@ -8248,7 +8263,7 @@
       "executable": false
     },
     "sources/izpsx/package.json": {
-      "sha256": "087ccc2ca5232e1075ca1a13ac31e6f22d989a5aebc7bc071e46e7142ce0a35b",
+      "sha256": "10208f26f72631ff6fbbb852b824637484091247dc5904214476a5c64acdfcc4",
       "bytes": 466,
       "executable": false
     },
@@ -8333,7 +8348,7 @@
       "executable": false
     },
     "sources/izpsx/src/brand.h": {
-      "sha256": "385791038286b97d8b97493c6179518721b13422dafd042641d31c22394229cd",
+      "sha256": "8455c81d087418652e9980ba301d5e5be9c9bee5383a62a3472d1991192dea7d",
       "bytes": 272,
       "executable": false
     },
@@ -8678,18 +8693,28 @@
       "executable": false
     },
     "sources/izpsx/tools/build-native.py": {
-      "sha256": "ac7e9ed8da5e2b87a522260b3f2ac0aae040ee823de10cebaa5a037014b8fdb6",
-      "bytes": 9285,
+      "sha256": "f4da3c4823e57b39f3353efc8f8e0e3c9de88c5bcaebe37c0241506215fb2ea2",
+      "bytes": 9939,
       "executable": false
     },
     "sources/izpsx/tools/build-package.py": {
-      "sha256": "c4364b577c42191441dfbb5e3b1d07f2c6fc40f574e803957c98b1151206c23b",
-      "bytes": 5148,
+      "sha256": "602612c38cab76c82d39f0937975dbfcbead6a76fe7a12dbe964e5ba59dd9490",
+      "bytes": 5147,
       "executable": false
     },
     "sources/izpsx/tools/build-sd.py": {
-      "sha256": "abc1735f99c2324fa269ff6204c6c281098b5677d04a696e65abb59cb81db32e",
-      "bytes": 9614,
+      "sha256": "04a10ff69e8b431d548411bb3380580a27a240f6950be37db7ab6c17e64d3053",
+      "bytes": 9663,
+      "executable": false
+    },
+    "sources/izpsx/tools/check-native-menu.c": {
+      "sha256": "85be2abc02c68dd0eed24f0efde8f1890b8158a3ac0515fa9de55aab1e5080f4",
+      "bytes": 5810,
+      "executable": false
+    },
+    "sources/izpsx/tools/check-pause-menu.c": {
+      "sha256": "3b1ccee96ec49c2b89f9ddfb3af8d7f42abcb40214b4dd7746d51420569c2bbe",
+      "bytes": 5051,
       "executable": false
     },
     "sources/izpsx/tools/host.c": {
@@ -8703,18 +8728,23 @@
       "executable": false
     },
     "sources/izpsx/tools/package-sd.cjs": {
-      "sha256": "1a214f4d4090d08e726307af2fa3c28ecabc878759f252921c2c6168336a3b3a",
-      "bytes": 2406,
+      "sha256": "f22fa95e8b89b03185e42fa99ff02b26ae908443e7a4a51d3a775dac8dbb4c80",
+      "bytes": 2984,
       "executable": false
     },
     "sources/izpsx/tools/package.cjs": {
-      "sha256": "78d55d1a9e4175a0389ca3fa05a599661d08f1e65c3df1d4491e013ac52bc34a",
-      "bytes": 2380,
+      "sha256": "08fc112591d2340df39505b37112bf4798d474d759d28e402088ebe676f8dc5a",
+      "bytes": 2524,
       "executable": false
     },
     "sources/izpsx/tools/release.py": {
-      "sha256": "687cac172586765786f19fc3c2fb2b42d14c67f60d453b98ae6e51ec62711ff2",
-      "bytes": 3769,
+      "sha256": "2dcc7ee844ca4eda12e63ca68c275a31d5c4cd3c2c6bdfe33a6f37ab32d9665a",
+      "bytes": 3776,
+      "executable": false
+    },
+    "sources/izpsx/tools/screenshots.py": {
+      "sha256": "20d3c65d8c4e4e5cd5fd41ba443e9bddbc3b388366130bae01c6f27d7a8aa287",
+      "bytes": 1567,
       "executable": false
     },
     "sources/izpsx/vendor/pcsx_rearmed/.github/ISSUE_TEMPLATE/report.yml": {
