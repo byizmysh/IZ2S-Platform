@@ -1,4 +1,4 @@
-# IZ2S Platform 0.25
+# IZ2S Platform 0.25.1
 
 IZ2S is a Homebrew launcher for Nintendo Switch.
 
@@ -6,8 +6,8 @@ IZ2S is a Homebrew launcher for Nintendo Switch.
 
 | System | File |
 | --- | --- |
-| Linux x64 / ARM64 | [IZ2S-Platform-0.25-linux.tar.gz](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/IZ2S-Platform-0.25-linux.tar.gz) |
-| Windows x64 | [IZ2S-Platform-0.25-windows-x64.zip](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/IZ2S-Platform-0.25-windows-x64.zip) |
+| Linux x64 / ARM64 | [IZ2S-Platform-0.25.1-linux.tar.gz](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.1/IZ2S-Platform-0.25.1-linux.tar.gz) |
+| Windows x64 | [IZ2S-Platform-0.25.1-windows-x64.zip](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.1/IZ2S-Platform-0.25.1-windows-x64.zip) |
 
 Extract the entire archive before installation. Use these installation packages rather than GitHub's automatic **Source code** downloads.
 
@@ -27,14 +27,15 @@ Install.cmd
 
 The installer prepares the required PC dependencies, creates shortcuts with the IZ2S icon and opens the panel. For later launches, use the shortcut; Windows also provides `Start.vbs` for startup without a console window.
 
-## Changes
+## Fixes in 0.25.1
 
-- Separate Linux and Windows installation packages with automatic panel startup.
-- Updated device selection for Switch 1, Cardputer ADV and ARM PC.
-- Windows Switch 1 setup uses an SD package with IZ2S SB4 Keyboard and pairing configuration.
-- Automatic network discovery, console file tools, and the integrated application library.
-- IZ2S Cheese replaces the previous Store name; Foldrift provides the SD file manager.
-- Console FTP uses **port 1425 by default**.
+- FIX: Automatically choose the PC network address from the Switch 2 LAN/Wi-Fi path. A Switch 1 keyboard on Wi-Fi no longer redirects a LAN launch to the PC's Wi-Fi address.
+- Added **Restart** after a failed, interrupted or stopped First Setup attempt. It returns to Preparation, clears the form confirmations and keeps the previous attempt in the log history.
+- First Setup waits for USB keyboard readiness from Switch 1, Cardputer ADV or ARM PC before enabling source entry.
+- A manually confirmed USB cable shows a waiting state until the device reports that its keyboard is ready.
+- If the keyboard rejects input before typing begins, the panel shows **Input did not start** and a specific USB message in the selected language.
+- Added a specific diagnostic for local IPC socket errors reported as `listen EACCES ... .sock`.
+- Added the **Make a Program** navigation hint to First Setup in English, Russian, Spanish and Chinese.
 
 ## Included applications
 
@@ -49,4 +50,4 @@ The installer prepares the required PC dependencies, creates shortcuts with the 
 
 Install applications through **App library**. BIOS and game images are not included. Linux is required for the BlitBun/VacooTube PC media services and Civilization VII Wi-Fi setup.
 
-[Full installation guide](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.0/README.md) · [Authors and licenses](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.0/AUTHORS.md) · [Source information](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.0/SOURCES.md) · [SHA-256 checksums](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/SHA256SUMS.txt)
+[Full installation guide](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.1/README.md) · [Authors and licenses](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.1/AUTHORS.md) · [Source information](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.1/SOURCES.md) · [SHA-256 checksums](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.1/SHA256SUMS.txt)

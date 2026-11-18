@@ -198,8 +198,8 @@
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "bytes": 2481,
-      "sha256": "f18e5675c670994bebb5135bfd112d63e8af2eff7813c776c1317be92f711667",
+      "bytes": 2968,
+      "sha256": "7653540dc6c07f0375bfae8313833f1d1955898af8536a74ea92277f0f701cd0",
       "executable": false
     },
     "SOURCES.md": {
@@ -2008,8 +2008,8 @@
       "executable": false
     },
     "core/session/connections.cjs": {
-      "bytes": 14925,
-      "sha256": "e3cb459dbd96686f706366e13fb42ce3bd4c311c4d3bbc5e90b4587fe94efecb",
+      "bytes": 15333,
+      "sha256": "abcfcb59a2c4ccb75dc7ecd1bbded8214cfe5831c91b9663149965eda0893b5b",
       "executable": false
     },
     "core/session/desktop-shutdown.cjs": {
@@ -2289,17 +2289,17 @@
     },
     "distribution/published-assets.json": {
       "bytes": 474,
-      "sha256": "7acc5a191ec7c9c9c9913740d6cfb08a1d064331b4a494a0ddb821d23ac98579",
+      "sha256": "81e66db6109a27f7a17078600f742ca7f85d6c0b69e40799af8d74a619283c69",
       "executable": false
     },
     "distribution/release-inventories/linux.json": {
       "bytes": 553295,
-      "sha256": "dd6789d6673e9f44d96cbeffe5d4d9bc511882a0f9523d6a661e6deb3200258f",
+      "sha256": "a06d2df7d8ef8a2f0f568b2de95e21bf3a0dc9b54a97d1ab9edd4ef735b23708",
       "executable": false
     },
     "distribution/release-inventories/windows-x64.json": {
       "bytes": 392533,
-      "sha256": "e5eb8e1274f8ce2d995c381b568011ff130dcb33dc746ac59726a7e22820c240",
+      "sha256": "5ca77d2dd6fd4db40fe4b1ebabbae9c03f75f164f295c0fccb3bb684a0b6f566",
       "executable": false
     },
     "distribution/release.py": {

@@ -4,14 +4,14 @@
   "assets": [
     {
       "archive": "IZ2S-Platform-0.25.1-linux.tar.gz",
-      "bytes": 348808540,
-      "sha256": "6f21ceb5a8af8acfa3e33983893e09de770eca7025bc5af65e861dfbada79c9f",
+      "bytes": 348807954,
+      "sha256": "23987b3bc69b5e808239c9a024ddad7357d03a70124e73fe90a65fc39573bc7d",
       "target": "linux"
     },
     {
       "archive": "IZ2S-Platform-0.25.1-windows-x64.zip",
-      "bytes": 99521079,
-      "sha256": "11b2e81b464e55b7fea29b5cef06efd56b395f3e55d7edfab93db61dc2703cda",
+      "bytes": 99521209,
+      "sha256": "8a45f9f56678613244146deee83e771f8afcb989f5cd1b114d0175476c23c0ad",
       "target": "windows-x64"
     }
   ]

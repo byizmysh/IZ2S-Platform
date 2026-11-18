@@ -1793,8 +1793,8 @@
       "executable": false
     },
     "core/session/connections.cjs": {
-      "bytes": 14925,
-      "sha256": "e3cb459dbd96686f706366e13fb42ce3bd4c311c4d3bbc5e90b4587fe94efecb",
+      "bytes": 15333,
+      "sha256": "abcfcb59a2c4ccb75dc7ecd1bbded8214cfe5831c91b9663149965eda0893b5b",
       "executable": false
     },
     "core/session/desktop-shutdown.cjs": {

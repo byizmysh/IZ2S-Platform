@@ -82,9 +82,7 @@ async function createConnections({
   }
   function automaticHost(mode) {
     const candidates = hosts.filter((h) => h.mode === mode);
-    const target =
-      preferences.lan.addresses[selectedMode('lan')] ||
-      modeAddress('arm', selectedMode('arm')) || inputAddress;
+    const target = consoleTarget();
     return (
       candidates.find(
         (h) => target && network.sameSubnet(h.address, target, h.netmask),
@@ -92,6 +90,13 @@ async function createConnections({
       candidates.find((h) => h.name === defaultDevice) ||
       candidates[0]
     );
+  }
+  function consoleTarget() {
+    const mode = selectedMode('lan');
+    return preferences.lan.addresses[mode] ||
+      consolePaths.find(path => path.ready && path.mode === mode)?.address ||
+      peers.find(peer => peer.kind === 'console' && peer.mode === mode)?.address ||
+      consoleHistory.find(row => row.mode === mode)?.address || '';
   }
   function selectedMode(id) {
     const pref = preferences[id];
@@ -104,13 +109,15 @@ async function createConnections({
     const choices =
       id === 'server' ? hosts : peers.filter((p) => p.kind === 'input');
     if (id === 'server') {
-      const target =
-        preferences.lan.addresses[selectedMode('lan')] ||
-        modeAddress('arm', selectedMode('arm')) || inputAddress;
+      // The input keyboard can be on Wi-Fi while Switch 2 uses LAN.
+      // Select the server interface from the console path, not the keyboard.
+      const target = consoleTarget();
       const matching = choices.find(
         (h) => target && network.sameSubnet(h.address, target, h.netmask),
       );
       if (matching) return matching.mode;
+      const consoleMode = selectedMode('lan');
+      if (choices.some((h) => h.mode === consoleMode)) return consoleMode;
       if (choices.some((h) => h.name === defaultDevice))
         return choices.find((h) => h.name === defaultDevice).mode;
     }
