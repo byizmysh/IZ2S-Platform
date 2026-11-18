@@ -12,6 +12,20 @@ IZ2S is a Homebrew launcher for Nintendo Switch.
 
 Use the installation archives above. GitHub's automatic **Source code** downloads are for development, not the packaged installers.
 
+## Screenshots
+
+### IZ2S Platform panel
+
+![IZ2S Platform 0.25 App library in English](docs/images/iz2s-panel-0.25.png)
+
+The App library in Preview mode, showing the six bundled applications.
+
+### IZ2S console launcher
+
+![IZ2S 0.25 launcher showing the SD library and FTP shortcut](docs/images/iz2s-launcher-0.25.png)
+
+The 0.25 launcher rendered with an example SD library containing the bundled applications.
+
 ## Before installation
 
 Extract the entire archive into a new folder. Keep the folder structure intact. Installation creates a separate per-user copy; do not extract over an existing installation. Network access is required when the installer needs to download host dependencies.

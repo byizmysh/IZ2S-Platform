@@ -193,8 +193,8 @@
       "executable": false
     },
     "README.md": {
-      "bytes": 10916,
-      "sha256": "4159ca3c18939368ca1fa3695d61c1f7b471c0b920ef01b3714b35782ae84472",
+      "bytes": 11326,
+      "sha256": "da3ba69a189c1ff95dbf05f35ddbc03095ee5033b7af1ba3efdcb4b16663c56e",
       "executable": false
     },
     "RELEASE-NOTES.md": {
@@ -2335,6 +2335,16 @@
     "distribution/verify.cjs": {
       "bytes": 2097,
       "sha256": "8462949989cbf45850ae07df1bc1bafa93ead4c26639d1526d1f57a230e0d069",
+      "executable": false
+    },
+    "docs/images/iz2s-launcher-0.25.png": {
+      "bytes": 881195,
+      "sha256": "c600ee9d28116f614ea77fd3a4eb3940a3a398e3210479e244daf4a64791e1db",
+      "executable": false
+    },
+    "docs/images/iz2s-panel-0.25.png": {
+      "bytes": 253757,
+      "sha256": "515695027bec9d7def2bd404b9a93e3b4ccffe613e9673d7a245b868656a0969",
       "executable": false
     },
     "engines/CivSwitch/.gitattributes": {
