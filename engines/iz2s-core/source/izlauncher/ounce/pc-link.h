@@ -9,7 +9,9 @@ enum IzPcDelivery {
     IZ_PC_UPDATE_REQUIRED, IZ_PC_IMPORT_REPORTED, IZ_PC_TRANSFER_REPORTED
 };
 uint32_t iz_pc_start(void);
-uint32_t iz_pc_read_key(uint8_t key[32]);
+void iz_pc_pause(void);
+bool iz_pc_enabled(void);
+uint32_t iz_pc_open_sockets(void);
 bool iz_pc_peer_allowed(uint32_t address);
 uint32_t iz_pc_routed_address(void);
 bool iz_pc_fetch(void);
@@ -28,3 +30,4 @@ uint32_t iz_pc_video_open(uint32_t source,uint64_t *token);
 uint32_t iz_pc_video_update(struct IzNativeApp *app,uint64_t token);
 uint32_t iz_pc_video_close(struct IzNativeApp *app,uint64_t token);
 void iz_pc_close(void);
+uint32_t iz_pc_read_key(uint8_t key[32]);

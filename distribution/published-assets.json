@@ -1,17 +1,17 @@
 {
-  "version": "0.25.1",
-  "tag": "v0.25.1",
+  "version": "0.25.2",
+  "tag": "v0.25.2",
   "assets": [
     {
-      "archive": "IZ2S-Platform-0.25.1-linux.tar.gz",
-      "bytes": 348807954,
-      "sha256": "23987b3bc69b5e808239c9a024ddad7357d03a70124e73fe90a65fc39573bc7d",
+      "archive": "IZ2S-Platform-0.25.2-linux.tar.gz",
+      "bytes": 348791531,
+      "sha256": "6b2e9fe25df768c8fce41aa681949a14cbf72e395547489d0a43a9a20eae54d8",
       "target": "linux"
     },
     {
-      "archive": "IZ2S-Platform-0.25.1-windows-x64.zip",
-      "bytes": 99521209,
-      "sha256": "8a45f9f56678613244146deee83e771f8afcb989f5cd1b114d0175476c23c0ad",
+      "archive": "IZ2S-Platform-0.25.2-windows-x64.zip",
+      "bytes": 99532908,
+      "sha256": "8fcef3ac32d94da2b4f3053c44f438dc5963ab6fb4fe9d70f0fb5bd1bcf16b68",
       "target": "windows-x64"
     }
   ]

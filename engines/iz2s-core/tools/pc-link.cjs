@@ -31,6 +31,9 @@ const INTERRUPTED_MENU_TRIAL = 0xea13;
 const MENU_FAILURE_LIMIT = 16;
 const MENU_VERSION_ID = /^[a-f0-9]{32}$/;
 const PLATFORM_ROOT = path.resolve(__dirname,'../../..');
+// A public framing tag shared with the Switch runtime. No pairing file is
+// generated or required; the console user opens the channel with R + L3.
+const OPEN_CHANNEL_TAG=createHash('sha256').update('IZ2S PC Link open channel v1').digest();
 
 async function storeCatalog(){
   const {modules}=await require('../../../core/modules.cjs').list(PLATFORM_ROOT);
@@ -62,16 +65,6 @@ function storeRows(apps){
   });
   return buf;
 }
-async function keyFile(folder) {
-  await fs.mkdir(folder,{recursive:true,mode:0o700});
-  const file = path.join(folder,'pc-link.key');
-  try { await fs.writeFile(file,randomBytes(32),{flag:'wx',mode:0o600}); }
-  catch (error) { if(error.code!=='EEXIST')throw error; }
-  const secret = await fs.readFile(file);
-  assert.equal(secret.length,32,'Invalid local PC link key');
-  return {file,secret};
-}
-
 async function prepareDelivery(image,bundleFiles) {
   const temporary = path.join(runtime.output(), 'tmp');
   await fs.mkdir(temporary, {recursive:true});
@@ -794,7 +787,7 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
 
 async function main(){
   await require('../../../core/platform/core-migration.cjs').migrate(PLATFORM_ROOT);
-  const {secret}=await keyFile(DEFAULT_FOLDER);
+  const secret=OPEN_CHANNEL_TAG;
   async function readConnection(){
     const file=path.join(DEFAULT_FOLDER,'connection.json');
     const config=await fs.readFile(file,'utf8').then(JSON.parse).catch(error=>{
@@ -832,4 +825,4 @@ async function main(){
 }
 
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
-module.exports={bridge,keyFile,DEFAULT_FOLDER,MAX_IMAGE,MAX_PACKAGE};
+module.exports={bridge,OPEN_CHANNEL_TAG,DEFAULT_FOLDER,MAX_IMAGE,MAX_PACKAGE};

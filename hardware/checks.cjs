@@ -91,8 +91,13 @@ async function create({
         const found=configuration.inputDiscovery;
         input.address=found.address;input.pairingRequired=found.pairingRequired;
         input.networkReachable=found.networkReachable;
-        if(found.pairingRequired&&found.networkReachable){
-          input.detail='Device found on the network. Pairing key is missing or was not accepted.';
+        if(found.ambiguous||found.incomplete){
+          input.ready=false;input.status='setup';
+          input.detail=found.ambiguous?'Several addresses match this input device. Choose the address shown on your device.':
+            'Automatic detection was incomplete. Enter the address shown on your device.';
+          if(usb){usb.ready=false;usb.status='waiting';usb.detail='Choose an input device address before checking USB.';}
+        }else if(found.pairingRequired&&found.networkReachable){
+          input.detail='The address responded, but pairing could not be verified. Check the address or prepare the pairing package.';
           if(usb)usb.detail='Pair the input device to read its USB status.';
         }
       }

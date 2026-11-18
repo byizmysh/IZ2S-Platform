@@ -89,6 +89,7 @@ async function inspectConsolePaths({
       observedMode: connections?.observed('lan'),
     },
   ];
+  const serverPaths = connections?.snapshot().devices?.server?.paths || [];
   const paths = await Promise.all(
     candidates.map(async (candidate) => {
       const { address, mode, observedMode } = candidate,
@@ -122,13 +123,14 @@ async function inspectConsolePaths({
           );
         const route = await routeLookup(address);
         if (!route?.dev || route.dev === 'lo') throw Error('No route to the console');
-        if (hostInterface && route.dev !== hostInterface)
+        if (route.dev !== hostInterface && !serverPaths.some(path => path.address && path.address === route.address))
           throw Error('Server and console are on different networks');
         return {
           ...candidate,
           ready: true,
           pending: true,
           verification: 'route-only',
+          localAddress: route.address || settings.consoleHost,
           latencyMs: null,
           checkedAt: Date.now(),
           durationMs: Date.now() - start,
@@ -160,7 +162,7 @@ async function inspectConsolePaths({
   return {
     ...active,
     detail: active.pending
-      ? 'Network ready · waiting for Switch to connect to ' + settings.consoleHost +
+      ? 'Network ready · waiting for Switch to connect to ' + (active.localAddress || settings.consoleHost) +
         (active.address ? ' · Switch ' + active.address : '')
       : 'Console connection verified · ' + modeName(active.mode) + ' · ' + active.address,
     paths,
@@ -187,6 +189,7 @@ function createDeviceChecks({
     await connections?.refresh();
     const { modeName } = require('../core/session/connections.cjs'),
       mode = (id) => connections?.mode(id) || 'lan';
+    const serverNeedsChoice = !!connections?.snapshot().devices?.server?.needsChoice;
     const hostInterface = Object.entries(interfaces()).find(([, list]) =>
       list.some((a) => a.address === settings.consoleHost),
     )?.[0];
@@ -214,6 +217,7 @@ function createDeviceChecks({
     const tasks = await Promise.allSettled([
       (async () => {
         await verifyOriginals(root);
+        if (serverNeedsChoice) return null;
         if (!hostInterface)
           throw Error(
             'No active ' + modeName(mode('server')) + ' address on this PC',
@@ -249,26 +253,27 @@ function createDeviceChecks({
       inputSetup ? null : (async () => {
         if (requiresArmAddress && !settings.armAddress && connections)
           throw Error(
-            connections.snapshot().discovery?.ambiguous
-              ? 'Multiple ARM input services found · choose the required address'
+            connections.snapshot().devices.arm.needsChoice
+              ? 'Choose the address of your ARM input device.'
               : 'Set the ARM PC ' +
                   modeName(mode('arm')) +
                   ' address, or install its IZ2S discovery service',
           );
         return arm.inspect();
       })(),
-      inspectConsolePaths({ connections, settings, hostInterface, routeLookup, mode }),
+      serverNeedsChoice ? null : inspectConsolePaths({ connections, settings, hostInterface, routeLookup, mode }),
     ]);
     const host = tasks[0];
-    rows[0].ready = host.status === 'fulfilled';
+    rows[0].ready = host.status === 'fulfilled' && !serverNeedsChoice;
     rows[0].detail =
       host.status === 'fulfilled'
-        ? host.value
+        ? (serverNeedsChoice ? 'Choose the PC network adapter that can reach Switch 2.' : host.value)
         : (
             host.reason.message
               .split('\n')
               .find((s) => s.startsWith('NEED ')) || host.reason.message
           ).replace(/^NEED\s+/, '');
+    if (host.status === 'fulfilled' && serverNeedsChoice) rows[0].status = 'setup';
     const peer = tasks[1];
     if (inputSetup) {
       rows[1].status = 'setup';
@@ -308,19 +313,22 @@ function createDeviceChecks({
           ? 'USB host configured'
           : switchKeyboard ? 'Connect the USB data cable to the Switch 2 dock.' : h.usbState || 'Connect the USB data cable';
     } else {
-      rows[1].detail = peer.reason.message.startsWith('Set the ARM')
+      rows[1].detail = /^(?:Set the ARM|Choose the address of your ARM)/.test(peer.reason.message)
         ? peer.reason.message
         : inputName + ' is not reachable' + (inputAddress ? ' · ' + inputAddress : '');
       rows[2].detail = 'Waiting for ' + inputName;
       rows[2].status = 'waiting';
     }
     const link = tasks[2];
-    rows[3].ready = link.status === 'fulfilled';
-    rows[3].detail =
-      link.status === 'fulfilled' ? link.value.detail : link.reason.message;
-    rows[3].latencyMs =
-      link.status === 'fulfilled' ? link.value.latencyMs : null;
-    rows[3].pending = link.status === 'fulfilled' && !!link.value.pending;
+    if (serverNeedsChoice) {
+      rows[3].status = 'waiting';
+      rows[3].detail = 'Waiting for a PC network adapter.';
+    } else if (link.status === 'fulfilled') {
+      rows[3].ready = true;
+      rows[3].detail = link.value.detail;
+      rows[3].latencyMs = link.value.latencyMs;
+      rows[3].pending = !!link.value.pending;
+    } else rows[3].detail = link.reason.message;
     return {
       at: new Date().toISOString(),
       ready: rows.every((r) => r.ready),

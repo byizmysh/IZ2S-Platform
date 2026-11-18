@@ -1,6 +1,6 @@
 {
   "version": 22,
-  "release": "0.25.1",
+  "release": "0.25.2",
   "consoleHost": "127.0.0.1",
   "consolePort": 39380,
   "panelPort": 39524,

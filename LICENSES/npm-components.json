@@ -695,7 +695,7 @@
   {
     "path": "package.json",
     "name": "iz2s-platform",
-    "version": "0.25.0",
+    "version": "0.25.2",
     "license": "GPL-2.0-or-later",
     "author": null,
     "contributors": null,

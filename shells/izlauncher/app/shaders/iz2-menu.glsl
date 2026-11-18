@@ -117,10 +117,16 @@ const uint CORE_GRID=CORE_LOCAL_ADD+24577u;
 const uint CORE_FTP=CORE_GRID+4u;
 // The native text lives below the legacy bitmap glyphs.
 const uint CORE_FTP_TEXT=CORE_FTP+(1024u*48u-32u)/4u;
-const float CORE_FTP_WIDTH=458.0,CORE_SHORTCUT_GAP=24.0,CORE_STATUS_WIDTH=148.0;
-// Center both shortcuts between Remove and the first pixel of the author credit.
-const float CORE_SHORTCUT_LEFT=(533.0+1389.0-CORE_FTP_WIDTH-CORE_SHORTCUT_GAP-CORE_STATUS_WIDTH)*.5;
-const float CORE_FTP_LEFT=CORE_SHORTCUT_LEFT+CORE_STATUS_WIDTH+CORE_SHORTCUT_GAP;
+const float CORE_FTP_WIDTH=352.0,CORE_SHORTCUT_GAP=16.0,CORE_STATUS_WIDTH=148.0;
+const float CORE_PC_WIDTH=352.0,CORE_NET_GAP=12.0;
+// Keep Status, PC Link and FTP together at the right edge of one footer row.
+float coreShortcutLeft(){
+ return hasPcLinkShortcuts()?1840.0-CORE_STATUS_WIDTH-2.0*CORE_NET_GAP-CORE_PC_WIDTH-CORE_FTP_WIDTH:
+   1840.0-CORE_STATUS_WIDTH-CORE_SHORTCUT_GAP-CORE_FTP_WIDTH;
+}
+float corePcLeft(){return coreShortcutLeft()+CORE_STATUS_WIDTH+CORE_NET_GAP;}
+float coreFtpLeft(){return hasPcLinkShortcuts()?corePcLeft()+CORE_PC_WIDTH+CORE_NET_GAP:
+ coreShortcutLeft()+CORE_STATUS_WIDTH+CORE_SHORTCUT_GAP;}
 bool iz2HasFtpFooter(){
  return c.atlas[CORE_GRID]==0x495a4752u&&c.atlas[CORE_LOCAL_ADD+37289u]==1u;
 }
@@ -160,34 +166,56 @@ vec3 iz2StoreVersion(vec2 cardPoint,vec3 col,uint card){
  return col;
 }
 
+float iz2NetworkChord(vec2 p,bool pc,bool updated){
+ vec2 left=vec2(36,1008),right=vec2(84,1008),plus=(left+right)*.5;
+ float first=updated?max(line(box(p,left,vec2(18,13),7),.9),
+   focusAscii((p-left)/.65,vec2(-8,-9),pc?82u:76u)):rsStickKeycap(p,left,.65,76u);
+ float chord=max(first,rsStickKeycap(p,right,.65,pc?76u:82u));
+ return max(chord,fill(min(stroke(p,plus-vec2(3,0),plus+vec2(3,0)),stroke(p,plus-vec2(0,3),plus+vec2(0,3)))-.65));
+}
+
+void iz2PcFooter(vec2 p,inout vec3 col){
+ if(!hasPcLinkShortcuts()||!rsInlineAllowed()||loadProgressVisible())return;
+ p.x-=corePcLeft();
+ if(p.x< -1.0||p.x>CORE_PC_WIDTH+1.0||abs(p.y-1008.0)>21.0)return;
+ uint state=c.atlas[PC_LINK_MENU+1u]&255u;
+ vec3 accent=state==2u?vec3(.63,.94,.77):state==1u?vec3(.98,.78,.38):vec3(.66,.73,.85);
+ float frame=box(p,vec2(CORE_PC_WIDTH*.5,1008),vec2(CORE_PC_WIDTH*.5,20),13);
+ col=mix(col,accent*.22,fill(frame)*.90);
+ col=mix(col,accent,line(frame,.65)*.65);
+ col=mix(col,accent,iz2NetworkChord(p,true,true));
+ const uint label[12]=uint[12](80u,67u,32u,76u,73u,78u,75u,0u,0u,0u,0u,0u);
+ float ink=rsType(p,vec2(124,1008-9*.56),label,.56);
+ col=mix(col,accent,ink);
+}
+
 void iz2FtpFooter(vec2 p,inout vec3 col){
- p.x-=CORE_FTP_LEFT;
+ p.x-=coreFtpLeft();
  if(p.x< -1.0||p.x>=CORE_FTP_WIDTH+2.0||p.y<987.0||p.y>=1029.0||
     !rsInlineAllowed()||loadProgressVisible())return;
  uint ftp=c.atlas[CORE_GRID+3u];
  vec2 halfSize=vec2(CORE_FTP_WIDTH*.5,20);
  float frame=box(p,vec2(halfSize.x,1008),halfSize,13);
  vec3 border=vec3(.52,.77,.65);
- vec3 tint=mix(vec3(.16,.32,.30),vec3(.20,.40,.34),clamp(p.x/CORE_FTP_WIDTH,0.0,1.0));
+ vec3 tint=mix(vec3(.14,.28,.24),vec3(.18,.35,.29),clamp(p.x/CORE_FTP_WIDTH,0.0,1.0));
  if(ftp==1u)tint+=vec3(.025,.045,.020);
  col=mix(col,tint,fill(frame)*.90);
  col=mix(col,border,line(frame,.65)*.70);
 
- vec2 left=vec2(36,1008),right=vec2(84,1008),plus=(left+right)*.5;
+ vec2 left=vec2(36,1008),right=vec2(84,1008);
  float keys=max(fill(box(p,left,vec2(18,13),7)),fill(box(p,right,vec2(18,13),7)));
  col=mix(col,vec3(.09,.21,.19),keys*.68);
- float chord=max(rsStickKeycap(p,left,.65,76u),rsStickKeycap(p,right,.65,82u));
- chord=max(chord,fill(min(stroke(p,plus-vec2(3,0),plus+vec2(3,0)),stroke(p,plus-vec2(0,3),plus+vec2(0,3)))-.65));
+ float chord=iz2NetworkChord(p,false,hasPcLinkShortcuts());
  col=mix(col,vec3(.77,.92,.83),chord);
- col=mix(col,border,fill(box(p,vec2(114,1008),vec2(.55,9),0))*.45);
+ col=mix(col,border,fill(box(p,vec2(108,1008),vec2(.55,9),0))*.45);
 
- if(p.x<128.0)return;
- const float scale=.65;
- vec2 q=(p-vec2(128,1008-9*scale))/scale;
+ if(p.x<118.0)return;
+ const float scale=.48;
+ vec2 q=(p-vec2(118,1008-9*scale))/scale;
  const uint enable[12]=uint[12](69u,78u,65u,66u,76u,69u,32u,70u,84u,80u,0u,0u);
  // Older runtimes still report the listening flag. Their FTP server binds
  // this fixed endpoint, even when they do not publish the text payload.
- const uint endpoint[19]=uint[19](70u,84u,80u,32u,49u,48u,46u,52u,50u,46u,48u,46u,50u,48u,58u,49u,51u,51u,55u);
+ const uint endpoint[19]=uint[19](70u,84u,80u,32u,49u,48u,46u,52u,50u,46u,48u,46u,50u,48u,58u,49u,52u,50u,53u);
  const uint error[12]=uint[12](70u,84u,80u,32u,69u,82u,82u,79u,82u,0u,0u,0u);
  float ink=0.0;
  bool hasText=c.atlas[CORE_FTP_TEXT]==0x31505446u;

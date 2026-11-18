@@ -1,10 +1,11 @@
 --- a/ftpsrv.h
 +++ b/ftpsrv.h
-@@ -40,6 +40,7 @@
+@@ -40,6 +40,8 @@
      unsigned port;
      uint32_t bind_ipv4;
      uint32_t peer_ipv4;
 +    bool (*peer_allowed)(uint32_t ipv4);
++    bool (*alternate_password)(uint32_t peer_ipv4, const char *password);
  
      // if set, anon access is allowed.
      bool anon;
@@ -27,7 +28,16 @@
                  ftp_socket_close(&session->data_sock);
                  return;
              }
-@@ -871,7 +872,7 @@
+@@ -773,5 +774,7 @@
+         ftp_client_msg(session, 503, "Bad sequence of commands.");
+-    } else if (strcmp(password, g_ftp.cfg.pass)) {
++    } else if (strcmp(password, g_ftp.cfg.pass) &&
++               (!g_ftp.cfg.alternate_password ||
++                !g_ftp.cfg.alternate_password(session->control_peer_ipv4, password))) {
+         ftp_client_msg(session, 530, "Not logged in.");
+     } else {
+         session->auth_mode = FTP_AUTH_MODE_VALID;
+@@ -871,7 +874,7 @@
          ftp_client_msg(session, 501, "Syntax error in parameters or arguments, %s.", strerror(errno));
      } else {
          rc = inet_aton(ip_buf, &session->data_sockaddr.sin_addr);
@@ -36,7 +46,7 @@
              ftp_client_msg(session, 501, "Syntax error in parameters or arguments, %s.", strerror(errno));
          } else {
              session->data_sockaddr.sin_family = PF_INET;
-@@ -1422,12 +1423,14 @@
+@@ -1422,12 +1425,14 @@
      if (rc < 0) {
          return rc;
      } else {

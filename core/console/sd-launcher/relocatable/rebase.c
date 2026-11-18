@@ -9,7 +9,7 @@ uint32_t iz_reloc_begin(IzRelocState*s,const IzRelocHeader*h,uint64_t bytes,void
  s->header=h;s->processed=s->last_segment=s->last_end=s->failed=0;
  if(!h||!segments||!bases)return fail(s,0xe601);
  const char magic[]="IZNATRL1";for(unsigned i=0;i<8;i++)if(h->magic[i]!=magic[i])return fail(s,0xe601);
- if(h->version!=1||h->header_bytes!=256||h->total_bytes!=bytes||bytes>80u*1024*1024||h->flags||h->record_bytes!=32||h->record_count>1048576)return fail(s,0xe601);
+ if(h->version!=1||h->header_bytes!=256||h->total_bytes!=bytes||h->flags||h->record_bytes!=32||h->record_count>1048576)return fail(s,0xe601);
  for(unsigned i=0;i<sizeof h->padding;i++)if(h->padding[i])return fail(s,0xe601);
  for(unsigned i=0;i<2;i++){
   if(!segments[i]||!address(h->source_bases[i],h->memory_bytes[i])||!address(bases[i],h->memory_bytes[i])||h->memory_bytes[i]>128u*1024*1024||h->memory_bytes[i]%4096||h->file_bytes[i]>h->memory_bytes[i])return fail(s,0xe602);

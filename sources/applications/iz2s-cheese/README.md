@@ -2,6 +2,20 @@
 
 A free homebrew hub for Nintendo Switch 2.
 
+<p>
+  <a href="screenshots/catalog.png"><img src="screenshots/catalog.png" width="49%" alt="IZ2S Cheese catalog with app tiles and categories"></a>
+  <a href="screenshots/app-details.png"><img src="screenshots/app-details.png" width="49%" alt="App details with the download button and publisher link"></a>
+</p>
+
+## Choose your build
+
+| Console environment | Supported apps |
+| --- | --- |
+| [IZ2S](https://github.com/byizmysh/IZ2S-Platform) | **.iza** and **.nro** |
+| [kaiHEN](https://github.com/ouncebrew/kaihen) | **.nro** |
+
+## Install on IZ2S
+
 > [!IMPORTANT]
 > **Restrict the console's internet access before using online homebrew, while keeping local LAN access available for PC Link and FTP.** Configure and verify the restrictions before connecting the console to the internet.
 >
@@ -18,20 +32,6 @@ A free homebrew hub for Nintendo Switch 2.
 >
 > **Alternative: [90DNS](https://gitlab.com/a/90dns).** It filters Nintendo domains, but **does not block all internet traffic** and is not a GitHub-only firewall. Follow its console setup and testing instructions, including disabling IPv6 on Switch 2.
 
-<p>
-  <a href="screenshots/catalog.png"><img src="screenshots/catalog.png" width="49%" alt="IZ2S Cheese catalog with app tiles and categories"></a>
-  <a href="screenshots/app-details.png"><img src="screenshots/app-details.png" width="49%" alt="App details with the download button and publisher link"></a>
-</p>
-
-## Choose your build
-
-| Console environment | Supported apps |
-| --- | --- |
-| [IZ2S](https://github.com/byizmysh/IZ2S-Platform) | **.iza** and **.nro** |
-| [kaiHEN](https://github.com/ouncebrew/kaihen) | **.nro** |
-
-## Install on IZ2S
-
 IZ2S Cheese runs from its own module. Install the complete SD bundle so the executable and its engine are installed together. At startup, IZ2S Cheese checks that the launcher provides the functions it needs. Use an updated IZ2S Platform runtime and restart the IZ2S session after updating it.
 
 - **From microSD.** Extract [`iz2s-cheese-iza-sd.zip`](https://github.com/byizmysh/iz2s-cheese/releases/latest/download/iz2s-cheese-iza-sd.zip) on your PC. Copy the extracted `iz2s/` folder to the root of the card. Keep `launcher.iza`, `sd-bundle.json` and its `asset-*.izdata` file together in `/iz2s/modules/iz2s-cheese/`. The executable alone is not a complete installation. Open the **IZ2S Cheese** tile.
@@ -44,8 +44,6 @@ IZ2S Cheese installs apps to `/iz2s/modules/<id>/launcher.iza` or `/iz2s/modules
 Extract [`iz2s-cheese-nro-sd.zip`](https://github.com/byizmysh/iz2s-cheese/releases/latest/download/iz2s-cheese-nro-sd.zip) to the card root or copy `iz2s-cheese.nro` to `/switch/iz2s-cheese/iz2s-cheese.nro`. Launch **IZ2S Cheese** from the homebrew menu. IZ2S Cheese installs apps to `/switch/<id>/<id>.nro`. IZA apps require IZ2S Platform.
 
 ## Add a catalog
-
-Catalogs have **no fixed app-count limit**. Thumbnail images load on demand into a small cache. Install the current Store build before loading a catalog that exceeds an older build's limit.
 
 The list is empty on first launch. Press **−**, select **Catalog URL**, and paste the raw URL of `catalog.tsv`.
 

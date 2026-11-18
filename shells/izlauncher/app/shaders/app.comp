@@ -46,6 +46,7 @@ void launchSelection(){uint count=min(c.library.x,15u);if(c.state.x>=count){c.pi
 }
 void launcherStep(){
  uint pressed=hbPressed();c.motion.x+=FOCUS_DT;c.state.z++;
+ uint filterButtons=(hasPcLinkShortcuts()?rs(RS_SINGLE_RELEASE):pressed)&(HB_L|HB_R);
  if(loadProgressVisible()&&c.atlas[LOAD_PROGRESS+2u]>=6u){if(c.atlas[LOAD_PROGRESS+5u]>0u)c.atlas[LOAD_PROGRESS+5u]--;else c.atlas[LOAD_PROGRESS]=0u;}
  if(loadProgressBusy()){c.rows[12]=0u;c.rows[13]=0u;c.rows[1]=0u;c.rows[14]=0u;c.transition=vec4(0);hbEndFrame();return;}
  if(c.atlas[TOAST]==0x495a4e31u){uint seq=c.atlas[TOAST+1u];if(seq!=c.atlas[TOAST+3u]){c.atlas[TOAST+3u]=seq;c.atlas[TOAST+4u]=floatBitsToUint(TOAST_SECONDS);}else c.atlas[TOAST+4u]=floatBitsToUint(max(0.0,uintBitsToFloat(c.atlas[TOAST+4u])-FOCUS_DT));}
@@ -91,7 +92,7 @@ streamInput(pressed);return;}}
  if(c.rows[1]!=0u){hbEndFrame();return;}
  if((pressed&HB_X)!=0u&&c.bagMeta.y==0u)c.piece.x=c.piece.x==0?1:0;
  bool picker=c.piece.x!=0;
- if((pressed&(HB_L|HB_R))!=0u&&c.bagMeta.y==0u)c.rows[0]=(c.rows[0]+((pressed&HB_R)!=0u?1u:2u))%3u;
+ if(filterButtons!=0u&&c.bagMeta.y==0u)c.rows[0]=(c.rows[0]+((filterButtons&HB_R)!=0u?1u:2u))%3u;
  focusRebuild(picker);uint installed=min(c.library.x,15u),realCount=focusCount(picker),count=picker?max(realCount,1u):realCount+1u;
  uint ordinal=focusOrdinal(picker?uint(max(0,c.piece.y)):c.state.x,picker);
  uint selected=picker?(ordinal<realCount?ordinal:0u):(c.state.x>=installed||ordinal>=realCount?0u:ordinal+1u);

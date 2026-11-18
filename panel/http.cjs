@@ -145,7 +145,7 @@ async function createWindowServer({
         return reply(res, 200, {
           version: 22,
           edition: '0.25',
-          release: '0.25.1',
+          release: require('../package.json').version,
           coreApi: '/api/iz2s-core',
           pid: process.pid,
           preview: manager.preview === true,
@@ -314,6 +314,10 @@ async function createWindowServer({
         return reply(res,200,await blitBrowser.relay(req,browserMedia));
       }
       const body = await readBody(req, url.pathname === '/api/civswitch-ldn' ? 131072 : 16384);
+      if(url.pathname==='/api/iz2s-core/ftp/open'){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot connect to the console.'});
+        return reply(res,200,await require('../engines/iz2s-core/tools/pc-link-files.cjs').openFtp(root,body,{panelUrl:origin}));
+      }
       if(url.pathname.startsWith('/api/iz2s-core/media/')){
         if(manager.preview)return reply(res,403,{error:'Preview cannot share a PC source.'});
         const media=require('../engines/iz2s-core/tools/pc-media-control.cjs');

@@ -97,6 +97,8 @@ async function create({ root, settings: defaults, node, preview = false }) {
     });
     configuration.inputDiscovery=inputDiscovery;
     settings = configuration.settings;
+    if (configuration.inputAdapter === 'cardputer-wifi' && inputDiscovery?.paired && inputDiscovery.endpoint)
+      settings.cardputerEndpoint = inputDiscovery.endpoint;
     settings.consolePort =
       selectedLoader().manifest.consolePort ?? settings.consolePort;
     configuration.env = {
@@ -108,7 +110,6 @@ async function create({ root, settings: defaults, node, preview = false }) {
         root,
         settings,
         networkEnabled: !preview,
-        inputAddress:inputDiscovery?.paired?inputDiscovery.address:'',
       });
     const currentConfiguration=configuration;
     const recoverAddress=configuration.inputAdapter==='switch-wifi'?async()=>{
@@ -191,6 +192,10 @@ async function create({ root, settings: defaults, node, preview = false }) {
     preview,
     inputLink(selected) {
       if(selected!==configuration.id)throw Error('Input device selection changed; refresh the panel before starting.');
+      if(configuration.inputDiscovery?.ambiguous || configuration.inputDiscovery?.incomplete)
+        throw Error('Choose the address shown on your input device before continuing.');
+      if(configuration.inputAdapter==='ssh-gadget' && !settings.armAddress)
+        throw Error('Choose the address of your ARM input device.');
       return input;
     },
     inspectNS2HB: () => require('./ns2hb.cjs').inspect(root, choice.variant),
@@ -198,9 +203,11 @@ async function create({ root, settings: defaults, node, preview = false }) {
       if(changing)return;
       // Recovery used to reinitialize an unpaired device on every UI poll.
       // Its temporary lock then made the picker permanently unavailable.
-      if(!preview&&configuration.setupRequired&&['cardputer-wifi','switch-wifi'].includes(configuration.inputAdapter)&&
+      if(!preview&&(configuration.setupRequired||configuration.inputDiscovery?.paired===false||
+          (configuration.inputAdapter==='cardputer-wifi'&&args[0]===true))&&['cardputer-wifi','switch-wifi'].includes(configuration.inputAdapter)&&
           (args[0]===true||Date.now()-lastInputDiscoveryAt>=30000)){
-        await assertIdle();changing=true;try{await initialize();}finally{changing=false;}
+        const idle = await assertIdle().then(()=>true,()=>false);
+        if (idle && !changing) { changing=true;try{await initialize();}finally{changing=false;} }
       }
       return engine().refresh(...args);
     },

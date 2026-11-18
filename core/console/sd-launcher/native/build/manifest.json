@@ -1,7 +1,7 @@
 {
   "format": "iz-sd-launcher-native-v1",
-  "bytes": 104444,
-  "sha256": "6d38387854cf81c31762f83bc57354f7a1877b12d3914cc306aa491c933c3994",
+  "bytes": 104428,
+  "sha256": "b53f9d49c3efde0964fade149915c4dcb837c5ea557d975800bf0521908082a7",
   "layout": {
     "bytes": 12120,
     "magic": 0,
@@ -527,7 +527,7 @@
     "host-rpc.c": "5fb07b8a0e6a5e6e27c9c4e658722b9767cc3a0a52ca14f69b8268e772e919a2",
     "host-mapper.c": "d68a284757018951c570bef0c65be009ce6b2e8882f7dd113a0b04ce46174c54",
     "../relocatable/loader.c": "d9638866d04cc36a5d4cb33f1103358616fc8401a8fcbf1e9b8f2154ac7469dc",
-    "../relocatable/rebase.c": "5f8d76974679403dd2cb82fa2243b309820ce58039e6db7bcd15ee9db77877c9",
+    "../relocatable/rebase.c": "b363f5733746a7f48b6529e0959851546d72dc2b1c6698669cbeb88d758ed140",
     "../relocatable/address.c": "ef529409ed2efbb43353cff515bfbd07656ee249bc0d3ba198aca5f0e886ded3",
     "../relocatable/system.S": "18b6fe7f2afd37736cd2a0eeb1c5a9e45d0049bd6951db2dd97e9940b38a9404"
   }

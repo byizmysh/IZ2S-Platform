@@ -10,7 +10,6 @@
 #include "vfs_sd.h"
 
 #define IZ_EXCHANGE_PORT 2121
-static const char label[]="IZ2S FTP password v1";
 static Thread worker;
 static atomic_bool stopping;
 static atomic_bool listening,transferring;
@@ -18,6 +17,18 @@ static atomic_uint clients;
 static atomic_uint local_address;
 static atomic_uint_fast64_t sent,received;
 static bool active,exchange_owner,nifm_ready;
+static bool local_session;
+static uint32_t code_address,code_mask;
+
+static bool private_ipv4(uint32_t address){
+    const uint32_t ip=ntohl(address);
+    return (ip>>24)==10u||(ip>>20)==0xac1u||(ip>>16)==0xc0a8u;
+}
+
+static bool local_peer(uint32_t address){
+    return private_ipv4(address)&&address!=code_address&&
+        (address&code_mask)==(code_address&code_mask);
+}
 
 static void refresh_address(void){
     uint32_t address=0;
@@ -27,6 +38,7 @@ static void refresh_address(void){
 
 static void run(void *unused){
     (void)unused;
+    const uint64_t frequency=armGetSystemTickFreq();
     uint64_t updated=armGetSystemTick();
     while(!atomic_load(&stopping)){
         if(ftpsrv_loop(100)==FTP_API_LOOP_ERROR_INIT)break;
@@ -37,43 +49,58 @@ static void run(void *unused){
         atomic_store(&sent,stats.sent);
         atomic_store(&received,stats.received);
         uint64_t tick=armGetSystemTick();
-        if(tick-updated>=armGetSystemTickFreq()){
+        if(tick-updated>=frequency){
             refresh_address();
+            if(local_session&&atomic_load(&local_address)!=code_address)break;
             updated=tick;
         }
     }
+    ftpsrv_exit();
     atomic_store(&listening,false);
 }
 
+static void release_network(void){
+    if(nifm_ready)nifmExit();
+    nifm_ready=local_session=false;
+    code_address=code_mask=0;
+}
+
 static uint32_t start(bool exchange){
-    uint8_t key[32],digest[32];
-    /* The paired PC link owns the socket device until launcher cleanup. */
-    uint32_t result=iz_pc_start();
-    if(result)return result;
-    result=iz_pc_read_key(key);
-    if(result)return result;
-    struct FtpSrvConfig config={.user="iz2s",.port=exchange?IZ_EXCHANGE_PORT:IZ_FTP_PORT,
+    struct FtpSrvConfig config={.anon=true,.port=exchange?IZ_EXCHANGE_PORT:IZ_FTP_PORT,
         .timeout=45,.max_sessions=exchange?1:0,
         .bind_ipv4=INADDR_ANY,.peer_allowed=iz_pc_peer_allowed};
-    hmacSha256CalculateMac(digest,key,sizeof key,label,sizeof label-1);
-    const char *hex="0123456789abcdef";
-    for(unsigned i=0;i<sizeof digest;++i){
-        config.pass[i*2]=hex[digest[i]>>4];
-        config.pass[i*2+1]=hex[digest[i]&15];
+    uint32_t result;
+    if(!exchange){
+        result=iz_pc_open_sockets();
+        if(R_FAILED(result))return result;
+        local_session=true;
+        result=nifmInitialize(NifmServiceType_User);
+        nifm_ready=R_SUCCEEDED(result);
+        if(nifm_ready){
+            uint32_t gateway,dns1,dns2;
+            result=nifmGetCurrentIpConfigInfo(&code_address,&code_mask,&gateway,&dns1,&dns2);
+        }
+        if(R_FAILED(result)||!private_ipv4(code_address)||!code_mask){
+            release_network();
+            return R_FAILED(result)?result:EADDRNOTAVAIL;
+        }
+        config.bind_ipv4=code_address;
+        config.peer_allowed=local_peer;
+    }else{
+        if(!iz_pc_online())return ENOTCONN;
     }
-    memset(key,0,sizeof key);
-    memset(digest,0,sizeof digest);
     ftp_vfs_file_exchange(exchange);
     if(ftpsrv_init(&config)<0){
         result=errno?errno:0xe8c0;
         ftpsrv_exit();
         ftp_vfs_file_exchange(false);
+        release_network();
         return result;
     }
     atomic_store(&stopping,false);
     atomic_store(&clients,0);atomic_store(&transferring,false);
     atomic_store(&sent,0);atomic_store(&received,0);atomic_store(&listening,true);
-    nifm_ready=R_SUCCEEDED(nifmInitialize(NifmServiceType_User));
+    if(exchange)nifm_ready=R_SUCCEEDED(nifmInitialize(NifmServiceType_User));
     refresh_address();
     result=threadCreate(&worker,run,NULL,NULL,65536,0x2c,-2);
     if(R_SUCCEEDED(result)){
@@ -81,10 +108,9 @@ static uint32_t start(bool exchange){
         if(R_FAILED(result))threadClose(&worker);
     }
     if(R_FAILED(result)){
-        if(nifm_ready)nifmExit();
-        nifm_ready=false;
         ftpsrv_exit();
         ftp_vfs_file_exchange(false);
+        release_network();
         atomic_store(&listening,false);
     }else {active=true;exchange_owner=exchange;}
     return result;
@@ -95,10 +121,9 @@ void iz_ftp_close(void){
     atomic_store(&stopping,true);
     threadWaitForExit(&worker);
     threadClose(&worker);
-    if(nifm_ready)nifmExit();
-    nifm_ready=false;
     ftpsrv_exit();
     ftp_vfs_file_exchange(false);
+    release_network();
     active=false;
     exchange_owner=false;
 }

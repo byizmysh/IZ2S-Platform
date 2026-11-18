@@ -9,7 +9,7 @@
     "installer/run.cjs: NS2_RUNS_DIR redirects generated attempts to OUT; acquisition logic unchanged",
     "installer/hen.cjs: completion guidance describes automatic IZlauncher entry",
     "IZlauncher publishes libsb4 ABI 7, with actual libounce service dispatch and scoped OunceVK graphics metadata.",
-    "IZlauncher: direct IZM import supports compressed GPU sections, standalone SDK metadata, and native ABI 1\u20134/7 with SHA-256-bound resources.",
+    "IZlauncher: direct IZM import supports compressed GPU sections, standalone SDK metadata, and native ABI 1–4/7 with SHA-256-bound resources.",
     "libsb4: supported Npad styles and IDs through libounce, with launcher HID policy restoration after ABI 7 module shutdown.",
     "libsb4: route the external Npad disconnect contract through libounce for ABI 7 controller providers.",
     "IZlauncher: paired App Library lists installed SD modules and requests the existing menu-owned removal operation.",
@@ -63,17 +63,19 @@
     "NRO tiles read a Store sidecar when available and fall back to the embedded NRO artwork.",
     "R1038-family Store compatibility: preserve installed R1043; expose all 96 independent Store imports and restore sb4IZ2SStoreEvent for legacy IZA packages.",
     "Preserve R1043 and Store services; refresh catalog on return from applications and render NRO icons from SD sidecars or embedded artwork.",
-    "Rename installer module and SDK I/O policy to iz2s-cheese."
+    "Rename installer module and SDK I/O policy to iz2s-cheese.",
+    "IZ2S console: manually opened PC Link and FTP need no pairing file or one-time code; FTP is restricted to the current local subnet. Native footer groups equal-width shortcuts on the right.",
+    "IZ2S console: manually opened PC Link and FTP need no pairing file or one-time code; FTP is restricted to the current local subnet. Native footer groups equal-width shortcuts on the right."
   ],
   "launcher": {
     "entry": "runtime/package/iz2s/izlauncher.iza",
     "core": "runtime/package/game/main",
     "resources": "runtime/package/iz2s/izlauncher.romfs",
-    "sha256": "7f70fa5849111a4f8f26b7743d396f52d624bb3973e21a1142ebe0623725c6fe",
+    "sha256": "1d7d9fae9fcd8172513e580fe5b7d70ecaa31d6b895f5a0a36c3fdc016bdb14c",
     "route": "IZ2S R entry -> /iz2s/core/bin/game/main -> /iz2s/izlauncher.iza",
     "nativePrograms": "/switch/*.nro and nested directories (up to eight levels, 1024 programs)",
     "standaloneNroRequired": false,
-    "coreSha256": "4ae848f4cd1f2ea3465bbe7d127a017c92fdb2443793232201aa2b179bd819be",
+    "coreSha256": "6d953ed3e1d78db321841cfe18437160c8003c3a7b48bf50ecefd012897b3a84",
     "resourcesSha256": "86f01b934a5ee4c78bafa91be4f121bcbfd5b5fc9e8b4d7306da93cdc2a788bd",
     "labels": "DejaVu TTF, proportional kerning, fixed size, two lines and ellipsis",
     "catalog": "Single paged NRO/IZA catalog; isolated folder errors; idle inventory and import refresh",
@@ -83,7 +85,7 @@
     "addApp": "Paged catalog with version and format badges; FTP toggle from the main menu and Add App; activity tiles show transfer progress and installation/removal results.",
     "izps2Revision": "R939",
     "imageSizePolicy": "IZA uint32 format, no 48/80 MiB quota; section layout and allocation checks retained",
-    "factoryMenuId": "8a022436c8a3dbef082562d2a9cabd60",
+    "factoryMenuId": "d93be0d07903c6806d8d8a73a0601f96",
     "menuBuild": "runtime/menu-build.json",
     "storeNativeServicesVersion": 1,
     "storeCodeEmbedded": true,
@@ -92,7 +94,12 @@
     "storeServicesBuild": "runtime/store-services-runtime-build.json",
     "basedOnRuntime": "R1043",
     "storeIconsBuild": "runtime/store-icons-runtime-build.json",
-    "cheeseRuntimeBuild": "runtime/cheese-runtime-build.json"
+    "cheeseRuntimeBuild": "runtime/cheese-runtime-build.json",
+    "networkControls": {
+      "pcLink": "R + L3",
+      "ftp": "L + R3",
+      "ftpPort": 1425
+    }
   },
   "pathBase": "engines/iz2s-core",
   "installerDirectory": "runtime/installer",

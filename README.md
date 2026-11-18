@@ -2,13 +2,13 @@
 
 IZ2S is a Homebrew launcher for Nintendo Switch.
 
-## Download 0.25
+## Download 0.25.2
 
 | System | Download |
 | --- | --- |
-| Linux x64 / ARM64 | [Linux installation archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/IZ2S-Platform-0.25-linux.tar.gz) |
-| Windows x64 | [Windows installation ZIP](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/IZ2S-Platform-0.25-windows-x64.zip) |
-| File checksums | [SHA256SUMS.txt](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/SHA256SUMS.txt) |
+| Linux x64 / ARM64 | [Linux installation archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.2/IZ2S-Platform-0.25.2-linux.tar.gz) |
+| Windows x64 | [Windows installation ZIP](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.2/IZ2S-Platform-0.25.2-windows-x64.zip) |
+| File checksums | [SHA256SUMS.txt](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.2/SHA256SUMS.txt) |
 
 Use the installation archives above. GitHub's automatic **Source code** downloads are for development, not the packaged installers.
 

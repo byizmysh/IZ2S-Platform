@@ -51,7 +51,7 @@ function response(bytes, remote, nonce, hosts) {
         .slice(0, 64),
       kind: 'input',
       address: remote.address,
-      mode: iface?.mode === 'wifi' ? 'wifi' : 'lan',
+      mode: ['lan', 'wifi'].includes(iface?.mode) ? iface.mode : 'unknown',
       architecture: String(value.architecture || '').slice(0, 24),
       source: 'discovery',
     };

@@ -4340,6 +4340,8 @@ button.danger:hover:enabled, button.soft-stop:hover:enabled, button.hard-stop:ho
 .devices .device-controls { display:flex; flex-direction:column; align-items:stretch; gap:6px; min-width:0; }
 .devices .device-controls > button { width:100%; min-height:32px; padding:6px 10px; text-align:left; }
 .devices .device-controls > .address-editor { margin:0; min-height:32px; }
+.input-address-choices:not([hidden]) { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; }
+.input-address-choices select { width:100%; }
 .devices .device .device-ping[hidden] { display:none; }
 .devices .usb-connection-actions { flex-wrap:nowrap; }
 .devices .usb-connection-actions .usb-confirm { min-height:36px; padding:5px 8px; line-height:1.4; }
@@ -4699,7 +4701,7 @@ button>svg,a.button>svg { width:16px; height:16px; flex:0 0 16px; margin:0; vert
 
 /* Keep the connection overview visible while a session is running. */
 #setup.session-compact:not(.session-configuration-open) #devices { margin-top:16px; }
-#setup.session-compact:not(.session-configuration-open) .device-controls > :is(.address-editor,.cardputer-address,.device-setup-button) { display:none; }
+#setup.session-compact:not(.session-configuration-open) .device-controls > :is(.address-editor,.cardputer-address,.device-setup-button,.input-address-choices) { display:none; }
 #setup.session-compact:not(.session-configuration-open) .device > .device-setup-button { display:none; }
 #setup.session-compact:not(.session-configuration-open) .usb-confirm { display:none; }
 #setup.session-compact:not(.session-configuration-open) .device { min-height:0; grid-row:auto; gap:12px; }
@@ -5351,6 +5353,8 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible,select:focus-visi
 .panel-dialog > .close { top: var(--space-3); right: var(--space-3); }
 .panel-dialog:has(> .close) :is(h2, .eyebrow) { padding-inline-end: var(--space-6); }
 .panel-dialog :is(p, h2, a) { overflow-wrap: anywhere; }
+#ftp-form label { display: grid; gap: var(--space-1); margin-block: var(--space-3); }
+#ftp-error { color: var(--tone-error); }
 #log-dialog .dialog-actions { justify-content: flex-start; margin-block: var(--space-3); }
 #saved-log-retry { margin-top: var(--space-3); }
 #log-dialog > pre { overflow-wrap: anywhere; white-space: pre-wrap; }

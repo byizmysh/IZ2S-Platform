@@ -37,7 +37,7 @@ function queueName(target){
   return target.slice(6);
 }
 
-function create(bridge,ftp,{games=require('./pc-link-games.cjs').create(bridge)}={}){
+function create(bridge,ftp,{games=require('./pc-link-games.cjs').create(bridge),directFtp=false}={}){
   const session=()=>({id:ID,host:ftp?.address?.()??bridge.data().consoleAddress});
   let lease=randomUUID(), upload=null, stopped=false;
   const downloads=new Map();
@@ -46,9 +46,11 @@ function create(bridge,ftp,{games=require('./pc-link-games.cjs').create(bridge)}
   const pendingCleanup=new Set();
   let resetEpoch=bridge.data().resetEpoch;
   let gameState=null,gameStarting=false;
-  const state=(ftpReady=false)=>({status:stopped?'idle':'ready',mode:'storage',name:'IZ2S SD and Add App queue',
+  const state=(ftpReady=false)=>({status:stopped?'idle':directFtp&&!ftpReady?'unavailable':'ready',mode:'storage',
+    name:directFtp?'Switch 2 SD card':'IZ2S SD and Add App queue',
     lease,chunkBytes:CHUNK,sdFtp:ftpReady,ftpHost:ftpReady?ftp?.address?.()??null:null,
-    mounts:['apps',...(ftpReady||bridge.data().files?['sd']:[])]});
+    directFtp,ftpError:ftpReady?'':ftp?.problem?.()||'',
+    mounts:[...(directFtp?[]:['apps']),...(ftpReady||bridge.data().files?['sd']:[])]});
   const onSd=target=>target==='/sd'||target?.startsWith('/sd/');
   function sdPath(target){
     assert(onSd(target),'Choose a path on /sd.');
@@ -115,7 +117,7 @@ function create(bridge,ftp,{games=require('./pc-link-games.cjs').create(bridge)}
   }
   async function write(args,operation,...params){
     ensureLease(args.lease);
-    assert(ftp&&await available(),'Enable IZ2S FTP to write on the SD card.');
+    assert(ftp&&await available(),ftp?.problem?.()||'Enable IZ2S FTP to write on the SD card.');
     ensureLease(args.lease);
     const controller=new AbortController();
     writes.add(controller);
@@ -191,17 +193,22 @@ function create(bridge,ftp,{games=require('./pc-link-games.cjs').create(bridge)}
   function inside(root, target){return target===root||target.startsWith((root==='/'?'':root)+'/');}
   return {
     busy:()=>!!(upload||downloads.size||writes.size||resetting||gameStarting),
-    discover:async()=>({...session(),run:ID}),
+    discover:async()=>{
+      if(directFtp&&!await available())throw Error(ftp.problem()||'The FTP session has ended. Enable it again on Switch 2.');
+      return {...session(),run:ID};
+    },
     async request(op,args={}){
       const epoch=bridge.data().resetEpoch;
       if(epoch!==resetEpoch){
         await reset();
       }
       const target=args.path===undefined?null:virtualPath('/',args.path);
+      if(directFtp&&target&&target!=='/'&&!onSd(target))throw Error('Choose a path on /sd.');
       switch(op){
         case 'status': return gameState?await games.rpc.request('status'):state(await available());
         case 'list': return {...await games.list(args),session:session()};
         case 'start': {
+          assert(!directFtp,'An open FTP channel grants access to the SD card only.');
           assert(!gameStarting&&!upload&&!downloads.size&&!writes.size&&!resetting,'Wait for file transfers to finish before opening a game.');
           gameStarting=true;stopped=false;const startEpoch=resetEpoch;
           try{
@@ -243,7 +250,7 @@ function create(bridge,ftp,{games=require('./pc-link-games.cjs').create(bridge)}
           item.timer.unref?.();
           try{
             if(isSd){
-              assert(ftp&&await available(),'Enable IZ2S FTP to write files.');
+              assert(ftp&&await available(),ftp?.problem?.()||'Enable IZ2S FTP to write files.');
               ensureCurrent(item);
               assert(name!=='/'&&!await ftp.callWithSignal(item.controller.signal,'stat',name),'The destination already exists.');
               ensureCurrent(item);
@@ -390,4 +397,44 @@ function start(bridge,folder,addresses){
   });
 }
 
-module.exports={create,start,rows};
+let directSession;
+let connectingDirect=false;
+async function openFtp(root,{host},{panelUrl}={}){
+  const {privateIP}=require('../../../core/session/network-discovery.cjs');
+  assert(typeof host==='string'&&privateIP(host),'Enter the local IPv4 address shown by IZ2S.');
+  assert(!connectingDirect&&!directSession?.backend.busy(),'Wait for the current FTP operation to finish.');
+  connectingDirect=true;
+  let opened;
+  try{
+    const ftp=require('./paired-sd.cjs').create(null,host);
+    assert(await ftp.online(),ftp.problem()||'Enable FTP with L + R3 in IZ2S and check the address.');
+    // A failed login leaves the previous local window intact.
+    if(directSession){
+      assert(!directSession.backend.busy(),'Wait for the current FTP operation to finish.');
+      await directSession.backend.request('stop');
+      await directSession.app.close();
+    }
+    const bridge={data:()=>({consoleAddress:host,resetEpoch:0}),files:()=>{
+      throw Error(ftp.problem()||'The FTP session has ended. Enable it again on Switch 2.');
+    }};
+    const backend=create(bridge,ftp,{directFtp:true,games:{
+      reset(){},list:()=>({games:[],gamesAvailable:false,gameExportAvailable:false}),
+    }});
+    const app=opened=await require('../../../tools/fs-rpc-browser/server.cjs').create({
+      backend,discover:backend.discover,panelUrl,settingsFile:path.join(root,'data/state/ftp-files.json'),
+    });
+    app.server.once('close',()=>{
+      if(directSession?.app===app)directSession=undefined;
+    });
+    const tab=await require('../../../core/workspace.cjs').register(root,{
+      id:'ftp-files',kind:'files',title:'Super File Bros.',url:app.url,ownerPid:process.pid,
+    });
+    directSession={app,backend};
+    return {tab};
+  }catch(error){
+    await opened?.close();
+    throw error;
+  }finally{connectingDirect=false;}
+}
+
+module.exports={create,start,rows,openFtp};

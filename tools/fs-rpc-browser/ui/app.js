@@ -85,15 +85,19 @@ function renderGames() {
 function renderStatus() {
  const ready=storageReady(),folderReady=ready&&folderLease===state.lease,sessionChecking=operation==='detect';
  const appQueue=hasAppQueue();
+ const launcherFtp=appQueue||state.directFtp;
  $('session-status').dataset.state=sessionChecking?'checking':connected?'ready':'unavailable';
  $('session-status').textContent=sessionChecking?'Checking session…':connected?'Filesystem connected':'Filesystem unavailable';
  $('connection-title').textContent=connected?'Console filesystem connected':'Connect to your console';
+ const pairedFtpDetail=state.sdFtp&&state.ftpHost?'SD card connected via FTP · '+state.ftpHost:
+   state.ftpError||'Browse the SD card. Enable FTP on IZ2S to write files.';
  $('connection-help').textContent=connected
-   ? appQueue?(state.sdFtp&&state.ftpHost?'SD card connected via FTP · '+state.ftpHost:'Browse the SD card. Enable FTP on IZ2S to write files.'):'Browse in this window. Use FTP access for an external file manager.'
+   ? launcherFtp?pairedFtpDetail:'Browse in this window. Use FTP access for an external file manager.'
    : 'Start a session with Filesystem access enabled in IZ2S Platform, then reconnect here.';
- $('ftp-toggle').hidden=appQueue;
- if(appQueue&&!$('ftp-panel').hidden)setFtpPanel(false);
- $('sd-shortcut-access').textContent=appQueue?'Read-only':'Read & write';
+ $('ftp-toggle').hidden=launcherFtp;
+ if(launcherFtp&&!$('ftp-panel').hidden)setFtpPanel(false);
+ $('games-tab').hidden=state.directFtp===true;
+ $('sd-shortcut-access').textContent=launcherFtp&&!state.sdFtp?'Read-only':'Read & write';
  $('upload-help-title').textContent=appQueue?'Add App':'Upload to SD';
  $('upload-help-copy').textContent=appQueue
    ? 'App queue · Accepts .iza files.'

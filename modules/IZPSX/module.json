@@ -25,7 +25,7 @@
       "switch/app.vert.spv",
       "switch/data.bin",
       "switch/icon.png",
-      "switch/native/asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata",
+      "switch/native/asset-b87343c59604a1ffc497ec852e7fc80beb65cf92b6e208124528a4a39b6fb8db.izdata",
       "switch/native/shim.bin",
       "switch/pixels.bin",
       "switch/state.bin"
@@ -34,16 +34,5 @@
   "dependencies": [],
   "settingsSchema": [],
   "license": "GPL-2.0-only",
-  "installationDirectory": "IZPSX",
-  "server": {
-    "entry": "server/entry.cjs",
-    "runtime": "node",
-    "implementations": {
-      "launch": "modules/izpsx/server/launch.cjs"
-    },
-    "settings": {
-      "entry": "server/settings.cjs",
-      "label": "Games and BIOS"
-    }
-  }
+  "installationDirectory": "IZPSX"
 }

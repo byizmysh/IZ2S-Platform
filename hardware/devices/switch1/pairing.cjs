@@ -24,7 +24,7 @@ async function restore({root,profile={},registry,connect=require('../../transpor
  }
  // Preserve a reachable selected device. Re-discover only after it stops answering.
  if(net.isIPv4(address))for(const key of keys){await verify({...key,endpoint:address});if(verified.length)break;}
- if(!verified.length){
+ if(!verified.length && !profile.switchManualAddress){
   for(const candidate of credentials)await verify(candidate);
   if(!verified.length&&keys.length){
    const endpoints=await discover({port,exclude:net.isIPv4(address)?[address]:[]}).catch(()=>[]);
@@ -33,7 +33,9 @@ async function restore({root,profile={},registry,connect=require('../../transpor
    }
   }
  }
- if(incomplete||new Set(verified.map(r=>r.endpoint)).size!==1)return {profile,discovery:{address:address||null,paired:false,pairingRequired:keys.length===0,networkReachable:false,ambiguous:verified.length>1}};
+ const candidates=[...new Set(verified.map(r=>r.endpoint))].map(address=>({address}));
+ if(incomplete||candidates.length!==1)return {profile,discovery:{address:address||null,paired:false,pairingRequired:keys.length===0,
+   networkReachable:candidates.length>0,ambiguous:candidates.length>1,incomplete,candidates}};
  const chosen=verified[0],next={...profile,switchAddress:chosen.endpoint,switchPort:port,switchToken:chosen.token};
  await store.remember({...chosen,address:chosen.endpoint},registry).catch(()=>{});
  const file=path.join(root,'data/state/switch-keyboard/connection.cfg');await fs.mkdir(path.dirname(file),{recursive:true,mode:0o700});

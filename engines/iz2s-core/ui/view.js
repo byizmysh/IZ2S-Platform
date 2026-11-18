@@ -7,20 +7,23 @@
 })(globalThis, () => {
   const localSocketDenied = /\blisten\s+EACCES\b[^\r\n]*\.sock\b/i;
   const keyboardNotReady = /^(?:Error:\s*)?(?:(?:Switch 1|Cardputer(?: ADV)?|ARM PC) )?USB[- ](?:keyboard (?:is )?not ready|клавиатура не готова|input cable is not configured|keyboard is not configured by a host(?:: [^\r\n]*)?)\.?$/iu;
+  const keyboardBusy = /USB[- ](?:keyboard[^\r\n]*already typing|клавиатура[^\r\n]*уже вводит команды)/iu;
 
   function errorKey(message = '', fallback = 'requestError') {
     if (localSocketDenied.test(message)) return 'localSocketDenied';
     if (/FS acquisition/i.test(message)) return 'fsError';
     if (/No console connected before the pairing deadline/i.test(message)) return 'consoleConnectTimeout';
-    if (/path.*Received null|Неожиданный каталог|до создания каталога/i.test(message)) return 'pathError';
+    if (/path.*Received null|unexpected installer directory|before creating the attempt directory|Неожиданный каталог|до создания каталога/i.test(message)) return 'pathError';
     if (/port.*in use|порт .+занят/i.test(message)) return 'portBusy';
     if (/No active.*address|нет активного адреса/i.test(message)) return 'noHost';
+    if (keyboardBusy.test(message)) return 'usbKeyboardBusy';
+    if (keyboardNotReady.test(String(message).trim())) return 'usbKeyboardNotReady';
+    if (/choose the address shown on your input device/i.test(message)) return 'chooseInputAddress';
     if (/\bpair(?:ing)?\b|сопряжени/i.test(message)) return 'pairingError';
     if (/ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|fetch failed|did not answer on Wi-Fi/i.test(message)) return 'inputNetworkError';
     if (/input device|устройство ввода/i.test(message)) return 'chooseInput';
     if (/Выберите.*Cardputer|select Cardputer/i.test(message)) return 'chooseCardputer';
-    if (keyboardNotReady.test(String(message).trim())) return 'usbKeyboardNotReady';
-    if (/^[Вв]вод:|input job/i.test(message)) return 'inputError';
+    if (/^(?:Ввод|Input):|input job/i.test(message)) return 'inputError';
     if (/Cardputer|keyboard|USB/i.test(message)) return 'deviceError';
     if (/панели|panel session/i.test(message) && /сеанс|session/i.test(message)) return 'panelBusy';
     if (/уже|завершения текущего ввода|already active/i.test(message)) return 'busyError';
@@ -40,7 +43,7 @@
         if (line.startsWith('Connected.')) result.connected = true;
         const phase = /^([1-4])\/4\s/.exec(line);
         if (phase) result.phase = Number(phase[1]);
-        if (/^(?:Error:|Ввод:|Details:|\s+at )/.test(line) && detailBytes < 16000) {
+        if (/^(?:Error:|Input:|Ввод:|Details:|\s+at )/.test(line) && detailBytes < 16000) {
           const detail = line.slice(0, 16000 - detailBytes);
           result.errors.push(detail);
           detailBytes += detail.length + 1;
@@ -61,7 +64,7 @@
     const errors = [...(evidence.errors || [])];
     if (attempt?.error && !errors.includes(attempt.error)) errors.push(attempt.error);
     const primary = errors.find(line => localSocketDenied.test(line))
-      || errors.find(line => /^(?:Error:|Ввод:)/.test(line)) || attempt?.error || '';
+      || errors.find(line => /^(?:Error:|Input:|Ввод:)/.test(line)) || attempt?.error || '';
     const phase = Number(attempt?.phase) || evidence.phase || 0;
     return {
       ...evidence,
@@ -77,6 +80,10 @@
 
 if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() => {
   const { t } = globalThis.IZ2S_CORE_MESSAGES;
+  const diagnosticText = value => {
+    const detail = globalThis.IZ2S_ERRORS.canonical(value);
+    return globalThis.RUN21_LANGUAGE?.t(detail) ?? detail;
+  };
 
   const { errorKey, describe } = globalThis.IZ2S_CORE_DIAGNOSTICS;
   const usbKeyboardAdapters = new Set(['switch-wifi', 'cardputer-wifi', 'ssh-gadget']);
@@ -172,7 +179,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
         while (timings[stamp]?.[0] < end) stamp++;
         const at = timings[stamp]?.[1];
         const row = document.createElement('div');
-        const error = /^(?:Error:|Ввод:|\s+at\s)/.test(line);
+        const error = /^(?:Error:|Input:|Ввод:|\s+at\s)/.test(line);
         row.className = 'log-row ' + (error ? 'error' : /^\d\/4\s/.test(line) ? 'process' : 'detail');
         const time = document.createElement('time');
         time.className = 'core-log-time';
@@ -184,7 +191,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
         const text = document.createElement('span');
         text.className = 'core-log-line';
         text.setAttribute('translate', 'no');
-        text.textContent = line.replace(/\r$/, '') || '\u00a0';
+        text.textContent = diagnosticText(line.replace(/\r$/, '')) || '\u00a0';
         row.append(time, text);
         rows.append(row);
       }
@@ -268,7 +275,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       el('core-stop').textContent = t(step === 'stopping' ? 'stopping' : 'stop');
 
       const failure = refreshError || actionError;
-      const keyboardRefused = !!actionError && errorKey(actionError.message, actionError.key) === 'usbKeyboardNotReady';
+      const keyboardRefused = !!actionError && ['usbKeyboardNotReady','usbKeyboardBusy'].includes(errorKey(actionError.message, actionError.key));
       const inputNeverStarted = keyboardRefused && !state.busy && !state.logBytes && !state.log?.trim();
       const showStatus = !session;
       const showAction = !!failure;
@@ -279,8 +286,8 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       el('core-action-error').textContent = failure ? t(refreshError ? 'pcError' : errorKey(failure.message, failure.key)) : '';
       el('core-stale-note').hidden = !refreshError;
       el('core-stale-note').textContent = refreshError ? t(refreshedAt ? 'staleSnapshot' : 'noSnapshot', { date: date(refreshedAt) }) : '';
-      el('core-action-details').hidden = !failure?.message || (keyboardRefused && !refreshError);
-      el('core-action-raw').textContent = failure?.message || '';
+      el('core-action-details').hidden = !failure?.message;
+      el('core-action-raw').textContent = diagnosticText(failure?.message || '');
       el('core-status-retry').hidden = !refreshError;
       el('core-status-retry').disabled = !!reading || actionPending;
       el('core-restart-row').hidden = selectedMode !== 'setup' || session
@@ -330,8 +337,9 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       el('core-reset-session').disabled = preview || actionPending || !!state.busy;
       el('core-close-note').textContent = t(state.historicalAttempt ? 'recordedSession' : state.busy ? 'handoffKeep' : 'handoffDone');
       el('core-restore').disabled = preview || actionPending || state.busy || !!state.pcLink?.online;
-      el('core-restore').textContent = t(state.pcLink?.online ? 'restored' : 'restore');
+      el('core-restore').textContent = t(state.pcLink?.online ? 'restored' : 'checkPcLink');
       el('core-restore-note').textContent = '';
+      el('core-restore').title = t('connectFromConsole');
       el('core-session-tools').hidden = session;
       el('core-add-app').disabled = preview;
       el('core-files').disabled = preview;
@@ -516,7 +524,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       return {...row,ready:row.id==='server'||online||rpc,pending:row.id==='lan'&&!online&&!rpc,
         coreLabel:row.id==='server'?'IZ2S':online?t('connected'):rpc?t(state.fsRpc?.ready?'rpcReady':'rpcHeld'):t('waitingLauncher'),
         detail:row.id==='server'?t('host',{host:state.pcLink?.pcAddress||attempt.host}):
-          online?['IZ2S',state.pcLink.consoleAddress,'Super File Bros.'].filter(Boolean).join(' · '):rpc?t('rpcKeep'):t('sessionReady')};
+          online?['IZ2S',state.pcLink.consoleAddress,'Super File Bros.'].filter(Boolean).join(' · '):rpc?t('rpcKeep'):t('connectFromConsole')};
     }
     if (state?.refreshError || !state?.busy || attempt?.kind !== 'launch') return row;
     let label;

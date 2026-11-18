@@ -222,33 +222,5 @@
     "sourceSha256": "285b468bcd34967544dd16936b1fd28f28c5dc126b4ce3acd352c66ea1b874b9",
     "bytes": 821884,
     "sha256": "c87b672e0f74bf1c88362bc933d6743213a7f05bd5d04dec6f229f9ea48c4772"
-  },
-  {
-    "id": "iz-file-deck",
-    "version": "0.3.3",
-    "sourceSha256": "05d1fba815e03c82f5c5c2e2b8fa9f4a1e4994fa62e157329c8681e2df06df8b",
-    "bytes": 278164,
-    "sha256": "49c13fc49cd0f9b4cc4b045b544de073d4c67a842f188d73fbf76b09ad2f5cec"
-  },
-  {
-    "id": "iz2s-cheese",
-    "version": "0.8.0",
-    "sourceSha256": "9ac17e3507c1d775b206c134b80b6ae70092b9b0b144d79dd69e53a0653d09af",
-    "bytes": 821884,
-    "sha256": "7c18569561d4ef5ccbdf59a33cc94dd55925132cf55822086ae41f6522495ea5"
-  },
-  {
-    "id": "vacootube",
-    "version": "1.5.7",
-    "sourceSha256": "cca986280f1b2f04592c1d6b25e041aee5f49299704b88d5110e95ee76843ca4",
-    "bytes": 509940,
-    "sha256": "2291046770bc487b16b20704196de6bb961150c16209132268a7faf9a6cb39c2"
-  },
-  {
-    "id": "izpsx",
-    "version": "0.5.2",
-    "sourceSha256": "873a4c4c0b4a51189b97fc1e377befbb64450fb4730c9e309c45208cd3002cc5",
-    "bytes": 160696,
-    "sha256": "6c15d65fbe65c0f9fc74a895c41d8051ae115501ff444a78611555e81f98f34c"
   }
 ]

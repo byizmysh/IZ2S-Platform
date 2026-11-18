@@ -6,6 +6,10 @@ const uint RS_A=64u,RS_B=192u,RS_LOG=320u,RS_SLOTS=256u;
 uint rs(uint i){return c.atlas[RS+i];}
 bool rsVisible(){return rs(0u)==RS_MAGIC&&rs(8u)!=0u;}
 const uint RS_TOGGLE=16u; // Left stick click (L3).
+const uint RS_COMBO_HELD=25u,RS_SINGLE_RELEASE=26u;
+const uint FTP_RUNNING=(0x704000u+98320u-1024u)/4u;
+const uint PC_LINK_MENU=(0x704000u+98324u+1024u*48u-40u-1024u)/4u;
+bool hasPcLinkShortcuts(){return c.atlas[PC_LINK_MENU]==0x314c4350u;}
 bool rsInlineAllowed(){
  const uint toast=0x1f0000u/4u;
  return c.rows[1]==0u&&c.rows[14]==0u&&c.rows[15]==0u&&c.rows[16]==0u&&c.transition.y==0.0&&c.bagMeta.y==0u&&
@@ -108,11 +112,22 @@ bool rsBegin(){
  // On a new menu epoch (including app return), consume held input before any menu action.
  if(rs(14u)!=0u){
   c.library.w=0u;
+  rsPut(RS_COMBO_HELD,0u);rsPut(RS_SINGLE_RELEASE,0u);
   if(hbButtons()==0u&&hbTouchCount()==0u)rsPut(14u,0u);
   hbEndFrame();return false;
  }
+ uint statusInput=pressed;
+ if(hasPcLinkShortcuts()){
+  // Wait for button release, so a combo never changes the filter or opens Status.
+  uint held=hbButtons(),used=rs(RS_COMBO_HELD);
+  const uint pcCombo=HB_R|RS_TOGGLE,ftpCombo=HB_L|32u;
+  if((held&pcCombo)==pcCombo)used|=pcCombo;
+  if((held&ftpCombo)==ftpCombo||((held&HB_L)!=0u&&c.atlas[FTP_RUNNING]==1u))used|=HB_L;
+  statusInput=c.state.y&~held&~used;
+  rsPut(RS_COMBO_HELD,used&held);rsPut(RS_SINGLE_RELEASE,statusInput);
+ }
  // Status expands in the menu; normal controls and animations continue.
- if((pressed&RS_TOGGLE)!=0u)rsPut(8u,rsVisible()?0u:1u);
+ if((statusInput&RS_TOGGLE)!=0u)rsPut(8u,rsVisible()?0u:1u);
  if(c.transition.y!=0.0||c.bagMeta.y!=0u||c.rows[16]!=0u){
   rsPut(10u,rs(10u)+1u);
   // Frames stop during serviced transitions. An unserviced request is bounded.

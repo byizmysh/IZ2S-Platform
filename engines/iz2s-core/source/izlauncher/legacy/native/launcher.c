@@ -233,6 +233,7 @@ static int local_add_tick(IzContext*c,u8*controls,int was_open){
 }
 #ifdef IZ_OUNCE_PRESENTATION
 extern bool iz_ounce_add_ftp_tick(IzLocalAdd *message,bool requested,bool can_open);
+extern bool iz_ounce_link_tick(IzLocalAdd *message,bool requested,bool can_open);
 extern u32 iz_ounce_remove_module(const char *id);
 extern void iz_ounce_activity_record(const char *name,const char *action);
 extern void iz_ounce_activity_publish(u8 *controls,u8 *snapshot);
@@ -1023,12 +1024,15 @@ u64 iz_run(IzContext*c){
     add_app_tiles(c,message);
     add_page=tile_page;
    }
-   const u64 ftp_chord=(1u<<4)|(1u<<5);
+   const u64 left=1u<<6,right=1u<<7;
+   const u64 ftp_chord=left|(1u<<5),pc_chord=right|(1u<<4);
    bool ftp_request=(previous&ftp_chord)==ftp_chord&&(old_buttons&ftp_chord)!=ftp_chord;
+   bool pc_request=(previous&pc_chord)==pc_chord&&(old_buttons&pc_chord)!=pc_chord;
    bool ftp_available=!GET(controls,0x700004)&&!GET(controls,92)&&!GET(controls,884)&&
       !GET(controls,940)&&!removing&&!GET(controls,964)&&!GET(controls,1012);
-   bool ftp_changed=iz_ounce_add_ftp_tick(message,ftp_request,ftp_available);
-   if(store_changed||ftp_changed)
+   bool ftp_changed=iz_ounce_add_ftp_tick(message,ftp_request&&!pc_request,ftp_available);
+   bool pc_changed=iz_ounce_link_tick(message,pc_request&&!ftp_request,ftp_available);
+   if(store_changed||ftp_changed||pc_changed)
     memcpy((u8*)(uintptr_t)c->snapshot+IZ_LOCAL_ADD_AT,message,sizeof *message);
 #else
    (void)picker_was_open;

@@ -5,13 +5,13 @@ const {randomUUID}=require('node:crypto');
 const {spawn,execFile}=require('node:child_process');
 const {promisify}=require('node:util');
 const runtime=require('../runtime.cjs');
-const {keyFile}=require('./pc-link.cjs');
 const pending=new Map();
 let inventoryCache=null,inventoryPending=null,inventoryFailure=null,inventoryRevision=0;
 function folder(out){return path.join(runtime.logs(out),'pc-link');}
 async function prepare(out,pcIp,consoleIp='10.42.0.20',consoleWifiAddress,selectedHosts){
  if(!net.isIPv4(pcIp)||!net.isIPv4(consoleIp))throw Error('Invalid PC link addresses');
- const directory=folder(out),key=await keyFile(directory);
+ const directory=folder(out);
+ await fs.mkdir(directory,{recursive:true,mode:0o700});
  const network=require('../../../core/platform/network.cjs');
  const candidates=await Promise.all(Object.entries(os.networkInterfaces()).map(async ([name,addresses])=>
   await network.isTunnel(name)?[]:addresses.filter(a=>a.family==='IPv4'&&!a.internal).map(a=>a.address)));
@@ -27,7 +27,7 @@ async function prepare(out,pcIp,consoleIp='10.42.0.20',consoleWifiAddress,select
  }finally{await fs.rm(temporary,{force:true});}
  const config=path.join(directory,'pc-link.cfg');
  await fs.writeFile(config,[pcIp,'39524',...pcAddresses.slice(1),''].join('\n'),{mode:0o600});
- return {directory,key:key.file,config};
+ return {directory,config};
 }
 async function status(){
  try {const r=await fetch('http://127.0.0.1:39525/status',{signal:AbortSignal.timeout(700)});return r.ok?await r.json():null;}
@@ -43,7 +43,7 @@ async function ensure(out){
  if(pending.has(directory))return pending.get(directory);
  const task=(async()=>{
   const existing=await status();if(existing)return verifyOwner(existing);
-  try {await fs.access(path.join(directory,'pc-link.key'));await fs.access(path.join(directory,'connection.json'));}
+  try {await fs.access(path.join(directory,'connection.json'));}
   catch(error){if(error.code==='ENOENT')return null;throw error;}
   const log=await fs.open(path.join(directory,'service.log'),'a',0o600);
   let failed=null;
@@ -149,8 +149,11 @@ async function installNro(out,req,fileName){
    });
    report=JSON.parse(stdout);
   }catch(error){
+   if(/(?:^|\n)ftplib\.error_perm: 530(?:[ -]|$)/.test(error.stderr||'')){
+    throw Error(require('./paired-sd.cjs').PROFILE_REJECTED);
+   }
    if(/ConnectionRefusedError|ConnectionResetError|timed out/i.test(error.stderr||'')){
-    throw Error('Включите FTP в Add App на Switch сочетанием L3 + R3 и повторите установку NRO.');
+    throw Error('Enable FTP on IZ2S with L + R3 and retry the NRO installation.');
    }
    throw Error('Не удалось записать NRO по FTP. Подробности сохранены в журнале установки.');
   }
@@ -194,7 +197,7 @@ async function removeNro(out, id, service) {
  const target = require('./nro-package.cjs').installedPath(app);
  if (!Number.isSafeInteger(app.bytes) || app.bytes <= 0) throw Error('The installed NRO size is unavailable.');
  const ftp = require('./paired-sd.cjs').create(folder(out), [service.consoleAddress]);
- if (!await ftp.online()) throw Error('Enable FTP on IZ2S with L3 + R3 to remove an NRO.');
+ if (!await ftp.online()) throw Error(ftp.problem() || 'Enable FTP on IZ2S with L + R3 to remove an NRO.');
  const current = verifyOwner(await status());
  if (!current?.online || current.consoleAddress !== service.consoleAddress ||
      current.service.pid !== service.service.pid || current.resetEpoch !== service.resetEpoch ||

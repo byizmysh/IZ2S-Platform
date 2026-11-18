@@ -206,7 +206,7 @@ u32 iz_ounce_remove_module(const char *id){
 }
 
 static void describe_add_hint(IzLocalAdd *message){
-    const char *hint=iz_pc_online()?"App library on PC.":"Copy .iza to " IZ_INCOMING_DIRECTORY;
+    const char *hint=iz_pc_online()?"App library on PC.":"R + L3: connect to PC. Or copy .iza to " IZ_INCOMING_DIRECTORY;
     iz_ounce_label(message->inbox,IZ_LOCAL_ADD_WIDTH,IZ_LOCAL_ADD_HEIGHT,hint,29);
 }
 
@@ -239,6 +239,7 @@ static void describe_store(IzLocalAdd *message){
 }
 
 bool iz_ounce_add_store(IzLocalAdd *message,u64 pressed){
+    if(!iz_pc_enabled())return false;
     unsigned count,status;
     bool selected;
     if(iz_pc_store_result(store_apps,&count,&status,&selected)){
@@ -423,7 +424,11 @@ bool iz_ounce_add_ftp_tick(IzLocalAdd *message,bool requested,bool can_open){
     }
     else if(result)snprintf(status,sizeof status,"FTP ERROR 0X%08X",result);
     message->ftp_running=running?1u:result?2u:0u;
+    uint8_t saved_link[8];
+    uint8_t *link=message->ftp_status+sizeof message->ftp_status-40;
+    memcpy(saved_link,link,sizeof saved_link);
     iz_ounce_label(message->ftp_status,IZ_LOCAL_ADD_WIDTH,IZ_LOCAL_ADD_HEIGHT,status,20);
+    memcpy(link,saved_link,sizeof saved_link);
     // Keep the bitmap for older menus. The last 32 bytes are below its text.
     uint8_t *label=message->ftp_status+sizeof message->ftp_status-32;
     memcpy(label,"FTP1",4);
@@ -431,9 +436,35 @@ bool iz_ounce_add_ftp_tick(IzLocalAdd *message,bool requested,bool can_open){
     return true;
 }
 
-static void start_connection(void){
-    u32 rc=iz_pc_start();
-    fprintf(stderr,"IZLAUNCHER_PC_START rc=0x%08x\n",rc);
+bool iz_ounce_link_tick(IzLocalAdd *message,bool requested,bool can_open){
+    uint8_t *label=message->ftp_status+sizeof message->ftp_status-40;
+    unsigned previous=label[4];
+    const bool known=!memcmp(label,"PCL1",4);
+    if(requested){
+        if(iz_pc_enabled()){
+            iz_pc_pause();
+            iz_ounce_activity_record("PC Link","Stopped");
+        }else if(can_open){
+            u32 result=iz_pc_start();
+            fprintf(stderr,"IZLAUNCHER_PC_START rc=0x%08x\n",result);
+            iz_ounce_activity_record("PC Link",result==EBUSY?"Closing previous connection":
+                result?"Could not open PC Link":"Connecting");
+        }
+    }
+    const unsigned state=iz_pc_online()?2:iz_pc_enabled()?1:0;
+    if(known&&previous==state)return false;
+    if(state==2)iz_ounce_activity_record("PC Link","Connected");
+    else if(known&&previous!=0&&state==0&&!requested)iz_ounce_activity_record("PC Link","Disconnected");
+    if(!state&&known&&previous){
+        store_busy=false;
+        store_count=0;
+        store_index=0;
+        describe_add(message,"PC Link closed. Press R + L3 to connect again.");
+        render_store_grid(message);
+    }else describe_add_hint(message);
+    memcpy(label,"PCL1",4);
+    label[4]=(uint8_t)state;
+    return true;
 }
 static void request_connection(u32 request){
     if(request==IZ_NATIVE_FTP_REQUEST){
@@ -441,7 +472,9 @@ static void request_connection(u32 request){
             uint32_t result=iz_ftp_enable();
             record_ftp_start(result);
         }
-    }else start_connection();
+    }else if(!iz_pc_enabled()){
+        iz_ounce_activity_record("PC Link","Press R + L3 in the IZ2S menu");
+    }
 }
 
 static const char *pending_local_import;
@@ -519,7 +552,7 @@ static int add_packages(IzLocalAdd *message) {
     };
     describe_add(message,status[result]);
     bool installed=result==IZ_IMPORT_ADDED||result==IZ_IMPORT_UPDATED||result==IZ_IMPORT_PARTIAL;
-    if(iz_pc_start()==0){
+    if(iz_pc_online()){
         if(iz_pc_store_request(NULL)){
             store_busy=true;
             if(!installed)describe_add(message,"Loading the App Store catalog from the PC...");
@@ -606,9 +639,9 @@ static u32 run_menu(bool import){
     add->ftp_toggle=1;
     // A menu replacement can share the running server with the old menu.
     iz_ounce_add_ftp_tick(add,false,false);
+    iz_ounce_link_tick(add,false,false);
     result=iz_native_menu_build(c,header,image,&menu);if(result)goto cleanup;
     fprintf(stderr,"IZLAUNCHER_MENU_READY services=%u\n",c->service_bridge->count);
-    start_connection();
     result=(u32)iz_run(c);
     fprintf(stderr,"IZLAUNCHER_RUN_RETURN rc=0x%08x native=0x%08x state=%u poisoned=%u frames=%llu\n",result,c->native_status,c->state,c->poisoned,(unsigned long long)c->frames);
 cleanup:

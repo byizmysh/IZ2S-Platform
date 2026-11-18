@@ -18,17 +18,21 @@
 #include "pc-audio.h"
 #include "pc-video.h"
 
-#define LINK_KEY "sdmc:/iz2s/pc-link.key"
-#define OLD_LINK_KEY "sdmc:/switch/izlauncher/pc-link.key"
+#define LINK_PUBLIC_CONTEXT "IZ2S PC Link open channel v1"
 #define LINK_CONFIG "sdmc:/iz2s/pc-link.cfg"
 #define LINK_STAGE "sdmc:/iz2s/incoming/.pc-delivery.part"
 #define LINK_PORT 39524
 #define LINK_LEGACY_LIMIT (32u*1024u*1024u)
 #define LINK_ARCHIVE_LIMIT UINT32_MAX
 #define IMPORT_PENDING UINT64_MAX
+#define LINK_MISSED_POLLS 3u
 
 static Thread worker;
-static bool started, request_pending;
+static bool started, request_pending, sockets_ready;
+static Mutex socket_lock,channel_lock;
+static atomic_bool channel_open;
+static atomic_uint channel_generation;
+static unsigned channel_jobs;
 static atomic_bool ending,online,fetching,auto_fetch;
 static atomic_int delivery;
 static atomic_bool auto_offer;
@@ -73,7 +77,33 @@ static IzPcMediaFrame media_frame;
 static IzPcPcm pcm;
 static enum IzPcVideoResult video_result;
 
+bool iz_pc_enabled(void){return atomic_load(&channel_open);}
+
+static bool begin_channel_job(void){
+    mutexLock(&channel_lock);
+    const bool enabled=iz_pc_enabled();
+    if(enabled)++channel_jobs;
+    mutexUnlock(&channel_lock);
+    return enabled;
+}
+
+static void end_channel_job(void){
+    mutexLock(&channel_lock);
+    --channel_jobs;
+    mutexUnlock(&channel_lock);
+}
+
+void iz_pc_pause(void){
+    mutexLock(&channel_lock);
+    atomic_store(&channel_open,false);
+    atomic_store(&online,false);
+    atomic_store(&fetching,false);
+    atomic_store(&auto_offer,false);
+    mutexUnlock(&channel_lock);
+}
+
 static int connect_host(struct in_addr address) {
+    if(!iz_pc_enabled()||atomic_load(&ending))return -1;
     int fd=socket(AF_INET,SOCK_STREAM,0);
     if(fd<0)return -1;
     struct sockaddr_in addr={.sin_family=AF_INET,.sin_port=htons(LINK_PORT),.sin_addr=address};
@@ -121,7 +151,7 @@ bool iz_pc_peer_allowed(uint32_t address){
 
 static bool transfer(int fd,void *data,size_t bytes,bool sending){
     uint8_t *p=data;
-    while(bytes&&!atomic_load(&ending)){
+    while(bytes&&iz_pc_enabled()&&!atomic_load(&ending)){
         ssize_t n=sending?send(fd,p,bytes,0):recv(fd,p,bytes,0);
         if(n<=0)return false;
         p+=n;bytes-=(size_t)n;
@@ -143,14 +173,17 @@ static void video_sign(void *context,uint8_t digest[32],const void *data,size_t 
 
 static enum IzPcVideoResult read_media(uint64_t token,uint8_t operation,uint32_t seen,uint32_t heard,
                                        const uint8_t *input,uint8_t *body,size_t capacity,IzPcMediaFrame *frame){
-    if(atomic_load(&video_input_token)!=token)return IZ_PC_VIDEO_ERROR;
+    if(atomic_load(&video_input_token)!=token||!begin_channel_job())return IZ_PC_VIDEO_ERROR;
     const unsigned preferred=atomic_load(&preferred_host);
     const int fd=(operation=='a'||operation=='b')?(preferred<link_count?connect_host(link_addresses[preferred]):-1):open_link();
-    if(fd<0)return IZ_PC_VIDEO_ERROR;
-    IzPcVideoContext context={fd,token};
-    const IzPcVideoIo io={&context,video_transfer,video_sign,sha256CalculateHash};
-    const enum IzPcVideoResult result=iz_pc_media_receive(&io,operation,seen,heard,input,body,capacity,frame);
-    close(fd);
+    enum IzPcVideoResult result=IZ_PC_VIDEO_ERROR;
+    if(fd>=0){
+        IzPcVideoContext context={fd,token};
+        const IzPcVideoIo io={&context,video_transfer,video_sign,sha256CalculateHash};
+        result=iz_pc_media_receive(&io,operation,seen,heard,input,body,capacity,frame);
+        close(fd);
+    }
+    end_channel_job();
     return result;
 }
 
@@ -227,6 +260,7 @@ static void update_audio(IzNativeApp *app,uint64_t token){
 }
 
 static uint32_t start_video(void){
+    if(!iz_pc_enabled())return SB4_STREAM_UNAVAILABLE;
     if(video_started)return 0;
     if(!started)return SB4_STREAM_UNAVAILABLE;
     video_body=malloc(IZ_PC_MEDIA_CAPACITY);
@@ -260,6 +294,10 @@ uint32_t iz_pc_video_open(uint32_t source,uint64_t *token){
 
 uint32_t iz_pc_video_update(struct IzNativeApp *app,uint64_t token){
     if(!token||token!=video_token)return SB4_STREAM_INVALID;
+    if(!iz_pc_enabled()){
+        sb4StreamSetSourceReady(app,0);
+        return SB4_STREAM_UNAVAILABLE;
+    }
     if(audio_started)update_audio(app,token);
     uint32_t ack=0,rc=sb4StreamFrameAck(app,&ack);
     if(rc)return rc;
@@ -371,7 +409,7 @@ static bool serve_file_request(int fd,const uint8_t nonce[32],uint32_t bytes,con
             const uint64_t start=armGetSystemTick(), timeout=armGetSystemTickFreq();
             while(!iz_pc_remove_result(&status)){
                 if(armGetSystemTick()-start>=timeout&&iz_pc_expire_remove()){status=EBUSY;break;}
-                if(atomic_load(&ending)){iz_pc_expire_remove();status=ECANCELED;break;}
+                if(!iz_pc_enabled()||atomic_load(&ending)){iz_pc_expire_remove();status=ECANCELED;break;}
                 svcSleepThread(10000000);
             }
         }
@@ -399,7 +437,7 @@ static void send_import_result(int fd, uint8_t operation, uint8_t message[69], c
     uint64_t result = IMPORT_PENDING;
     const uint64_t start = armGetSystemTick();
     const uint64_t timeout = armGetSystemTickFreq() * (operation == 'K' ? 300 : 60);
-    while (!atomic_load(&ending) && armGetSystemTick() - start < timeout) {
+    while (iz_pc_enabled() && !atomic_load(&ending) && armGetSystemTick() - start < timeout) {
         result = atomic_load(&import_result);
         if (result != IMPORT_PENDING) break;
         svcSleepThread(10000000);
@@ -540,7 +578,7 @@ done:
 }
 
 bool iz_pc_store_request(const char *id){
-    if(!started||atomic_load(&store_state)!=STORE_IDLE||(id&&strlen(id)>=sizeof store_id))return false;
+    if(!iz_pc_enabled()||atomic_load(&store_state)!=STORE_IDLE||(id&&strlen(id)>=sizeof store_id))return false;
     memset(store_id,0,sizeof store_id);
     if(id)memcpy(store_id,id,strlen(id));
     atomic_store(&store_state,STORE_REQUEST);
@@ -559,8 +597,17 @@ bool iz_pc_store_result(IzPcStoreApp *apps,unsigned *count,unsigned *status,bool
 
 static void run(void *unused){
     (void)unused;
-    unsigned delay=0, retry=0,menu_tick=0;
+    unsigned delay=0,retry=0,menu_tick=0,missed=0,generation=0;
     while(!atomic_load(&ending)){
+        if(!begin_channel_job()){
+            svcSleepThread(100000000);
+            continue;
+        }
+        const unsigned current_generation=atomic_load(&channel_generation);
+        if(generation!=current_generation){
+            generation=current_generation;
+            delay=retry=menu_tick=missed=0;
+        }
         if(atomic_load(&store_state)==STORE_REQUEST){
             store_exchange();
             atomic_store(&store_state,STORE_RESULT);
@@ -576,31 +623,57 @@ static void run(void *unused){
             if(fetch&&result==IZ_PC_ERROR&&!atomic_load(&online))result=exchange('F');
             if(fetch&&result!=IZ_PC_PACKAGE)atomic_store(&delivery,result);
             if(automatic&&result!=IZ_PC_PACKAGE)retry=150;
+            if(atomic_load(&online))missed=0;
+            else if(iz_pc_enabled()&&++missed>=LINK_MISSED_POLLS)iz_pc_pause();
             delay=result==IZ_PC_FILES?1:6;
         }
-        if(!menu_tick&&atomic_load(&online)&&!fetch&&atomic_load(&store_state)==STORE_IDLE){
+        if(iz_pc_enabled()&&!menu_tick&&atomic_load(&online)&&!fetch&&atomic_load(&store_state)==STORE_IDLE){
             uint8_t report[IZ_MENU_REPORT_BYTES];iz_menu_report(report);
             menu_request('T',report,sizeof report);menu_tick=30;
         }
         if(menu_tick)--menu_tick;
         --delay;
+        end_channel_job();
         svcSleepThread(100000000);
     }
 }
 
+// Retained as a binary compatibility entry point for the menu updater. It now
+// returns a public protocol tag and never reads a pairing file from the SD.
 uint32_t iz_pc_read_key(uint8_t out[32]){
-    FILE *file=fopen(LINK_KEY,"rb");
-    if(!file&&errno==ENOENT)file=fopen(OLD_LINK_KEY,"rb");
-    if(!file)return 0xe8b0;
-    bool valid=fread(out,1,32,file)==32&&fgetc(file)==EOF&&!ferror(file);
-    fclose(file);
-    return valid?0:0xe8b1;
+    sha256CalculateHash(out,LINK_PUBLIC_CONTEXT,sizeof LINK_PUBLIC_CONTEXT-1);
+    return 0;
+}
+
+uint32_t iz_pc_open_sockets(void){
+    mutexLock(&socket_lock);
+    Result result=sockets_ready?0:socketInitializeDefault();
+    if(R_SUCCEEDED(result))sockets_ready=true;
+    mutexUnlock(&socket_lock);
+    return result;
 }
 
 uint32_t iz_pc_start(void){
-    if(started)return 0;
-    uint32_t result=iz_pc_read_key(key);
-    if(result)return result;
+    if(iz_pc_enabled())return 0;
+    if(started){
+        mutexLock(&channel_lock);
+        const bool busy=channel_jobs!=0;
+        if(!busy){
+            request_pending=false;
+            atomic_store(&auto_offer,false);
+            atomic_store(&fetching,false);
+            atomic_store(&store_state,STORE_IDLE);
+            atomic_store(&online,false);
+            if(atomic_load(&delivery)!=IZ_PC_PACKAGE)atomic_store(&delivery,IZ_PC_IDLE);
+            atomic_fetch_add(&channel_generation,1);
+            atomic_store(&channel_open,true);
+        }
+        mutexUnlock(&channel_lock);
+        return busy?EBUSY:0;
+    }
+    // This is a public protocol tag, not a pairing secret. The user opens
+    // the channel explicitly with R + L3 and can close it with the same chord.
+    iz_pc_read_key(key);
     char address[32]="10.42.0.1";
     FILE *config=fopen(LINK_CONFIG,"rb");
     link_count=0;
@@ -631,14 +704,16 @@ uint32_t iz_pc_start(void){
     }
     atomic_store(&preferred_host,0);
     atomic_store(&routed_address,0);
-    Result rc=socketInitializeDefault();
+    Result rc=iz_pc_open_sockets();
     if(R_FAILED(rc))return rc;
     atomic_store(&ending,false);
     rc=threadCreate(&worker,run,NULL,NULL,65536,0x2c,-2);
-    if(R_FAILED(rc)){socketExit();return rc;}
+    if(R_FAILED(rc))return rc;
     rc=threadStart(&worker);
-    if(R_FAILED(rc)){threadClose(&worker);socketExit();return rc;}
+    if(R_FAILED(rc)){threadClose(&worker);return rc;}
     started=true;
+    atomic_fetch_add(&channel_generation,1);
+    atomic_store(&channel_open,true);
     return 0;
 }
 
@@ -649,7 +724,7 @@ bool iz_pc_menu_idle(void){
 void iz_pc_allow_auto_fetch(bool allowed){atomic_store(&auto_fetch,allowed);}
 
 bool iz_pc_fetch(void){
-    if(!started)return false;
+    if(!iz_pc_enabled())return false;
     if(!request_pending){
         request_pending=true;
         atomic_store(&fetching,true);
@@ -657,7 +732,7 @@ bool iz_pc_fetch(void){
     return true;
 }
 
-bool iz_pc_online(void){return atomic_load(&online);}
+bool iz_pc_online(void){return iz_pc_enabled()&&atomic_load(&online);}
 enum IzPcDelivery iz_pc_delivery(uint32_t *code){
     enum IzPcDelivery result=atomic_exchange(&delivery,IZ_PC_IDLE);
     if(result==IZ_PC_IMPORT_REPORTED)*code=atomic_load(&previous_import_code);
@@ -673,25 +748,30 @@ void iz_pc_import_result(uint32_t code){
 }
 
 void iz_pc_close(void){
-    if(!started)return;
-    atomic_store(&ending,true);
-    atomic_store(&video_input_token,0);
-    if(audio_started){
-        threadWaitForExit(&audio_worker);
-        threadClose(&audio_worker);
-        audio_started=false;
+    iz_pc_pause();
+    if(started){
+        atomic_store(&ending,true);
+        atomic_store(&video_input_token,0);
+        if(audio_started){
+            threadWaitForExit(&audio_worker);
+            threadClose(&audio_worker);
+            audio_started=false;
+        }
+        if(video_started){
+            threadWaitForExit(&video_worker);
+            threadClose(&video_worker);
+            free(video_body);
+            video_body=NULL;
+            video_started=false;
+            video_token=0;
+        }
+        threadWaitForExit(&worker);
+        threadClose(&worker);
+        started=false;
     }
-    if(video_started){
-        threadWaitForExit(&video_worker);
-        threadClose(&video_worker);
-        free(video_body);
-        video_body=NULL;
-        video_started=false;
-        video_token=0;
-    }
-    threadWaitForExit(&worker);
-    threadClose(&worker);
-    socketExit();
+    mutexLock(&socket_lock);
+    if(sockets_ready)socketExit();
+    sockets_ready=false;
+    mutexUnlock(&socket_lock);
     memset(key,0,sizeof key);
-    started=false;
 }

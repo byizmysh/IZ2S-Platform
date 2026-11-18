@@ -5,15 +5,20 @@ const {spawn}=require('node:child_process');
 const {finished}=require('node:stream/promises');
 const {isIPv4}=require('node:net');
 
+const PROFILE_REJECTED='The FTP server rejected anonymous access (530). Install the updated IZ2S launcher on Switch 2.';
+const PROFILE_REJECTED_EXIT=53;
+
 function create(folder,hosts){
-  const candidates=()=>[...new Set((typeof hosts==='function'?hosts():[hosts]).filter(isIPv4))];
-  let selected,probed='',checking,probeAt=0;
+  const loginRejected=PROFILE_REJECTED;
+  const candidates=()=>[...new Set([].concat(typeof hosts==='function'?hosts():hosts).filter(isIPv4))];
+  let selected,probed='',checking,probeAt=0,probeProblem='';
   const address=()=>candidates().includes(selected)?selected:candidates()[0];
+  const problem=()=>probed===candidates().join(',')?probeProblem:'';
   function processFor(operation,pathname,args,{signal,keepOutput=false,timeout=60000,host=address()}={}){
     signal?.throwIfAborted();
     if(!host)throw Error('No Switch IPv4 address. Check the console network settings.');
     const child=spawn(require('../../../core/platform/python.cjs').command(),[
-      '-B',path.join(__dirname,'paired-sd.py'),path.join(folder,'pc-link.key'),host,operation,pathname,...args,
+      '-B',path.join(__dirname,'paired-sd.py'),host,operation,pathname,...args,
     ],{windowsHide:true,stdio:['pipe','pipe','pipe']});
     let diagnostics='', output='', error;
     const cancel=()=>{error=signal?.reason??Error('FTP transfer cancelled.');child.kill();};
@@ -35,7 +40,9 @@ function create(folder,hosts){
         clearTimeout(timer);
         signal?.removeEventListener('abort',cancel);
         if(error)return reject(error);
-        if(code!==0)return reject(Error(diagnostics.trim()||'Enable the paired IZ2S FTP service with L3 + R3 and retry.'));
+        if(code===PROFILE_REJECTED_EXIT)return reject(Object.assign(Error(loginRejected),{code}));
+        const detail=diagnostics;
+        if(code!==0)return reject(Error(detail.trim()||'Enable IZ2S FTP and retry.'));
         try{resolve(keepOutput?undefined:JSON.parse(output));}catch(cause){reject(cause);}
       });
     });
@@ -57,14 +64,16 @@ function create(folder,hosts){
     const job={fingerprint};
     checking=job;
     job.result=(async()=>{
-      let reachable;
+      let reachable,profileRejected=false;
       for(const host of list){
         const probe=processFor('probe','/',[],{host,timeout:3500});
         probe.child.stdin.end();
-        if(await probe.done.then(()=>true,()=>false)){reachable=host;break;}
+        try{await probe.done;reachable=host;break;}
+        catch(error){if(error.code===PROFILE_REJECTED_EXIT)profileRejected=true;}
       }
       if(checking!==job||candidates().join(',')!==fingerprint)return false;
       selected=reachable;probed=fingerprint;probeAt=Date.now();
+      probeProblem=!reachable&&profileRejected?loginRejected:'';
       return !!reachable;
     })().finally(()=>{if(checking===job)checking=null;});
     return job.result;
@@ -122,7 +131,7 @@ function create(folder,hosts){
       closed:task.done,
     };
   }
-  return {call,callWithSignal,online,upload,download,address};
+  return {call,callWithSignal,online,upload,download,address,problem};
 }
 
-module.exports={create};
+module.exports={create,PROFILE_REJECTED};

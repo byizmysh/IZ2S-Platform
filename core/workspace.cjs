@@ -61,7 +61,7 @@ async function visible(root,{active,connected=false,panelInstance=process.env.IZ
     }
     if(row.panelInstance&&panelInstance&&row.panelInstance!==panelInstance)return null;
     if(row.id==='core-apps')return null;
-    if(row.coreTool&&row.id==='core-files'){
+    if(row.id==='ftp-files'||row.coreTool&&row.id==='core-files'){
       if(!owner)return null;
     }else if(row.kind==='settings'){
       if(!settingsOpen(row.moduleId)||!owner)return null;
@@ -109,7 +109,7 @@ async function stopEntry(root, id) {
       headers:{origin:url.origin,'x-fs-key':url.hash.slice(1),'content-type':'application/json'}, body:'{}', signal:AbortSignal.timeout(150000)});}
     catch(error){
       if(error.cause?.code!=='ECONNREFUSED')throw error;
-      await require('../tools/dolphin-fs-rpc/control.cjs').request('stop',{cancelDownloads:true});
+      if(id!=='ftp-files')await require('../tools/dolphin-fs-rpc/control.cjs').request('stop',{cancelDownloads:true});
     }
     if(response){const result = await response.json();if (!response.ok || !result.ok) throw Error(result.error || 'Super File Bros. shutdown was not confirmed');}
   } else if(entry.controlUrl){

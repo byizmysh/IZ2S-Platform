@@ -1,12 +1,15 @@
-"""Use the launcher's paired FTP service for explicit SD file operations."""
+"""Use the launcher's manually opened FTP service for SD file operations."""
 from ftplib import FTP, error_perm
 from hashlib import sha256
-from hmac import new as hmac
 from ipaddress import IPv4Address
 from pathlib import Path, PurePosixPath
 import json
 import re
 import sys
+
+
+class ProfileRejected(Exception):
+    pass
 
 
 def safe_path(value):
@@ -205,12 +208,8 @@ def operation(ftp, op, path, extra):
 
 
 def main():
-    key_file, host, op, path, *extra = sys.argv[1:]
+    host, op, path, *extra = sys.argv[1:]
     ip = str(IPv4Address(host))
-    key = Path(key_file).read_bytes()
-    if len(key) != 32:
-        raise ValueError('Expected the existing Switch pairing key.')
-    password = hmac(key, b'IZ2S FTP password v1', 'sha256').hexdigest()
     path = safe_path(path)
     if path == '/' and op not in ('probe', 'list', 'stat'):
         raise ValueError('Select a file or folder inside the SD card.')
@@ -219,11 +218,13 @@ def main():
         raise ValueError('This SD path is unavailable.')
     with FTP(timeout=2 if op == 'probe' else 60 if op in (*staging, 'download-stream', 'digest') else 12) as ftp:
         ftp.trust_server_pasv_ipv4_address = False
+        ftp.connect(ip, 1425)
         try:
-            ftp.connect(ip, 1425)
-        except ConnectionRefusedError:
-            ftp.connect(ip, 1337)  # Support the launcher already open during migration.
-        ftp.login('iz2s', password)
+            ftp.login('anonymous', '')
+        except error_perm as error:
+            if str(error)[:3] == '530':
+                raise ProfileRejected from error
+            raise
         result = operation(ftp, op, path, extra)
     if op != 'download-stream':
         print(json.dumps(result, ensure_ascii=True))
@@ -232,6 +233,8 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    except ProfileRejected:
+        sys.exit(53)
     except Exception as error:
         print(str(error), file=sys.stderr)
         sys.exit(1)

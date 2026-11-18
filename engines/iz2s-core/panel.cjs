@@ -189,7 +189,7 @@ function create(options = {}) {
     assertAvailable(route) {
       if (runtime.running() && ['/api/start', '/api/retry', '/api/setup', '/api/civswitch',
         '/api/civswitch-ldn', '/api/connection', '/api/launch-settings', '/api/connection/restore'].includes(route)) {
-        throw Error('IZ2S core выполняет попытку. Сначала дождитесь завершения или остановите её.');
+        throw Error('An IZ2S attempt is already active. Stop it first.');
       }
     },
     assertCanClose() {

@@ -103,8 +103,7 @@ async function main() {
   const pcService=require('../../tools/pc-link-service.cjs');
   const pairing=await pcService.prepare(process.env.IZ2S_CORE_OUT,host||rpcOutput.seen.map(line=>/^Waiting for Switch 2 at ([0-9.]+):/.exec(line)?.[1]).find(Boolean),
     process.env.IZ2S_CONSOLE_IPV4||undefined,process.env.IZ2S_CONSOLE_WIFI_IPV4,JSON.parse(process.env.IZ2S_PC_LINK_HOSTS||'null'));
-  programs.push({source:pairing.key,target:'/iz2s/pc-link.key'},
-    {source:pairing.config,target:'/iz2s/pc-link.cfg'});
+  programs.push({source:pairing.config,target:'/iz2s/pc-link.cfg'});
   const foldrift = '/iz2s/modules/foldrift/launcher.iza';
   // Publish the signature first. An existing executable owns its signature.
   programs.push(...[foldrift + '.sig', foldrift].map(target => ({

@@ -1,6 +1,6 @@
 'use strict';
 
-// The panel selects the language. Process output stays in its original form.
+// The panel selects the language. Downloadable logs keep their original text.
 globalThis.IZ2S_CORE_MESSAGES = (() => {
   const messages = `
 openAddAppToInstall|Ready to install. Open Add App on Switch to receive it.|Пакет готов. Откройте Add App на Switch, чтобы установить его.|El paquete está listo. Abre Add App en Switch para instalarlo.|安装包已准备好。在 Switch 上打开 Add App 进行安装。
@@ -60,6 +60,8 @@ fsAccess|Filesystem access|Доступ к файловой системе|Acces
 manageSwitchApps|Manage apps on Switch|Приложения на Switch|Gestionar aplicaciones en Switch|管理 Switch 上的应用
 addApp|Add App|Добавить приложение|Añadir aplicación|添加应用
 restore|Restore connection|Восстановить связь|Restablecer conexión|恢复连接
+checkPcLink|Check PC Link|Проверить PC Link|Comprobar PC Link|检查 PC Link
+connectFromConsole|Press R + L3 in the IZ2S menu to open PC Link.|Нажмите R + L3 в меню IZ2S, чтобы открыть PC Link.|Pulsa R + L3 en el menú de IZ2S para abrir PC Link.|在 IZ2S 菜单中按 R + L3 打开 PC Link。
 restored|Connection restored|Связь восстановлена|Conexión restablecida|连接已恢复
 restorePending|Synchronizing session…|Синхронизация сеанса…|Sincronizando sesión…|正在同步会话…
 restoreUnavailable|Restore requires an existing launcher session with a recovery service.|Для восстановления нужен существующий сеанс IZ2S со службой восстановления.|Para restablecer la conexión se necesita una sesión de IZ2S con servicio de recuperación.|恢复连接需要已有的 IZ2S 会话及恢复服务。
@@ -118,6 +120,8 @@ noEvents|Waiting for the first log entry.|Ожидаем первую запис
 inputNotStarted|Input did not start.|Ввод не начался.|No se inició la entrada de texto.|输入未开始。
 usbKeyboardPending|Waiting for the input device to report that its USB keyboard is ready.|Ожидаем, пока устройство ввода сообщит о готовности USB-клавиатуры.|Esperando a que el dispositivo de entrada indique que su teclado USB está listo.|正在等待输入设备报告 USB 键盘已就绪。
 usbKeyboardNotReady|The input device reports that its USB keyboard is not ready.|Устройство ввода сообщает, что USB-клавиатура не готова.|El dispositivo de entrada indica que su teclado USB no está listo.|输入设备报告 USB 键盘尚未就绪。
+usbKeyboardBusy|The USB keyboard is busy or not ready. Check the cable and wait until the input device is ready.|USB-клавиатура занята или не готова. Проверьте кабель и дождитесь готовности устройства ввода.|El teclado USB está ocupado o no está listo. Comprueba el cable y espera a que el dispositivo esté listo.|USB 键盘正忙或尚未就绪。请检查连接线，等待输入设备就绪。
+chooseInputAddress|Choose the address shown on your input device before continuing.|Выберите адрес с экрана устройства ввода, прежде чем продолжить.|Antes de continuar, elige la dirección que muestra tu dispositivo de entrada.|请先选择输入设备屏幕上显示的地址，再继续。
 localSocketDenied|The PC could not open its local IPC socket (EACCES).|На ПК не удалось открыть локальный IPC-сокет (EACCES).|El PC no pudo abrir su socket IPC local (EACCES).|电脑无法打开本地 IPC 套接字（EACCES）。
 inputUpdates|Cardputer reported typing progress ({n} updates).|Cardputer сообщает о ходе ввода ({n} обновлений).|Cardputer informó del progreso de escritura ({n} actualizaciones).|Cardputer 报告输入进度（{n} 条更新）。
 phase1|Check console|Проверка консоли|Comprobar consola|检查主机

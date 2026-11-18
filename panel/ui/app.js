@@ -865,6 +865,30 @@ async function openCorePcTool(view) {
     workspace.openRequest(target.tab,true);
   }catch(error){notice(error.message);}
 }
+const ftpDialog=$('ftp-dialog');
+document.addEventListener('click',event=>{
+  if(!event.target.closest('[data-open-ftp]')||state?.preview||ftpDialog.open)return;
+  $('ftp-error').hidden=true;
+  ftpDialog.showModal();
+});
+$('ftp-cancel').onclick=()=>ftpDialog.close();
+ftpDialog.addEventListener('cancel',event=>{if($('ftp-connect').disabled)event.preventDefault();});
+$('ftp-form').onsubmit=async event=>{
+  event.preventDefault();
+  const button=$('ftp-connect'),cancel=$('ftp-cancel'),error=$('ftp-error');
+  if(button.disabled)return;
+  button.disabled=cancel.disabled=true;
+  error.hidden=true;
+  try{
+    const result=await api('/api/iz2s-core/ftp/open',{host:$('ftp-host').value.trim()});
+    workspace.openRequest(result.tab,true);
+    ftpDialog.close();
+  }catch(failure){
+    setText(error,failure.message);
+    error.hidden=false;
+    $('ftp-host').focus();
+  }finally{button.disabled=cancel.disabled=false;}
+};
 const coreText = globalThis.IZ2S_CORE.t;
 const coreView=globalThis.IZ2S_CORE.create({api,changed:()=>{renderPlatform();renderControls();renderDevices();},updated:()=>{if(state){renderDevices();renderConnectionStatus();renderSessionPresentation();renderConsoleApps();renderDolphin();if(homeView==='apps')renderLibrary();updateBlitBunTab();showBlitBunWindowRequest();}},
  openFiles:()=>openCorePcTool('files'),
@@ -1359,6 +1383,7 @@ function renderConsoleConnections(card, preference, locked, supported) {
       });
       editor.append(form);
     }
+    editor.append(element('p', 'hint', "Switch 2's address is confirmed when the console connects. You can also enter the address shown in its network settings."));
   }
   const active = preference.paths?.find(
     (p) => p.ready && !p.pending && p.address && p.mode === preference.activeMode,
@@ -1389,7 +1414,7 @@ function renderConsoleConnections(card, preference, locked, supported) {
         : !path
           ? (lastKnown?'Last known · '+lastKnown.address+' · not checked':'Not checked')
           : path.pending
-            ? 'Automatic · waiting for Switch'+(lastKnown?' · last known '+lastKnown.address:'')
+            ? (path.automatic ? 'Automatic · waiting for Switch' : 'Route available · waiting for Switch')+(lastKnown?' · last known '+lastKnown.address:'')
             : path.ready
               ? (mode === preference.activeMode ? 'In use' : 'Available') +
                 (Number.isFinite(path.latencyMs)
@@ -1412,6 +1437,48 @@ function openDeviceSettings({tab,addresses=false,focus}={}) {
   panel.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
   (focus ? panel.querySelector(focus) : tab ? $('adv-tab-'+tab) : panel.querySelector('summary'))?.focus({preventScroll:true});
 }
+function renderInputAddresses(card, discovery, locked, switchKeyboard) {
+  let panel = card.querySelector('.input-address-choices');
+  const candidates = discovery?.ambiguous || discovery?.incomplete ? discovery.candidates || [] : [];
+  if (!candidates.length) { if (panel) panel.hidden = true; return; }
+  if (!panel) {
+    panel = element('form','input-address-choices');
+    const select = element('select');
+    select.setAttribute('aria-label', 'Detected addresses');
+    const apply = element('button','quiet','Use this address');
+    apply.type = 'submit';
+    select.onchange = () => { apply.disabled = select.disabled || !select.value; };
+    panel.append(select, apply);
+    card.append(panel);
+  }
+  panel.hidden = false;
+  const select = panel.querySelector('select');
+  const stamp = JSON.stringify(candidates);
+  if (select.dataset.stamp !== stamp) {
+    const selected = select.value;
+    select.dataset.stamp = stamp;
+    const placeholder = element('option','','Choose an address');
+    placeholder.value = '';
+    select.replaceChildren(placeholder, ...candidates.map(candidate => {
+      const option = element('option','',candidate.address);
+      option.value = candidate.address;
+      return option;
+    }));
+    if (candidates.some(candidate => candidate.address === selected)) select.value = selected;
+  }
+  select.disabled = locked;
+  panel.querySelector('button').disabled = locked || !select.value;
+  panel.onsubmit = async event => {
+    event.preventDefault();
+    const candidate = candidates.find(row => row.address === select.value);
+    if (!candidate || select.disabled) return;
+    const configurationId = switchKeyboard ? 'pc-switch1' : 'pc-cardputer-adv';
+    const profile = {...state.platform.profiles?.[configurationId], ...(switchKeyboard
+      ? {switchAddress:candidate.address,switchManualAddress:true} : {cardputerEndpoint:candidate.endpoint})};
+    const result = await act('/api/launch-settings', {configurationId, profile});
+    if (result?.ok) await act('/api/check', {});
+  };
+}
 function renderSwitchKeyboard(meta) {
   const panel=$('switch-keyboard-setup');if(!panel)return;
   panel.hidden=meta.configuration.inputAdapter!=='switch-wifi';if(panel.hidden)return;
@@ -1431,6 +1498,9 @@ function renderSwitchKeyboard(meta) {
   panel.querySelectorAll('input,button').forEach(item=>item.disabled=locked);
   const input=state.checks?.items?.find(row=>row.id==='arm'),usb=state.checks?.items?.find(row=>row.id==='usb');
   const ready = !serverUnavailable && input?.ready && usb?.ready;
+  setText($('switch-keyboard-address-hint'), meta.configuration.inputDiscovery?.paired
+    ? 'Leave the address empty to detect Switch 1 automatically. Pairing is saved during installation; keep IZ2S SB4 Keyboard open.'
+    : 'If automatic detection cannot verify Switch 1, enter the address shown on its screen.');
   const message = serverUnavailable ? 'Device status is unavailable.'
     : ready ? 'Switch 1 is ready for SB4 input.'
     : advSetup.switchConfirmed && usb?.usb?.localHost !== 'this-pc'
@@ -1820,7 +1890,8 @@ function renderDevices() {
           const pref = state.connections?.devices[row.id];
           if (!pref) return;
           const mode = input.selectedOptions?.[0]?.dataset.mode || pref.mode;
-          await changeConnection(row.id, mode, input.value.trim());
+          const address = input.selectedOptions?.[0]?.dataset.address ?? input.value;
+          await changeConnection(row.id, mode, address.trim());
         });
         const suggestions = element('div', 'detected-peers');
         editor.append(summary, suggestions, form);
@@ -1910,6 +1981,10 @@ function renderDevices() {
         card.append(cardputerAddress);
       }
       if (cardputerAddress) cardputerAddress.hidden = !cardputer;
+      if (!cardputer) {
+        const picker = card.querySelector('.input-address-choices');
+        if (picker) picker.hidden = true;
+      }
       card.querySelectorAll('[data-transport]').forEach(button => { button.hidden = cardputer && button.dataset.transport !== 'wifi'; button.dataset.fixed = String(cardputer); });
       if (cardputer) {
         const wifi = card.querySelector('[data-transport="wifi"]');
@@ -1922,6 +1997,7 @@ function renderDevices() {
         const displayed=detected&&!configuredAddress.includes(detected)?configuredAddress+' → '+detected:configuredAddress;
         setText(cardputerAddress, displayed + ' · Edit');
         cardputerAddress.disabled = locked;
+        renderInputAddresses(card, state.platform.configuration.inputDiscovery, locked, switchKeyboard);
         continue;
       }
       if (row.id === 'lan') {
@@ -1967,7 +2043,7 @@ function renderDevices() {
       const editor = card.querySelector('.address-editor'),
         input = $('address-' + row.id);
       const dualServer = row.id === 'server' && preference.modes?.length === 2;
-      setText(editor.querySelector('summary'), dualServer
+      setText(editor.querySelector('summary'), row.id === 'server' && preference.needsChoice ? 'Choose a network adapter' : dualServer
         ? preference.paths.map(({mode, address}) => networkName(mode) + (address ? ' · ' + address : '')).join(' / ')
         : preference.address
         ? (preference.automatic ? 'Auto · ' : '') +
@@ -1976,9 +2052,9 @@ function renderDevices() {
         : 'Auto / manual · ' + networkName(preference.mode));
       if (document.activeElement !== input) {
         if (row.id === 'server') {
-          const options = preference.options.filter(
-              (o) => (preference.modes || [preference.mode]).includes(o.mode),
-            ),
+          const enabledModes = preference.modes || [preference.mode];
+          const options = preference.options.flatMap(item => (item.mode === 'unknown' ? enabledModes
+            : enabledModes.filter(mode => mode === item.mode)).map(mode => ({...item, selectionMode:mode}))),
             stamp = JSON.stringify([
               options,
               preference.address,
@@ -1992,7 +2068,7 @@ function renderDevices() {
             input.append(automatic);
             if (
               preference.address &&
-              !options.some((o) => o.address === preference.address)
+              !options.some((o) => o.address === preference.address && o.selectionMode === preference.mode)
             ) {
               const option = element(
                 'option',
@@ -2000,20 +2076,24 @@ function renderDevices() {
                 preference.address ||
                   'No active ' + networkName(preference.mode) + ' adapter',
               );
-              option.value = preference.address;
+              option.value = preference.mode + '@' + preference.address;
+              option.dataset.mode = preference.mode;
+              option.dataset.address = preference.address;
               input.append(option);
             }
             for (const item of options) {
               const option = element(
                 'option',
                 '',
-                item.address + ' · ' + item.name,
+                item.address + ' · ' + item.name + ' · ' + (item.mode === 'unknown'
+                  ? (item.selectionMode === 'wifi' ? 'Use as Wi-Fi' : 'Use as LAN') : networkName(item.mode)),
               );
-              option.value = item.address;
-              option.dataset.mode = item.mode;
+              option.value = item.selectionMode + '@' + item.address;
+              option.dataset.mode = item.selectionMode;
+              option.dataset.address = item.address;
               input.append(option);
             }
-            input.value = preference.automatic ? '' : preference.address;
+            input.value = preference.automatic ? '' : preference.mode + '@' + preference.address;
           }
         } else if (input.dataset.mode !== preference.mode || !editor.open)
           input.value = preference.address;
@@ -2046,19 +2126,20 @@ function renderDevices() {
         suggestions.replaceChildren();
         if (choices.length) {
           suggestions.append(
-            element('span', '', 'Detected on ' + networkName(preference.mode)),
+            element('span', '', 'Detected input devices'),
           );
           for (const item of choices.slice(0, 5)) {
             const choose = element(
               'button',
               'detected-peer',
-              item.name ? item.name + ' · ' + item.address : item.address,
+              (item.name ? item.name + ' · ' : '') + item.address +
+                (['lan','wifi'].includes(item.mode) ? ' · ' + networkName(item.mode) : ''),
             );
             choose.type = 'button';
             choose.addEventListener('click', () =>
               changeConnection(
                 row.id,
-                state.connections.devices[row.id].mode,
+                ['lan','wifi'].includes(item.mode) ? item.mode : state.connections.devices[row.id].mode,
                 item.address,
               ),
             );
@@ -2680,7 +2761,7 @@ function renderLibrary() {
         remove.hidden = !presence.sd;
         remove.disabled = !!remove.dataset.pending || busy || serverUnavailable || !state.connected;
         remove.title = sdRow?.format === '.nro' && !coreSd
-          ? globalThis.RUN21_LANGUAGE?.t('Enable FTP on IZ2S with L3 + R3 to remove an NRO.') || '' : '';
+          ? globalThis.RUN21_LANGUAGE?.t('Enable FTP on IZ2S with L + R3 to remove an NRO.') || '' : '';
       }
     }
   }
@@ -2866,7 +2947,7 @@ function renderSessionPresentation(){
  }
  const coreActions=['core-add-app','core-restore','core-new-launch'].map($);
  if(coreSession){
-  copy=connected?coreText('storeHint'):'';
+  copy=connected?coreText('storeHint'):coreText('connectFromConsole');
   showNote=false;
   note='';
   const target=$('session-summary-session-actions');
@@ -4542,7 +4623,7 @@ $('switch-keyboard-form').onsubmit = async event => {
   }
   showSwitchAddressError();
   const result = await act('/api/launch-settings', {configurationId:'pc-switch1',
-    profile:{...state.platform.profiles?.['pc-switch1'], switchAddress}},
+    profile:{...state.platform.profiles?.['pc-switch1'], switchAddress, switchManualAddress:!!switchAddress}},
     {onError:error => showSwitchAddressError(globalThis.IZ2S_ERRORS.describe(error).title)});
   if (result?.ok) {
     switchAddressField.value = switchAddress;

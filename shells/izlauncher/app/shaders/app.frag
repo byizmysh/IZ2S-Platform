@@ -99,9 +99,10 @@ void main(){
  vec2 statusCenter=vec2(1090,1008);
 #ifdef IZ_CORE_LOCAL_ADD
  if(iz2HasFtpFooter()){
+  iz2PcFooter(p,col);
   iz2FtpFooter(p,col);
-  statusCenter.x=CORE_SHORTCUT_LEFT+18.0;
-  col=menuSourceHint(p,col,vec2(1283,1002),.55);
+  statusCenter.x=coreShortcutLeft()+18.0;
+  if(!hasPcLinkShortcuts())col=menuSourceHint(p,col,vec2(1283,1002),.55);
  }else
 #endif
  col=menuSourceHint(p,col,vec2(850,996),.7);

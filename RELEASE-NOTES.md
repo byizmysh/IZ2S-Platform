@@ -1,4 +1,4 @@
-# IZ2S Platform 0.25.1
+# IZ2S Platform 0.25.2
 
 IZ2S is a Homebrew launcher for Nintendo Switch.
 
@@ -6,8 +6,8 @@ IZ2S is a Homebrew launcher for Nintendo Switch.
 
 | System | File |
 | --- | --- |
-| Linux x64 / ARM64 | [IZ2S-Platform-0.25.1-linux.tar.gz](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.1/IZ2S-Platform-0.25.1-linux.tar.gz) |
-| Windows x64 | [IZ2S-Platform-0.25.1-windows-x64.zip](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.1/IZ2S-Platform-0.25.1-windows-x64.zip) |
+| Linux x64 / ARM64 | [IZ2S-Platform-0.25.2-linux.tar.gz](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.2/IZ2S-Platform-0.25.2-linux.tar.gz) |
+| Windows x64 | [IZ2S-Platform-0.25.2-windows-x64.zip](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.2/IZ2S-Platform-0.25.2-windows-x64.zip) |
 
 Extract the entire archive before installation. Use these installation packages rather than GitHub's automatic **Source code** downloads.
 
@@ -27,15 +27,14 @@ Install.cmd
 
 The installer prepares the required PC dependencies, creates shortcuts with the IZ2S icon and opens the panel. For later launches, use the shortcut; Windows also provides `Start.vbs` for startup without a console window.
 
-## Fixes in 0.25.1
+## Fixes in 0.25.2
 
-- FIX: Automatically choose the PC network address from the Switch 2 LAN/Wi-Fi path. A Switch 1 keyboard on Wi-Fi no longer redirects a LAN launch to the PC's Wi-Fi address.
-- Added **Restart** after a failed, interrupted or stopped First Setup attempt. It returns to Preparation, clears the form confirmations and keeps the previous attempt in the log history.
-- First Setup waits for USB keyboard readiness from Switch 1, Cardputer ADV or ARM PC before enabling source entry.
-- A manually confirmed USB cable shows a waiting state until the device reports that its keyboard is ready.
-- If the keyboard rejects input before typing begins, the panel shows **Input did not start** and a specific USB message in the selected language.
-- Added a specific diagnostic for local IPC socket errors reported as `listen EACCES ... .sock`.
-- Added the **Make a Program** navigation hint to First Setup in English, Russian, Spanish and Chinese.
+- FIX: Open FTP from the console with **L + R3** and PC Link with **R + L3**. Each channel can be closed and reopened independently after a network change.
+- FIX: Remove saved pairing profiles and passwords from these two console channels. The selected channel accepts connections while it is open.
+- FIX: Discover the current console address across LAN and Wi-Fi and reconnect after an interface change.
+- FIX: Allow `.iza` modules to launch across platform and launcher updates when their required runtime functions are available, without matching application version numbers.
+- FIX: Restore missing native functions used by IZ2S Cheese 0.8.0 and keep the app's compatibility fallback.
+- FIX: Show the correct `0.25.2` release number in the panel health response and component metadata.
 
 ## Included applications
 
@@ -50,4 +49,4 @@ The installer prepares the required PC dependencies, creates shortcuts with the 
 
 Install applications through **App library**. BIOS and game images are not included. Linux is required for the BlitBun/VacooTube PC media services and Civilization VII Wi-Fi setup.
 
-[Full installation guide](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.1/README.md) · [Authors and licenses](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.1/AUTHORS.md) · [Source information](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.1/SOURCES.md) · [SHA-256 checksums](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.1/SHA256SUMS.txt)
+[Full installation guide](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.2/README.md) · [Authors and licenses](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.2/AUTHORS.md) · [Source information](https://github.com/byizmysh/IZ2S-Platform/blob/v0.25.2/SOURCES.md) · [SHA-256 checksums](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.2/SHA256SUMS.txt)

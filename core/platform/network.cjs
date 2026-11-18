@@ -3,6 +3,46 @@ const os = require('node:os');
 const net = require('node:net');
 const dgram = require('node:dgram');
 const fs = require('node:fs/promises');
+const {execFile} = require('node:child_process');
+const {promisify} = require('node:util');
+const run = promisify(execFile);
+
+let windowsInventory;
+function windowsAdapterMode(type, name, description) {
+  if ([23, 24, 131].includes(type) || /(?:wireguard|wintun|tailscale|\bvpn\b|virtualbox host-only|vEthernet \((?:WSL|Default Switch)\))/i.test(`${name} ${description}`)) return 'excluded';
+  if (type === 71) return 'wifi';
+  if ([6, 26, 62, 69, 117].includes(type)) return 'lan';
+  return 'unknown';
+}
+
+function windowsAdapterModes({execute = run, now = Date.now} = {}) {
+  if (windowsInventory && now() < windowsInventory.expires) return windowsInventory.promise;
+  // Match the OS interface type by IPv4, even if its alias was renamed or localized.
+  const script = `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$rows = @([System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | ForEach-Object {
+  $adapter = $_
+  foreach ($ip in $adapter.GetIPProperties().UnicastAddresses) {
+    if ($ip.Address.AddressFamily -eq 'InterNetwork') {
+      @{address=$ip.Address.ToString(); type=[int]$adapter.NetworkInterfaceType; name=$adapter.Name; description=$adapter.Description}
+    }
+  }
+})
+ConvertTo-Json -InputObject $rows -Compress`;
+  const promise = execute('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], {
+    timeout: 2500, windowsHide: true, maxBuffer: 256 * 1024,
+  }).then(({stdout}) => {
+    const rows = JSON.parse(stdout.trim().replace(/^\uFEFF/, ''));
+    const result = new Map();
+    for (const row of Array.isArray(rows) ? rows : []) {
+      if (!net.isIPv4(row.address)) continue;
+      const mode = windowsAdapterMode(row.type, row.name, row.description);
+      result.set(row.address, result.has(row.address) && result.get(row.address) !== mode ? 'unknown' : mode);
+    }
+    return result;
+  }).catch(() => new Map());
+  windowsInventory = {expires: now() + 10000, promise};
+  return promise;
+}
 
 async function isTunnel(name, {platform = process.platform, access = fs.access} = {}) {
   if (/^(tailscale|tun|tap|utun|wg|amn|ppp|vpn|proton|nordlynx)/i.test(name)) return true;
@@ -14,7 +54,8 @@ async function isWireless(name, {platform = process.platform, stat = fs.stat} = 
   if (/^(?:wl|wlan)|wi[ -]?fi|wireless/i.test(name)) return true;
   if (platform !== 'linux') return false;
   // Optional interface metadata; absence does not disable networking.
-  return stat('/sys/class/net/' + name + '/wireless').then(() => true, () => false);
+  const base = '/sys/class/net/' + name;
+  return stat(base + '/wireless').then(() => true, () => stat(base + '/phy80211').then(() => true, () => false));
 }
 
 function routeSource(address, {socket = () => dgram.createSocket('udp4'), timeout = 1000} = {}) {
@@ -52,4 +93,4 @@ async function routeTo(address, {interfaces = os.networkInterfaces, source = rou
   throw Error('No local network adapter for this destination');
 }
 
-module.exports = {isWireless, isTunnel, routeSource, routeTo};
+module.exports = {isWireless, isTunnel, routeSource, routeTo, windowsAdapterModes};

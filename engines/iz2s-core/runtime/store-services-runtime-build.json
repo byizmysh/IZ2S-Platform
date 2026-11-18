@@ -6,12 +6,24 @@
   "storeCodeInRuntime": true,
   "independentStoreModulePreserved": true,
   "sources": {
-    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/main.c": "b9461417a2472b5574127041f6c616fbdd725b15fd9c33ae320f04abe7a8b6e3",
-    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/store.c": "3a9467e83c76b27f39c83252efb003dab60c3c5dd6914cfd1ca2a6f1ae4030e3",
-    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/ui.c": "d2f84108736ba20d2f1a6072dcb78991a2f2796e8c9df8ba0bd3d9df39159578",
-    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/download.c": "e6d76092dc7281368b7b876d51abe76565b457293dda45e91abf3c2d31304a1b",
-    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/installed-artwork.c": "16b8357490b6af6dc0adcb197f4ff3c59a16c67969ae7d2233b537ce70f3cf93",
-    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/iza/host.c": "511f7b60b6b279488fae0fb8dd84047a093f35430bbaf94d955da10a6350edea"
+    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/main.c": "b9461417a2472b5574127041f6c616fbdd725b15fd9c33ae320f04abe7a8b6e3",
+    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/store.c": "3a9467e83c76b27f39c83252efb003dab60c3c5dd6914cfd1ca2a6f1ae4030e3",
+    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/ui.c": "d2f84108736ba20d2f1a6072dcb78991a2f2796e8c9df8ba0bd3d9df39159578",
+    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/download.c": "e6d76092dc7281368b7b876d51abe76565b457293dda45e91abf3c2d31304a1b",
+    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/installed-artwork.c": "16b8357490b6af6dc0adcb197f4ff3c59a16c67969ae7d2233b537ce70f3cf93",
+    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/iza/host.c": "511f7b60b6b279488fae0fb8dd84047a093f35430bbaf94d955da10a6350edea"
+  },
+  "deployment": {
+    "activated": false,
+    "port": 1337,
+    "verified": {
+      "/iz2s/core/bin/game/main": "44713772c5e2c92f1b648075e255f06048863bcf89e37cef14d83f912f695bf5",
+      "/iz2s/core/bin/game/exefs.nsp": "63651b9db1f3c19a2a6c06668d3291e88a5b052e601420e145122d6d67042942"
+    },
+    "backups": [
+      "/iz2s/core/bin/game/main.store-services-402a781d.bak",
+      "/iz2s/core/bin/game/exefs.nsp.store-services-402a781d.bak"
+    ]
   },
   "serviceCheck": {
     "passed": true,

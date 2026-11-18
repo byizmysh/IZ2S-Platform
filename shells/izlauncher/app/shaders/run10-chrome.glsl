@@ -63,6 +63,9 @@ void menuHeader(vec2 p,inout vec3 col){
  versionInk=max(versionInk,focusAscii(versionPoint,vec2(26,0),50u));
  versionInk=max(versionInk,focusAscii(versionPoint,vec2(43,0),53u));
  col=mix(col,MUTED,versionInk);
+ // Attribution belongs with the identity in the header, leaving the footer
+ // as one uninterrupted row of controls and connection shortcuts.
+ col=mix(col,vec3(.70,.80,.76),focusText(p,vec2(350,90),F_CREDIT,.76));
  // Shared filter/search hit areas remain at their existing positions.
  float glass=box(p,vec2(1467,95),vec2(382,37),37.0);
  col=mix(col,vec3(.15,.20,.39),fill(glass)*.36);
@@ -70,7 +73,6 @@ void menuHeader(vec2 p,inout vec3 col){
 }
 void menuFooter(vec2 p,inout vec3 col){
  if(p.y<970.0||p.y>1040.0)return;
- col=mix(col,MUTED,focusText(p,vec2(1840.0-float(F_CREDIT.z),1000),F_CREDIT,1));
  if(c.rows[1]!=0u||c.rows[14]!=0u||c.bagMeta.y!=0u)return;
  bool picker=c.piece.x!=0;uint count=focusCount(picker);
 #ifdef IZ_CORE_LOCAL_ADD
