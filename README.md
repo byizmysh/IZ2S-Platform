@@ -1,4 +1,4 @@
-# IZ2S Platform 0.25
+# IZ2S Platform
 
 IZ2S is a Homebrew launcher for Nintendo Switch.
 
@@ -16,15 +16,11 @@ Use the installation archives above. GitHub's automatic **Source code** download
 
 ### IZ2S Platform panel
 
-![IZ2S Platform 0.25 App library in English](docs/images/iz2s-panel-0.25.png)
-
-The App library in Preview mode, showing the six bundled applications.
+![IZ2S Platform App library in English](docs/images/iz2s-panel-0.25.png)
 
 ### IZ2S console launcher
 
 ![IZ2S 0.25 launcher showing the SD library and FTP shortcut](docs/images/iz2s-launcher-0.25.png)
-
-The 0.25 launcher rendered with an example SD library containing the bundled applications.
 
 ## Before installation
 
@@ -42,7 +38,7 @@ Setup installs the missing prerequisites, verifies the installation, creates des
 
 The installer checks Python 3, Pillow, curl, tar, xz and SSH; it can install system prerequisites with your package manager and prepare Node.js 24 if needed. The installer prints the final destination.
 
-For later launches, choose **IZ2S Platform 0.25** from the application menu, or open the installed folder and run:
+For later launches, choose **IZ2S Platform** from the application menu, or open the installed folder and run:
 
 ```sh
 ./start.sh
