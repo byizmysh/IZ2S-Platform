@@ -1,0 +1,15 @@
+{
+  "baseSha256": "707250429767a6e00a057e0c9daa3df50e870e916fd5fc376e25106509d17eaa",
+  "sha256": "36bc54e4d5c1e5ec989eafa92b4dce46cd85d0601399d878066eaf6c793ae2b0",
+  "nativeServices": 1,
+  "storeCodeInRuntime": false,
+  "launcherSourceSha256": "3e7650ef8dcb402307c449ae833f94414c1fe0ce3fe0b185917893b6d00039ce",
+  "appsSourceSha256": "b72e77f207c5b53fd6958bb62550ddf6825d468e89ef83ba5f8082b90a638b41",
+  "artworkSourceSha256": "16b8357490b6af6dc0adcb197f4ff3c59a16c67969ae7d2233b537ce70f3cf93",
+  "checks": [
+    "Store build and catalog checks",
+    "ARM64 IZA lifecycle with mock services",
+    "Store install and removal with a real NRO",
+    "Launcher sidecar and embedded icon fallback"
+  ]
+}

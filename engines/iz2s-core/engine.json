@@ -1,0 +1,24 @@
+{
+  "format": "izlauncher.engine",
+  "apiVersion": 1,
+  "id": "iz2s-core",
+  "name": "IZ2S core",
+  "version": "0.25.0",
+  "entry": "controller.cjs",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "modes": [
+    "izlauncher"
+  ],
+  "consolePort": 39380,
+  "settingsSchema": [],
+  "defaultSettings": {},
+  "order": 0,
+  "integrationStatus": "IZ2S · IZ2S",
+  "capabilities": {
+    "izMode": true,
+    "heldFsRpc": false
+  }
+}

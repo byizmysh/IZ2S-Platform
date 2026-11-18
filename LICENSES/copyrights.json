@@ -1,0 +1,1482 @@
+[
+  {
+    "path": "COPYRIGHT",
+    "notice": "Copyright (C) 2026 IZMYSH contributors"
+  },
+  {
+    "path": "LICENSE",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
+  },
+  {
+    "path": "LICENSE",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "LICENSE",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "core/filesystem/ouncecake/LICENSE",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
+  },
+  {
+    "path": "core/filesystem/ouncecake/LICENSE",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "core/filesystem/ouncecake/LICENSE",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "engines/CivSwitch/LICENSE",
+    "notice": "Copyright (c) 2026 Gezine"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/gen-mapping/LICENSE",
+    "notice": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/resolve-uri/LICENSE",
+    "notice": "Copyright 2019 Justin Ridgewell <jridgewell@google.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/source-map/LICENSE",
+    "notice": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/sourcemap-codec/LICENSE",
+    "notice": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/trace-mapping/LICENSE",
+    "notice": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/acorn/LICENSE",
+    "notice": "Copyright (C) 2012-2022 by various contributors (see AUTHORS)"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/buffer-from/LICENSE",
+    "notice": "Copyright (c) 2016, 2018 Linus Unnebäck"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/commander/LICENSE",
+    "notice": "Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/LICENSE",
+    "notice": "Copyright (c) 2009-2011, Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2009-2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2014 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2009-2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2014 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/array-set.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/base64-vlq.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/base64-vlq.js",
+    "notice": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/base64.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/binary-search.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/mapping-list.js",
+    "notice": "* Copyright 2014 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/quick-sort.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/source-map-consumer.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/source-map-generator.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/source-node.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/util.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/source-map.js",
+    "notice": "* Copyright 2009-2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map-support/LICENSE.md",
+    "notice": "Copyright (c) 2014 Evan Wallace"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/LICENSE",
+    "notice": "Copyright 2012-2018 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/ast.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/common.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/compressor-flags.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/drop-side-effect-free.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/drop-unused.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/evaluate.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/index.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/inference.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/inline.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/native-objects.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/reduce-vars.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/tighten-body.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/mozilla-ast.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/output.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/parse.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/propmangle.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/scope.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/sourcemap.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/transform.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/utils/index.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSE",
+    "notice": "Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSE",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSE",
+    "notice": "<program>  Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSES/Gezine-MIT.txt",
+    "notice": "Copyright (c) 2026 Gezine"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt",
+    "notice": "Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt",
+    "notice": "<program>  Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/README.md",
+    "notice": "CivSwitchLDN as a combined application, and the original code contributed by ItsNerisma, are licensed under the **GNU GPL version 3 only (`GPL-3.0-only`)**. See [LICENSE](LICENSE). Copyright (c) 2026 ItsNerisma."
+  },
+  {
+    "path": "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md",
+    "notice": "also under `GPL-3.0-only`, copyright (c) 2026 ItsNerisma. The components below"
+  },
+  {
+    "path": "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md",
+    "notice": "- Copyright (c) 2026 Gezine."
+  },
+  {
+    "path": "engines/CivSwitchLDN/compress.js",
+    "notice": "// SPDX-License-Identifier: MIT"
+  },
+  {
+    "path": "engines/CivSwitchLDN/compress.js",
+    "notice": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
+  },
+  {
+    "path": "engines/CivSwitchLDN/installer/compress_stage.js",
+    "notice": "// SPDX-License-Identifier: MIT"
+  },
+  {
+    "path": "engines/CivSwitchLDN/installer/compress_stage.js",
+    "notice": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
+  },
+  {
+    "path": "engines/CivSwitchLDN/installer/install.py",
+    "notice": "# SPDX-License-Identifier: MIT"
+  },
+  {
+    "path": "engines/CivSwitchLDN/installer/install.py",
+    "notice": "# Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/gen-mapping/LICENSE",
+    "notice": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/resolve-uri/LICENSE",
+    "notice": "Copyright 2019 Justin Ridgewell <jridgewell@google.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/source-map/LICENSE",
+    "notice": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/sourcemap-codec/LICENSE",
+    "notice": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/trace-mapping/LICENSE",
+    "notice": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/acorn/LICENSE",
+    "notice": "Copyright (C) 2012-2022 by various contributors (see AUTHORS)"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/buffer-from/LICENSE",
+    "notice": "Copyright (c) 2016, 2018 Linus Unnebäck"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/commander/LICENSE",
+    "notice": "Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/LICENSE",
+    "notice": "Copyright (c) 2009-2011, Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2009-2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2014 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2009-2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2014 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/array-set.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/base64-vlq.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/base64-vlq.js",
+    "notice": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/base64.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/binary-search.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/mapping-list.js",
+    "notice": "* Copyright 2014 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/quick-sort.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/source-map-consumer.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/source-map-generator.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/source-node.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/util.js",
+    "notice": "* Copyright 2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/source-map.js",
+    "notice": "* Copyright 2009-2011 Mozilla Foundation and contributors"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map-support/LICENSE.md",
+    "notice": "Copyright (c) 2014 Evan Wallace"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/LICENSE",
+    "notice": "Copyright 2012-2018 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/ast.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/common.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/compressor-flags.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/drop-side-effect-free.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/drop-unused.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/evaluate.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/index.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/inference.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/inline.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/native-objects.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/reduce-vars.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/tighten-body.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/mozilla-ast.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/output.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/parse.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/propmangle.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/scope.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/sourcemap.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/transform.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/lib/utils/index.js",
+    "notice": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
+  },
+  {
+    "path": "engines/CivSwitchLDN/payloads/core.js",
+    "notice": "// SPDX-License-Identifier: MIT"
+  },
+  {
+    "path": "engines/CivSwitchLDN/payloads/core.js",
+    "notice": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
+  },
+  {
+    "path": "engines/CivSwitchLDN/payloads/helloworld.js",
+    "notice": "// SPDX-License-Identifier: MIT"
+  },
+  {
+    "path": "engines/CivSwitchLDN/payloads/helloworld.js",
+    "notice": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/bzip2/LICENSE",
+    "notice": "documentation, are copyright (C) 1996-2019 Julian R Seward.  All"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/expat-MIT.txt",
+    "notice": "Copyright (c) 1998-2000 Thai Open Source Software Center Ltd and Clark Cooper"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/expat-MIT.txt",
+    "notice": "Copyright (c) 2001-2017 Expat maintainers"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/freetype/FTL.TXT",
+    "notice": "Copyright 1996-2002, 2006 by"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/freetype/FTL.TXT",
+    "notice": "Portions of this software are copyright © <year> The FreeType"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/freetype/FTL.TXT",
+    "notice": "The FreeType  Project is copyright (C) 1996-2000  by David Turner,"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/freetype/GPLv2.TXT",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/freetype/GPLv2.TXT",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/freetype/GPLv2.TXT",
+    "notice": "Gnomovision version 69, Copyright (C) year  name of author"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2010-2022  Google, Inc."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2015-2020  Ebrahim Byagowi"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2019,2020  Facebook, Inc."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2012,2015  Mozilla Foundation"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2011  Codethink Limited"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2008,2010  Nokia Corporation and/or its subsidiary(-ies)"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2009  Keith Stribley"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2011  Martin Hosken and SIL International"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2007  Chris Wilson"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2005,2006,2020,2021,2022,2023  Behdad Esfahbod"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2004,2007,2008,2009,2010,2013,2021,2022,2023  Red Hat, Inc."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 1998-2005  David Turner and Werner Lemberg"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2016  Igalia S.L."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2022  Matthias Clasen"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2018,2021  Khaled Hosny"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2018,2019,2020  Adobe, Inc"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "notice": "Copyright © 2013-2015  Alexei Podtelezhnikov"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/kaiHEN-GPL-2.0.txt",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/kaiHEN-GPL-2.0.txt",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/kaiHEN-GPL-2.0.txt",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libarchive/LICENSE",
+    "notice": "Copyright (c) 2003-2018 <author(s)>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libjpeg-turbo/LICENSE.md",
+    "notice": "Copyright (C)2009-2021 D. R. Commander.  All Rights Reserved.<br>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libjpeg-turbo/LICENSE.md",
+    "notice": "Copyright (C)2015 Viktor Szathmáry.  All Rights Reserved."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libkaihen-ISC.txt",
+    "notice": "Copyright (c) 2026 kaiHEN contributors"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libnx-ISC.txt",
+    "notice": "Copyright 2017-2018 libnx Authors"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libogg-BSD.txt",
+    "notice": "Copyright (c) 2002, Xiph.org Foundation"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libounce-ISC.txt",
+    "notice": "Copyright (c) 2026 libounce contributors"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "* Copyright (c) 1995-2025 The PNG Reference Library Authors."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "* Copyright (c) 2018-2025 Cosmin Truta."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "* Copyright (c) 2000-2002, 2004, 2006-2018 Glenn Randers-Pehrson."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "* Copyright (c) 1996-1997 Andreas Dilger."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "* Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "Copyright (c) 2000-2002, 2004, 2006-2018 Glenn Randers-Pehrson, are"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "Copyright (c) 1998-2000 Glenn Randers-Pehrson, are derived from"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "Copyright (c) 1996-1997 Andreas Dilger, are derived from libpng-0.88,"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "notice": "Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libvorbis-BSD.txt",
+    "notice": "Copyright (c) 2002-2020 Xiph.org Foundation"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libwebp-BSD.txt",
+    "notice": "Copyright (c) 2010, Google Inc. All rights reserved."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libzstd/COPYING",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libzstd/COPYING",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libzstd/COPYING",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libzstd/LICENSE",
+    "notice": "Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/lz4-BSD.txt",
+    "notice": "Copyright (c) 2011-2016, Yann Collet"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/mimalloc-MIT.txt",
+    "notice": "Copyright (c) 2018-2025 Microsoft Corporation, Daan Leijen"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/notosans-OFL.txt",
+    "notice": "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/)"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/nx-hbloader-ISC.md",
+    "notice": "Copyright 2017-2018 nx-hbloader Authors"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/nx-hbmenu-ISC.md",
+    "notice": "Copyright 2017-2018 nx-hbmenu Authors"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/oniguruma-BSD.txt",
+    "notice": "Copyright (c) 2002-2019  K.Kosako  <kkosako0@gmail.com>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/ounceshell-GPL-3.0.txt",
+    "notice": "Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/ounceshell-GPL-3.0.txt",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/ounceshell-GPL-3.0.txt",
+    "notice": "<program>  Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/ouncevk/README.md",
+    "notice": "<!-- SPDX-License-Identifier: MIT -->"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/physfs-zlib.txt",
+    "notice": "Copyright (c) 2001-2022 Ryan C. Gordon <icculus@icculus.org> and others."
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/sdl2-zlib.txt",
+    "notice": "Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/sdl2_image/COPYING.txt",
+    "notice": "Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/sdl2_ttf/LICENSE.txt",
+    "notice": "Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>"
+  },
+  {
+    "path": "hardware/agents/arm-input/CivSwitch-MIT.txt",
+    "notice": "Copyright (c) 2026 Gezine"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/Arduino-ESP32.txt",
+    "notice": "Copyright (C) 1991, 1999 Free Software Foundation, Inc."
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/Arduino-ESP32.txt",
+    "notice": "Copyright (C) year  name of author"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/ArduinoJson.txt",
+    "notice": "Copyright © 2014-2023, Benoit BLANCHON"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/CivSwitch.txt",
+    "notice": "Copyright (c) 2026 Gezine"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/IRremote.txt",
+    "notice": "(c) Copyright 2009 Ken Shirriff http://www.righto.com"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/IRremote.txt",
+    "notice": "(c) Copyright 2016 Rafi Khan"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/IRremote.txt",
+    "notice": "(c) Copyright 2020-2022 Armin Joachimsmeyer et al."
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/LovyanGFX.txt",
+    "notice": "Copyright (c) 2012 Adafruit Industries.  All rights reserved."
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/LovyanGFX.txt",
+    "notice": "Copyright (c) 2020 Bodmer (https://github.com/Bodmer)"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/LovyanGFX.txt",
+    "notice": "Copyright (c) 2020 lovyan03 (https://github.com/lovyan03)"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/M5Cardputer.txt",
+    "notice": "Copyright (c) 2025 M5Stack Technology CO LTD"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/M5GFX.txt",
+    "notice": "Copyright (c) 2021 M5Stack"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/M5Unified.txt",
+    "notice": "Copyright (c) 2021 M5Stack"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/TinyUSB.txt",
+    "notice": "Copyright (c) 2018, hathach (tinyusb.org)"
+  },
+  {
+    "path": "hardware/devices/switch1/firmware/LICENSE",
+    "notice": "Copyright (c) 2026 Yule Hou"
+  },
+  {
+    "path": "hardware/devices/switch1/firmware/LICENSE-font",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera is"
+  },
+  {
+    "path": "hardware/devices/switch1/firmware/LICENSE-font",
+    "notice": "Copyright (c) 2006 by Tavmjong Bah. All Rights Reserved."
+  },
+  {
+    "path": "hardware/devices/switch1/firmware/LICENSE-font",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera"
+  },
+  {
+    "path": "hardware/devices/switch1/firmware/LICENSE-libnx",
+    "notice": "Copyright 2017-2018 libnx Authors"
+  },
+  {
+    "path": "language/fonts/LICENSE.txt",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera is"
+  },
+  {
+    "path": "language/fonts/LICENSE.txt",
+    "notice": "Copyright (c) 2006 by Tavmjong Bah. All Rights Reserved."
+  },
+  {
+    "path": "language/fonts/LICENSE.txt",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera"
+  },
+  {
+    "path": "modules/BlitBun/COPYRIGHT",
+    "notice": "Copyright (C) 2026 IZMYSH contributors"
+  },
+  {
+    "path": "modules/BlitBun/LICENSE",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
+  },
+  {
+    "path": "modules/BlitBun/LICENSE",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "modules/BlitBun/LICENSE",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "modules/BookReader/LICENSE",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
+  },
+  {
+    "path": "modules/BookReader/LICENSE",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "modules/BookReader/LICENSE",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "modules/BookReader/licenses/DejaVu.txt",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera is"
+  },
+  {
+    "path": "modules/BookReader/licenses/DejaVu.txt",
+    "notice": "Copyright (c) 2006 by Tavmjong Bah. All Rights Reserved."
+  },
+  {
+    "path": "modules/BookReader/licenses/DejaVu.txt",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera"
+  },
+  {
+    "path": "modules/Foldrift/LICENSE",
+    "notice": "Copyright (c) 2026 IZMYSH contributors"
+  },
+  {
+    "path": "modules/IZPSX/FONT-LICENSE.txt",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved."
+  },
+  {
+    "path": "modules/IZPSX/FONT-LICENSE.txt",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera is a trademark of Bitstream, Inc."
+  },
+  {
+    "path": "modules/IZPSX/LICENSE",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc."
+  },
+  {
+    "path": "modules/IZPSX/LICENSE",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "modules/IZPSX/LICENSE",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "modules/VacooTube/COPYRIGHT",
+    "notice": "Copyright (C) 2026 IZMYSH contributors"
+  },
+  {
+    "path": "modules/VacooTube/LICENSE",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
+  },
+  {
+    "path": "modules/VacooTube/LICENSE",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "modules/VacooTube/LICENSE",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "modules/VacooTube/app/LICENSE",
+    "notice": "Copyright (c) 2025-2026 shy"
+  },
+  {
+    "path": "modules/VacooTube/app/src/preload/modules/h264ify.js",
+    "notice": "//Copyright (c) 2015 erkserkserks, The MIT License (MIT)"
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-arm64/LICENSE",
+    "notice": "Copyright (c) Electron contributors"
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-arm64/LICENSE",
+    "notice": "Copyright (c) 2013-2020 GitHub Inc."
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-x64/LICENSE.electron.txt",
+    "notice": "Copyright (c) Electron contributors"
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-x64/LICENSE.electron.txt",
+    "notice": "Copyright (c) 2013-2020 GitHub Inc."
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/LICENSE",
+    "notice": "Copyright (c) 2025-2026 shy"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/LICENSE",
+    "notice": "i.e., \"Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/LICENSE",
+    "notice": "License Agreement and CNRI's notice of copyright, i.e., \"Copyright (c)"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/LICENSE",
+    "notice": "Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam,"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/argparse.js",
+    "notice": "// Copyright (C) 2010-2020 Python Software Foundation."
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/argparse.js",
+    "notice": "// Copyright (C) 2020 argparse.js authors"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/lib/textwrap.js",
+    "notice": "// Copyright (C) 1999-2001 Gregory P. Ward."
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/lib/textwrap.js",
+    "notice": "// Copyright (C) 2002, 2003 Python Software Foundation."
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/lib/textwrap.js",
+    "notice": "// Copyright (C) 2020 argparse.js authors"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/builder-util-runtime/LICENSE",
+    "notice": "Copyright (c) 2015 Loopline Systems"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/chokidar/LICENSE",
+    "notice": "Copyright (c) 2012 Paul Miller (https://paulmillr.com), Elan Shanker"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/debug/LICENSE",
+    "notice": "Copyright (c) 2014-2017 TJ Holowaychuk <tj@vision-media.ca>"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/debug/LICENSE",
+    "notice": "Copyright (c) 2018-2021 Josh Junon"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/debug/README.md",
+    "notice": "Copyright (c) 2014-2017 TJ Holowaychuk &lt;tj@vision-media.ca&gt;"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/debug/README.md",
+    "notice": "Copyright (c) 2018-2021 Josh Junon"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/electron-updater/LICENSE",
+    "notice": "Copyright (c) 2015 Loopline Systems"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/electron-updater/node_modules/semver/LICENSE",
+    "notice": "Copyright (c) Isaac Z. Schlueter and Contributors"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/fs-extra/LICENSE",
+    "notice": "Copyright (c) 2011-2017 JP Richardson"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/fs-extra/README.md",
+    "notice": "Copyright (c) 2011-2017 [JP Richardson](https://github.com/jprichardson)"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/fs-extra/lib/fs/index.js",
+    "notice": "// Copyright (c) 2014-2016 Jonathan Ong me@jongleberry.com and Contributors"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/fs-extra/lib/mkdirs/utils.js",
+    "notice": "// Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/graceful-fs/LICENSE",
+    "notice": "Copyright (c) 2011-2022 Isaac Z. Schlueter, Ben Noordhuis, and Contributors"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/js-yaml/LICENSE",
+    "notice": "Copyright (C) 2011-2015 by Vitaly Puzrin"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/jsonfile/LICENSE",
+    "notice": "Copyright (c) 2012-2015, JP Richardson <jprichardson@gmail.com>"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/jsonfile/README.md",
+    "notice": "Copyright 2012-2016, JP Richardson  <jprichardson@gmail.com>"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/ms/license.md",
+    "notice": "Copyright (c) 2020 Vercel, Inc."
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/readdirp/LICENSE",
+    "notice": "Copyright (c) 2012-2019 Thorsten Lorenz, Paul Miller (https://paulmillr.com)"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/readdirp/README.md",
+    "notice": "Copyright (c) 2012-2019 Thorsten Lorenz, Paul Miller (<https://paulmillr.com>)"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/string-argv/LICENSE",
+    "notice": "Copyright 2014 Anthony McCormick"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/tiny-typed-emitter/LICENSE",
+    "notice": "Copyright (c) 2020 Zurab Benashvili (binier) <zura.bena@gmail.com>"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/universalify/LICENSE",
+    "notice": "Copyright (c) 2017, Ryan Zimmerman <opensrc@ryanzim.com>"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/src/preload/modules/h264ify.js",
+    "notice": "//Copyright (c) 2015 erkserkserks, The MIT License (MIT)"
+  },
+  {
+    "path": "modules/VacooTube/server/streaming/COPYRIGHT",
+    "notice": "Copyright (C) 2026 IZMYSH contributors"
+  },
+  {
+    "path": "modules/VacooTube/server/streaming/LICENSE",
+    "notice": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
+  },
+  {
+    "path": "modules/VacooTube/server/streaming/LICENSE",
+    "notice": "Copyright (C) <year>  <name of author>"
+  },
+  {
+    "path": "modules/VacooTube/server/streaming/LICENSE",
+    "notice": "Gnomovision version 69, Copyright (C) year name of author"
+  },
+  {
+    "path": "modules/iz2s-cheese/LICENSE",
+    "notice": "Copyright (c) 2026 IZMYSH contributors"
+  },
+  {
+    "path": "modules/iz2s-cheese/licenses/DejaVu.txt",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera is"
+  },
+  {
+    "path": "modules/iz2s-cheese/licenses/DejaVu.txt",
+    "notice": "Copyright (c) 2006 by Tavmjong Bah. All Rights Reserved."
+  },
+  {
+    "path": "modules/iz2s-cheese/licenses/DejaVu.txt",
+    "notice": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera"
+  },
+  {
+    "path": "modules/iz2s-cheese/licenses/Octicons.txt",
+    "notice": "Copyright (c) 2026 GitHub Inc."
+  },
+  {
+    "path": "modules/iz2s-cheese/switch/vendor/stb_image.h",
+    "notice": "Copyright (c) 2017 Sean Barrett"
+  },
+  {
+    "path": "sdk/LICENSE",
+    "notice": "Copyright (c) 2026 IZMYSH contributors"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/LICENCE.md",
+    "notice": "Copyright (c) 2017-2023, Loup Vaillant"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/LICENCE.md",
+    "notice": "Copyright (c) 2017-2019, Michael Savage"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/LICENCE.md",
+    "notice": "Copyright (c) 2017-2023, Fabio Scotoni"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/monocypher-ed25519.c",
+    "notice": "// SPDX-License-Identifier: BSD-2-Clause OR CC0-1.0"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/monocypher-ed25519.c",
+    "notice": "// Copyright (c) 2017-2019, Loup Vaillant"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/monocypher-ed25519.h",
+    "notice": "// SPDX-License-Identifier: BSD-2-Clause OR CC0-1.0"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/monocypher-ed25519.h",
+    "notice": "// Copyright (c) 2017-2019, Loup Vaillant"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/monocypher.c",
+    "notice": "// SPDX-License-Identifier: BSD-2-Clause OR CC0-1.0"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/monocypher.c",
+    "notice": "// Copyright (c) 2017-2020, Loup Vaillant"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/monocypher.h",
+    "notice": "// SPDX-License-Identifier: BSD-2-Clause OR CC0-1.0"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/monocypher.h",
+    "notice": "// Copyright (c) 2017-2019, Loup Vaillant"
+  }
+]

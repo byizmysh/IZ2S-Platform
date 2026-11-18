@@ -11,5 +11,5 @@ function eligibility(manifest,files){
  const policy=require('./package.cjs').eligibility(manifest);if(!policy.compatible)return policy;
  try{require('./assets.cjs').inspectPacked(manifest,files);}catch(e){return {compatible:false,reason:e.message};}return policy;
 }
-async function prepare(app,directory){return await require('./instructions.cjs').prepare(app)||await require('./reader/prepare.cjs').prepare(app,directory)||app;}
+async function prepare(app,directory,{includeLibrary}={}){return await require('./instructions.cjs').prepare(app)||await require('./reader/prepare.cjs').prepare(app,directory,{includeLibrary})||app;}
 module.exports={eligibility,prepare};

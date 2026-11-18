@@ -10,7 +10,7 @@ function localUrl(value) {
   return url;
 }
 const folder = root => path.join(root, 'data/state/workspace-tabs');
-async function register(root, {id, title, url, moduleId, kind = 'module', automatic = false, requestId, ownerPid, sessionId, controlUrl, panelInstance}) {
+async function register(root, {id, title, url, moduleId, kind = 'module', automatic = false, requestId, ownerPid, sessionId, controlUrl, panelInstance, coreTool = false}) {
   if (!validId(id) || !['files','module','settings'].includes(kind) || typeof title !== 'string' || !title.trim())
     throw Error('Invalid workspace tab');
   if (moduleId && !/^[a-z0-9][a-z0-9-]{0,47}$/.test(moduleId)) throw Error('Invalid module id');
@@ -23,13 +23,23 @@ async function register(root, {id, title, url, moduleId, kind = 'module', automa
   if (automatic && previous.requestId === requestId && previous.url === url &&
       previous.panelInstance === panelInstance && previous.ownerPid === ownerPid && previous.sessionId === sessionId) return previous;
   const entry = {id, title:title.slice(0,100), url, moduleId, kind, state:'running', automatic,
-    requestId:requestId || crypto.randomUUID(), ownerPid, sessionId, controlUrl, panelInstance, updatedAt:new Date().toISOString()};
+    requestId:requestId || crypto.randomUUID(), ownerPid, sessionId, controlUrl, panelInstance, coreTool, updatedAt:new Date().toISOString()};
   await saveJson(file, entry);
   return entry;
 }
 function alive(pid) {
   if(!Number.isInteger(pid)||pid<=1)return false;
   try{process.kill(pid,0);return true;}catch(error){if(error.code==='ESRCH')return false;if(error.code==='EPERM')return true;throw error;}
+}
+const coreSessions=new Map();
+function retainedCore(root) {
+  let cached=coreSessions.get(root);
+  if(!cached||Date.now()>=cached.until){
+    cached={until:Infinity};
+    cached.task=require('./filesystem/core-session.cjs').find(root).catch(()=>null).finally(()=>{cached.until=Date.now()+10000;});
+    coreSessions.set(root,cached);
+  }
+  return cached.task;
 }
 async function visible(root,{active,connected=false,panelInstance=process.env.IZ2S_PANEL_INSTANCE,
   probe=require('./platform/listener.cjs').listening,ownerAlive=alive,
@@ -50,12 +60,19 @@ async function visible(root,{active,connected=false,panelInstance=process.env.IZ
       return row;
     }
     if(row.panelInstance&&panelInstance&&row.panelInstance!==panelInstance)return null;
-    if(row.kind==='settings'){
+    if(row.id==='core-apps')return null;
+    if(row.coreTool&&row.id==='core-files'){
+      if(!owner)return null;
+    }else if(row.kind==='settings'){
       if(!settingsOpen(row.moduleId)||!owner)return null;
       if(row.sessionId&&(!connected||row.sessionId!==current))return null;
     }else if(row.kind==='files'||row.controlUrl||row.sessionId){
-      if(!connected||!current||(row.sessionId&&row.sessionId!==current))return null;
       if(!owner)return null;
+      if(!connected||!current||(row.sessionId&&row.sessionId!==current)){
+        if(row.kind!=='files'||!row.sessionId)return null;
+        const core=await retainedCore(root);
+        if(core?.id!==row.sessionId)return null;
+      }
     }else{
       const managed=managedModules.some(module=>module.id===row.moduleId);
       if(row.state==='running'&&(!owner||!managed))return null;

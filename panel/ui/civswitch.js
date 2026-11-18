@@ -1,4 +1,20 @@
 'use strict';
+function renderCivError(document, prefix, message) {
+ const target = name => document.getElementById(prefix + '-error' + name), box = target('');
+ box.hidden = !message;
+ if (!message) return;
+ const problem = globalThis.IZ2S_ERRORS?.describe(message) || {title:message, action:'', detail:message};
+ const details = target('-details');
+ for (const [name, value] of [['-title',problem.title],['-note',problem.action]]) {
+  const text = globalThis.RUN21_LANGUAGE?.t(value) || value;
+  if (target(name).textContent !== text) target(name).textContent = value;
+ }
+ if (target('-raw').textContent !== problem.detail) {
+  details.open = false;
+  target('-raw').textContent = problem.detail;
+ }
+ details.hidden = !problem.detail || problem.detail.trim() === problem.title;
+}
 globalThis.IZ2S_CIVSWITCH={create({document,act,setupInput=()=>{},downloadArm=()=>{},getStartup=()=>({}),isUnavailable=()=>false}){
  const $=id=>document.getElementById(id),t=value=>globalThis.RUN21_LANGUAGE?.t(value)||value;
  let current=null,snapshot=null,posting=false,stamp='',hostStamp='',step=1,wasShown=null,view='setup',viewChosen=false;
@@ -6,7 +22,7 @@ globalThis.IZ2S_CIVSWITCH={create({document,act,setupInput=()=>{},downloadArm=()
  const network=civRunNetwork(document,'civ',()=>render(snapshot));
  $('civ-run-host').oninput=()=>render(snapshot);
  for(const mode of ['setup','run'])$('civ-view-'+mode).onclick=()=>{view=mode;viewChosen=true;civViewPreference('civ',mode);if(mode==='setup'){step=1;stamp=current?current.id+':'+current.phase:'';}render(snapshot);};
- for(const shell of ['izlauncher','izpslauncher'])$('civ-shell-'+shell).onclick=()=>{$('civ-launcher').value=shell;render(snapshot);};
+ for(const shell of ['izlauncher'])$('civ-shell-'+shell).onclick=()=>{$('civ-launcher').value=shell;render(snapshot);};
  function go(next){step=next;render(snapshot);}
  for(let i=1;i<=4;i++)$('civ-step-'+i).onclick=()=>go(i);
  for(const [id,next]of [['next-1',2],['back-2',1],['back-3',2],['back-4',3]])$('civ-'+id).onclick=()=>go(next);
@@ -91,8 +107,7 @@ globalThis.IZ2S_CIVSWITCH={create({document,act,setupInput=()=>{},downloadArm=()
    uncertain:'Input receipt is unconfirmed. Check the stored job before starting over.'};
   $('civ-status').textContent=t(labels[current.phase]||current.phase);
   $('civ-status').hidden=!current.busy&&(!current.error||current.restoredAttempt);
-  $('civ-error').hidden=!current.error||!!current.restoredAttempt;
-  $('civ-error').setAttribute('translate','no');$('civ-error').textContent=(globalThis.IZ2S_ERRORS?.canonical(current.error||'')||current.error||'');
+  renderCivError(document, 'civ', current.restoredAttempt ? '' : current.error);
   $('civ-previous').hidden=!current.restoredAttempt;
   $('civ-previous-error').textContent=(globalThis.IZ2S_ERRORS?.canonical(current.error||'')||current.error||'');
   $('civ-discard').disabled=locked;
@@ -100,10 +115,12 @@ globalThis.IZ2S_CIVSWITCH={create({document,act,setupInput=()=>{},downloadArm=()
   $('civ-save-consent').hidden=!save;
   $('civ-next-1').disabled=locked||(save&&!consent);$('civ-next-1').textContent=t(current.loaderReady&&save?'Install save':'Continue');
   $('civ-next-2').disabled=locked||!current.automaticInputAvailable||!$('civ-host').value.trim();
+  const switchKeyboard = state.platform.configuration?.inputAdapter === 'switch-wifi';
   $('civ-host').disabled=locked;$('civ-input-settings').disabled=locked;
+  $('civ-input-settings').textContent=t(switchKeyboard?'Choose input device':'Device setup');
   $('civ-arm-installer').hidden=!['ssh-gadget','local-gadget'].includes(state.platform.configuration?.inputAdapter);
   $('civ-arm-installer').disabled=isUnavailable();
-  $('civ-input-status').textContent=t(!input.reachable?'Waiting for the input device.':!input.keyboard?
+  $('civ-input-status').textContent=t(switchKeyboard?'Choose ARM PC or Cardputer ADV for Civilization VII controller input.':!input.reachable?'Waiting for the input device.':!input.keyboard?
    'Connect the input device USB cable to Switch.':!current.automaticInputAvailable?
    'Update the input device: USB keyboard + controller required.':'Keyboard + controller ready.');
   $('civ-input-status').hidden=!!current.automaticInputAvailable;
@@ -153,7 +170,7 @@ globalThis.IZ2S_CIVSWITCH_LDN = {create({document, act, getStartup=()=>({}), isU
   const network=civRunNetwork(document,'ldn',()=>render(snapshot));
   $('ldn-run-host').oninput=()=>render(snapshot);
   for(const mode of ['setup','run'])$('ldn-view-'+mode).onclick=()=>{view=mode;viewChosen=true;civViewPreference('ldn',mode);if(mode==='setup'){step=1;phaseStamp=current?current.id+':'+current.phase:'';}render(snapshot);};
-  for(const shell of ['izlauncher','izpslauncher'])$('ldn-shell-'+shell).onclick=()=>{$('ldn-launcher').value=shell;render(snapshot);};
+  for(const shell of ['izlauncher'])$('ldn-shell-'+shell).onclick=()=>{$('ldn-launcher').value=shell;render(snapshot);};
   function go(next) {step = next; render(snapshot);}
   for (let i = 1; i <= 4; i++) $('ldn-step-' + i).onclick = () => go(i);
   for (const [id, next] of [['back-2', 1], ['back-3', 2], ['back-4', 3]])
@@ -271,7 +288,7 @@ globalThis.IZ2S_CIVSWITCH_LDN = {create({document, act, getStartup=()=>({}), isU
     $('ldn-discard').hidden=!current.error&&!current.restoredAttempt&&!current.index&&['idle','preparing'].includes(current.phase);
     $('ldn-discard').disabled=locked||launcherOwnsSession;
     $('ldn-discard').textContent=t('Start over');
-    $('ldn-error').hidden = !current.error||!!current.restoredAttempt; $('ldn-error').setAttribute('translate','no');$('ldn-error').textContent = (globalThis.IZ2S_ERRORS?.canonical(current.error||'')||current.error||'');
+    renderCivError(document, 'ldn', current.restoredAttempt ? '' : current.error);
     $('ldn-progress').textContent = Math.min(current.index, current.total) + ' / ' + current.total;
     $('ldn-dependencies-status').textContent = t(!setup.supported ? 'CIV7 LAN requires native Linux' :
       !setup.radios?.length ? 'No PC Wi-Fi radio found.' : !setup.dependenciesReady ? 'Prepare PC dependencies in step 1' :
@@ -327,7 +344,7 @@ function renderSaveInstallation(document,prefix,current,{view,save,consent,locke
 
 function renderLauncher(document,prefix,state,current,posting,view){
  const $=id=>document.getElementById(prefix+'-'+id),t=value=>globalThis.RUN21_LANGUAGE?.t(value)||value;
- const runtime=state.civLauncher||{};if(['izlauncher','izpslauncher'].includes(runtime.shell))$('launcher').value=runtime.shell;
+ const runtime=state.civLauncher||{};if(['izlauncher'].includes(runtime.shell))$('launcher').value=runtime.shell;
  const modules=document.getElementById('launch-modules'),flow=document.getElementById(prefix==='ldn'?'civswitch-ldn-flow':'civswitch-flow');
  if(modules&&flow){const bar=flow.querySelector('.civ-action-bar');if(modules.parentElement!==flow||modules.nextElementSibling!==bar)flow.insertBefore(modules,bar);modules.hidden=$('stage-4').hidden||runtime.shell==='original';}
  const automatic=runtime.shell!=='original'&&(view==='run'||!$('save-after').checked);
@@ -354,7 +371,7 @@ function renderCivView(document,prefix,view,current,posting){
  const $=id=>document.getElementById(prefix+'-'+id);
  $('setup-steps').hidden=view==='run';$('run-connection').hidden=view!=='run';
  for(const mode of ['setup','run']){$('view-'+mode).classList.toggle('selected',mode===view);$('view-'+mode).setAttribute('aria-pressed',String(mode===view));$('view-'+mode).disabled=posting||current.busy;}
- for(const shell of ['izlauncher','izpslauncher']){$('shell-'+shell).classList.toggle('selected',$('launcher').value===shell);$('shell-'+shell).setAttribute('aria-pressed',String($('launcher').value===shell));$('shell-'+shell).disabled=posting||current.busy;}
+ for(const shell of ['izlauncher']){$('shell-'+shell).classList.toggle('selected',$('launcher').value===shell);$('shell-'+shell).setAttribute('aria-pressed',String($('launcher').value===shell));$('shell-'+shell).disabled=posting||current.busy;}
  $('run-host').disabled=posting||current.busy;
  $('connect-ip').disabled=posting||current.busy||!$('run-host').value.trim();
  $('check-loader').textContent=(globalThis.RUN21_LANGUAGE?.t|| (s=>s))('Connect automatically');

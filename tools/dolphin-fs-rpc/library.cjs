@@ -26,9 +26,12 @@ async function findSession(root = ROOT, preflight = require(path.join(root, 'cor
     if (!status.ready) throw Error(status.reason || 'Held FS RPC is not responding');
     return {id: session, session, run, host: config.host, port: PORT, identity: session + ':' + proof.retainedEndpoint.socketPath};
   }
+  const core = await require(path.join(root,'core/filesystem/core-session.cjs')).find(root,{preflight})
+    .catch(error=>{if(['ENOENT','ENOTDIR','ECONNREFUSED'].includes(error.code)||error instanceof SyntaxError)return null;throw error;});
+  if(core)return core;
   const attempts = path.join(root, 'data/state/attempts');
   const rows = [];
-  for (const item of await fs.readdir(attempts, {withFileTypes: true})) {
+  for (const item of await fs.readdir(attempts, {withFileTypes: true}).catch(error=>{if(error.code==='ENOENT')return [];throw error;})) {
     if (!item.isDirectory()) continue;
     try { rows.push(await read(path.join(attempts, item.name, 'attempt.json'))); }
     catch (error) { if (!['ENOENT', 'ENOTDIR'].includes(error.code) && !(error instanceof SyntaxError)) throw error; }

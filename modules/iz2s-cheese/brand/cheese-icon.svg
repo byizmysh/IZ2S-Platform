@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x2=".9" y2="1">
+      <stop stop-color="#382b68"/><stop offset=".57" stop-color="#201b43"/><stop offset="1" stop-color="#121524"/>
+    </linearGradient>
+    <linearGradient id="mouse" x2=".3" y2="1">
+      <stop stop-color="#f0ff9d"/><stop offset=".45" stop-color="#d2ff62"/><stop offset="1" stop-color="#a7e840"/>
+    </linearGradient>
+    <linearGradient id="rim" x2="1" y2="1">
+      <stop stop-color="#92e8f1"/><stop offset=".5" stop-color="#745fb9"/><stop offset="1" stop-color="#594971"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#a483f2" stop-opacity=".43"/><stop offset="1" stop-color="#a483f2" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="details">
+      <rect width="192" height="128" fill="#fff"/>
+      <circle cx="156" cy="80" r="3.7"/>
+      <path d="M108 49C108 39 119 35 128 41" fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <rect width="256" height="256" fill="#121524"/>
+  <rect x="10" y="10" width="236" height="236" rx="45" fill="url(#bg)" stroke="url(#rim)" stroke-width="2"/>
+  <circle cx="152" cy="118" r="104" fill="url(#glow)"/>
+  <path d="M36 59v-9a14 14 0 0 1 14-14h10M196 36h10a14 14 0 0 1 14 14v9"
+    fill="none" stroke="#d7c9ff" stroke-opacity=".46" stroke-width="2" stroke-linecap="round"/>
+  <path d="M198 68V85M189.5 76.5h17" stroke="#a3e9fa" stroke-width="2.8" stroke-linecap="round"/>
+  <g transform="translate(15 30) scale(1.23)">
+    <!-- The silhouette, ear and hat follow the IZlauncher cowboy mouse. -->
+    <path d="M12 91H37Q44 91 44 98V103Q44 110 51 110H76"
+      fill="none" stroke="#c9f972" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="12" cy="91" r="5" fill="#defa88"/>
+    <g fill="url(#mouse)" mask="url(#details)">
+      <path d="M69 103C72 78 89 61 113 60C129 52 147 56 162 68L181 84C168 100 148 110 124 110H73C70 110 68 107 69 103Z"/>
+      <circle cx="119" cy="48" r="25"/>
+    </g>
+    <path d="M130 56 150 63 171 61 162 56V35L154 39 145 34 140 51Z"
+      fill="#221b3f" stroke="#e1ff8a" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="m137 54 14 5 12-.8" fill="none" stroke="#a3e9fa" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M145 72 132 66 139 88" fill="none" stroke="#262045" stroke-width="6.2" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+  <path d="M53 188H203" fill="none" stroke="#c4aff7" stroke-opacity=".36" stroke-width="1.5"/>
+  <g transform="translate(93 201)">
+    <rect width="18" height="18" rx="4" fill="#9784c6"/><rect x="26" width="18" height="18" rx="4" fill="#a4ebf7"/>
+    <rect x="52" width="18" height="18" rx="4" fill="#9784c6"/>
+  </g>
+</svg>

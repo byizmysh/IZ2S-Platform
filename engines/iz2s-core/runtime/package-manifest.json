@@ -1,0 +1,232 @@
+[
+  {
+    "path": "bootstrap.bin",
+    "bytes": 28040,
+    "sha256": "c809d6cf1578fb2c9fa706c897847558b47c30943188cb9ccb405abce2b9e1e6"
+  },
+  {
+    "path": "core/main",
+    "bytes": 78761,
+    "sha256": "d8163aaaf979089becfadc67713d31d63f9cf4d5ff430bc211064c99bbf7bd6c"
+  },
+  {
+    "path": "game/main",
+    "bytes": 19371203,
+    "sha256": "4ae848f4cd1f2ea3465bbe7d127a017c92fdb2443793232201aa2b179bd819be"
+  },
+  {
+    "path": "iz2s/izlauncher.iza",
+    "bytes": 817336,
+    "sha256": "f77a7a6329b62eec6493cdc7c8aefaa47240c81e6bcf2c442673514e616416f4"
+  },
+  {
+    "path": "iz2s/izlauncher.romfs",
+    "bytes": 26785192,
+    "sha256": "86f01b934a5ee4c78bafa91be4f121bcbfd5b5fc9e8b4d7306da93cdc2a788bd"
+  },
+  {
+    "path": "iz2s/modules/foldrift/launcher.iza",
+    "bytes": 278164,
+    "sha256": "49c13fc49cd0f9b4cc4b045b544de073d4c67a842f188d73fbf76b09ad2f5cec"
+  },
+  {
+    "path": "iz2s/modules/foldrift/launcher.iza.sig",
+    "bytes": 64,
+    "sha256": "6e1ea49fe5182353b51857deb63855b2a27fcda3b5952604681841b13d0bf0b1"
+  },
+  {
+    "path": "licenses/bzip2/LICENSE",
+    "bytes": 1896,
+    "sha256": "c6dbbf828498be844a89eaa3b84adbab3199e342eb5cb2ed2f0d4ba7ec0f38a3"
+  },
+  {
+    "path": "licenses/expat-MIT.txt",
+    "bytes": 1144,
+    "sha256": "46336ab2fec900803e2f1a4253e325ac01d998efb09bc6906651f7259e636f76"
+  },
+  {
+    "path": "licenses/freetype/FTL.TXT",
+    "bytes": 6743,
+    "sha256": "08c135755dd589039470f1fdbb400daaabaaa50d0b366d19cebff4d22986baa1"
+  },
+  {
+    "path": "licenses/freetype/GPLv2.TXT",
+    "bytes": 17994,
+    "sha256": "c4120c6752c910c299e3bd9cb3a46ff262c268303ca2069b61f92f10a5656c18"
+  },
+  {
+    "path": "licenses/freetype/LICENSE.TXT",
+    "bytes": 2074,
+    "sha256": "2e3bbb7d7c5c396368dd0853a790ec29ce5b8647163dde42a0493fb0d6556b2b"
+  },
+  {
+    "path": "licenses/ftpd-Unlicense.txt",
+    "bytes": 1211,
+    "sha256": "60d2c28d19d2bdf7bbaa59829e7a595234265e8111a01ccb74d25d6c4d2d013a"
+  },
+  {
+    "path": "licenses/harfbuzz-MIT.txt",
+    "bytes": 1971,
+    "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64"
+  },
+  {
+    "path": "licenses/kaiHEN-GPL-2.0.txt",
+    "bytes": 18092,
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  },
+  {
+    "path": "licenses/libarchive/LICENSE",
+    "bytes": 3086,
+    "sha256": "b2cdf763345de2de34cebf54394df3c61a105c3b71288603c251f2fa638200ba"
+  },
+  {
+    "path": "licenses/libconfig/COPYING.LIB",
+    "bytes": 26528,
+    "sha256": "d80c9d084ebfb50ea1ed91bfbc2410d6ce542097a32c43b00781b83adcb8c77f"
+  },
+  {
+    "path": "licenses/libjpeg-turbo/LICENSE.md",
+    "bytes": 5213,
+    "sha256": "7d8683a7f048e715e08b4cada8b7f0d9a6ab8afad88ed09c1143ef764ecbc0f2"
+  },
+  {
+    "path": "licenses/libkaihen-ISC.txt",
+    "bytes": 737,
+    "sha256": "dd76999221b671901d57147c9b917237f63a131af5822496845f9878a3fd6b6e"
+  },
+  {
+    "path": "licenses/liblzma-0BSD.txt",
+    "bytes": 607,
+    "sha256": "0b01625d853911cd0e2e088dcfb743261034a091bb379246cb25a14cc4c74bf1"
+  },
+  {
+    "path": "licenses/libnx-ISC.txt",
+    "bytes": 731,
+    "sha256": "5b6675f85016009624d29c9222201d3c0fc6a2d5c59253367f27d3e15011cdb2"
+  },
+  {
+    "path": "licenses/libogg-BSD.txt",
+    "bytes": 1466,
+    "sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814"
+  },
+  {
+    "path": "licenses/libounce-ISC.txt",
+    "bytes": 739,
+    "sha256": "c125684a685ad177fb5c4650ab33981702b6eaf8aec6aba0a9dfe1b0f103ad16"
+  },
+  {
+    "path": "licenses/libpng/LICENSE",
+    "bytes": 5345,
+    "sha256": "16d9daaafbf63a31a5bdc91d4600972548fef5aaa1244202393288dbd079c49a"
+  },
+  {
+    "path": "licenses/libvorbis-BSD.txt",
+    "bytes": 1470,
+    "sha256": "ec1815db59fcd302846df949d7424876cb2e2dc5ed1606c5fb0b36787b1cf43a"
+  },
+  {
+    "path": "licenses/libwebp-BSD.txt",
+    "bytes": 1496,
+    "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf"
+  },
+  {
+    "path": "licenses/libzstd/COPYING",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "licenses/libzstd/LICENSE",
+    "bytes": 1549,
+    "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+  },
+  {
+    "path": "licenses/lz4-BSD.txt",
+    "bytes": 1311,
+    "sha256": "d15d99c8dc6b0ec22174c0e563a95bc40f9363ca7f9d9d793bb5c5a8e8d0af71"
+  },
+  {
+    "path": "licenses/mimalloc-MIT.txt",
+    "bytes": 1096,
+    "sha256": "82ade5d7d9b029044b5fbbc326207fc47c2d44ee4dd71e8a559c36d728217de9"
+  },
+  {
+    "path": "licenses/nanosvg-zlib.md",
+    "bytes": 387,
+    "sha256": "a81768be9e16832f22a632db8a9316cdbd8d12b0fe7b1749ab116f16b6be5061"
+  },
+  {
+    "path": "licenses/notosans-OFL.txt",
+    "bytes": 4374,
+    "sha256": "f2095b08bed08b23a6fe26112fcd679a2bee3f002eef077eb05d215ed1051bd8"
+  },
+  {
+    "path": "licenses/nx-hbloader-ISC.md",
+    "bytes": 737,
+    "sha256": "db88a9c4d4d3148cbe397ca0acb7886e7aebcc8b984d4ce3b949e9caabdc7223"
+  },
+  {
+    "path": "licenses/nx-hbmenu-ISC.md",
+    "bytes": 736,
+    "sha256": "2e71cd947fbfdf7a8d3f8f386c1f7b52d06a1de1ded03c39141e651b9c25d819"
+  },
+  {
+    "path": "licenses/oniguruma-BSD.txt",
+    "bytes": 1340,
+    "sha256": "ae266a1ad1c2ef50baf14a1a2993e926cd46d09c6cc8b0b3a8498e44da2746b8"
+  },
+  {
+    "path": "licenses/ounceshell-GPL-3.0.txt",
+    "bytes": 34915,
+    "sha256": "cc8d9e517e07489053ef15db5bf78652b30c0490b85fa9d670eb301fe0b10bd5"
+  },
+  {
+    "path": "licenses/ouncevk/README.md",
+    "bytes": 3546,
+    "sha256": "cca7c02ca1295fdcaa031a41bc63461ed9fdbde14aedc28e9f871389e57a6e4d"
+  },
+  {
+    "path": "licenses/ouncevk/mesa-license.rst",
+    "bytes": 1816,
+    "sha256": "0d1a0472ecc81830e75c20d59b0ea02841e3db21255e0ebad97ab682c54d6615"
+  },
+  {
+    "path": "licenses/ouncevk/zlib-license.txt",
+    "bytes": 1646,
+    "sha256": "807c3a7dd7f6203b3dae80e28c3064f231c333685488541825b040081087fc4d"
+  },
+  {
+    "path": "licenses/physfs-zlib.txt",
+    "bytes": 898,
+    "sha256": "111b286674ab4720fd1b693ef8628a94bca8f06484d5fe3d75bd6db22fdc1cb2"
+  },
+  {
+    "path": "licenses/sdl2-zlib.txt",
+    "bytes": 884,
+    "sha256": "9928507f684c1965d07f2b6ef4b4723d5efc2f6b4ab731f743a413c51c319927"
+  },
+  {
+    "path": "licenses/sdl2_image/COPYING.txt",
+    "bytes": 996,
+    "sha256": "13240ed78c8726c510b9634976430d3d3a9ea2d1ced3214119766e9e71568a35"
+  },
+  {
+    "path": "licenses/sdl2_ttf/LICENSE.txt",
+    "bytes": 878,
+    "sha256": "a0e8ce06504966e45088ee1cc7583cc8af9aac615d4cf56d47d847da9cb15139"
+  },
+  {
+    "path": "licenses/zlib/LICENSE",
+    "bytes": 1646,
+    "sha256": "807c3a7dd7f6203b3dae80e28c3064f231c333685488541825b040081087fc4d"
+  },
+  {
+    "path": "programs/hbmenu-original-20261114d.nro",
+    "bytes": 11782782,
+    "sha256": "274df7a0e95334c4746f98552e57d3d9c897d9ae98b7d247aa8e1841e63cb797"
+  },
+  {
+    "path": "ro/main",
+    "bytes": 23854,
+    "sha256": "eed2f243fa7261607f33c19ee4fe916a7a1fe77319d38a17cca9dd759a97a2a0"
+  }
+]

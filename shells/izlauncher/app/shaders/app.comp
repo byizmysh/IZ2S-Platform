@@ -8,6 +8,7 @@ layout(local_size_x=1) in;
 #include "focus-layout.glsl"
 #include "focus-library.glsl"
 #include "iz2-layout.glsl"
+#include "nro-preview.glsl"
 #include "menu-removal.glsl"
 #include "menu-install.glsl"
 #include "features.glsl"
@@ -31,6 +32,7 @@ layout(local_size_x=1) in;
 #include "controller-hub-input.glsl"
 #endif
 void launchSelection(){uint count=min(c.library.x,15u);if(c.state.x>=count){c.piece.x=1;c.piece.y=0;return;}uint kind=c.atlas[524288u+c.state.x*32768u+25604u];
+ if(nroPreviewTile(nroPreviewBase(c.state.x))){c.rows[14]=c.state.x+1u;return;}
 #ifdef IZ_CALC
  if(kind==2u&&c.atlas[CB+7u]==CMAGIC){calcOpen();return;}
 #endif
@@ -45,7 +47,7 @@ void launchSelection(){uint count=min(c.library.x,15u);if(c.state.x>=count){c.pi
 void launcherStep(){
  uint pressed=hbPressed();c.motion.x+=FOCUS_DT;c.state.z++;
  if(loadProgressVisible()&&c.atlas[LOAD_PROGRESS+2u]>=6u){if(c.atlas[LOAD_PROGRESS+5u]>0u)c.atlas[LOAD_PROGRESS+5u]--;else c.atlas[LOAD_PROGRESS]=0u;}
- if(loadProgressBusy()){c.rows[12]=0u;c.rows[13]=0u;c.rows[1]=0u;c.transition=vec4(0);hbEndFrame();return;}
+ if(loadProgressBusy()){c.rows[12]=0u;c.rows[13]=0u;c.rows[1]=0u;c.rows[14]=0u;c.transition=vec4(0);hbEndFrame();return;}
  if(c.atlas[TOAST]==0x495a4e31u){uint seq=c.atlas[TOAST+1u];if(seq!=c.atlas[TOAST+3u]){c.atlas[TOAST+3u]=seq;c.atlas[TOAST+4u]=floatBitsToUint(TOAST_SECONDS);}else c.atlas[TOAST+4u]=floatBitsToUint(max(0.0,uintBitsToFloat(c.atlas[TOAST+4u])-FOCUS_DT));}
 #ifdef IZ_CALC
  if(c.atlas[CB+7u]==CMAGIC&&c.atlas[CB+1u]==1u){calcInput(pressed);return;}
@@ -62,9 +64,26 @@ streamInput(pressed);return;}}
 #endif
  if(menuLaunchErrorInput(pressed))return;
  if(menuInstallInput(pressed))return;
+ if(nroPreviewInput(pressed))return;
  if(menuRemovalInput(pressed))return;
  if(c.transition.y!=0.0){c.transition.x=min(1.0,c.transition.x+1.0/15.0);if(c.transition.x>=1.0)c.reserved.y=c.state.x+1u;hbEndFrame();return;}
  c.transition.x=max(0.0,c.transition.x-1.0/15.0);
+#ifdef IZ_CORE_LOCAL_ADD
+ // The native Add App screen owns its selection and installation input.
+ if(c.piece.x!=0&&c.atlas[(0x704000u+98308u-1024u)/4u]==0x495a4752u){
+  const uint addGrid=(0x704000u+98308u-1024u)/4u;
+  if((pressed&(HB_B|HB_X))!=0u){c.piece.x=0;c.library.w=0u;}
+  else{
+   uint total=min(c.atlas[addGrid+1u],64u),index=min(c.atlas[addGrid+2u],max(total,1u)-1u);
+   uint count=min(total-index/15u*15u,15u),selection=index%15u;
+   float target=clamp(float(selection)-2.0,0.0,max(float(count)-7.0,0.0));
+   if(c.stats.y!=1u){c.flow.x=target;c.stats.y=1u;}else c.flow.x=mix(c.flow.x,target,.22);
+   if(abs(c.flow.x-target)<.002)c.flow.x=target;
+   c.piece.y=int(selection);c.rows[11]=selection;iz2Animate(true,selection,false,pressed);
+  }
+  hbEndFrame();return;
+ }
+#endif
  float scroll=iz2ScrollInput(pressed);
  bool wasSearch=c.rows[1]!=0u;
  if((pressed&HB_Y)!=0u&&!wasSearch)c.rows[1]=1u;

@@ -1,3 +1,0 @@
-// Offline lifecycle example. Replace this plan with your own server entrypoint.
-function plan(settings,options){return {loaderId:'example-engine',command:process.execPath,args:['-e','console.log("Example engine completed")'],cwd:options.root||process.cwd(),lifecycle:{exitZeroCompletes:true},capabilities:{}};}
-module.exports={plan,createEngine(context){let state='created';return {async prepare(){state='prepared';return plan(context.settings||{},context);},async start(){if(state!=='prepared')throw Error('Prepare first');state='running';return context.launch(plan(context.settings||{},context));},async stop(){await context.stop?.();state='stopped';},get state(){return state;}};}};

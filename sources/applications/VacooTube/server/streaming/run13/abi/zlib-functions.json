@@ -1,0 +1,44 @@
+{
+  "nnutilZlib_inflateInit2_": {
+    "symbol": "nnutilZlib_inflateInit2_",
+    "offset": 489360,
+    "size": 476,
+    "hex": "fd7bbca9f70b00f9fd030091f65702a9f44f03a9e20500b448004039b6008012"
+  },
+  "nnutilZlib_inflateReset": {
+    "symbol": "nnutilZlib_inflateReset",
+    "offset": 488912,
+    "size": 216,
+    "hex": "800600b4082040f9480600b4082440f9080600b4081c40f9c80500b4090140f9"
+  },
+  "nnutilZlib_inflateSetDictionary": {
+    "symbol": "nnutilZlib_inflateSetDictionary",
+    "offset": 498688,
+    "size": 500,
+    "hex": "fd7bbca9f85f01a9fd030091f65702a9f44f03a9e00200b4082040f9f50300aa"
+  },
+  "nnutilZlib_inflate": {
+    "symbol": "nnutilZlib_inflate",
+    "offset": 490016,
+    "size": 8288,
+    "hex": "ff8303d1fd7b08a9fd030291fc6f09a9fa670aa9f85f0ba9f6570ca9f44f0da9"
+  },
+  "nnutilZlib_inflateEnd": {
+    "symbol": "nnutilZlib_inflateEnd",
+    "offset": 498304,
+    "size": 148,
+    "hex": "fd7bbea9f30b00f9fd030091c00300b4082040f9f30300aa680300b4692640f9"
+  },
+  "nnutilZlib_crc32": {
+    "symbol": "nnutilZlib_crc32",
+    "offset": 464400,
+    "size": 8,
+    "hex": "e203022a6b381514"
+  },
+  "nnutilZlib_zlibVersion": {
+    "symbol": "nnutilZlib_zlibVersion",
+    "offset": 511040,
+    "size": 12,
+    "hex": "6051009000d41691c0035fd6"
+  }
+}

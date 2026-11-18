@@ -1,4 +1,5 @@
 #include "abi.h"
+#include "stack.h"
 #include "../memory.h"
 static int transient(IzRecoveryNative*c){int e=(int)NET(c,NET_ERRNO,0,0,0,0,0,0);return e==4||e==11||e==35;}
 static void close_fd(void*owner,int fd){IzRecoveryNative*c=owner;NET(c,NET_CLOSE,fd,0,0,0,0,0);}
@@ -18,12 +19,13 @@ static ptrdiff_t receive_fd(void*owner,int fd,void*data,size_t bytes){IzRecovery
 static ptrdiff_t send_fd(void*owner,int fd,const void*data,size_t bytes){IzRecoveryNative*c=owner;int64_t n=(int64_t)NET(c,NET_SEND,fd,data,bytes,0x80,0,0);return n>=0?(ptrdiff_t)n:transient(c)?IZ_RECOVERY_IO_AGAIN:IZ_RECOVERY_IO_FAILED;}
 static int execute(void*owner,const uint8_t request[0x8080],uint8_t response[IZ_RECOVERY_RESPONSE_BYTES]){
  IzRecoveryNative*c=owner;uint64_t words[10];memcpy(words,request,sizeof words);memset(response,0,IZ_RECOVERY_RESPONSE_BYTES);
+ if(!iz_recovery_stack_check(c))return 1;
  // Packet authentication and the existing NativeClient function/memory guards
  // precede this trusted four-argument dispatcher. Both legacy result positions
  // and the original scratch layout are preserved for existing RPC clients.
  for(unsigned i=0;i<2;i++)if(words[i*5]<0x1000||words[i*5]>=(1ull<<39)||words[i*5]%4){uint64_t bad=0xe901;memcpy(response,&bad,8);memcpy(response+8,&bad,8);return 0;}
  memcpy((void*)(uintptr_t)(c->scratch+0x40000),request,0x8080);uint64_t result[2];c->dispatches++;
- typedef uint64_t(*Call)(uint64_t,uint64_t,uint64_t,uint64_t);for(unsigned i=0;i<2;i++){uint64_t*w=words+i*5;result[i]=((Call)(uintptr_t)w[0])(w[1],w[2],w[3],w[4]);}
+ typedef uint64_t(*Call)(uint64_t,uint64_t,uint64_t,uint64_t);for(unsigned i=0;i<2;i++){uint64_t*w=words+i*5;result[i]=((Call)(uintptr_t)w[0])(w[1],w[2],w[3],w[4]);if(!iz_recovery_stack_check(c))return 1;}
  memcpy(response,&result[1],8);memcpy(response+8,&result[0],8);memcpy(response+16,(void*)(uintptr_t)(c->scratch+0x4040),0x8000);return 0;
 }
 static void announce(IzRecoveryNative*c,uint64_t now){

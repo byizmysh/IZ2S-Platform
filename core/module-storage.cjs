@@ -1,15 +1,21 @@
 // Console SD paths use POSIX separators on every host OS. PC dataDirectory is separate.
-const BASE = '/IZ2S/Homebrew/Modules';
+const BASE = '/iz2s/modules';
 const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
 const queues = new WeakMap();
 
+// Preserve the signed identity while using the published folder name.
+function identity(folder) { return folder === 'foldrift' ? 'iz-file-deck' : folder; }
+function folder(id) { return id === 'iz-file-deck' ? 'foldrift' : id; }
 function paths(id) {
   if (typeof id !== 'string' || !ID.test(id)) throw Error('Invalid module id');
+  id = identity(id);
+  const name = folder(id);
   return Object.freeze({
     id,
-    path: BASE + '/' + id,
-    virtualPath: '/sd' + BASE + '/' + id,
-    displayPath: 'SD:' + BASE + '/' + id + '/',
+    folder: name,
+    path: BASE + '/' + name,
+    virtualPath: '/sd' + BASE + '/' + name,
+    displayPath: 'SD:' + BASE + '/' + name + '/',
   });
 }
 
@@ -39,7 +45,7 @@ async function prepare(storage, ids) {
     }
     let parent = '/sd';
     for (const name of BASE.slice(1).split('/')) parent = await child(parent, name);
-    for (const directory of directories) await child(parent, directory.id);
+    for (const directory of directories) await child(parent, directory.folder);
     if (created.length && typeof storage.commit === 'function') await storage.commit();
     return {directories, created};
   });
@@ -61,4 +67,4 @@ async function prepareInstalled(storage, root) {
   return {...result, skipped: errors};
 }
 
-module.exports = {BASE, paths, forModule, prepare, prepareInstalled};
+module.exports = {BASE, identity, folder, paths, forModule, prepare, prepareInstalled};

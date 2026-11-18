@@ -1,22 +1,41 @@
 'use strict';
 const $ = id => document.getElementById(id), key = location.hash.slice(1);
-let games = [], connected = false, state = {status:'checking'}, busy = false, cwd = '/', lastStorageLease = '', connectionHost = '', connectionId = '', pollError = false;
+let games = [], gamesAvailable = true, gameExportAvailable = true, gamesError = '', connected = false, state = {status:'checking'}, busy = false, cwd = '/', lastStorageLease = '', connectionId = '', pollError = false;
 let folderHistory = [], historyIndex = -1, entries = [], selectedPath = '', view = 'storage', folderLease = '', browsing = false, revision = 0, operation = '', pendingPath = '/', downloadsStamp = '';
 const storageReady=()=>connected&&state.status==='ready'&&state.mode==='storage';
 const canWrite=()=>storageReady()&&folderLease===state.lease&&folderWritable&&!browsing;
+const hasAppQueue=()=>state.mounts?.includes('apps')===true;
 async function api(route, data) {
-  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), data === undefined ? 15000 : 150000);
+  const controller = new AbortController();
+  const timer = route==='/api/sd/upload-finish'?null:setTimeout(() => controller.abort(), data === undefined ? 15000 : 150000);
   try {
     const response = await fetch(route, {method:data === undefined ? 'GET' : 'POST', signal:controller.signal,
       headers:{'x-fs-key':key, ...(data === undefined ? {} : {'content-type':'application/json'})},
       ...(data === undefined ? {} : {body:JSON.stringify(data)})});
-    const result = await response.json(); if (!response.ok) throw Error(result.error || 'Request failed'); return result;
+    const result = await response.json().catch(() => null);
+    if (!response.ok) throw Error(result?.error || 'Request failed');
+    if (result === null) throw Error('The server returned an invalid response.');
+    return result;
   } catch (error) {
     if (error.name === 'AbortError') throw Error('The request timed out. Check the current status before trying again.');
     throw error;
   } finally {clearTimeout(timer);}
 }
-function notice(text,tone='info') {$('notice').textContent = text;$('notice').dataset.tone=tone;}
+function notice(text, tone = 'info') {
+ const box = $('notice'), message = $('notice-message'), details = $('notice-details'), action = $('notice-action');
+ if (box.dataset.sourceText === text && box.dataset.tone === tone) return;
+ box.dataset.sourceText = text;
+ box.dataset.tone = tone;
+ const problem = tone === 'error' ? globalThis.IZ2S_ERRORS?.describe(text) : null;
+ message.textContent = problem?.title || text;
+ message.setAttribute('role', tone === 'error' ? 'alert' : 'status');
+ const next = problem?.action;
+ action.textContent = next || '';
+ action.hidden = !next;
+ details.open = false;
+ details.hidden = !problem?.detail || problem.detail.trim() === problem.title;
+ $('notice-raw').textContent = problem?.detail || '';
+}
 async function action(fn,label='') {
  if(busy)return;busy=true;operation=label;revision++;document.body.setAttribute('aria-busy','true');renderStatus();
  try{await fn();}catch(error){notice(error.message,'error');}
@@ -37,23 +56,48 @@ function storageLabel(storages = []) {
   return [...new Set(storages)].map(id => ({2: 'Game card', 4: 'Console storage', 5: 'SD card'})[id] || 'Unknown storage').join(' + ') || 'Storage unknown';
 }
 function renderGames() {
- $('games').replaceChildren();const search=$('search').value.toLowerCase();
+ $('games').replaceChildren();
+ const unavailable = connected && !gamesAvailable;
+ $('search').disabled = unavailable;
+ $('games-help').textContent = unavailable
+  ? 'You can still browse the SD card in Console storage.'
+  : !gameExportAvailable ? 'Installed games reported by IZ2S. Opening game files requires a live FS RPC endpoint.'
+  : 'Connect a game to open its decoded files over read-only FTP.';
+ if(unavailable){
+  $('games').append(row('Installed games are unavailable.',gamesError,'',null));
+  return;
+ }
+ const search=$('search').value.trim().toLowerCase();
  for(const game of games.filter(game=>(game.name+game.title).toLowerCase().includes(search))){
   const current=state.mode==='game'&&state.title===game.title&&['ready','preparing'].includes(state.status);
   const item=row(game.name,game.title.toUpperCase()+' · '+storageLabel(game.storages),current?(state.status==='ready'?'FTP ready':'Connecting…'):'Connect FTP',async()=>{
    if(current){setFtpPanel(true);return;}
    folderLease='';lastStorageLease='';folderWritable=false;state={...state,status:'preparing',mode:'game',title:game.title,name:game.name,error:''};setFtpPanel(true);renderStatus();
    state=await api('/api/start',{title:game.title});renderGames();notice('Preparing read-only game FTP…');
-  });item.classList.toggle('current',current);$('games').append(item);
+  });if(!gameExportAvailable){const button=item.querySelector('button');button.disabled=true;button.textContent='FS RPC required';}item.classList.toggle('current',current);$('games').append(item);
  }
- if(!$('games').children.length)$('games').append(row(connected?'No matching games':'Connect to load installed games','','',null));
+ if(!$('games').children.length){
+  const message = !connected ? 'Connect to load installed games'
+   : games.length ? 'No matching games' : 'No installed games reported by the console.';
+  $('games').append(row(message,'','',null));
+ }
 }
 function renderStatus() {
  const ready=storageReady(),folderReady=ready&&folderLease===state.lease,sessionChecking=operation==='detect';
+ const appQueue=hasAppQueue();
  $('session-status').dataset.state=sessionChecking?'checking':connected?'ready':'unavailable';
  $('session-status').textContent=sessionChecking?'Checking session…':connected?'Filesystem connected':'Filesystem unavailable';
  $('connection-title').textContent=connected?'Console filesystem connected':'Connect to your console';
- $('connection-help').textContent=connected?'Browse in this window. Use FTP access for an external file manager.':'Start a session with Filesystem access enabled in IZ2S Platform, then reconnect here.';
+ $('connection-help').textContent=connected
+   ? appQueue?(state.sdFtp&&state.ftpHost?'SD card connected via FTP · '+state.ftpHost:'Browse the SD card. Enable FTP on IZ2S to write files.'):'Browse in this window. Use FTP access for an external file manager.'
+   : 'Start a session with Filesystem access enabled in IZ2S Platform, then reconnect here.';
+ $('ftp-toggle').hidden=appQueue;
+ if(appQueue&&!$('ftp-panel').hidden)setFtpPanel(false);
+ $('sd-shortcut-access').textContent=appQueue?'Read-only':'Read & write';
+ $('upload-help-title').textContent=appQueue?'Add App':'Upload to SD';
+ $('upload-help-copy').textContent=appQueue
+   ? 'App queue · Accepts .iza files.'
+   : 'Connect storage, open SD card, then choose Upload files or drop files into the folder.';
  const ftpState=connected?state.status:'unavailable',labels={checking:'Checking…',ready:'FTP ready',idle:'FTP disconnected',closed:'FTP disconnected',failed:'FTP failed',unavailable:'FTP unavailable',preparing:'Connecting FTP…',stopping:'Disconnecting FTP…'};
  $('ftp-short-status').textContent=labels[ftpState]||'FTP disconnected';$('ftp-indicator').dataset.state=ftpState;
  $('export-name').textContent=state.name||'No active export';$('export-status').textContent=labels[ftpState]||'Idle';$('export-status').dataset.state=ftpState;
@@ -70,19 +114,39 @@ function renderStatus() {
  $('storage-start').hidden=view!=='storage'||ready;$('storage-start').disabled=!connected||busy||['preparing','stopping'].includes(state.status);
  $('storage-start').textContent=state.status==='preparing'&&state.mode==='storage'?'Connecting storage…':'Connect storage';
  $('browse-title').textContent=view==='games'?'Installed games':'Console storage';
- $('folder-state').textContent=view==='games'?'Read-only FTP':browsing?'Loading…':!folderReady?(ready?'Loading…':state.status==='preparing'&&state.mode==='storage'?'Connecting…':'Not connected'):folderWritable?'Read & write':'Read-only';$('folder-state').dataset.writable=String(view==='storage'&&folderReady&&folderWritable);
+ $('folder-state').textContent=view==='games'?(connected&&!gamesAvailable?'Unavailable':gameExportAvailable?'Read-only FTP':'Installed games'):browsing?'Loading…':!folderReady?(ready?'Loading…':state.status==='preparing'&&state.mode==='storage'?'Connecting…':'Not connected'):folderWritable?'Read & write':'Read-only';$('folder-state').dataset.writable=String(view==='storage'&&folderReady&&folderWritable);
  $('folder-loading').hidden=!browsing;$('file-area').setAttribute('aria-busy',String(browsing));
  $('download-folder').disabled=!folderReady||busy;$('up').disabled=!folderReady||busy||cwd==='/';
  $('back').disabled=!folderReady||busy||historyIndex<=0;$('forward').disabled=!folderReady||busy||historyIndex>=folderHistory.length-1;
  $('path-input').disabled=!ready||busy;$('path-go').disabled=!ready||busy;
  for(const id of ['upload-files','upload-folder','new-folder'])$(id).disabled=!canWrite()||busy||uploading;
- $('upload-files').title=!ready?'Connect storage first.':!folderWritable?'Open SD card to upload files.':'Upload files to this folder';
- $('write-status').textContent=!connected?'Filesystem access is required to browse console files.':!ready?(state.status==='preparing'?'Connecting storage. Wait for folders to appear.':'Connect storage to browse files and upload to SD.'):!folderReady?'Loading the current storage view…':folderWritable?'SD card · Files can be uploaded, renamed and deleted.':'Read-only folder · Open SD card to upload or manage files.';
- $('write-status').dataset.writable=String(folderReady&&folderWritable);$('open-sd').hidden=!folderReady||folderWritable||!(state.mounts||[]).includes('sd');$('open-sd').disabled=busy;
- for(const button of document.querySelectorAll('#files button,#files summary')){if(button.tagName==='BUTTON')button.disabled=!folderReady||busy||uploading;else{button.setAttribute('aria-disabled',String(!folderReady||busy||uploading));button.tabIndex=!folderReady||busy?-1:0;}}
- for(const button of document.querySelectorAll('#games button'))button.disabled=!connected||busy||['preparing','stopping'].includes(state.status);
+ $('upload-folder').hidden=appQueue;
+ $('new-folder').hidden=appQueue;
+ $('file-picker').accept=appQueue?'.iza':'';
+ $('file-picker').multiple=!appQueue;
+ $('upload-files').title=!ready?'Connect storage first.':!folderWritable
+   ? appQueue?'Open /apps to upload a package.':'Open SD card to upload files.'
+   : 'Upload files to this folder';
+ const writeStatus=$('write-status');
+ writeStatus.textContent=!connected?'Filesystem access is required to browse console files.':!ready?(state.status==='preparing'?'Connecting storage. Wait for folders to appear.':'Connect storage to browse files and upload to SD.'):!folderReady?'Loading the current storage view…':
+   appQueue?(folderWritable?'App queue · Accepts .iza files.':'SD is read-only in this session. Open /apps to upload a package.'):
+   folderWritable?'SD card · Files can be uploaded, renamed and deleted.':'Read-only folder · Open SD card to upload or manage files.';
+ writeStatus.dataset.writable=String(folderReady&&folderWritable);
+ const openUploadFolder=$('open-sd');
+ openUploadFolder.hidden=!folderReady||folderWritable||!state.mounts?.includes(appQueue?'apps':'sd');
+ openUploadFolder.disabled=busy;
+ openUploadFolder.textContent=appQueue?'Open app queue →':'Open SD card to upload →';
+ $('write-summary').textContent=appQueue?'The SD card is read-only. App packages are uploaded to /apps.':'Browser writes are available on SD. Internal storage and game exports are read-only.';
+ const filesLocked=!folderReady||busy||uploading;
+ for(const button of document.querySelectorAll('#files button,#files summary')){if(button.tagName==='BUTTON')button.disabled=filesLocked;else{button.setAttribute('aria-disabled',String(filesLocked));button.tabIndex=filesLocked?-1:0;}}
+ for(const button of document.querySelectorAll('#games button'))button.disabled=!gameExportAvailable||!connected||busy||['preparing','stopping'].includes(state.status);
  for(const button of document.querySelectorAll('#breadcrumbs button'))button.disabled=!folderReady||busy||button.hasAttribute('aria-current');
- for(const button of document.querySelectorAll('[data-path]')){button.disabled=!connected||busy||['preparing','stopping'].includes(state.status);button.classList.toggle('active',view==='storage'&&folderReady&&(button.dataset.path==='/'?cwd==='/':cwd===button.dataset.path||cwd.startsWith(button.dataset.path+'/')));}
+ for(const button of document.querySelectorAll('.locations [data-path]')){
+  const target=button.dataset.path;
+  button.hidden=appQueue&&target!=='/'&&!state.mounts.includes(target.slice(1));
+  button.disabled=!connected||busy||['preparing','stopping'].includes(state.status);
+  button.classList.toggle('active',view==='storage'&&folderReady&&(target==='/'?cwd==='/':cwd===target||cwd.startsWith(target+'/')));
+ }
  if(!folderReady)$('file-count').textContent=ready?'Loading folder…':connected&&state.status==='preparing'?'Connecting to storage…':'No folder open';
 }
 async function download(target) {
@@ -128,14 +192,25 @@ async function mutateEntry(entry, target, operation) {
     await api('/api/sd/rename', {path: target, to: (cwd === '/' ? '' : cwd) + '/' + name, lease: state.lease});
     notice('Renamed to ' + name);
   } else {
-    if (!await fileDialog('Delete ' + (entry.type === 'dir' ? 'folder' : 'file') + '?', 'Permanently delete ' + target + (entry.type === 'dir' ? ' and everything inside it?' : '?') + ' This cannot be undone.', null, 'Delete permanently')) return;
+    if (!await fileDialog('Delete ' + (entry.type === 'dir' ? 'folder' : 'file') + '?', 'Permanently delete ' + target + (entry.type === 'dir' && !state.sdFtp ? ' and everything inside it?' : '?') + ' This cannot be undone.', null, 'Delete permanently')) return;
     await api('/api/sd/delete', {path: target, confirmed: true, lease: state.lease}); notice('Deleted ' + entry.name);
   }
   await browse(cwd);
 }
 async function uploadFiles(files) {
   if(!files.length)return;if(!canWrite())throw Error('Open a writable SD folder before uploading.');
+  const dialog=$('upload-verification');
+  let verifySha256=false;
+  if(state.sdFtp&&cwd.startsWith('/sd')){
+    $('verify-upload-sha256').checked=false;
+    dialog.returnValue='cancel';
+    dialog.showModal();
+    await new Promise(resolve=>dialog.addEventListener('close',resolve,{once:true}));
+    if(dialog.returnValue!=='upload')return;
+    verifySha256=$('verify-upload-sha256').checked;
+  }
   uploading = true; cancelUpload = false; $('upload-progress').hidden = false;
+  $('upload-cancel').disabled=false;
   const base = cwd, lease = state.lease, total = files.reduce((sum, file) => sum + file.size, 0); let transferred = 0;
   const directories = new Set();
   try {
@@ -146,7 +221,7 @@ async function uploadFiles(files) {
       const target = base + '/' + relative, parent = target.slice(0, target.lastIndexOf('/'));
       if (parent !== base && !directories.has(parent)) {await api('/api/sd/mkdir', {path: parent, parents: true, lease}); directories.add(parent);}
       $('upload-name').textContent = relative;
-      const opened = await api('/api/sd/upload-begin', {path: target, size: file.size, lease}); uploadToken = opened.token;
+      const opened = await api('/api/sd/upload-begin', {path: target, size: file.size, lease, verifySha256}); uploadToken = opened.token;
       const chunkBytes = Number.isInteger(opened.chunkBytes) && opened.chunkBytes > 0 && opened.chunkBytes <= 458752 ? opened.chunkBytes : 32768;
       for (let offset = 0; offset < file.size;) {
         if (cancelUpload) throw Error('Upload cancelled');
@@ -160,12 +235,13 @@ async function uploadFiles(files) {
         $('upload-detail').textContent = (transferred / 1048576).toFixed(2) + ' / ' + (total / 1048576).toFixed(2) + ' MB';
       }
       if (cancelUpload) throw Error('Upload cancelled');
+      $('upload-detail').textContent = verifySha256?'Reading the staged file back to verify SHA-256…':'Checking size and publishing…';
       await api('/api/sd/upload-finish', {token: uploadToken}); uploadToken = null;
     }
     $('upload-meter').value = 1; $('upload-detail').textContent = 'Upload complete · ' + files.length + ' files'; notice('Upload complete');
   } catch (error) {
     if (uploadToken) {await api('/api/sd/upload-cancel', {token: uploadToken}).catch(cleanup => {error.message += '. Cleanup: ' + cleanup.message;}); uploadToken = null;}
-    $('upload-detail').textContent = error.message; throw error;
+    uploadToken=null; $('upload-detail').textContent = error.message; throw error;
   } finally {uploading=false;$('upload-cancel').disabled=true;if(storageReady()&&state.lease===lease)await browse(base).catch(error=>notice(error.message,'error'));}
 }
 async function browse(target='/',{record=true,index}={}) {
@@ -194,8 +270,8 @@ function renderFiles(){
   name.onclick=()=>{selectEntry(target);if(entry.type==='dir')action(()=>browse(target),'browse');};
   const size=document.createElement('span');size.className='file-size';size.textContent=entry.type==='dir'?'Folder':formatSize(entry.size);
   const actions=document.createElement('div');actions.className='row-actions';const downloadButton=document.createElement('button');downloadButton.append(icon('download'));downloadButton.title=entry.type==='dir'?'Download folder as ZIP':'Download file';downloadButton.setAttribute('aria-label',downloadButton.title+': '+entry.name);downloadButton.onclick=()=>action(()=>download(target));actions.append(downloadButton);
-  if(folderWritable){const menu=document.createElement('details'),summary=document.createElement('summary'),options=document.createElement('div');menu.className='row-menu';menu.ontoggle=()=>{if(menu.open){menu.classList.remove('open-up');const bounds=options.getBoundingClientRect(),list=$('files').getBoundingClientRect();menu.classList.toggle('open-up',bounds.bottom>list.bottom);}};summary.textContent='⋯';summary.setAttribute('aria-label','Actions for '+entry.name);summary.onclick=event=>{if(busy||!storageReady())event.preventDefault();};menu.append(summary,options);
-   for(const operation of ['rename','delete']){const control=document.createElement('button');control.textContent=operation==='rename'?'Rename':'Delete';if(operation==='delete')control.className='danger-quiet';control.onclick=()=>{menu.open=false;action(()=>mutateEntry(entry,target,operation));};options.append(control);}actions.append(menu);}
+  if(folderWritable){const menu=document.createElement('details'),summary=document.createElement('summary'),options=document.createElement('div');menu.className='row-menu';options.className='menu-surface';menu.ontoggle=()=>{if(menu.open)positionRowMenu(menu);};summary.textContent='⋯';summary.setAttribute('aria-label','Actions for '+entry.name);summary.onclick=event=>{if(summary.getAttribute('aria-disabled')==='true')event.preventDefault();};menu.append(summary,options);
+   for(const operation of ['rename','delete']){const control=document.createElement('button');control.textContent=operation==='rename'?'Rename':'Delete';if(operation==='delete')control.className='danger-quiet';control.onclick=()=>{dismissFileMenu(menu);action(()=>mutateEntry(entry,target,operation));};options.append(control);}actions.append(menu);}
   item.append(name,size,actions);item.ondblclick=event=>{if(entry.type==='dir'&&!event.target.closest('button,details'))action(()=>browse(target),'browse');};$('files').append(item);
  }
  if(!list.length)emptyFiles(query?'No matching files':'This folder is empty',query?'Try a different name.':folderWritable?'Upload files or drop them here to get started.':'There are no files in this folder.');
@@ -219,8 +295,14 @@ function renderBreadcrumbs() {
 }
 function acceptList(result) {
   if(connectionId&&(result.connection?.id||result.session.id)!==connectionId){folderLease='';lastStorageLease='';folderWritable=false;entries=[];folderHistory=[];historyIndex=-1;emptyFiles('Console session changed','Connect storage to open the current console files.');}
-  connected = true; games = result.games; connectionHost = result.session.host; connectionId = result.connection?.id || result.session.id || '';
-  
+  connected = true;
+  games = result.games;
+  // Older PC Link servers omit the capability flag.
+  gamesAvailable = result.gamesAvailable ?? result.session?.id !== 'iz2s-pc-link';
+  gameExportAvailable = result.gameExportAvailable !== false;
+  gamesError = result.gamesError || '';
+  connectionId = result.connection?.id || result.session.id || '';
+
   pollError=false;notice(state.status==='ready'?(state.mode==='storage'?'Console storage connected.':'FTP connected. Open it in an external file manager.'):'Filesystem connected. Choose Connect storage to open your folders.'); renderGames(); renderStatus();
 }
 async function detect() {
@@ -244,21 +326,24 @@ for(const mode of ['games','storage'])$(mode+'-tab').onclick=()=>switchFilesView
 document.querySelector('.tabs').onkeydown=event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const mode=event.key==='Home'?'storage':event.key==='End'?'games':$('games-view').hidden?'games':'storage';switchFilesView(mode);$(mode+'-tab').focus();};
 $('storage-start').onclick=()=>action(()=>connectStorage('/'),'connect');
 $('ftp-toggle').onclick=()=>setFtpPanel($('ftp-panel').hidden);
-$('open-sd').onclick=()=>action(()=>connectStorage('/sd'));
+$('open-sd').onclick=()=>action(()=>connectStorage(state.mounts?.includes('sd')?'/sd':hasAppQueue()?'/apps':'/sd'));
 for(const button of document.querySelectorAll('[data-path]'))button.onclick=()=>action(()=>connectStorage(button.dataset.path));
 $('file-search').oninput=renderFiles;$('file-sort').onchange=renderFiles;
 $('path-form').onsubmit=event=>{event.preventDefault();const target=$('path-input').value.trim();if(target.startsWith('/'))action(()=>browse(target),'browse');else notice('Enter an absolute path starting with /.','error');};
-$('download-folder').onclick = () => action(() => download(cwd));
+$('download-folder').onclick = () => {dismissFileMenu($('upload-menu'));action(() => download(cwd));};
 $('upload-files').onclick = () => {$('upload-menu').open=false;$('file-picker').click();};
-$('upload-folder').onclick = () => {$('upload-menu').open=false;$('folder-picker').click();};
+$('upload-folder').onclick = () => {dismissFileMenu($('upload-menu'));$('folder-picker').click();};
 for (const id of ['file-picker', 'folder-picker']) $(id).onchange = () => {const files = [...$(id).files]; $(id).value = ''; $('upload-cancel').disabled = false; action(() => uploadFiles(files));};
-$('upload-cancel').onclick = () => {cancelUpload = true; $('upload-detail').textContent = 'Cancelling upload…';};
+$('upload-cancel').onclick = () => {
+  cancelUpload = true;
+  $('upload-cancel').disabled=true;
+  $('upload-detail').textContent = 'Cancelling upload…';
+  if(uploadToken)void api('/api/sd/upload-cancel',{token:uploadToken}).catch(error=>notice(error.message,'error'));
+};
 $('new-folder').onclick = () => action(async () => {if(!canWrite())throw Error('Open a writable SD folder before uploading.');const name = await fileDialog('New folder', 'Create a folder in ' + cwd, ''); if (!name) return; await api('/api/sd/mkdir', {path: cwd + '/' + name, lease: state.lease}); await browse(cwd);});
 $('back').onclick=()=>action(()=>browse(folderHistory[historyIndex-1],{record:false,index:historyIndex-1}));
 $('forward').onclick=()=>action(()=>browse(folderHistory[historyIndex+1],{record:false,index:historyIndex+1}));
 
-document.addEventListener('click',event=>{if(!event.target.closest('#upload-menu'))$('upload-menu').open=false;});
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('upload-menu').open){$('upload-menu').open=false;$('upload-menu').querySelector('summary').focus();}});
 $('copy-ftp').onclick=()=>action(async()=>{try{await navigator.clipboard.writeText(state.url);notice('FTP address copied.');}catch{notice('Copy this FTP address: '+state.url);}});
 $('up').onclick = () => action(() => browse(cwd.split('/').slice(0, -1).join('/') || '/'));
 $('stop').onclick=()=>action(async()=>{state={...state,status:'stopping'};renderStatus();state=await api('/api/stop',{lease:state.lease});folderWritable=false;folderLease='';lastStorageLease='';entries=[];folderHistory=[];historyIndex=-1;emptyFiles('Storage disconnected','Connect storage to browse files.');renderGames();renderStatus();notice('FTP disconnected. Connect storage or a game to continue.');});
@@ -312,6 +397,50 @@ dropArea.addEventListener('dragenter',event=>{if(!event.dataTransfer?.types.incl
 dropArea.addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('Files')){event.preventDefault();event.dataTransfer.dropEffect=canWrite()&&!busy?'copy':'none';}});
 dropArea.addEventListener('dragleave',()=>{if(--dragDepth<=0){dragDepth=0;dropArea.classList.remove('drag-over');}});
 dropArea.addEventListener('drop',event=>{event.preventDefault();dragDepth=0;dropArea.classList.remove('drag-over');if(!canWrite()||busy){notice('Open a writable SD folder before uploading.','error');return;}if([...event.dataTransfer.items].some(item=>item.webkitGetAsEntry?.()?.isDirectory)){notice('Use Upload folder to include all files and subfolders.');return;}action(()=>uploadFiles([...event.dataTransfer.files]));});
-document.addEventListener('click',event=>{for(const menu of document.querySelectorAll('.row-menu[open]'))if(!menu.contains(event.target))menu.open=false;});
-document.addEventListener('keydown',event=>{if($('file-dialog').open)return;if(view==='storage'&&!$('path-input').disabled&&(event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='l'){event.preventDefault();$('path-input').focus();$('path-input').select();}if(event.altKey&&event.key==='ArrowUp'&&!$('up').disabled){event.preventDefault();$('up').click();}});
+const fileMenus = 'details:is(#upload-menu,.row-menu)[open]';
+function dismissFileMenu(menu) {
+ menu.open=false;
+ menu.querySelector(':scope > summary')?.focus({preventScroll:true});
+}
+
+// Position row menus against the viewport so the file list cannot clip their actions.
+function positionRowMenu(menu) {
+ const trigger=menu.querySelector(':scope > summary').getBoundingClientRect();
+ const options=menu.querySelector(':scope > .menu-surface');
+ const list=$('files').getBoundingClientRect();
+ const {clientWidth,clientHeight}=document.documentElement;
+ if(trigger.bottom<=Math.max(list.top,0)||trigger.top>=Math.min(list.bottom,clientHeight)){
+  menu.open=false;
+  return;
+ }
+ const {width,height}=options.getBoundingClientRect(),gap=4,edge=8;
+ const below=trigger.bottom+gap,roomBelow=clientHeight-edge-below,roomAbove=trigger.top-gap-edge;
+ const top=roomBelow>=height||roomBelow>=roomAbove?below:trigger.top-gap-height;
+ options.style.left=Math.max(edge,Math.min(trigger.right-width,clientWidth-width-edge))+'px';
+ options.style.top=Math.max(edge,Math.min(top,clientHeight-height-edge))+'px';
+}
+function repositionRowMenu(event) {
+ const menu=document.querySelector('.row-menu[open]');
+ if(menu&&(event.type==='resize'||!menu.contains(event.target)))positionRowMenu(menu);
+}
+document.addEventListener('scroll',repositionRowMenu,true);
+window.addEventListener('resize',repositionRowMenu);
+document.addEventListener('click', event => {
+ for (const menu of document.querySelectorAll(fileMenus)) if (!menu.contains(event.target)) menu.open = false;
+});
+document.addEventListener('keydown',event=>{
+ if($('file-dialog').open)return;
+ if(event.key==='Escape'){
+  const menus=[...document.querySelectorAll(fileMenus)];
+  if(!menus.length)return;
+  const menu=menus.find(item=>item.contains(event.target))||menus.at(-1);
+  for(const item of menus)if(item!==menu)item.open=false;
+  dismissFileMenu(menu);
+  event.preventDefault();
+ } else if(view==='storage'&&!$('path-input').disabled&&(event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='l'){
+  event.preventDefault();$('path-input').focus();$('path-input').select();
+ } else if(event.altKey&&event.key==='ArrowUp'&&!$('up').disabled){
+  event.preventDefault();$('up').click();
+ }
+});
 init().catch(error=>{connected=false;state={...state,status:'unavailable',error:error.message};renderStatus();notice(error.message,'error');});

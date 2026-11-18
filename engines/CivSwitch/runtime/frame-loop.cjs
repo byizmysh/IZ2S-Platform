@@ -7,8 +7,8 @@ const stateNames=['_ZN2nn3hid15GetNpadStyleSetERKj','_ZN2nn3hid12GetNpadStateEPN
   '_ZN2nn3hid19GetTouchScreenStateILm16EEEvPNS0_16TouchScreenStateIXT_EEE'];
 const struct=(size,type,words={},pointers={})=>{const b=Buffer.alloc(size);b.writeUInt32LE(type);for(const [at,v]of Object.entries(words))b.writeUInt32LE(v,+at);for(const [at,v]of Object.entries(pointers))b.writeBigUInt64LE(BigInt(v),+at);return b;};
 async function main(directory,{frames=Infinity,shell='izlauncher',store=true}={}){
-  if(!['izlauncher','izpslauncher'].includes(shell))throw Error('Choose IZlauncher or IZPSlauncher');
-  const renderer=path.join(__dirname,'..',shell==='izpslauncher'?'pslauncher':'launcher');
+  if(!['izlauncher'].includes(shell))throw Error('Choose IZ2S');
+  const renderer=path.join(__dirname,'..','launcher');
   directory=path.resolve(directory);
   const options=JSON.parse(await fs.readFile(path.join(directory,'civswitch-connection.json'))),client=create({host:options.host});
   await client.connect();await client.quiet(true);

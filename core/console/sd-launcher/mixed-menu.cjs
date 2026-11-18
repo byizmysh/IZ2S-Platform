@@ -31,10 +31,9 @@ function create({rpc,context,layout:L,controls,parentSnapshot,imageCount,status,
    }else if(state.host_display_ready===0&&state.host_display_release===token&&(revision===undefined||state.host_applied===revision))return state;
    assert(clock()<until,'Mixed-menu display ownership was not acknowledged');await pause(10);
   }}
- function owned(token,state){
+ function owned(token,state,request={launch:0,remove:0}){
   let active=true,releasing=false,framesOffered=false,revision=state.host_revision;report.state='host';report.leases++;
-  const application=state.applications?.[(state.host_launch||state.host_remove)-1];
-  const result={token,request:{launch:state.host_launch||0,remove:state.host_remove||0,...(application?{application}:{})},pendingInstall:state.requestStable&&state.host_install_sequence?{sequence:state.host_install_sequence,index:state.host_install_index,target:state.host_install_target}:null,get active(){return active&&!closed()&&!retained;},
+  const result={token,request,pendingInstall:state.requestStable&&state.host_install_sequence?{sequence:state.host_install_sequence,index:state.host_install_index,target:state.host_install_target}:null,get active(){return active&&!closed()&&!retained;},
    async acknowledgeInstall(sequence){assert(result===lease&&result.active&&!releasing&&result.pendingInstall?.sequence===sequence,'The mixed install request changed');await mutate(()=>rpc.write(context+L.host_install_ack,word(sequence)));},
    async publish({applications,menu}){
     assert(result===lease&&result.active&&!releasing,'The host does not own mixed-menu graphics');const plan=catalog(applications);
@@ -73,8 +72,17 @@ function create({rpc,context,layout:L,controls,parentSnapshot,imageCount,status,
   try{state=await status();}catch(error){throw Object.assign(error,{displayNotClaimed:true});}healthy(state);observeFrames(state);
   if(state.host_display_ready){retained=true;report.state='retained';throw Object.assign(Error('Another operation holds mixed-menu graphics'),{resourcesRetained:true});}
   if(state.host_display_request!==state.host_display_release){
-   assert((state.host_display_request&1)&&((state.host_launch>0)!==(state.host_remove>0)),'Another operation holds mixed-menu graphics');const selected=state.applications?.[state.host_launch-1];assert((state.host_launch||state.host_remove)<=state.host_count||state.host_launch>0&&selected?.source==='sd'&&selected.execution==='pc','The mixed-menu request is outside the host catalog');
-   const token=state.host_display_request;return mutate(async()=>{await rpc.write(context+L.host_display_claim,word(token));state=await wait(token,true);return owned(token,state);},true);
+   const launch=state.host_launch>0,remove=state.host_remove>0,slot=state.host_launch||state.host_remove;
+   // An offer and its slot only describe the same action in a stable catalog.
+   if(state.catalogStable===false||launch===remove||!(state.host_display_request&1))throw Object.assign(Error('The console menu action is changing'),{menuBusy:true});
+   const selected=state.applications?.[slot-1];
+   const hostTile=state.applications?selected?.source==='session':slot<=state.host_count;
+   const managedLaunch=launch&&selected?.source==='sd'&&selected.execution==='pc';
+   if(!hostTile&&!managedLaunch)throw Object.assign(Error('The console menu action has no matching host tile'),{menuBusy:true});
+   const token=state.host_display_request,request={launch:state.host_launch||0,remove:state.host_remove||0,...(selected?{application:selected}:{})};
+   // Only this token can acknowledge this action. Keep the catalog identity
+   // validated before the claim even if the acknowledgement omits the catalog.
+   return mutate(async()=>{await rpc.write(context+L.host_display_claim,word(token));return owned(token,await wait(token,true),request);},true);
   }
   if(state.active||state.load_stage>0&&state.load_stage<8&&!state.last_app_error)throw Object.assign(Error('The SD application is still running or loading'),{menuBusy:true,activeApplication:{id:state.last_id,source:'sd'}});
   // Only the native thread publishes request/ready. Disjoint token parity

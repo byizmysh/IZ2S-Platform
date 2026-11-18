@@ -1,0 +1,144 @@
+{
+  "name": "vacootube",
+  "version": "2.0.1-vacoo.1",
+  "description": "VacooTube for IZ2S Platform and Switch 2",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "windows:build": "electron-builder --win",
+    "mac:build": "electron-builder --mac",
+    "linux:build": "electron-builder --linux",
+    "linux:build-unpacked": "electron-builder --linux --dir",
+    "linux:build-appimage": "electron-builder --linux appimage"
+  },
+  "keywords": [],
+  "author": "shy (shy@shy.rocks)",
+  "license": "MIT",
+  "desktopName": "org.iz2s.VacooTube",
+  "build": {
+    "appId": "org.iz2s.VacooTube",
+    "productName": "VacooTube",
+    "artifactName": "VacooTube-${arch}.${ext}",
+    "linux": {
+      "icon": "./assets/icon.svg",
+      "synopsis": "Watch and explore videos on YouTube",
+      "category": "AudioVideo",
+      "desktop": {
+        "entry": {
+          "Name": "VacooTube",
+          "Type": "Application",
+          "Categories": "AudioVideo;",
+          "Keywords": "YouTube;YT;"
+        }
+      },
+      "syncDesktopName": true,
+      "maintainer": "IZMYSH",
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "icon": "./assets/icon.ico",
+      "artifactName": "VacooTube-${arch}-Portable.zip",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "VacooTube-Setup.${ext}",
+      "uninstallDisplayName": "VacooTube",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "perMachine": false
+    },
+    "mac": {
+      "icon": "./assets/icon.icns",
+      "category": "public.app-category.video",
+      "electronLanguages": [
+        "en",
+        "de",
+        "nl",
+        "tr",
+        "hr",
+        "sv",
+        "id",
+        "sr"
+      ],
+      "files": [
+        "src/**",
+        "locale/*.json",
+        "assets/icon.png"
+      ],
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "VacooTube uses the microphone only when you use YouTube voice search."
+      },
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64",
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64",
+            "universal"
+          ]
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.17.0"
+  },
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "electron-updater": "^6.8.10",
+    "string-argv": "^0.3.2"
+  },
+  "contributors": [
+    "IZMYSH"
+  ]
+}

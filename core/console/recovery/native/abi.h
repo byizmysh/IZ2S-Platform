@@ -13,6 +13,8 @@ typedef struct {
  uint64_t foreground_thread,suspend_thread,resume_thread,thread_type,worker_ticks;
  uint32_t foreground_policy,foreground_state;
  uint32_t qualification_stage,qualification_done;
+ uint64_t observed_stack,stack_checks;
+ uint32_t stack_guarded,stack_fault;
  IzRecoveryServer server;
 } IzRecoveryNative;
 typedef uint64_t (*IzNetFunction)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t);

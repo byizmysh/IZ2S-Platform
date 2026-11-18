@@ -1,8 +1,9 @@
 'use strict';
-const path=require('node:path'),fs=require('node:fs/promises');
+const fs=require('node:fs/promises'),path=require('node:path');
 async function shader(directory){
- const file=path.join(directory,'pad-normalize.comp.spv');
- require('../../sdk/build.cjs').compile(path.join(__dirname,'pad-normalize.comp'),file);
- return fs.readFile(file);
+ const bytes=await fs.readFile(path.join(__dirname,'pad-normalize.comp.spv'));
+ // Preserve the preparation API: callers also consume the staged shader file.
+ if(directory)await fs.writeFile(path.join(directory,'pad-normalize.comp.spv'),bytes);
+ return bytes;
 }
 module.exports={shader};

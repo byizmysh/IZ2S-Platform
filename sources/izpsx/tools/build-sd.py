@@ -1,14 +1,22 @@
-"""Build an offline IZPSX SD application for the public native ABI 5.
+"""Build an offline IZPSX SD application for the legacy or current IZ2S interpreter interface.
 No installation, console requests, network access or vendor edits.
 """
 from pathlib import Path
-import hashlib,json,os,struct,subprocess,sys,zlib
+import argparse,hashlib,json,os,re,struct,subprocess,zlib
 from elftools.elf.elffile import ELFFile
 from elftools.elf.relocation import RelocationSection
 from local_build import CC,PREFIX
 ROOT=Path(__file__).resolve().parents[1]
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--hen',action='store_true',help='use the current IZ2S SDK and interpreter')
+parser.add_argument('--product-version',help='display version for a HEN build of a specific release')
+parser.add_argument('--out',type=Path)
+args=parser.parse_args()
+if args.product_version and (not args.hen or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+',args.product_version)):
+ parser.error('--product-version requires --hen and a major.minor.patch version')
 from local_build import PANEL
-OUT=ROOT/'build/izpsx-sd';OUT.mkdir(parents=True,exist_ok=True)
+OUT=(args.out or ROOT/'build'/('izpsx-hen' if args.hen else 'izpsx-sd')).resolve()
+OUT.mkdir(parents=True,exist_ok=True)
 sha=lambda b:hashlib.sha256(b).hexdigest()
 report={'format':'izpsx-native-sd-build/1','passed':False,'consoleExecuted':False,'performanceGainPercent':None,'commands':[]}
 def run(args):
@@ -20,21 +28,37 @@ try:
  native=json.loads((ROOT/'build/native/report.json').read_text());count=len(native['imports'])
  # Public ABI is checked by compile-time offsets and runtime prefix/capabilities.
  # Do not pin unrelated launcher internals or its release version.
- sdk_functions=json.loads((PANEL/'core/console/abi/sdk-functions.json').read_text())
- sdk_functions['sleep']=json.loads((PANEL/'core/console/abi/thread-code.json').read_text())['functions']['sleep']
- sdk_functions['tick']=json.loads((PANEL/'core/console/abi/timing-code.json').read_text())['functions']['tick']
- lines=['static const struct {uint64_t offset;uint8_t bytes[32];} izpsx_imports[]={']
- for i in native['imports']:lines.append('{'+str(i['sdkOffset'])+', {'+','.join('0x'+i['bytes'][j:j+2] for j in range(0,64,2))+'}},')
- lines+=['};','static const struct {uint64_t offset;uint8_t length,bytes[32];} izpsx_services[]={']
- for key in ['send','close','allocate','free','sleep','tick']:
-  i=sdk_functions[key];signature=i['bytes'][:64];lines.append('{'+str(i['offset'])+', '+str(len(signature)//2)+', {'+','.join('0x'+signature[j:j+2] for j in range(0,len(signature),2))+'}},')
+ if args.hen:
+  lines=['static const char*const izpsx_import_names[]={']
+  lines.extend(json.dumps(entry['name'])+',' for entry in native['imports'])
+ else:
+  sdk_functions=json.loads((PANEL/'core/console/abi/sdk-functions.json').read_text())
+  sdk_functions['sleep']=json.loads((PANEL/'core/console/abi/thread-code.json').read_text())['functions']['sleep']
+  sdk_functions['tick']=json.loads((PANEL/'core/console/abi/timing-code.json').read_text())['functions']['tick']
+  lines=['static const struct {uint64_t offset;uint8_t bytes[32];} izpsx_imports[]={']
+  for i in native['imports']:lines.append('{'+str(i['sdkOffset'])+', {'+','.join('0x'+i['bytes'][j:j+2] for j in range(0,64,2))+'}},')
+  lines+=['};','static const struct {uint64_t offset;uint8_t length,bytes[32];} izpsx_services[]={']
+  for key in ['send','close','allocate','free','sleep','tick']:
+   i=sdk_functions[key];signature=i['bytes'][:64];lines.append('{'+str(i['offset'])+', '+str(len(signature)//2)+', {'+','.join('0x'+signature[j:j+2] for j in range(0,len(signature),2))+'}},')
  (OUT/'sd-imports.h').write_text('\n'.join(lines+['};'])+'\n')
  common=['-O2','-D_GNU_SOURCE','-DPS1_IMPORT_COUNT='+str(count),'-ffreestanding','-fno-builtin','-fno-stack-protector','-mbranch-protection=bti','-mno-outline-atomics','-ffunction-sections','-fdata-sections','-I'+str(ROOT/'src'),'-I'+str(ROOT/'src/sd-runtime'),'-I'+str(OUT)]
+ if args.hen:
+  common+=['-DIZPSX_HEN','-DIZPSX_SB4_COMPAT','-DIZPSX_SB4_STORAGE','-I'+str(ROOT/'sdk/include')]
+ if args.product_version:
+  common+=['-DIZPSX_VERSION='+json.dumps(args.product_version)]
  core=common+['-fno-pie','-fno-pic','-mcmodel=large',*['-I'+str(ROOT/'vendor/pcsx_rearmed'/p) for p in ['deps/libretro-common/include','include','libpcsxcore']]]
  objects=[]
- for name,source in [('replay','src/replay.c'),('controllers','src/sd-runtime/controllers.c'),('frontend-sd','src/frontend-sd.c'),('engine','src/sd-runtime/engine.c'),('sd-entry','src/sd-runtime/entry.S'),('address','src/sd-runtime/address.c'),('system','src/sd-runtime/system.S')]:
+ sources=[('replay','src/replay.c'),('controllers','src/sd-runtime/controllers.c'),('frontend-sd','src/frontend-sd.c'),('engine','src/sd-runtime/engine.c'),('sd-entry','src/sd-runtime/entry.S')]
+ platform=['platform','settings','settings-menu','memory-card','fs-ipc','display','audio','fs-dir','fs-file','native-menu','keepawake']
+ if args.hen:
+  sources.extend((name,'src/'+name+'.c') for name in platform)
+  cached=['imports']
+ else:
+  sources.extend([('address','src/sd-runtime/address.c'),('system','src/sd-runtime/system.S')])
+  cached=[*platform,'ro-jit','imports']
+ for name,source in sources:
   obj=OUT/(name+'.o');run([CC,*core,'-c',ROOT/source,'-o',obj]);objects.append(obj)
- for name in ['platform','settings','settings-menu','memory-card','ro-jit','fs-ipc','display','audio','fs-dir','fs-file','native-menu','keepawake','imports']:objects.append(ROOT/'build/native'/(name+'.o'))
+ for name in cached:objects.append(ROOT/'build/native'/(name+'.o'))
  script='''ENTRY(izpsx_engine)
 SECTIONS {
  . = CODE; .text : { *(.text.izpsx_entry) *(.text .text.*) } . = ALIGN(16); .rodata : { *(.rodata .rodata.*) }
@@ -44,7 +68,8 @@ SECTIONS {
 }'''
  def link(label,cb,db):
   ld=OUT/(label+'.ld');ld.write_text(script.replace('CODE',hex(cb)).replace('DATA',hex(db)))
-  elf=OUT/(label+'.elf');run([CC,'-nostdlib','-static','-no-pie','-Wl,-u,retro_get_system_info,-u,ps1_sd_core_frame,-u,izpsx_release_stack,--build-id=none,--gc-sections,--emit-relocs,-T,'+str(ld),*objects,ROOT/'build/native/pcsx.a','-lgcc','-o',elf]);assert not run([PREFIX+'nm','-u',elf]).strip();return elf
+  wrap=['-Wl,--wrap=emu_core_preinit'] if args.hen else []
+  elf=OUT/(label+'.elf');run([CC,'-nostdlib','-static','-no-pie',*wrap,'-Wl,-u,retro_get_system_info,-u,ps1_sd_core_frame,-u,izpsx_release_stack,--build-id=none,--gc-sections,--emit-relocs,-T,'+str(ld),*objects,ROOT/'build/native/pcsx.a','-lgcc','-o',elf]);assert not run([PREFIX+'nm','-u',elf]).strip();return elf
  def extract(elf):
   f=elf.open('rb');e=ELFFile(f);t=e.get_section_by_name('.text');r=e.get_section_by_name('.rodata');d=e.get_section_by_name('.data');b=e.get_section_by_name('.bss');cb=t['sh_addr'];db=d['sh_addr'];code=bytearray(r['sh_addr']+r['sh_size']-cb);code[:t['sh_size']]=t.data();code[r['sh_addr']-cb:]=r.data();data=bytearray(d.data());region=b['sh_addr']+b['sh_size']-db
   symbols={s.name:s['st_value'] for s in e.get_section_by_name('.symtab').iter_symbols()};return f,e,[code,data],[cb,db],region,symbols
@@ -80,8 +105,12 @@ SECTIONS {
  with shim.open('rb') as sf:
   se=ELFFile(sf);assert all(not se.get_section_by_name(n) or not se.get_section_by_name(n)['sh_size'] for n in ['.data','.bss']);shim_bytes=se.get_section_by_name('.text').data()
  (OUT/'shim.bin').write_bytes(shim_bytes)
- assembly=run([PREFIX+'objdump','-d',elf]);svc=[line.strip() for line in assembly.splitlines() if '\tsvc\t' in line];assert len(svc)==3 and not any(op in assembly for op in ['\thvc\t','\tsmc\t','tpidr_el0','tpidrro_el0'])
- report.update(readOnlyKernelBoundaries=svc,finiteJitSelfProbeExecutions=64,passed=True,codeBytes=len(segments[0]),dataBytes=len(segments[1]),dataRegionBytes=region,engineBytes=len(asset),asset=asset_name,assetSha256=digest,shimBytes=len(shim_bytes),absoluteFixups=len(records),invariantFixups=invariants,independentRelinkExact=True,entryOffset=symbols['izpsx_engine']-bases[0],releaseOffset=symbols['izpsx_release_stack']-bases[0],symbols={k:symbols[k] for k in ['ps1_sd_core_begin','ps1_sd_core_frame','ps1_sd_core_frame4','ps1_sd_core_end','ps1_sd_jit_probe','ps1_imports','Mcd1Data','Mcd2Data','SaveMcd','ps1_cards_open','in_keystate','in_type','ps1_sd_core_ports','ps1_active_settings','ps1_preferences_default','multitap1','multitap2','PAD1_startPoll','PAD1_poll','PAD2_startPoll','PAD2_poll','retro_get_system_info']},launcherRoot=str(PANEL),sdRoot='/sd/IZ2S/Homebrew/Modules/izpsx',sources={str(p.relative_to(ROOT)):sha(p.read_bytes()) for p in [ROOT/'src/frontend-sd.c',ROOT/'src/replay.c',ROOT/'src/replay.h',*sorted((ROOT/'src/sd-runtime').iterdir())] if p.is_file()},nativeSourceHashes=native['sources'],sdkProfileSha256=sha((ROOT/'abi/sdk-profile.json').read_bytes()),nativeAbi=5,consoleScope='Unexecuted candidate; hardware loading, audio and lifecycle qualification still required')
+ assembly=run([PREFIX+'objdump','-d',elf]);svc=[line.strip() for line in assembly.splitlines() if '\tsvc\t' in line];assert len(svc)==(0 if args.hen else 3) and not any(op in assembly for op in ['\thvc\t','\tsmc\t','tpidr_el0','tpidrro_el0'])
+ exported=['ps1_sd_core_begin','ps1_sd_core_frame','ps1_sd_core_frame4','ps1_sd_core_end','ps1_imports','Mcd1Data','Mcd2Data','SaveMcd','ps1_cards_open','in_keystate','in_type','ps1_sd_core_ports','ps1_active_settings','ps1_preferences_default','multitap1','multitap2','PAD1_startPoll','PAD1_poll','PAD2_startPoll','PAD2_poll','retro_get_system_info']
+ if not args.hen:exported.append('ps1_sd_jit_probe')
+ report.update(readOnlyKernelBoundaries=svc,finiteJitSelfProbeExecutions=0 if args.hen else 64,passed=True,codeBytes=len(segments[0]),dataBytes=len(segments[1]),dataRegionBytes=region,engineBytes=len(asset),asset=asset_name,assetSha256=digest,shimBytes=len(shim_bytes),absoluteFixups=len(records),invariantFixups=invariants,independentRelinkExact=True,entryOffset=symbols['izpsx_engine']-bases[0],releaseOffset=symbols['izpsx_release_stack']-bases[0],symbols={k:symbols[k] for k in exported},launcherRoot=str(PANEL),sdRoot='/sd/iz2s/modules/izpsx',sources={str(p.relative_to(ROOT)):sha(p.read_bytes()) for p in [ROOT/'src/frontend-sd.c',ROOT/'src/replay.c',ROOT/'src/replay.h',*sorted((ROOT/'src/sd-runtime').iterdir())] if p.is_file()},nativeSourceHashes=native['sources'],coreArchiveSha256=sha((ROOT/'build/native/pcsx.a').read_bytes()),nativeAbi=7 if args.hen else 5,interpreterOnly=args.hen,consoleScope='Unexecuted candidate; hardware loading, audio and lifecycle qualification still required')
+ if not args.hen:report['sdkProfileSha256']=sha((ROOT/'build/izpsx-baseline/report.json').read_bytes())
 finally:
+ if args.product_version:report['productVersion']=args.product_version
  (OUT/'report.json').write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps({k:report[k] for k in ['passed','engineBytes','shimBytes','absoluteFixups','independentRelinkExact','consoleExecuted']}))

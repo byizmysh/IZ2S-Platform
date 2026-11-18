@@ -1,28 +1,20 @@
-IZPSX emulator 0.5.1 — @byizmysh
+# IZPSX emulator 0.5.2
 
-SD:/IZ2S/Homebrew/Modules/izpsx/
-  launcher.izapp + declared asset-*.izdata
-  games/ — BIN/CUE or PBP, each game in its own directory
-  bios/scph101.bin — your own 512 KiB BIOS
-  saves/ — two shared memory cards, two verified generations each
+Install through IZ2S Platform App library or copy the complete SD export. Keep `launcher.iza`, `sd-bundle.json` and its companion assets together in `SD:/iz2s/modules/izpsx/`.
 
-Source is detected automatically: session RAM or public native SD launcher ABI 5.
-RAM entry needs the local PC launcher; the SD entry reads all game data locally.
-About shows the current source. Games/BIOS are not included.
-In-game memory card saves are supported; save states are not implemented.
-Plus is PS1 Start (game menu). Minus opens the IZPSX menu or library settings.
-Choose Exit IZPSX emulator in the menu to return to the launcher. R3 has no shortcut.
-Settings: L/R changes tabs.
-Controls: choose Player 1-4 with ZL/ZR or the player selector.
-Each player has separate device, button swap, stick D-pad, deadzone and turbo settings.
-Choose Off to disconnect game input; Disconnect from Switch requests system disconnection.
-B saves all profiles. X resets one setting; Y resets only the selected player.
-Existing shared and two-player settings migrate automatically.
-Multitap: Off keeps two normal PS1 ports. Port 1 / Port 2 enables up to four players.
-Choose the game again after changing Multitap. The game must support Multitap.
-Pair Joy-Con halves individually using SL/SR in HOME before entering SB4.
-Single Joy-Con: hold sideways. SL/SR = L1/R1; outer shoulders = L2/R2.
-Stick click = Select; +/- = Start; SL+SR+/- = IZPSX menu.
-For paired Joy-Con and Pro controllers: + = Start, - = IZPSX menu.
-Display FPS cap preserves native game speed/audio.
-Source and local qualification reports accompany IZPSX emulator.
+## Add your BIOS and games
+
+BIOS and game images are **not included**. Add your own files after installing the emulator. These are paths on the Switch SD card:
+
+| File | Exact destination |
+| --- | --- |
+| PlayStation BIOS, exactly **512 KiB (524,288 bytes)** | `SD:/iz2s/modules/izpsx/bios/bios.bin` |
+| CUE/BIN game | `SD:/iz2s/modules/izpsx/games/<game name>/disc.cue` and its referenced BIN tracks in the same folder |
+| PBP game | `SD:/iz2s/modules/izpsx/games/<game name>/game.pbp` |
+
+Create `bios/` and `games/` if they do not exist. The BIOS filename must be `bios.bin`; keep game filenames and CUE track references consistent. Extract compressed game downloads before copying them. Do not put BIOS or games beside `launcher.iza`. Add them through **Games and BIOS** in the PC panel, FTP, or a mounted SD card. Preserve `bios/`, `games/`, `saves/` and settings when updating the application.
+
+
+Memory cards are saved under `SD:/iz2s/modules/izpsx/saves/`. Plus is PS1 Start; Minus opens the emulator menu. Choose Exit there to return to IZ2S.
+
+Original licenses remain in LICENSE and FONT-LICENSE.txt.

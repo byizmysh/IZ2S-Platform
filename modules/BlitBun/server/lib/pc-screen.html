@@ -1,0 +1,279 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>BlitBun · IZlauncher</title>
+<style>
+:root{color-scheme:dark;font:14px "DejaVu Sans",system-ui,sans-serif;background:#101611;color:#ecf1e8;--lime:#d2f75c;--line:#303a30;--muted:#95a08e;--panel:#19201a;--blue:#a8d3ef}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;display:flex;min-height:100vh}aside{width:242px;flex-shrink:0;padding:30px 22px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:42px;background:#131a14}.brand{font-size:24px;font-weight:600;letter-spacing:-1px}.brand b{color:var(--lime)}.brand small{display:block;margin-top:8px;font:9px monospace;letter-spacing:2px;color:var(--muted)}.nav-item{padding:14px;border-radius:9px;background:#293522;color:var(--lime);font-size:12px}.nav-item span{display:inline-block;margin-right:12px}.aside-note{margin-top:auto;font-size:11px;color:var(--muted);line-height:1.8}main{width:calc(100% - 242px);max-width:1600px;padding:0 48px}.topbar{height:78px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.eyebrow{font:9px monospace;letter-spacing:1.8px;color:var(--muted)}.badge{border:1px solid var(--line);border-radius:5px;padding:7px 10px;font:9px monospace;color:var(--muted)}header{padding:36px 0 26px;display:flex;justify-content:space-between;align-items:end}h1{font-size:clamp(32px,3.1vw,48px);font-weight:650;letter-spacing:-2px;line-height:1.12;margin:12px 0 15px}h1 b{font-weight:650;color:var(--lime)}.subtitle{font-size:12px;line-height:1.7;color:var(--muted);margin:0}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:22px}.preview-panel{min-width:0}.screen{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:#0b100c}canvas{display:block;width:100%;aspect-ratio:16/9;object-fit:contain}.empty{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:16px;color:var(--muted);font-size:12px;line-height:1.8;pointer-events:none}.empty svg{margin:auto;color:#718264}.settings-panel{border:1px solid var(--line);border-radius:14px;padding:22px;background:linear-gradient(135deg,#1c251b,#151c17)}h2{font-size:17px;font-weight:550;margin:8px 0 22px}.settings{display:grid;gap:15px}.field{display:grid;gap:8px;color:#bdc8b8;font-size:11px}.field small{color:var(--muted);font-size:10px;line-height:1.6}button,select{font:inherit;color:inherit;border:1px solid #46523f;background:#202a1f;border-radius:7px;min-height:42px;padding:0 13px;cursor:pointer}select{width:100%;font-size:12px}button:hover:enabled,select:hover:enabled{border-color:#82995b;background:#2e3b27}button:disabled,select:disabled{opacity:.45;cursor:default}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--lime);outline-offset:3px}.check{display:flex;align-items:center;gap:10px;color:#c6d0c0;font-size:12px;cursor:pointer}.check input{accent-color:var(--lime);width:16px;height:16px;margin:0}.toggle-group{display:grid;gap:16px;padding:18px 0 3px;border-top:1px solid var(--line)}.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 0}.spacer{flex:1}#start{background:var(--lime);border-color:var(--lime);color:#172007;font-weight:600;min-width:160px}#stop{color:#f1d27c;background:#302b19;border-color:#8c7839}#test{background:transparent;color:var(--muted);border-color:transparent;font-size:11px}output{display:block;min-height:57px;padding:16px 18px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font:11px/1.8 monospace;color:var(--blue);overflow-wrap:anywhere}.audio-note{font-size:11px;line-height:1.8;color:var(--muted);margin:15px 0}.audio-note.error{color:#f39395}footer{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding:22px 0;margin-top:30px;font:9px monospace;color:#7e8b7e;letter-spacing:.6px}video{display:none}@media(max-width:1150px){main{padding:0 26px}.workspace{grid-template-columns:minmax(0,1fr)}.settings{grid-template-columns:repeat(2,minmax(0,1fr))}.toggle-group{grid-column:1/-1;display:flex;flex-wrap:wrap}.settings-panel h2{margin-bottom:18px}}@media(max-width:760px){body{display:block}aside{width:100%;padding:18px 20px;border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:center;justify-content:space-between;gap:15px}.brand{font-size:21px}.brand small{font-size:8px}.aside-note{display:none}.nav-item{font-size:10px}main{width:100%;padding:0 20px}.topbar{height:60px}.eyebrow{font-size:8px}header{padding-top:26px}h1{font-size:36px}.actions{gap:8px}.actions button{font-size:11px;padding:0 12px}#start{min-width:0}footer{font-size:8px}.settings-panel{padding:18px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+/* Small source monitor on the left, controls in a wider two-column grid. */
+main,.workspace,.field,.settings-panel { min-width:0; }
+main { padding-inline:32px; max-width:1440px; }
+aside { width:210px; padding-inline:20px; }
+main { width:calc(100% - 210px); }
+header { padding-block:24px; }
+header h1 { font-size:30px; letter-spacing:-1px; margin:0 0 10px; }
+.workspace { grid-template-columns:minmax(260px,320px) minmax(0,1fr); align-items:start; gap:24px; }
+.preview-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+.preview-heading h2 { font-size:14px; margin:0; }
+.preview-heading .badge { font-size:8px; padding:6px; white-space:nowrap; }
+.screen { width:100%; max-width:320px; }
+.empty { font-size:11px; padding:12px; gap:10px; }
+.empty svg { width:32px; height:28px; }
+.settings-panel { padding:20px; }
+.settings-panel h2 { margin:6px 0 20px; }
+.settings { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 16px; }
+select { min-width:0; max-width:100%; }
+button { line-height:1.4; padding-block:9px; height:auto; }
+.field { align-content:start; }
+.field small { font-size:10px; }
+.check { align-items:flex-start; line-height:1.6; }
+.check input { flex-shrink:0; margin-top:3px; }
+.toggle-group { grid-column:1/-1; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.actions { gap:8px; margin-block:16px; }
+.actions button { max-width:100%; overflow-wrap:anywhere; flex:1 1 130px; font-size:12px; }
+output { font-size:11px; line-height:1.7; }
+#native-picker { margin-top:14px; padding:12px; }
+#native-window { min-height:170px; padding:4px; font-size:11px; }
+#native-window option { padding:6px; }
+footer { gap:14px; flex-wrap:wrap; line-height:1.6; }
+@media(max-width:1100px) {
+ aside { width:175px; padding-inline:16px; }
+ main { width:calc(100% - 175px); padding-inline:22px; }
+ .workspace { grid-template-columns:minmax(220px,280px) minmax(0,1fr); gap:18px; }
+ .settings { grid-template-columns:1fr; }
+ .toggle-group { display:grid; grid-template-columns:1fr; }
+}
+@media(max-width:760px) {
+ aside { width:100%; padding:16px 18px; }
+ main { width:100%; padding-inline:18px; }
+ header h1 { font-size:28px; }
+ .workspace { grid-template-columns:1fr; }
+ .preview-panel { display:grid; grid-template-columns:minmax(0,320px) minmax(0,1fr); gap:12px 18px; }
+ .preview-heading,.screen { grid-column:1; }
+ .actions { grid-column:2; grid-row:1/3; align-content:start; margin:0; }
+ .preview-panel>p,.preview-panel>output,#native-picker { grid-column:1/-1; margin-block:0; }
+ .settings { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .toggle-group { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .settings-panel { padding:16px; }
+}
+@media(max-width:480px) {
+ .preview-panel,.settings,.toggle-group { display:grid; grid-template-columns:1fr; }
+ .actions { grid-column:1; grid-row:auto; }
+ .screen { justify-self:center; }
+ .nav-item { padding:10px; }
+}
+</style>
+<aside><div class="brand">BlitBun<small>IZLAUNCHER / STREAMING</small></div><div class="nav-item"><span>↗</span> PC streaming</div><p class="aside-note">Keep this tab open for browser capture.<br><br>Session controls and STOP are in the connection tab.</p></aside>
+<main><div class="topbar"><span class="eyebrow">IZLAUNCHER / LOCAL CONTROL</span><span class="badge" id="connection-badge">CONNECTING</span></div>
+<header><div><p class="eyebrow">PC / CONSOLE</p><h1>PC streaming</h1><p class="subtitle">Share a window or game with your console.</p></div></header>
+<div class="workspace"><section class="preview-panel" aria-label="Stream preview">
+<div class="preview-heading"><h2>Source preview</h2><span class="badge">320 × 180 · 5 FPS</span></div><div class="screen"><canvas id="preview" width="320" height="180" aria-label="Low-resolution source preview"></canvas><canvas id="capture" width="480" height="270" hidden></canvas><video id="video" muted playsinline hidden></video><div class="empty" id="empty"><svg width="48" height="42" viewBox="0 0 36 30" fill="none" aria-hidden="true"><rect x="1" y="1" width="34" height="22" rx="3" stroke="currentColor"/><path d="M13 29h10m-5-6v6" stroke="currentColor"/></svg>Choose a window to start streaming.</div></div>
+<div class="actions"><button id="start">Share window ↗</button><button id="browser-start" title="Uses the browser permission dialog. Native Wayland windows and desktop capture may need two system confirmations.">Browser capture…</button><button id="stop" disabled>End stream</button><button id="focus" hidden>Focus game ↗</button><button id="test" hidden>Test picture</button></div>
+<section class="settings-panel" id="native-picker" hidden aria-label="Choose an application window"><label class="field">Application window<select id="native-window" size="6" aria-label="Application window"></select></label><p class="audio-note" id="native-coverage">X11 / XWayland windows. For native Wayland windows or the desktop, use Browser capture.</p><div class="actions"><button id="native-share">Share selected window</button><button id="native-refresh">Refresh</button><button id="native-cancel">Cancel</button></div></section><p class="audio-note" id="controller-status" aria-live="polite">Connect your controller to Switch 2. Enable Controller to send input to the PC game.</p><output id="status" aria-live="polite">Connecting to the streaming service…</output><p class="audio-note" id="audio-status" aria-live="polite">Audio follows the console output. For TV playback, select HDMI on the console and disconnect Bluetooth audio.</p>
+</section><section class="settings-panel" aria-labelledby="settings-title"><span class="eyebrow">STREAM / PREFERENCES</span><h2 id="settings-title">Stream settings</h2><div class="settings">
+<label class="field">Resolution<select id="size"><option value="auto" selected>Automatic · dock / handheld</option><option value="640">640 × 360</option><option value="832">832 × 468</option><option value="960">960 × 540</option><option value="1280">1280 × 720 · HD</option><option value="1600">1600 × 900</option><option value="1920">1920 × 1080 · Full HD</option><option value="320" hidden>Application native size</option></select><small>Changes apply while streaming. Automatic follows dock / handheld mode. Captured windows retain their aspect ratio.</small></label>
+<label class="field">Dock resolution<select id="dock-size"><option value="640">640 × 360</option><option value="832">832 × 468</option><option value="960">960 × 540</option><option value="1280">1280 × 720</option><option value="1600">1600 × 900</option><option value="1920" selected>1920 × 1080</option></select><small>Used by Automatic while docked.</small></label><label class="field">Handheld resolution<select id="handheld-size"><option value="640">640 × 360</option><option value="832">832 × 468</option><option value="960">960 × 540</option><option value="1280" selected>1280 × 720</option><option value="1600">1600 × 900</option><option value="1920">1920 × 1080</option></select><small>Used by Automatic in handheld mode.</small></label><label class="field">Display<select id="display"><option value="original">Original size</option><option value="stretch">Fill console screen</option></select></label>
+<label class="field" title="Additional compression preserves image quality. Off uses more network bandwidth.">Additional compression<select id="compression"><option value="auto">Automatic</option><option value="on">On</option><option value="off">Off</option></select></label>
+<label class="field" title="Choose the original mapped decoder or RAM dictionaries. Image quality stays the same.">Rendering<select id="render-mode"><option value="auto">Automatic</option><option value="direct">Original</option><option value="ram">RAM dictionaries</option></select></label>
+<label class="field">Frame rate<select id="fps"><option value="60">Up to 60 FPS</option><option value="40">Up to 40 FPS</option><option value="30">Up to 30 FPS</option></select></label>
+<label class="field">Console audio<select id="audio-output"><option value="auto">Automatic · active output</option><option value="hdmi">TV / HDMI · 5.1 PCM</option><option value="bluetooth">Bluetooth / stereo</option></select><small>Use Automatic for stereo TVs. HDMI also supports a 6-channel output with stereo in the front speakers.</small></label>
+<div class="toggle-group"><label class="check" title="Keep the selected dock resolution over Wi-Fi. Full HD uses more bandwidth and may run slower than Ethernet."><input id="dock-wifi" type="checkbox">Allow Wi-Fi while docked</label><label class="check"><input id="control" type="checkbox">Controller</label><label class="check"><input id="stats" type="checkbox">Performance overlay</label><label class="check"><input id="sound" type="checkbox" checked>Share sound</label></div>
+</div></section></div><footer><span>Created by IZMYSH (@byizmysh)</span><span>BlitBun / IZlauncher</span></footer></main>
+<script src="/pc-codec.js"></script><script src="/pc-gpu-codec.js"></script><script src="/capture-audio.js"></script><script src="/frame-pacing.js"></script><script>
+const $=id=>document.getElementById(id),canvas=$('capture'),ctx=canvas.getContext('2d',{willReadFrequently:true}),key=location.hash.slice(1);
+let stream=null,running=false,starting=false,inFlight=false,taskBusy=false,inactive=false,loadingOptions=true,frames=0,captured=0,started=0,generation=0,lastUpdate=0;
+let currentSource="browser",eventFeed,previewBusy=false,optionBusy=0,profileSequence=0,activeUpload=null;
+let captureAudio,audioStatus='Audio off',videoAbort,routeState={ready:false,reason:'waiting-for-console-state',generation:0};const routeWaiters=new Set();
+function routeMessage(){return routeState.required==='ethernet'?'Docked · waiting for Ethernet':routeState.required==='ethernet-or-wifi'?'Docked · waiting for Ethernet or Wi-Fi':routeState.required==='wifi'?'Handheld · waiting for Wi-Fi':'Waiting for console mode and network';}
+function waitForRoute(own=generation){return new Promise((resolve,reject)=>{const check=()=>{if(inactive||own!==generation){routeWaiters.delete(check);reject(Object.assign(Error('Stopped'),{name:'AbortError'}));}else if(routeState.ready){routeWaiters.delete(check);resolve(routeState);}else $('status').textContent=routeMessage();};routeWaiters.add(check);check();});}
+function updateRoute(next){routeState=next;for(const check of [...routeWaiters])check();}
+let gpuCodec=null,gpuDisabled=false,captureProfile={width:1280,height:720,fps:60},captureSelection='',browserResolution='auto';
+const captureChoice=()=>$('size').value==='auto'?'auto:'+captureProfile.width+'x'+captureProfile.height:$('size').value;
+const captureToken=()=>{const w=$('size').value==='auto'?captureProfile.width:Number($('size').value);return w+'x'+(Math.ceil(w*9/16/4)*4)+'@'+Number($('fps').value)+':'+$('compression').value+':'+$('render-mode').value;};
+const captureWidth=()=>$('size').value==='auto'?captureProfile.width:Number($('size').value);
+let worker,cropArea,lastUploadMs=0,lastLatency=0,lastFps=0,recent=[],rates=IZPacing.createRates(),workerId=0;const pending=new Map();
+function workerCall(data,transfer=[]){
+ if(!worker){
+  const source=`importScripts(${JSON.stringify(location.origin+'/pc-codec.js')});const ready=fetch(${JSON.stringify(location.origin+'/frame-codec.wasm')}).then(r=>{if(!r.ok)throw Error("Codec unavailable");return r.arrayBuffer();}).then(b=>IZFrame.installWasm(b)).catch(()=>{});onmessage=async({data:d})=>{if(d.delay!==undefined){setTimeout(()=>postMessage({id:d.id}),d.delay);return;}try{await ready;const start=performance.now(),bytes=IZFrame.encode(new Uint8ClampedArray(d.rgba),d.w,d.h,1);postMessage({id:d.id,bytes,encodeMs:performance.now()-start},[bytes.buffer]);}catch(e){postMessage({id:d.id,error:e.message});}};`;
+  const blob=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));worker=new Worker(blob);URL.revokeObjectURL(blob);
+  worker.onmessage=e=>{const p=pending.get(e.data.id);pending.delete(e.data.id);if(p)clearTimeout(p.timer);if(e.data.error)p?.reject(Error(e.data.error));else p?.resolve(e.data);};worker.onerror=e=>{for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error(e.message||'Encoder error'));}pending.clear();worker.terminate();worker=null;};
+ }
+ return new Promise((resolve,reject)=>{const id=++workerId,timer=setTimeout(()=>{for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error('Encoder stopped responding'));}pending.clear();worker?.terminate();worker=null;},5000);pending.set(id,{resolve,reject,timer});worker.postMessage({...data,id},transfer);});
+}
+async function post(bytes,w=canvas.width,h=canvas.height,metrics=[],profile=captureToken(),routeGeneration=routeState.generation){await waitForRoute();if(routeGeneration!==routeState.generation)throw Object.assign(Error('Console route changed; recapturing'),{recoverable:true,retryAfterMs:1});const own=new AbortController();videoAbort=own;const warning=setTimeout(()=>{if(videoAbort===own)$('status').textContent='Waiting for console… Stop cancels screen sharing.';},2000);try{const r=await fetch('/frame?format=1&w='+w+'&h='+h,{method:'POST',headers:{'x-stream-key':key,'x-stream-metrics':JSON.stringify(metrics),'x-stream-profile':profile,'x-stream-route':String(routeGeneration)},body:bytes,signal:own.signal});const data=await r.json();if(!r.ok)throw Object.assign(Error(data.error),{recoverable:r.status===503&&data.recoverable===true,retryAfterMs:data.retryAfterMs});return data;}finally{clearTimeout(warning);if(videoAbort===own)videoAbort=null;}}
+function capturePhase(phase,error){
+ const row={phase,width:canvas.width,height:canvas.height,...(error?{error:String(error.message||error).slice(0,300)}:{})};
+ fetch('/capture-state',{method:'POST',headers:{'x-stream-key':key,'content-type':'application/json'},body:JSON.stringify(row)}).catch(()=>{});
+}
+async function playCapture(video){
+ let timer;try{await Promise.race([video.play(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('The selected source did not start. Stop sharing and choose it again.')),10000);})]);}finally{clearTimeout(timer);}
+}
+async function prepareReceiver(w,h){
+ const own=new AbortController();videoAbort=own;
+ try{for(;;){await waitForRoute();const r=await fetch('/prepare?format=1&w='+w+'&h='+h,{method:'POST',headers:{'x-stream-key':key,'x-stream-profile':captureToken()},signal:own.signal});const data=await r.json();if(r.ok)return data;if(r.status!==503||data.recoverable!==true)throw Error(data.error||'Receiver preparation failed');$('status').textContent='Reconnecting video…';await workerCall({delay:Math.min(2000,Math.max(100,data.retryAfterMs||750))});if(own.signal.aborted)throw Object.assign(Error('Stopped'),{name:'AbortError'});}}
+ finally{if(videoAbort===own)videoAbort=null;}
+}
+function fittedCapture(area,limit){
+ if(![area.w,area.h,limit].every(Number.isFinite)||area.w<=0||area.h<=0||limit<4)throw Error('The selected source has no video dimensions yet');
+ const maxWidth=Math.min(1920,Math.floor(limit/4)*4),maxHeight=Math.min(1080,Math.floor(limit*9/16/4)*4),fit=Math.min(1,maxWidth/area.w,maxHeight/area.h);
+ // Floating point scaling can produce 1920.0000000000002. Align blocks only
+ // inside the selected bounds; rounding upward alone would send width 1924.
+ return {width:Math.max(4,Math.min(maxWidth,Math.ceil(area.w*fit/4)*4)),height:Math.max(4,Math.min(maxHeight,Math.ceil(area.h*fit/4)*4))};
+}
+async function fitCapture(){
+ const v=$('video'),track=stream.getVideoTracks()[0],sw=v.videoWidth,sh=v.videoHeight;let area={x:0,y:0,w:sw,h:sh};
+ if(!Number.isFinite(sw)||!Number.isFinite(sh)||sw<1||sh<1)throw Error('The selected source has no video dimensions yet');
+ if(track.getSettings().displaySurface==='window'){
+  try{const r=await fetch('/crop?w='+sw+'&h='+sh+'&label='+encodeURIComponent(track.label),{headers:{'x-stream-key':key}});if(r.ok){const crop=await r.json();if([crop.x,crop.y,crop.w,crop.h].every(Number.isFinite)&&crop.x>=0&&crop.y>=0&&crop.w>0&&crop.h>0&&crop.x+crop.w<=sw&&crop.y+crop.h<=sh)area=crop;}}catch{}
+ }
+ cropArea={...area,sourceWidth:sw,sourceHeight:sh};const size=fittedCapture(area,captureWidth());
+ canvas.width=size.width;canvas.height=size.height;captureSelection=captureChoice();
+}
+// Preview is a separate, fixed-size surface; no pixel readback or stream resizing.
+const preview=$('preview'),previewContext=preview.getContext('2d',{alpha:false});
+let previewAt=-Infinity,serverPreviewSource=null;
+function paintPreview(source,area=null,frameWidth=source.width,frameHeight=source.height){
+ const now=performance.now();if(document.hidden||now-previewAt<200)return;
+ previewAt=now;const scale=Math.min(preview.width/frameWidth,preview.height/frameHeight);
+ previewContext.fillStyle='#000';previewContext.fillRect(0,0,preview.width,preview.height);
+ if(area){const fit=Math.min(1,frameWidth/area.w,frameHeight/area.h),w=area.w*fit*scale,h=area.h*fit*scale;previewContext.drawImage(source,area.x,area.y,area.w,area.h,(preview.width-w)/2,(preview.height-h)/2,w,h);}
+ else previewContext.drawImage(source,(preview.width-frameWidth*scale)/2,(preview.height-frameHeight*scale)/2,frameWidth*scale,frameHeight*scale);
+}
+
+async function captureFrame(){
+ await waitForRoute();const routeGeneration=routeState.generation;
+ const v=$('video');if(captureSelection!==captureChoice()){await activeUpload?.catch(()=>{});await waitForRoute();await fitCapture();await prepareReceiver(canvas.width,canvas.height);}else if(!cropArea||v.videoWidth!==cropArea.sourceWidth||v.videoHeight!==cropArea.sourceHeight)await fitCapture();
+ const profile=captureToken(),start=performance.now(),cw=canvas.width,ch=canvas.height,scale=Math.min(1,cw/cropArea.w,ch/cropArea.h),w=cropArea.w*scale,h=cropArea.h*scale;
+ if(gpuCodec){
+  try{const encoded=await gpuCodec.encode(v,cropArea,cw,ch);paintPreview(v,cropArea,cw,ch);return {...encoded,start,captureMs:performance.now()-start-encoded.encodeMs,w:cw,h:ch,backend:'PC GPU',profile,routeGeneration};}
+  catch(e){console.warn('PC GPU encoder fallback:',e.message);gpuCodec.close();gpuCodec=null;gpuDisabled=true;}
+ }
+ ctx.fillStyle='#000';ctx.fillRect(0,0,cw,ch);ctx.drawImage(v,cropArea.x,cropArea.y,cropArea.w,cropArea.h,(cw-w)/2,(ch-h)/2,w,h);
+ const rgba=ctx.getImageData(0,0,cw,ch).data,captureMs=performance.now()-start;
+ const encoded=await workerCall({rgba:rgba.buffer,w:cw,h:ch},[rgba.buffer]);paintPreview(canvas);return {...encoded,start,captureMs,w:cw,h:ch,backend:'SIMD',profile,routeGeneration};
+}
+function controls(){if(inactive||loadingOptions){document.querySelectorAll('button,select,input').forEach(e=>e.disabled=true);return;}for(const id of ['display','control','stats','fps','audio-output','dock-size','handheld-size','compression','render-mode','dock-wifi'])$(id).disabled=false;const busy=running||starting||inFlight||taskBusy;$('sound').disabled=busy||!['browser','native-window'].includes(currentSource);$('start').disabled=busy;$('browser-start').disabled=busy;$('test').disabled=busy;$('size').disabled=starting||['doom','player'].includes(currentSource);$('test').disabled=busy||currentSource!=='browser';$('stop').disabled=!running&&!starting&&!inFlight&&currentSource==='browser';$('focus').hidden=!(['half-life-2','grand-theft-auto-5','native-window'].includes(currentSource)||currentSource==='browser'&&stream&&cropArea?.windowId);$('focus').disabled=!$('control').checked;}
+function stop(){gpuCodec?.close();gpuCodec=null;running=false;generation++;for(const check of [...routeWaiters])check();videoAbort?.abort();captureAudio?.close();captureAudio=null;if(stream)for(const t of stream.getTracks())t.stop();stream=null;$('video').srcObject=null;serverPreviewSource=null;previewContext.clearRect(0,0,320,180);$('empty').hidden=false;controls();}
+async function options(launch){
+ if(inactive)return;optionBusy++;
+ try{const r=await fetch('/options',{method:'POST',headers:{'x-stream-key':key,'content-type':'application/json'},body:JSON.stringify({stretch:$('display').value==='stretch',controller:$('control').checked?'gamepad':'off',stats:$('stats').checked,audioOutput:$('audio-output').value,resolution:$('size').value==='320'?'auto':$('size').value,fps:Number($('fps').value),dockResolution:$('dock-size').value||'1920',handheldResolution:$('handheld-size').value||'1280',shareSound:$('sound').checked,compressionPolicy:$('compression').value,renderMode:$('render-mode').value,allowDockWifi:$('dock-wifi').checked,...(launch==='browser'?{source:'browser'}:{})})}),d=await r.json();if(!r.ok)throw Error(d.error);if((d.source||currentSource)==='browser'&&currentSource!=='browser')$('size').value=browserResolution;currentSource=d.source||currentSource;controls();return d;}catch(e){$('status').textContent=e.message;}finally{optionBusy--;}
+}
+$('size').onchange=async()=>{if(currentSource==='browser')browserResolution=$('size').value;await options();};
+$('dock-wifi').onchange=options;$('compression').onchange=options;$('render-mode').onchange=options;$('fps').onchange=options;$('dock-size').onchange=options;$('handheld-size').onchange=options;$('sound').onchange=options;
+$('audio-output').onchange=options;$('display').onchange=options;$('control').onchange=async()=>{if(await options()&&$('control').checked&&(['half-life-2','grand-theft-auto-5','native-window'].includes(currentSource)||stream&&cropArea?.windowId))await focusGame();};$('stats').onchange=options;
+async function focusGame(){try{const r=await fetch('/focus',{method:'POST',headers:{'x-stream-key':key}}),d=await r.json();if(!r.ok)throw Error(d.error);$('controller-status').textContent='Controller ready · '+(d.title||'captured game')+' is active on the PC';}catch(e){$('controller-status').textContent=e.message;}}
+$('focus').onclick=focusGame;
+$('stop').onclick=async()=>{stop();if(currentSource!=='browser')await options('browser');$('status').textContent='Stopped';controls();};
+$('test').onclick=async()=>{
+ if(taskBusy||inFlight)return;
+ inFlight=true;controls();try{
+  $('empty').hidden=true;canvas.width=captureWidth();canvas.height=canvas.width*9/16;
+  const colors=['#fff','#ff0','#0ff','#0f0','#f0f','#f00','#00f','#000'];colors.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(i*canvas.width/8,0,canvas.width/8,canvas.height);});
+  const rgba=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  const {bytes,encodeMs}=await workerCall({rgba:rgba.buffer,w:canvas.width,h:canvas.height},[rgba.buffer]);
+  paintPreview(canvas);const d=await post(bytes);
+  $('status').textContent=canvas.width+' × '+canvas.height+' · '+(d.preview?'Local test':'GPU')+' '+d.lastMs+' ms · Encode '+encodeMs.toFixed(1)+' ms';
+ }catch(e){$('status').textContent=e.message;}finally{inFlight=false;controls();}
+};
+async function startCapture(){
+ if(inactive||taskBusy||inFlight)return;taskBusy=true;starting=true;const request=++generation;controls();let own;
+ try{
+  capturePhase('options');if(!await options('browser'))throw Error($('status').textContent);
+  capturePhase('source-picker');$('status').textContent='Choose the source. On Wayland, allow restoring this selection to avoid a second confirmation.';
+  stream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60}},audio:$('sound').checked,windowAudio:'window',systemAudio:'include'});
+  if(inactive||request!==generation){stop();return;}
+  capturePhase('source-selected');$('video').srcObject=stream;await playCapture($('video'));capturePhase('video-ready');
+  $('empty').hidden=true;cropArea=null;await fitCapture();
+  own=request;lastUploadMs=0;lastLatency=0;lastFps=0;recent=[];
+  stream.getVideoTracks()[0].addEventListener('ended',()=>{if(running||starting){stop();$('status').textContent='Screen sharing ended';}});
+  $('status').textContent='Preparing receiver and encoder…';
+  // Warm console reception and PC encoding concurrently, before displaying a
+  // first frame. Discard the warm-up image and capture fresh after setup.
+  capturePhase('preparing');const preparing=prepareReceiver(canvas.width,canvas.height);
+  const encoder=(async()=>{
+   if(!gpuDisabled&&typeof IZGpuCodec==='object'){try{gpuCodec=IZGpuCodec.create();await IZGpuCodec.qualify(gpuCodec);}catch(e){gpuCodec?.close();gpuCodec=null;gpuDisabled=true;console.warn('PC GPU encoder unavailable:',e.message);}}
+   if(request===generation&&!inactive)await captureFrame();
+  })();
+  const warm=await Promise.allSettled([preparing,encoder]);for(const result of warm)if(result.status==='rejected')throw result.reason;
+  if(inactive||request!==generation){stop();return;}
+  capturePhase('encoder-ready');audioStatus=$('sound').checked?'Starting audio':'Audio off';
+  // Audio device setup must never hold back the first video frame.
+  if($('sound').checked){captureAudio=IZAudio.start(stream,{key,onState:value=>{if(own===generation)audioStatus=value;}});captureAudio.ready.catch(error=>{if(own===generation){audioStatus='Audio unavailable';capturePhase('audio-error',error);}});}
+  if(inactive||request!==generation){stop();return;}
+  let ready=await captureFrame(),nextSend=performance.now();
+  running=true;frames=0;captured=0;lastUpdate=0;started=performance.now();rates.reset(started);starting=false;controls();if($('control').checked&&cropArea?.windowId)await focusGame();
+  while(running&&own===generation){
+   if(captureSelection!==captureChoice()){await fitCapture();await prepareReceiver(canvas.width,canvas.height);if(!running||own!==generation)break;ready=await captureFrame();nextSend=performance.now();lastUploadMs=0;rates.reset(nextSend);}
+   if(nextSend>performance.now())await workerCall({delay:nextSend-performance.now()});
+   if(!running||own!==generation)break;
+   // Replace a prefetched frame aged by a slow ACK or the FPS wait.
+   if(IZPacing.staleFrame(ready.start,performance.now(),ready.captureMs,ready.encodeMs))ready=await captureFrame();
+   if(!running||own!==generation)break;
+   const sent=ready,uploadStart=performance.now();nextSend=uploadStart+IZPacing.interval($('fps').value);inFlight=true;
+   // Prepare exactly one next frame while the current frame waits for GPU ACK.
+   // Both operations settle before reuse; there is never a growing frame queue.
+   const upload=post(sent.bytes,sent.w,sent.h,[lastFps,sent.captureMs,sent.encodeMs,lastUploadMs,lastLatency,sent.backend],sent.profile,sent.routeGeneration).then(d=>({d,completed:performance.now(),uploadMs:performance.now()-uploadStart}));activeUpload=upload;upload.finally(()=>{if(activeUpload===upload)activeUpload=null;}).catch(()=>{});
+   const delay=IZPacing.captureDelay(lastUploadMs,sent.captureMs,sent.encodeMs,IZPacing.interval($('fps').value));
+   const prepare=(async()=>{if(delay)await workerCall({delay});if(!running||own!==generation)return null;return captureFrame();})();
+   const [up,next]=await Promise.allSettled([upload,prepare]);inFlight=false;
+   if(up.status==='rejected'&&up.reason.recoverable){
+    if(!running||own!==generation)break;
+    await waitForRoute();$('status').textContent='Reconnecting video…';
+    await workerCall({delay:Math.min(2000,Math.max(100,up.reason.retryAfterMs||750))});
+    if(!running||own!==generation)break;
+    // A failed frame is discarded. Only a fresh capture may start a new receiver.
+    ready=await captureFrame();lastUploadMs=0;recent=[];nextSend=performance.now();rates.reset(nextSend);continue;
+   }
+   if(up.status==='rejected')throw up.reason;if(next.status==='rejected')throw next.reason;
+   if(!running||own!==generation)break;ready=next.value;
+   const {d,completed,uploadMs}=up.value;if(!captured)capturePhase('first-frame-acknowledged');lastUploadMs=uploadMs;lastLatency=completed-sent.start;captured++;if(!d.skipped)frames++;
+   const now=performance.now(),rate=rates.record(now,!d.skipped);lastFps=rate.ready?rate.updated:0;if(now-lastUpdate>=250){
+    $('status').textContent=sent.w+' × '+sent.h+' · '+(rate.ready?rate.captured.toFixed(1):'…')+' fps · '+(rate.ready?rate.updated.toFixed(1):'…')+' updated/s · '+(completed-sent.start).toFixed(1)+' ms to GPU · '+sent.backend+' '+sent.encodeMs.toFixed(1)+' ms · Capture '+sent.captureMs.toFixed(1)+' ms · Upload + console '+uploadMs.toFixed(1)+' ms'+(d.lastWireBytes?' · '+(d.lastWireBytes/1024).toFixed(1)+' KB · '+d.compressionRatio+'×':'')+' · '+audioStatus;lastUpdate=now;
+   }
+   if(d.skipped)await workerCall({delay:8});
+  }
+ }catch(e){capturePhase(e.name==='AbortError'?'stopped':'failed',e);stop();$('status').textContent=e.name==='AbortError'?'Stopped':e.message;}
+ finally{starting=false;inFlight=false;taskBusy=false;controls();}
+}
+async function openNativePicker(){
+ if(inactive||taskBusy||starting||inFlight)return;taskBusy=true;controls();$('native-picker').hidden=false;$('native-share').disabled=true;
+ try{const r=await fetch('/native-windows',{headers:{'x-stream-key':key}}),d=await r.json();if(!r.ok)throw Error(d.error);const list=$('native-window');list.replaceChildren();for(const window of d.windows||[]){const option=document.createElement('option');option.value=String(window.id);option.textContent=window.title+' · '+window.width+' × '+window.height+(window.hidden?' · minimized':'');option.disabled=!!window.hidden;list.append(option);}const first=[...list.options].find(option=>!option.disabled);if(first)list.value=first.value;$('native-share').disabled=!first;$('native-coverage').textContent=d.coverage||'X11 / XWayland windows. Use Browser capture for native Wayland windows or the desktop.';$('status').textContent=first?'Choose an application window. This selector opens once.':'No available X11 / XWayland windows. Use Browser capture for a native Wayland window or the desktop.';}
+ catch(error){$('status').textContent=error.message;$('native-coverage').textContent='Native window capture is unavailable. Browser capture still supports the system permission dialog.';}
+ finally{taskBusy=false;controls();}
+}
+$('start').onclick=openNativePicker;$('browser-start').onclick=startCapture;$('native-refresh').onclick=openNativePicker;$('native-cancel').onclick=()=>{$('native-picker').hidden=true;};
+$('native-share').onclick=async()=>{
+ if(taskBusy||starting||inFlight)return;taskBusy=true;controls();try{stop();$('status').textContent='Starting the selected window…';const r=await fetch('/native-window',{method:'POST',headers:{'x-stream-key':key,'content-type':'application/json'},body:JSON.stringify({id:Number($('native-window').value),shareSound:$('sound').checked})}),d=await r.json();if(!r.ok)throw Error(d.error);currentSource=d.source||'native-window';$('native-picker').hidden=true;$('empty').hidden=false;$('empty').innerText='The selected application streams directly to Switch.\nThis tab does not need a browser capture permission.';}
+ catch(error){$('status').textContent=error.message;}finally{taskBusy=false;controls();}
+};
+window.addEventListener('pagehide',()=>{stop();worker?.terminate();eventFeed?.close();});
+const panelChannel=new BroadcastChannel('iz-screen-'+key);
+panelChannel.onmessage=()=>{inactive=true;eventFeed?.close();stop();$('status').textContent='Panel opened in another tab';};
+panelChannel.postMessage('reopen');
+controls();
+eventFeed=new EventSource('/events?key='+key);
+eventFeed.onmessage=async e=>{
+ if(inactive)return;const previousSource=currentSource,d=JSON.parse(e.data),o=d.options||{};updateRoute(d.routeGate||{ready:true,generation:0});if(d.captureProfile&&Number.isInteger(d.captureProfile.width)&&Number.isInteger(d.captureProfile.height))captureProfile=d.captureProfile;
+ const gameName=d.gameProfile?.name||'Half-Life 2';const profile=d.gameProfile;if(profile&&profile.source!=='player'&&profile.sequence!==profileSequence){profileSequence=profile.sequence;stop();$('status').textContent=`${gameName} · ${profile.displayMode==='docked'?'Docked':profile.displayMode==='handheld'?'Handheld':'Automatic'} · ${d.consoleState?.network?.type==='ethernet'?'Ethernet':d.consoleState?.network?.type==='wifi'?'Wi-Fi':'Network pending'} · ${profile.width} × ${profile.height} · ${profile.fps} FPS. Streaming automatically to Switch 2.`;$('empty').hidden=false;$('empty').innerText=gameName+' stays in its PC window.\nVideo and audio stream automatically to Switch 2.';document.title=gameName+' · BlitBun';}
+currentSource=d.source||'browser';if(currentSource==='browser'&&(previousSource!=='browser'||$('size').value==='320'))$('size').value=browserResolution;
+ if(currentSource!=='browser'&&(running||starting))stop();
+ if(!optionBusy){$('display').value=o.stretch?'stretch':'original';$('control').checked=o.controller==='gamepad';$('stats').checked=!!o.stats;$('audio-output').value=o.audioOutput||'auto';if(o.resolution!==undefined){$('size').value=o.resolution;if(currentSource==='browser')browserResolution=o.resolution;}if(o.fps!==undefined)$('fps').value=String(o.fps);if(o.dockResolution!==undefined)$('dock-size').value=o.dockResolution;if(o.handheldResolution!==undefined)$('handheld-size').value=o.handheldResolution;if(o.shareSound!==undefined)$('sound').checked=o.shareSound;$('compression').value=o.compressionPolicy||'auto';$('render-mode').value=o.renderMode||'auto';$('dock-wifi').checked=o.allowDockWifi===true;}
+ $('connection-badge').textContent=d.preview?'LOCAL PREVIEW':'LOCAL STREAM READY';if(loadingOptions&&!profile)$('status').textContent=d.preview?'Local preview · no console connected':'Ready · choose a window or screen.';
+ const controller=d.controller;if(controller?.enabled)$('controller-status').textContent=controller.error?'Controller: '+controller.error:controller.ready?(controller.source||'Switch controller')+' → PC gamepad · '+controller.packets+' input packets.':'Controller is preparing…';else $('controller-status').textContent='Connect your controller to Switch 2. Enable Controller to send input to the PC game.';
+ if(['half-life-2','grand-theft-auto-5'].includes(currentSource))$('controller-status').textContent+=' · −: game · − twice: stream menu.';
+ if(d.controllerFocus?.error)$('controller-status').textContent+=' · '+d.controllerFocus.error;
+ const audio=d.audio;$('audio-status').classList.toggle('error',!!audio?.error);$('audio-status').textContent=audio?.error?'Audio: '+audio.error:audio?.warning?audio.warning:audio?.route?'Console audio · '+audio.route+' · '+audio.channels+' channels':'Audio follows the console output. For TV playback, select HDMI on the console and disconnect Bluetooth audio.';
+ loadingOptions=false;controls();
+ if(['half-life-2','grand-theft-auto-5'].includes(currentSource)){
+  $('empty').hidden=false;$('empty').innerText=d.sourceError?gameName+' capture: '+d.sourceError:gameName+' streams automatically.\nKeep the game window open on the PC.';
+  $('status').textContent=d.sourceError||((d.width||1280)+' × '+(d.height||720)+' · '+(d.fps||0)+' fps · '+(d.latencyMs||0)+' ms to GPU · '+(d.audioError||d.audio?.error||(d.audio?.playing?'Audio on':'Preparing audio')));if(d.gameProfile?.gameResolutionPending)$('status').textContent+=' · '+(d.gameProfile.profileWarning?.includes('Reopen')?'Reopen Half-Life 2 to enable automatic game resolution.':'Game resolution will apply when gameplay resumes.');
+ }
+ if(currentSource==='native-window'){const name=d.nativeWindow?.title||'Selected window';document.title=name+' · BlitBun';$('empty').hidden=false;$('empty').innerText=name+' streams directly to Switch.\nKeep the application window open; other windows can stay in front.';$('status').textContent=d.sourceError||((d.width||d.captureProfile?.width||1280)+' × '+(d.height||d.captureProfile?.height||720)+' · '+(d.fps||0)+' fps · '+(d.latencyMs||0)+' ms to GPU · '+(d.nativeWindow?.audioWarning||d.audioError||d.audio?.error||(d.audio?.playing?'Audio on':'Preparing audio')));}
+ if(currentSource==='player'){document.title='VacooTube · IZlauncher';$('size').value='1280';$('fps').disabled=true;$('stats').disabled=true;$('empty').hidden=false;$('empty').innerText='VacooTube streams automatically.\nUse the Switch touch screen or controller.';$('status').textContent=d.sourceError||('1280 × 720 · '+(d.fps||0)+' fps · '+(d.youtube?.audioError||d.audio?.error||(d.audio?.playing?'Audio on':'Preparing audio')));$('controller-status').textContent=d.youtube?.inputError||'Switch touch screen → VacooTube · A: select · B: back · X: play/pause · − twice: menu';}
+ if(currentSource==='doom'){
+  $('size').value='320';$('status').textContent=d.sourceError||((d.width||320)+' × '+(d.height||200)+' · '+(d.fps||0)+' fps · '+(d.latencyMs||0)+' ms to GPU · Encode '+(d.encodeMs||0)+' ms · Upload + console '+(d.lastMs||0)+' ms');
+
+ }
+ if(currentSource!=='browser'&&!previewBusy&&!document.hidden&&routeState.ready&&performance.now()-previewAt>=200){previewBusy=true;const source=currentSource;try{const r=await fetch('/stream-preview',{headers:{'x-stream-key':key}});if(r.ok){const bytes=await r.arrayBuffer();if(!inactive&&!running&&!starting&&routeState.ready&&source===currentSource&&bytes.byteLength===320*180*4){const image=new ImageData(new Uint8ClampedArray(bytes),320,180);previewContext.putImageData(image,0,0);previewAt=performance.now();serverPreviewSource=source;$('empty').hidden=true;}}}catch{}finally{previewBusy=false;}}
+ if(currentSource===serverPreviewSource&&routeState.ready)$('empty').hidden=true;
+ if(!routeState.ready){serverPreviewSource=null;$('empty').hidden=false;$('empty').innerText=routeMessage();$('status').textContent=routeMessage();}
+};
+eventFeed.onerror=()=>{updateRoute({...routeState,ready:false});if(!inactive){$('connection-badge').textContent='CONNECTION INTERRUPTED';$('status').textContent='Panel connection interrupted. Use STOP in the connection tab if the session is stuck.';}};
+</script></html>

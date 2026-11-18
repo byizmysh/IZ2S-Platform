@@ -1,0 +1,30 @@
+{
+  "description": "Read-only upgrade vocabulary for installations released before the IZ2S core naming cleanup. Do not use these names for new state or APIs.",
+  "engineId": "izhen",
+  "outputVariable": "IZ2S_HEN_OUT",
+  "directories": {
+    "data/hen": "data/core",
+    "data/log/hen-core": "data/log/iz2s-core",
+    "data/log/hen-pc-link": "data/log/pc-link"
+  },
+  "stateFiles": {
+    "data/state/hen-sd-versions.json": "data/state/core-sd-versions.json"
+  },
+  "properties": {
+    "hen": "core",
+    "henTool": "coreTool"
+  },
+  "tabIds": {
+    "hen-files": "core-files",
+    "hen-apps": "core-apps"
+  },
+  "sdRoots": [
+    "iz2s/hen",
+    "kaihen"
+  ],
+  "api": "/api/hen-core",
+  "displayLabel": "HEN",
+  "sdFiles": {
+    "bin/hen/main.npdm": "bin/core/main.npdm"
+  }
+}

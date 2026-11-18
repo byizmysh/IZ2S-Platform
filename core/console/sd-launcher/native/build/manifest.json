@@ -1,9 +1,9 @@
 {
   "format": "iz-sd-launcher-native-v1",
-  "bytes": 59008,
-  "sha256": "d7bb89945d4db50a184df73225d5d2d2a014293b3f67e6ea715b73926fd7510f",
+  "bytes": 104444,
+  "sha256": "6d38387854cf81c31762f83bc57354f7a1877b12d3914cc306aa491c933c3994",
   "layout": {
-    "bytes": 10712,
+    "bytes": 12120,
     "magic": 0,
     "version": 4,
     "stop": 8,
@@ -145,9 +145,43 @@
     "host_frames_error": 8496,
     "host_frames_cancel": 8500,
     "host_frames_plan": 8504,
-    "owner": 8672,
-    "status_bytes": 8672,
-    "owner_bytes": 2040
+    "host_rpc_owner": 8672,
+    "host_rpc_staging": 8680,
+    "host_rpc_bindings": 8688,
+    "host_rpc_offer": 8696,
+    "host_rpc_ack": 8700,
+    "host_rpc_error": 8704,
+    "host_rpc_count": 8708,
+    "host_rpc_revoked": 8712,
+    "host_rpc_returned": 8716,
+    "host_rpc_epoch": 8720,
+    "host_rpc_inflight": 8724,
+    "host_rpc_opaque": 8728,
+    "host_rpc_scratch": 8736,
+    "host_rpc_code_base": 8744,
+    "host_rpc_code_bytes": 8752,
+    "host_rpc_map_offer": 8760,
+    "host_rpc_map_ack": 8764,
+    "host_rpc_map_error": 8768,
+    "host_rpc_map_state": 8772,
+    "host_rpc_map_index": 8776,
+    "host_rpc_map_rx": 8784,
+    "host_rpc_map_source": 8792,
+    "host_rpc_claim": 8800,
+    "host_rpc_claim_ack": 8804,
+    "sd_launch_failure_sequence": 8808,
+    "sd_launch_failure_stage": 8812,
+    "sd_launch_failure_error": 8816,
+    "sd_launch_failure_id": 8820,
+    "sd_launch_failure_committed": 8868,
+    "catalog_header_crc": 8872,
+    "catalog_identity_reserved": 8932,
+    "sd_return_sequence": 8936,
+    "sd_return_next": 8940,
+    "sd_returns": 8944,
+    "owner": 9200,
+    "status_bytes": 9200,
+    "owner_bytes": 2920
   },
   "functions": [
     "SEND",
@@ -200,29 +234,298 @@
     "PRESENT",
     "QUEUE_IDLE"
   ],
+  "exports": {
+    "iz_host_rpc_dispatch": 62328,
+    "iz_host_rpc_packet": 63084,
+    "iz_host_rpc_receipt": 64504,
+    "iz_host_rpc_full_write": 64612,
+    "iz_host_rpc_full_receipt": 66060
+  },
+  "hostRpcABI": {
+    "ownerBytes": 3408,
+    "bindingOffset": 40,
+    "bindingStride": 24,
+    "planBytes": 2104,
+    "ownerOffset": 32768,
+    "stagingOffset": 24576,
+    "ownerLayout": {
+      "bytes": 3408,
+      "magic": 0,
+      "count": 4,
+      "word": 8,
+      "opaque": 32,
+      "ever_bound": 36,
+      "bindings": 40,
+      "sdk_scratch": 3112,
+      "protected_base": 3120,
+      "protected_bytes": 3128,
+      "packet_epoch": 3160,
+      "packet_status": 3164,
+      "full_write_thunk": 3168,
+      "full_receipt_thunk": 3176,
+      "graphics_sleep": 3184,
+      "graphics_idle": 3192,
+      "graphics_queue": 3200,
+      "graphics_mode": 3208,
+      "graphics_owner": 3212,
+      "graphics_fault": 3216,
+      "graphics_waiting": 3220,
+      "code_base": 3224,
+      "code_bytes": 3232,
+      "code_history": 3240,
+      "code_used": 3248,
+      "map_source": 3256,
+      "map_rx": 3264,
+      "map_program_id": 3272,
+      "map_epoch": 3280,
+      "map_state": 3284,
+      "map_index": 3288,
+      "map_error": 3292,
+      "code_states": 3296,
+      "claim_epoch": 3360,
+      "claim_seen": 3364,
+      "service_sdk": 3368,
+      "cpu_jobs": 3376,
+      "service_tick_hz": 3380,
+      "service_send": 3384,
+      "service_close": 3392,
+      "service_filesystem": 3400,
+      "service_reserved": 3404
+    },
+    "historyOffset": 36864
+  },
+  "sdkServices": [
+    {
+      "name": "style",
+      "offset": 4801504,
+      "hex": "fd7bbda9f50b00f9fd030091f44f02a9f50301aaf40300aa53599152b300a072e0180594e00000b4a10240b9e1180594200100b408fcdf88f3031f2a880200b9"
+    },
+    {
+      "name": "motionHandles",
+      "offset": 4850560,
+      "hex": "ff8300d1fd7b01a9fd430091490040b9e803012a647c4092a11300d1e203082ae303092a2feb0494e00b00b9a0000035a0c35fb8fd7b41a9ff830091c0035fd6"
+    },
+    {
+      "name": "motionStart",
+      "offset": 4818208,
+      "hex": "ffc300d1fd7b01a9fd430091f44f02a9f30300aabf080594e00b00b9e0020035e0030091ff0300f962080594f40340f964080594880240f9e10300aae00314aa"
+    },
+    {
+      "name": "motionStop",
+      "offset": 4818336,
+      "hex": "ffc300d1fd7b01a9fd430091f44f02a9f30300aa9f080594e00b00b9e0020035e0030091ff0300f942080594f40340f944080594880240f9e10300aae00314aa"
+    },
+    {
+      "name": "motionRead",
+      "offset": 4817696,
+      "hex": "ff0301d1fd7b01a9fd430091f65702a9f44f03a9f60303aaf303022af40301aaf50300aa0fa00494e00d0036e00314aa0ca00494800d0036e00316aa35090594"
+    },
+    {
+      "name": "vibrationHandles",
+      "offset": 4854688,
+      "hex": "ff0301d1fd7b01a9fd430091f65702a9f44f03a9f50303aaf60302aaf303012af40300aaef7b0494000400367f020071cd030054b5030034a87e015308f10012"
+    },
+    {
+      "name": "vibrationInit",
+      "offset": 4839648,
+      "hex": "ff0301d1fd7b01a9fd430091f65702a9f44f03a9084900b008a10b9108fddf08f30300aae806003672ffff97084900b0147941f9b40000b4880240f9e00314aa"
+    },
+    {
+      "name": "vibrationSend",
+      "offset": 4840144,
+      "hex": "fd7bbda9f50b00f9fd030091f44f02a9f40301aaf50300aafafeff97084900b0137941f9b30000b4680240f9e00313aa080140f900013fd6f6f20494680240f9"
+    },
+    {
+      "name": "vibrationRead",
+      "offset": 4840432,
+      "hex": "fd7bbda9f50b00f9fd030091f44f02a9f50301aaf40300aab2feff97084900b0137941f9b30000b4680240f9e00313aa080140f900013fd6aef20494680240f9"
+    },
+    {
+      "name": "vibrationPermitted",
+      "offset": 4839328,
+      "hex": "fd7bbea9f44f01a9fd030091f40300aac8ffff97084900b0137941f9b30000b4680240f9e00313aa080140f900013fd6680240f9e00313aae10314aa083d41f9"
+    },
+    {
+      "name": "mouse",
+      "offset": 4794464,
+      "hex": "fd7bbda9f50b00f9fd030091f44f02a9c00a00b475490090b5a20391a8fedf08f30300aae8020037a0120091e9b40494a802403908020037b4220091e00314aa"
+    },
+    {
+      "name": "keyboard",
+      "offset": 4793248,
+      "hex": "fd7bbca9f70b00f9fd030091f65702a9f44f03a9c10b00b4f303022a420cf83777490090f7020391e8fedf08f50301aaf40300aae8020037e012009115b60494"
+    },
+    {
+      "name": "color",
+      "offset": 4801904,
+      "hex": "fd7bbda9f65701a9fd030091f44f02a9f60302aaf30301aaf40300aa7daf049440040036e00313aa7aaf0494e003003655599152b500a07276180594000200b4"
+    },
+    {
+      "name": "led",
+      "offset": 4797520,
+      "hex": "ff0301d1fd7b01a9fd430091f51300f9f44f03a9f30300aae0230091ff0700f9f50301aa971c0594f403002a60010035e00740f9a1630091a20240b9080040f9"
+    },
+    {
+      "name": "padHandheld",
+      "offset": 4845408,
+      "hex": "ff8300d1fd7b01a9fd430091e30301aae10300aa680040b91f2100710429507a21010054a01300d12200805251ef0494e00300b960010035fd7b41a9ff830091"
+    },
+    {
+      "name": "padFullKey",
+      "offset": 4845184,
+      "hex": "ff8300d1fd7b01a9fd430091e30301aae10300aa680040b91f2100710429507a21010054a01300d12200805285ef0494e00300b960010035fd7b41a9ff830091"
+    },
+    {
+      "name": "padJoyDual",
+      "offset": 4847136,
+      "hex": "ff8300d1fd7b01a9fd430091e30301aae10300aa680040b91f2100710429507a21010054a01300d122008052e9ed0494e00300b960010035fd7b41a9ff830091"
+    },
+    {
+      "name": "padJoyLeft",
+      "offset": 4847360,
+      "hex": "ff8300d1fd7b01a9fd430091e30301aae10300aa680040b91f2100710429507a21010054a01300d122008052b5ed0494e00300b960010035fd7b41a9ff830091"
+    },
+    {
+      "name": "padJoyRight",
+      "offset": 4847584,
+      "hex": "ff8300d1fd7b01a9fd430091e30301aae10300aa680040b91f2100710429507a21010054a01300d12200805281ed0494e00300b960010035fd7b41a9ff830091"
+    },
+    {
+      "name": "netStatus",
+      "offset": 3739888,
+      "hex": "ffc300d1fd7b01a9fd430091f44f02a9f30300aa9fbc089440030036e0230091ff0700f91f0f0994f403002a60010035e00740f9e1030091080040f9085140f9"
+    },
+    {
+      "name": "netAddress",
+      "offset": 3740032,
+      "hex": "ffc300d1fd7b01a9fd430091f44f02a9f30300aa7bbc089420030036e0230091ff0700f9fb0e0994f403002a40010035e00740f9e1030091080040f9083940f9"
+    },
+    {
+      "name": "socketInitialized",
+      "offset": 1315232,
+      "hex": "00121214"
+    },
+    {
+      "name": "irHandle",
+      "offset": 4978784,
+      "hex": "ffc300d1fd7b01a9fd430091f44f02a9f40300aae0230091ff0700f9f30301aa70750494e00740f9e10314aa620240b9080040f9083540f900013fd6f303002a"
+    },
+    {
+      "name": "irStatus",
+      "offset": 4979680,
+      "hex": "fd7bbda9f50b00f9fd030091f44f02a9f40301aaf30300aa96740494f50300aa98740494a00f00f9a1630091e00315aa98740494a00100b4f50300aacd740494"
+    },
+    {
+      "name": "socket",
+      "offset": 1314112,
+      "hex": "6c121214"
+    },
+    {
+      "name": "sendto",
+      "offset": 1313776,
+      "hex": "6c121214"
+    },
+    {
+      "name": "recv",
+      "offset": 1313680,
+      "hex": "6c121214"
+    },
+    {
+      "name": "socketClose",
+      "offset": 1314192,
+      "hex": "6c121214"
+    },
+    {
+      "name": "errno",
+      "offset": 1314992,
+      "hex": "00121214"
+    },
+    {
+      "name": "nfcState",
+      "offset": 3621600,
+      "hex": "ffc300d1fd7b01a9fd430091f31300f9847f099460000037867f099440040036847f0994e823009180010036857f0994e00740f9080040f9082d40f9a1730091"
+    },
+    {
+      "name": "nfcInit",
+      "offset": 3623024,
+      "hex": "ff0301d1fd7b02a9fd830091f31b00f9247e0994200400371e7e0994e0030037307e0994284d00904900805208a541f9e82701a9eb4c0994e8230091f30300aa"
+    },
+    {
+      "name": "nfcFinalize",
+      "offset": 3623200,
+      "hex": "ffc300d1fd7b01a9fd430091f31300f9e82300910b7e0994e00740f9080040f9082540f900013fd6f303002aa01b00b9e00740f9800000b4080040f9080540f9"
+    },
+    {
+      "name": "nfcList",
+      "offset": 3624784,
+      "hex": "ff0301d1fd7b02a9fd830091f44f03a9487c4093f30301aae0a300a9697c0994e8030091800100366a7c0994e00340f9080040f9083540f9e1230091a21300d1"
+    },
+    {
+      "name": "nfcStart",
+      "offset": 3624976,
+      "hex": "01008012677c0914"
+    },
+    {
+      "name": "nfcStop",
+      "offset": 3625136,
+      "hex": "ffc300d1fd7b01a9fd430091f31300f9f30300aa137c0994e8230091e0000036147c0994e00740f9610240f9080040f9084940f906000014127c0994e00740f9"
+    },
+    {
+      "name": "nfcTag",
+      "offset": 3625280,
+      "hex": "ffc300d1fd7b01a9fd430091f44f02a9f40301aaf30300aaee7b0994e8030091e0000036ef7b0994e00340f9820240f9080040f9084d40f906000014ed7b0994"
+    },
+    {
+      "name": "nfcPad",
+      "offset": 3623616,
+      "hex": "ffc300d1fd7b01a9fd430091f44f02a9f40301aaf30300aa8e7d0994e8030091e00000368f7d0994e00340f9820240f9080040f9083d40f9060000148d7d0994"
+    },
+    {
+      "name": "serviceTick",
+      "offset": 1218112,
+      "hex": "20e03bd5c0035fd6"
+    }
+  ],
   "sources": {
-    "abi.h": "96122a027fd91e24710c0bdb424b93179b64625e86fdf2bf2542e271bd6e817c",
+    "abi.h": "b41e7440050158d9c5f6199df5f726bf575ecf7c91f4566a8b8bfc932210d45c",
     "native-app.h": "2362e0283a4f137e2c08eb9dcf593a1ba15e6ddd28c98eddc4aee72336f6f52e",
-    "directory.h": "3a8f7183e98b9c0ffe525f6f2024d4d161b4f95966e72cddca79eeed69db9905",
+    "directory.h": "ff710587a7ff531a26c0c8641e785ce3920d319542df912d7b8bba9c96b1583e",
     "layout.ld": "b8d5a2d13ce7730adb76fe74a2a1a4074fbf474cd11bc5a15a71e02129ef2632",
-    "checkpoint.h": "2cd146bfcefc04adb4613a7a6d9ecf530e23e47639cc2c2061f82165c0e1436f",
-    "checkpoint-runtime.inc": "8a79f43b3f3311406e0476f6a7d34db3a223453423ca4e9d2e86cf110309af6f",
+    "checkpoint.h": "30a8e9b271f16f4aa6cdc4bb4b80f1309235de5f35b6f71f36fc45dd3963c8e3",
+    "checkpoint-runtime.inc": "c90a173bb54ab210a72b3952bd1a2c3f85c1628dfef9fe53d38592cd5e33705b",
+    "crc-table.inc": "7d79996ace23fbbc748ae800a7b79d608e5c38f56be7bb786712a558460d84d1",
     "host-frames.h": "9a0243d8cb43f345457d460181b6d00c6701a91fb501cb2d6bb0ffa3d9dd37ff",
-    "host-input.h": "069066764a351bb35c24edc136b26dbe1a6b205af4032be52ec3ceab4b25ad25",
-    "../../host/layout.cjs": "64852583ce623d4487c860a6573c81c121e5a1987dc1f04079dd3d06678addc5",
+    "host-rpc.h": "b0db8595900375821538a8a278343214825084f8d3a7c0ad62aeaebc2559ca3e",
+    "host-udp.h": "5b22ba76507c2ff160580f1064253d768ca7d661d2141e4f74c60c02d3d872ac",
+    "host-files.h": "935c7252a0cdf7913ad6a8d9b6a3f28fe56f47ad29606e23dcceac5dd332bc64",
+    "host-mapper.h": "0020c3e71bb767fb24f6c15b45a311147f55ea288a7b67be1c2d23baa739795d",
+    "host-input.h": "bf3f9245540b22ac38c1d112d76f8ccfefe1c139ef5a8eae803daf415a0b93ad",
+    "host-sdk.h": "b8a7773ee00c5bd1f5c6e1f29a788dfb39926bb71cda91b6f4faf222c3b34b96",
+    "sdk-services.h": "bd5e090e2963bd61d8a507298cf678a3e942fd910f4f63d62a0c052bb17cb514",
+    "sdk-mailbox.h": "1b083ccecc556fcacbe1a0efcc7fb43b7245af643f11426904d90703684ad8d9",
+    "sdk-haptics.h": "d247f656e263ea80d699084ca6b856d1b11df3d5c98d9299c85752d708226c5c",
+    "../../host/sdk-profile.cjs": "86dbd03b5f2200879ee987d8a0f74c57b7fb2139e59ae806d6694a5c5f84dbf9",
+    "../../abi/hid-functions.json": "f23cd395c7a993274e6d64afc458121b272747fe571b8af98c925c988d81f89d",
+    "../../abi/service-functions.json": "40baf1dcee352e5f67dac05a1e053c8a0936f7df413f0c6957b54039adc02baf",
+    "../../abi/timing-code.json": "d1cbda66d38640443020f53f9d39a7b7009487e7173a60852544686104556374",
+    "../../abi/thread-code.json": "4c9d7290163df0c9e517d84def1ae05c3605a594e511c240f1caa1ede86ff051",
+    "../../host/layout.cjs": "83d656da641e99caa816047807b73533c02d53ab4b4b3c697a306d729b703044",
+    "../../host/pad-sweep.cjs": "bd5b72ae6d727500efb599ec4993bbff3c20036216919264497355b1491a5a17",
     "../../host/console-sensors.cjs": "77d448ef659038726f2c96446770341b805cc5e0d2d5c0df35f98b23c6a23dc6",
     "../instructions/checkpoint.h": "eeae1b0c45ea45bd13ab01dac4f13528d229cde6c94f9fb39c6afad5430243e2",
-    "../instructions/runtime.c": "0c85e92848aaace056ee4c30edfd528c9fe169af90ce409f93798d0f28bf75ca",
-    "../instructions/runtime.bin": "61871d400a63780f56167877eff1a8571ff74a9dc9ee7d7dde43e6f138878a59",
+    "../instructions/runtime.c": "78a2e9d35f6433b119439697d47e847796afec027ed2e38a5848b42ba78b1756",
+    "../instructions/runtime.bin": "87f00b939b80ba18dc887e4bf1ec6ba2d54e88efac91b798a27e38ce28e9e916",
     "../relocatable/loader.h": "b5ae7eb3797ce2f92688cbfd6d1abc6183e863979eb29cd842457b37cbdc1cea",
     "../relocatable/image.h": "6b23e28f6e7aa779ff8c2114c6b07ed0d00883fc8dd9d125eddbc32fd2ff2f5a",
     "../relocatable/address.h": "5e55885d5c2208ae8000409e676a4f5d83cd1ad8a13b63e8b287c5193f97733d",
     "entry.S": "041494e1e685bb45669c765654542080ab2db6d2682f24bfbd164b4069af0653",
-    "memory.c": "9e8b4210f81d1c856934588af57e824c080235490883fb216bfdc91bc9d0f9ad",
-    "filesystem.c": "1447818e619135a63e29618c54f0238cb59d3e9354d1b50b0f189225361de526",
+    "memory.c": "1ae3bfb18548f532f6e8cb11f08314a8316122a1d1f9f6a4d59423b48fccc0ec",
+    "filesystem.c": "54ac7201b7642e93c484d441c84276f085c6ef39d9f0f14dcca4acb970cc3dc4",
     "native-loader.c": "67eb12c575fc6d401ba49bd92c30fc842967885c3766512eb33bb94206f7a826",
     "library.c": "bb614cf0932437f13b9e8a698f82db853fc9d50f71b2e147414875a7fbe485f0",
-    "launcher.c": "2b3246d4e56e9da11a07918a9d38b80c61b8803a4da7a0770ce711570b870352",
+    "launcher.c": "11a2acfb16423f51a577bf22ef14f72dab4c6ae21ee9f22c9bb760dfe7f78b2d",
+    "host-rpc.c": "5fb07b8a0e6a5e6e27c9c4e658722b9767cc3a0a52ca14f69b8268e772e919a2",
+    "host-mapper.c": "d68a284757018951c570bef0c65be009ce6b2e8882f7dd113a0b04ce46174c54",
     "../relocatable/loader.c": "d9638866d04cc36a5d4cb33f1103358616fc8401a8fcbf1e9b8f2154ac7469dc",
     "../relocatable/rebase.c": "5f8d76974679403dd2cb82fa2243b309820ce58039e6db7bcd15ee9db77877c9",
     "../relocatable/address.c": "ef529409ed2efbb43353cff515bfbd07656ee249bc0d3ba198aca5f0e886ded3",

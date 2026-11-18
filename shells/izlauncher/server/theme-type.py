@@ -11,10 +11,10 @@ d.rectangle((x,y,x+w-1,y+h-1),fill=0)
 font=str(root/'language/fonts/DejaVuSans-Bold.ttf')
 size=76
 while True:
- f=ImageFont.truetype(font,size);bounds=d.textbbox((0,0),'IZlauncher',font=f)
+ f=ImageFont.truetype(font,size);bounds=d.textbbox((0,0),'IZ2S',font=f)
  if bounds[2]-bounds[0]<=w and bounds[3]-bounds[1]<=h:break
  size-=1
-d.text((x-bounds[0],y-bounds[1]),'IZlauncher',font=f,fill=255)
+d.text((x-bounds[0],y-bounds[1]),'IZ2S',font=f,fill=255)
 im.save(app/'assets/focus-type.png')
 packed=bytearray(zlib.decompress((app/'assets/focus-type.deflate').read_bytes()))
 for yy in range(y,y+h):
@@ -22,7 +22,7 @@ for yy in range(y,y+h):
   pixel=yy*im.width+xx;shift=(pixel%4)*2
   packed[pixel//4]=(packed[pixel//4]&~(3<<shift))|(((im.getpixel((xx,yy))*3+127)//255)<<shift)
 (app/'assets/focus-type.deflate').write_bytes(zlib.compress(packed,9))
-print('IZlauncher brand updated in the copied atlas; GPU atlas bytes unchanged:',len(packed))
+print('IZ2S brand updated in the copied atlas; GPU atlas bytes unchanged:',len(packed))
 
 # The qualification renderer shares legacy glyph coordinates with applications.
 # Paint its brand inside the original rectangle as well.
@@ -32,10 +32,10 @@ x,y,w,h=map(int,re.search(r'TEXT_TITLE = ivec4\((\d+),(\d+),(\d+),(\d+)\)',legac
 im=Image.open(server/'launcher-text.png').convert('L');d=ImageDraw.Draw(im);d.rectangle((x,y,x+w-1,y+h-1),fill=0)
 size=48
 while True:
- f=ImageFont.truetype(font,size);bounds=d.textbbox((0,0),'IZlauncher 0.22',font=f)
+ f=ImageFont.truetype(font,size);bounds=d.textbbox((0,0),'IZ2S 0.22',font=f)
  if bounds[2]-bounds[0]<=w and bounds[3]-bounds[1]<=h:break
  size-=1
-d.text((x-bounds[0],y-bounds[1]),'IZlauncher 0.22',font=f,fill=255)
+d.text((x-bounds[0],y-bounds[1]),'IZ2S 0.22',font=f,fill=255)
 im.save(server/'launcher-text.png')
 raw=im.tobytes();packed=bytearray(len(raw)//4)
 for i,v in enumerate(raw):packed[i//4]|=((v*3+127)//255)<<((i%4)*2)

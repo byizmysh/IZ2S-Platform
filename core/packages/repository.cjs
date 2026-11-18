@@ -15,11 +15,11 @@ async function create(root, options = {}) {
   const folder = path.join(root, 'data/imports');
   await fs.mkdir(folder, { recursive: true });
   async function inspectFromInventory(name, inventory) {
-    if (!/^[a-z0-9][a-z0-9._-]{0,95}\.(izm|izs|izp)$/.test(name))
+    if (!/^[a-z0-9][a-z0-9._-]{0,95}\.(?:module\.zip|izs|izp)$/.test(name))
       throw Error('Invalid package name');
     const m = inventory.modules.find(
         (m) =>
-          m.id + '.izm' === name ||
+          m.id + '.module.zip' === name ||
           m.descriptor.legacy?.packageNames?.includes(name),
       );
     if (!m)
@@ -27,10 +27,8 @@ async function create(root, options = {}) {
         'Unknown module; import legacy packages with the original key first',
       );
     if (!m.descriptor.switch) throw Error('Module has no Switch component');
-    const files = m.files
-        .filter((f) => m.descriptor.switch.files.includes(f.name))
-        .map((f) => ({ name: f.name.slice(7), bytes: f.bytes })),
-      manifest = JSON.parse(files.find((f) => f.name === 'app.json')?.bytes);
+    const declared = new Set(m.descriptor.switch.files);
+    const {files, manifest} = archive.switchApp({...m, files:m.files.filter(file => declared.has(file.name))});
     if (manifest.id !== m.id) throw Error('Switch/module identity differs');
     const compatibility = require('../compatibility.cjs').moduleCompatibility(
       m.descriptor,
@@ -43,13 +41,14 @@ async function create(root, options = {}) {
         compatibility.reasons.push(reason);
       }
     const sessionFingerprint=require('../module-pins.cjs').fingerprint(root,m.id);
-    const providerChanged=options.sessionProviders===true&&!!m.descriptor.server&&!!sessionFingerprint&&sessionFingerprint!==m.sha256;
+    const providerChanged=options.sessionProviders===true&&!!manifest.hostRuntime&&!!m.descriptor.server&&!!sessionFingerprint&&sessionFingerprint!==m.sha256;
     const icon = files.find((f) => f.name === manifest.icon);
     if (!icon || icon.bytes.length > 2 * 1024 * 1024)
       throw Error('Package icon unavailable');
+    const sdPolicy=require('../console/sd-launcher/adapters.cjs').eligibility(manifest,files);
     return {
       ...m,
-      file: m.id + '.izm',
+      file: m.id + '.module.zip',
       module: m.descriptor,
       files,
       contents: {
@@ -74,7 +73,9 @@ async function create(root, options = {}) {
         description: manifest.description,
         kind: manifest.builtin ? 'builtin' : 'gpu-app',
       },
-      sd: require('../console/sd-launcher/adapters.cjs').eligibility(manifest,files),
+      sd: sdPolicy,
+      coreSd: require('../../engines/iz2s-core/sd-compat.cjs').eligibility(manifest,m.descriptor,files,
+        {checkedSd:sdPolicy,sha256:m.sha256,archiveFiles:m.files}),
       session: {...require('./install-plan.cjs').sessionEligibility(manifest,{engine:options.engine}),...(providerChanged?{compatible:false,requiresFreshSession:true,reason:'Start a new launcher session to load the updated PC component for this module.'}:{}),requiresFilesystem:require('../services/app-requirements.cjs').requiresFilesystem(manifest)},
       resident: require('../../shells/izlauncher/resident/compatibility.cjs').candidate({manifest,effects:manifest.audio?.effects||{}},m.descriptor),
       residentAudio: require('../../shells/izlauncher/resident/compatibility.cjs').candidate({manifest,effects:manifest.audio?.effects||{}},m.descriptor,{finiteAudio:true}),
@@ -99,9 +100,9 @@ async function create(root, options = {}) {
     for (const m of inventory.modules)
       if (m.descriptor.switch && storeCatalog.visible(m.descriptor))
         try {
-          packages.push(await inspectFromInventory(m.id + '.izm', inventory));
+          packages.push(await inspectFromInventory(m.id + '.module.zip', inventory));
         } catch (e) {
-          errors.push({ file: m.id + '.izm', error: e.message });
+          errors.push({ file: m.id + '.module.zip', error: e.message });
         }
     return { packages, errors };
   }
@@ -118,10 +119,13 @@ async function create(root, options = {}) {
     );
     await fs.mkdir(stage);
     try {
+      const entry=path.posix.basename(p.descriptor.switch.entry);
+      if(entry!=='app.json'&&p.files.some(file=>file.name==='app.json'))
+        throw Error('The Switch package already contains another app.json.');
       const totalBytes=p.files.reduce((n,f)=>n+f.bytes.length,0);let completedBytes=0;
       if(onProgress)await onProgress({completedBytes,totalBytes});
       for (const f of p.files) {
-        const file = path.join(stage, archivePath(f.name));
+        const file = path.join(stage, archivePath(f.name===entry?'app.json':f.name));
         await fs.mkdir(path.dirname(file), { recursive: true });
         if(onProgress){const handle=await fs.open(file,'w');try{for(let at=0;at<f.bytes.length;at+=262144){let written=0;const part=f.bytes.subarray(at,at+262144);while(written<part.length){const result=await handle.write(part,written,part.length-written);if(!result.bytesWritten)throw Error('Module file write made no progress');written+=result.bytesWritten;}completedBytes+=part.length;await onProgress({completedBytes,totalBytes});}}finally{await handle.close();}}
         else await fs.writeFile(file, f.bytes);
@@ -168,7 +172,9 @@ async function create(root, options = {}) {
         // Previews never execute. Read their already extracted immutable
         // version once, with the usual app validation, instead of installing
         // another full copy and validating the same app a second time.
-        const app = await catalog.readApp(current.switchRoot);
+        const entry=current.descriptor.switch.entry;
+        const app = await catalog.readApp(path.join(current.folder,path.posix.dirname(entry)),
+          {entry:path.posix.basename(entry)});
         if(app.id!==p.id)throw Error('App identity differs');
         apps.push(app);
         packages.push(p);
@@ -202,6 +208,7 @@ function publicPackage(p) {
     module: p.module,
     supported: p.supported,
     sd: p.sd,
+    coreSd: p.coreSd,
     session: p.session,
     resident: p.resident,
     residentAudio: p.residentAudio,

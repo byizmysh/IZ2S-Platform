@@ -34,7 +34,7 @@ async function read(root, id, options = {}) {
 async function readLocated(root, id, home, {pinned: usePins = true} = {}) {
   const pinned = usePins && require('./module-pins.cjs').read(root, id, home);
   if (pinned) return describe(root, id, pinned, home);
-  const source = path.join(home, id + '.izm'),
+  const source = path.join(home, id + '.module.zip'),
     snapshot = await packageSnapshot(source),
     pkg = snapshot.pkg;
   assert(pkg.descriptor.id === id, 'Module id differs from folder');
@@ -67,7 +67,7 @@ async function readLocated(root, id, home, {pinned: usePins = true} = {}) {
   return describe(root, id, pkg, home);
 }
 function describe(root, id, pkg, home) {
-  const source = path.join(home, id + '.izm'), folder = path.join(home, '.versions', pkg.sha256);
+  const source = path.join(home, id + '.module.zip'), folder = path.join(home, '.versions', pkg.sha256);
   const d = pkg.descriptor;
   return {
     id,

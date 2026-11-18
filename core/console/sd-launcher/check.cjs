@@ -12,7 +12,7 @@ function verifyRuntime(directory=__dirname){
  function match(folder,name,expected,component){if(!/^[a-f0-9]{64}$/.test(expected||'')||sha(read(folder,name))!==expected)fail(component,name);}
  function image(folder,name,binary,component){const m=report(folder,name),bytes=read(folder,binary);if(m.bytes!==bytes.length||sha(bytes)!==m.sha256)fail(component,binary);for(const [file,hash]of Object.entries(m.sources||{}))match(folder,file,hash,component);return m;}
  image(recovery,'native/build/manifest.json','native/build/recovery.bin','recovery worker');
- const tile=path.join(recovery,'sd-app'),m=image(tile,'manifest.json','launcher.izapp','Restore connection');
+ const tile=path.join(recovery,'sd-app'),m=image(tile,'manifest.json','launcher.iza','Restore connection');
  match(recovery,'reconnect-app.c',m.sourceSha256,'Restore connection');
  match(directory,'native/native-app.h',m.nativeAbiSha256,'Restore connection');
  match(tile,'native/native.bin',m.native?.sha256,'Restore connection');

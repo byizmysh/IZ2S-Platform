@@ -1,0 +1,81 @@
+// Explicitly selected X11/XWayland client only. No desktop/root fallback,
+// process launching, app resizing or automatic focus changes.
+const fs=require('node:fs/promises'),path=require('node:path'),{spawn,execFile}=require('node:child_process'),{promisify}=require('node:util'),run=promisify(execFile),{PcmQueue}=require('./platform.cjs').require('core/services/pcm-queue.cjs');
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function processIdentity(pid,{procRoot='/proc',uid=process.getuid?.()}={}){if(!Number.isInteger(pid)||pid<=1)throw Error('Invalid window process');const folder=path.join(procRoot,String(pid)),[stat,text]=await Promise.all([fs.stat(folder),fs.readFile(path.join(folder,'stat'),'utf8')]);if(uid!==undefined&&stat.uid!==uid)throw Error('The selected window belongs to another user');const start=text.slice(text.lastIndexOf(')')+2).split(/\s+/)[19];if(!/^\d+$/.test(start||''))throw Error('Cannot verify the selected window process');return {pid,start,uid:stat.uid};}
+async function rawWindows(){const {stdout}=await run('python3',[path.join(__dirname,'remote/native-windows.py')],{timeout:4000,maxBuffer:512*1024});const result=JSON.parse(stdout);if(!Array.isArray(result.windows))throw Error('Invalid native window list');return result.windows.filter(w=>Number.isInteger(w.id)&&w.id>0&&Number.isInteger(w.pid)&&w.pid>1&&typeof w.title==='string'&&Number.isInteger(w.width)&&Number.isInteger(w.height)&&w.width>=4&&w.height>=4&&w.width<=16384&&w.height<=16384).slice(0,512);}
+async function list({scan=rawWindows,identity=processIdentity}={}){const rows=await scan(),windows=[];for(const window of rows){try{await identity(window.pid);windows.push({...window,title:window.title.slice(0,300)});}catch{}}return {windows,coverage:'X11 / XWayland windows. Use Browser capture for native Wayland windows or the entire desktop.'};}
+async function select(id,{scan=rawWindows,identity=processIdentity}={}){if(!Number.isSafeInteger(id)||id<=0)throw Error('Select an application window');const window=(await scan()).find(w=>w.id===id);if(!window)throw Error('The selected window is no longer available');if(window.hidden||window.mapped===false||window.minimized)throw Error('Restore the selected window before sharing it');return {...window,identity:await identity(window.pid)};}
+function videoArgs(window,profile,{drawMouse=false}={}){return ['-hide_banner','-loglevel','error','-nostdin','-filter_threads','1','-f','x11grab','-window_id',String(window.id),'-draw_mouse',drawMouse?'1':'0','-framerate',String(profile.fps),'-video_size',`${window.width}x${window.height}`,'-i',window.display,'-an','-vf',`scale=${profile.width}:${profile.height}:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2:color=black`,'-threads:v','1','-fps_mode','passthrough','-pix_fmt','bgra','-flush_packets','1','-f','rawvideo','pipe:1'];}
+function frames(video,report,width,height,sourceEpoch){const bytes=width*height*4,free=[],stats={allocated:0,reused:0,returned:0,maxFree:0};const take=()=>{if(free.length){stats.reused++;return free.pop();}stats.allocated++;return Buffer.allocUnsafe(bytes);};let buffer=take(),at=0,began=0;const receive=chunk=>{for(let offset=0;offset<chunk.length;){if(!at)began=performance.now();const n=Math.min(bytes-at,chunk.length-offset);chunk.copy(buffer,at,offset,offset+n);at+=n;offset+=n;if(at===bytes){const receivedAt=performance.now();video.latest={w:width,h:height,rgba:buffer,bgra:true,sourceEpoch,sequence:++video.frames,at:began,receivedAt,assemblyMs:receivedAt-began};report.frames=video.frames;video.notifyFrame?.();buffer=take();at=0;}}};receive.stats=stats;receive.recycle=returned=>{if(!Buffer.isBuffer(returned)||returned.length!==bytes||returned.buffer.byteLength===0||returned.buffer===buffer.buffer||returned.buffer===video.latest?.rgba?.buffer||free.some(item=>item.buffer===returned.buffer)||free.length>=3)return false;free.push(returned);stats.returned++;stats.maxFree=Math.max(stats.maxFree,free.length);return true;};return receive;}
+
+function capturable(window){return !!window&&!window.hidden&&!window.minimized&&window.mapped!==false;}
+async function create(directory,{window:selected,profile,scan=rawWindows,identity=processIdentity,launch=spawn,findAudio,audioArgs,deadlineMs=6000,pollMs=500,shareSound=true,drawMouse=false,offscreen=false,compositeFactory=require('./composite-source.cjs').open,captureRetryMs=250,maxCaptureRetries=3,availabilityFactory=require('./frame-availability.cjs').create}={}){
+ if(!Number.isFinite(captureRetryMs)||captureRetryMs<0||!Number.isInteger(maxCaptureRetries)||maxCaptureRetries<0||maxCaptureRetries>10)throw Error('Invalid capture recovery policy');
+ if(!selected?.identity||!profile||!Number.isInteger(profile.width)||!Number.isInteger(profile.height)||profile.width<4||profile.height<4||profile.width>1920||profile.height>1080||profile.width%4||profile.height%4)throw Error('Invalid native capture profile');
+ findAudio??=require('./native-window-audio.cjs').audioTarget;audioArgs??=require('./native-window-audio.cjs').audioArgs;
+ let window=selected,closed=false,recycleReceiver=null,videoChild,audioChild,timer,watching=false,changing=Promise.resolve(),managed=false,resumePending=false,audioStarting=false,invalidIdentity=false,routePaused=false,pauseApplied=false,pauseRevision=0,closePromise=null;let captureFailures=0,retryAt=0,compositeSource=null;const listeners=new Set(),audio=new PcmQueue(),video={latest:null,frames:0};
+ const report={source:'native-window',scope:'selected X11/XWayland application window and verified per-process audio only',window,profile,frames:0,sourceEpoch:0,sourceHidden:!capturable(window),captureSuspended:!capturable(window),started:new Date().toISOString()};
+ const availability=availabilityFactory(()=>({frame:video.latest,sourceEpoch:report.sourceEpoch,closed,hidden:report.sourceHidden,suspended:report.captureSuspended,reconfiguring:report.reconfiguring,error:report.error||report.exited&&'Window capture ended'}));video.notifyFrame=availability.notify;
+ const save=()=>fs.writeFile(path.join(directory,'native-window-capture.json'),JSON.stringify(report,null,2));
+ async function stopChild(child){if(!child||child.exitCode!==null||child.signalCode)return;child.kill('SIGTERM');await new Promise(resolve=>{const timer=setTimeout(()=>{child.kill('SIGKILL');resolve();},1000);child.once('exit',()=>{clearTimeout(timer);resolve();});});}
+ const enqueue=fn=>{const task=changing.then(fn);changing=task.catch(()=>{});return task;};
+ async function checkIdentity(){const next=(await scan()).find(w=>w.id===selected.id);if(!next)return null;const process=await identity(next.pid);if(next.pid!==selected.pid||process.start!==selected.identity.start||process.uid!==selected.identity.uid)throw Error('The selected window process changed; select it again');return {...next,identity:process};}
+ async function changed(reason){video.latest=null;report.captureSuspended=true;report.sourceEpoch++;availability.notify();report.freshnessReason=reason;for(const listener of listeners)await listener({reason,sourceEpoch:report.sourceEpoch,hidden:report.sourceHidden,profile});}
+ function captureFatal(error){report.error=error.message||String(error);report.recovering=false;availability.notify();}
+ function startVideo(){
+  if(closed||routePaused||invalidIdentity)return;
+  let stderr='',received=false;
+  const args=videoArgs(window,profile,{drawMouse}),child=videoChild=compositeSource?compositeSource.start(args,profile):launch('/usr/bin/ffmpeg',args,{stdio:['ignore','pipe','pipe']}),receive=frames(video,report,profile.width,profile.height,report.sourceEpoch);
+  recycleReceiver=receive;report.frameBuffers=receive.stats;
+  child.stdout.on('data',bytes=>{
+   if(closed||child!==videoChild||report.captureSuspended||report.sourceHidden)return;
+   const before=video.frames;receive(bytes);
+   if(!received&&video.frames>before){received=true;captureFailures=0;retryAt=0;report.recovering=false;report.consecutiveCaptureFailures=0;}
+  });
+  child.stderr.on('data',bytes=>stderr=(stderr+bytes).slice(-2048));
+  child.on('error',error=>{if(child===videoChild&&!closed)captureFatal(error);});
+  child.on('exit',(code,signal)=>{
+   if(child!==videoChild||closed)return;
+   videoChild=null;
+   // A drawable can disappear briefly between visibility/geometry polls. Keep
+   // the frame waiter alive so the independent video pump can recover.
+   const message=stderr.trim()||'The selected window stopped producing video';
+   if(report.error||captureFailures>=maxCaptureRetries){report.exited={code,signal};captureFatal(Error(report.error||message));return;}
+   captureFailures++;retryAt=Date.now()+captureRetryMs*captureFailures;
+   report.lastCaptureFailure={code,signal,message,at:new Date().toISOString()};
+   report.captureRestarts=(report.captureRestarts||0)+1;report.consecutiveCaptureFailures=captureFailures;report.recovering=true;
+   report.captureSuspended=true;video.latest=null;resumePending=true;
+   enqueue(async()=>{
+    if(closed)return;
+    await changed('window-capture-interrupted');await save();
+    if(managed||routePaused||closed)return;
+    const delay=retryAt-Date.now();if(delay>0)await wait(delay);
+    if(closed||routePaused)return;
+    const next=await checkIdentity();report.sourceHidden=compositeSource?!next:!capturable(next);
+    if(report.sourceHidden){await save();return;}
+    window=next;report.window=next;report.captureSuspended=false;resumePending=false;startVideo();
+   }).catch(error=>{if(!closed)captureFatal(error);});
+  });
+ }
+
+ async function pauseCapture(reason='console-route-pending'){
+  if(closed)return false;pauseRevision++;routePaused=true;report.routePaused=true;report.capturePauseReason=String(reason).slice(0,160);report.captureSuspended=true;video.latest=null;availability.notify();
+  return enqueue(async()=>{if(closed)return false;resumePending=true;const old=videoChild;videoChild=null;if(!pauseApplied){pauseApplied=true;await Promise.all([changed(report.capturePauseReason),stopChild(old)]);}else await stopChild(old);await save();return true;});
+ }
+ async function resumeCapture(){const revision=pauseRevision;return enqueue(async()=>{
+  if(closed||report.sourceHidden||revision!==pauseRevision)return false;if(!resumePending&&videoChild&&!routePaused)return true;
+  const delay=retryAt-Date.now();if(delay>0)await wait(delay);if(closed||revision!==pauseRevision)return false;
+  const next=await checkIdentity();if((compositeSource?!next:!capturable(next))||revision!==pauseRevision)return false;window=next;report.window=window;const old=videoChild;videoChild=null;video.latest=null;await stopChild(old);if(closed||revision!==pauseRevision)return false;
+  delete report.error;delete report.exited;routePaused=false;pauseApplied=false;report.routePaused=false;delete report.capturePauseReason;resumePending=false;report.captureSuspended=false;startVideo();await save();return true;
+ });}
+
+ async function setProfile(next){return enqueue(async()=>{if(closed)throw Error('Native window capture is closed');if(next.width===profile.width&&next.height===profile.height&&next.fps===profile.fps)return;report.reconfiguring=true;try{const old=videoChild;videoChild=null;resumePending=true;await changed('source-profile-changed');await stopChild(old);if(closed)return;profile=next;report.profile=next;if(!managed&&!report.sourceHidden&&!routePaused){report.captureSuspended=false;resumePending=false;startVideo();}await save();}finally{report.reconfiguring=false;availability.notify();}});}
+ async function checkWindow(){if(closed||invalidIdentity||watching||report.reconfiguring)return;watching=true;try{const next=await checkIdentity(),hidden=compositeSource?!next:!capturable(next),geometry=next&&(next.width!==window.width||next.height!==window.height);if(hidden===report.sourceHidden&&!geometry){if(next){window=next;report.window=next;}return;}await enqueue(async()=>{if(closed)return;if(next){window=next;report.window=next;}report.sourceHidden=hidden;resumePending=!hidden;const old=videoChild;videoChild=null;await changed(hidden?'window-hidden':geometry?'window-resized':'window-restored');await stopChild(old);if(!hidden&&!managed&&!routePaused){report.captureSuspended=false;resumePending=false;startVideo();}await save();});}catch(error){if(closed)return;report.error=error.message;invalidIdentity=true;report.sourceHidden=true;const old=videoChild,oldAudio=audioChild;videoChild=null;audioChild=null;try{await changed('window-identity-changed');}finally{await Promise.all([stopChild(old),stopChild(oldAudio),compositeSource?.close()]);audio.clear();}}finally{watching=false;}}
+ async function startAudio(){if(closed||invalidIdentity||!shareSound||audioChild||audioStarting)return;audioStarting=true;try{const target=await findAudio(window.pid);if(!target){report.audioWarning='No audio stream owned by the selected process was found. Video continues.';return;}if(closed||invalidIdentity||!shareSound)return;const currentIdentity=await identity(window.pid);if(closed||invalidIdentity||!shareSound)return;if(currentIdentity.start!==selected.identity.start||currentIdentity.uid!==selected.identity.uid)throw Error('The selected audio process changed; select it again');const child=audioChild=launch('/usr/bin/parec',audioArgs(target),{stdio:['ignore','pipe','pipe']});report.audioTarget=target;delete report.audioWarning;child.stdout.on('data',bytes=>{if(shareSound&&!closed)audio.push(bytes);});child.stderr.on('data',bytes=>report.audioWarning=bytes.toString().slice(-500));child.on('error',error=>report.audioWarning=error.message);child.on('exit',()=>{if(audioChild===child)audioChild=null;});}catch(error){report.audioWarning=error.message;}finally{audioStarting=false;}}
+ async function setAudioEnabled(value){shareSound=!!value;report.shareSound=shareSound;if(!shareSound){const old=audioChild;audioChild=null;await stopChild(old);audio.clear();report.audioWarning='Sound sharing is off.';}else{delete report.audioWarning;await startAudio();}}
+
+ async function close(){if(closePromise)return closePromise;closePromise=(async()=>{closed=true;report.closed=true;availability.close();clearInterval(timer);listeners.clear();await changing;await Promise.all([stopChild(videoChild),stopChild(audioChild),compositeSource?.close()]);audio.clear();await save();})();return closePromise;}
+ try{const verified=await checkIdentity();if(!capturable(verified))throw Error('The selected window is not visible');window=verified;report.window=window;if(offscreen){compositeSource=await compositeFactory(window,{drawMouse,launch,onFailure:captureFatal,onState:state=>{report.windowHidden=state.hidden;report.sourceFrozen=state.retained;report.captureBackend='XComposite offscreen surface';if(state.retained)report.profileWarning='Game window is minimized; showing its retained surface until the game renders again.';else if(report.profileWarning?.startsWith('Game window is minimized;'))delete report.profileWarning;}});}report.captureSuspended=false;startVideo();startAudio().catch(()=>{});timer=setInterval(()=>{checkWindow().then(startAudio).then(save).catch(()=>{});},pollMs);timer.unref();try{await availability.waitFrame({signal:AbortSignal.timeout(deadlineMs)});}catch(error){if(error.name==='AbortError')throw Error('The selected window is not producing video');throw error;}await save();return {video,audio,report,waitFrame:availability.waitFrame,recycleFrame(frame,bytes){if(!closed&&frame.w===profile.width&&frame.h===profile.height&&frame.sourceEpoch===report.sourceEpoch)return recycleReceiver?.recycle(bytes);return false;},setAudioEnabled,pauseCapture,resumeCapture,setProfile,checkWindow,onFreshness(listener){managed=true;listeners.add(listener);resumePending=true;video.latest=null;report.captureSuspended=true;report.sourceEpoch++;availability.notify();return()=>listeners.delete(listener);},async focus(){const verified=await checkIdentity();if(!capturable(verified))throw Error('Restore the selected window first');await run('wmctrl',['-ia','0x'+window.id.toString(16)],{timeout:2500,maxBuffer:4096});return {focused:true,title:window.title};},close};}catch(error){await close();throw error;}
+}
+module.exports={list,select,create,rawWindows,processIdentity,videoArgs,frames,capturable};

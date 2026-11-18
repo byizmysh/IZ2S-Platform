@@ -5,7 +5,7 @@ async function queue(stateRoot,ids,installed,source,{target}={}){
  if(target!==undefined&&!['sd','session'].includes(target))throw Error('Unknown removal target');
  if(!Array.isArray(ids)||!ids.length||ids.length>15||ids.some(id=>typeof id!=='string'||!ID.test(id)))throw Error('Select loaded modules to remove');
  const selected=[...new Set(ids)].map(id=>{const app=installed.find(a=>a.id===id);if(!app)throw Error('Module is not loaded on the console: '+id);return app;});
- const result=[];for(const app of selected)result.push(await require('./jobs.cjs').create(stateRoot,{id:app.id,name:app.name||app.id,file:app.id+'.izm'},source,{operation:'remove',target}));return result;
+ const result=[];for(const app of selected)result.push(await require('./jobs.cjs').create(stateRoot,{id:app.id,name:app.name||app.id,file:app.id+'.module.zip'},source,{operation:'remove',target}));return result;
 }
 async function remove(catalogRoot,id){
  if(typeof id!=='string'||!ID.test(id))throw Error('Invalid module id');

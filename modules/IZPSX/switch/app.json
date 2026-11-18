@@ -1,0 +1,40 @@
+{
+  "format": "hblauncher.gpu-app",
+  "abi": 1,
+  "id": "izpsx",
+  "name": "IZPSX emulator",
+  "version": "0.5.2",
+  "description": "IZPSX emulator. Up to four players with Multitap and sideways Joy-Con controls, local SD games and persistent memory cards. @byizmysh",
+  "transition": "none",
+  "category": "game",
+  "shaders": {
+    "vertex": "app.vert.spv",
+    "fragment": "app.frag.spv",
+    "compute": "app.comp.spv"
+  },
+  "initialState": "state.bin",
+  "data": "data.bin",
+  "icon": "icon.png",
+  "memory": {
+    "bytes": 8388608,
+    "initial": "pixels.bin"
+  },
+  "native": {
+    "format": "iz2s.native-app",
+    "abi": 7,
+    "code": "native/shim.bin",
+    "dataBytes": 262144,
+    "capabilities": [
+      "audio-out",
+      "cooperative-image"
+    ],
+    "assets": [
+      {
+        "file": "native/asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata",
+        "path": "asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata",
+        "bytes": 1746208,
+        "sha256": "5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac"
+      }
+    ]
+  }
+}

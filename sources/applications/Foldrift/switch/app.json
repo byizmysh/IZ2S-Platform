@@ -1,0 +1,24 @@
+{
+  "format": "hblauncher.gpu-app",
+  "abi": 1,
+  "id": "iz-file-deck",
+  "name": "Foldrift",
+  "version": "0.3.3",
+  "description": "SD file manager with clipboard and preview for IZlauncher",
+  "icon": "assets/icon.png",
+  "transition": "none",
+  "sdOnly": true,
+  "initialState": "assets/state.bin",
+  "data": "assets/font.bin",
+  "shaders": {
+    "vertex": "app.vert.spv",
+    "fragment": "app.frag.spv",
+    "compute": "app.comp.spv"
+  },
+  "native": {
+    "format": "iz2s.native-app",
+    "abi": 7,
+    "code": "native.bin",
+    "dataBytes": 65536
+  }
+}

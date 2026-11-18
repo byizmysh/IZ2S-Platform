@@ -33,11 +33,16 @@
   if(/fs rpc memory acquisition failed|fs acquisition stopped|overwrite missed.*canary/.test(s)){title='Filesystem access was not acquired in this attempt.';action='Fully close and reopen the game, open a fresh Direct, then start a new session.';}
   else if(/resources retained|uncertain|did not (?:finish|terminate)|restart required|native execution/.test(s)){title='Native execution could not be confirmed.';action='Restart the game before starting a new session.';}
   else if(/9026|loader.*not (?:respond|found)|awaiting payload/.test(s)){title='The game loader is not responding.';action='Open Load Game on Switch, wait for Awaiting payload, then check the connection.';}
+  else if(/dbi (?:copy failed|mtp responder)|switch 1 copy verification failed/.test(s)){title='Could not install IZ2S SB4 Keyboard.';action='Open DBI MTP Responder on Switch 1 and try again, or download the SD package.';}
+  else if(/reopen.*(?:application|launch link)|this window link is no longer valid/.test(s)){title='This window link is no longer valid.';action='Open 0.25 from its shortcut.';}
+  else if(s.includes('iz2s file manager is unavailable')){title='IZ2S file manager is unavailable.';action='Open IZ2S on Switch and connect its PC link, then try again.';}
+  else if(s.includes('iz2s pc link is unavailable')){title='IZ2S PC link is unavailable.';action='Start the PC link, then try again.';}
+  else if(s.includes('browser blocked the new tab')){title='The browser blocked the new tab.';action='Allow pop-ups for 0.25, then try again.';}
   else if(/package changed|selected package|version.*(?:differ|mismatch)/.test(s)){title='The selected package has changed.';action='Refresh App library and select the current version.';}
   else if(/failed to fetch|socket hang up|disconnected|connection.*(?:lost|refused|ended)|server.*unavailable/.test(s)){title='Connection was interrupted.';action='Check the network and restore the connection when the console is ready.';}
   else if(/timeout|timed out|aborted due/.test(s)){title='The operation timed out.';action='Check the device and connection before trying again.';}
   else if(/cancelled|canceled/.test(s)){title='The operation was cancelled.';action='Review the current console screen before continuing.';}
-  else {title=detail.split('\n').find(l=>l.trim())||'The operation failed.';if(title.length>220)title='The operation failed.';action='Open technical details or download the full log.';}
+  else {title=detail.split('\n').find(l=>l.trim())||'The operation failed.';if(title.length>220)title='The operation failed.';action=detail&&detail.trim()!==title?'Open technical details to see the original error.':'';}
   return {title,action,detail};
  }
  const api={canonical,describe,configure};root.IZ2S_ERRORS=api;
@@ -77,7 +82,7 @@
       : rendered;
   }
   function canonicalSource(value) {
-    const raw=String(value??'');
+    const raw=String(value??'').replaceAll('IZ2S core','IZ2S core').replaceAll('IZCORE IZ2S','IZ2S core').replace(/(?<![\p{L}\p{N}_./-])(?:IZlauncher|IZLauncher|Izlauncher|IZLAUNCHER)(?![\p{L}\p{N}_/-]|\.[\p{L}\p{N}_])/gu,'IZ2S');
     if(Object.hasOwn(sourceAliases,raw))return sourceAliases[raw];
     if(!sourceMatcher)return raw;
     // Paths are data. Reverse legacy UI translations, never filenames.

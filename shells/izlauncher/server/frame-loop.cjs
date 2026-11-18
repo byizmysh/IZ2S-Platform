@@ -20,8 +20,8 @@ async function main(directory,attempt='',instance=''){
  const report={session:rpc.a.session,started:new Date().toISOString(),batches:[],resourcesRetained:true};
  const save=()=>require('../../../core/session/ledger.cjs').saveJson(file,report);
  const startup=require('../../../core/packages/startup-timing.cjs').create({report});
- const telemetry=require('../../../core/packages/telemetry.cjs').create({write:save,label:'IZlauncher render telemetry'});
- const residentAppTelemetry=require('../../../core/packages/telemetry.cjs').create({write:()=>require('../../../core/session/ledger.cjs').saveJson(path.join(directory,'app-runtime.json'),runtime.report),label:'IZlauncher resident app telemetry'});
+ const telemetry=require('../../../core/packages/telemetry.cjs').create({write:save,label:'IZ2S render telemetry'});
+ const residentAppTelemetry=require('../../../core/packages/telemetry.cjs').create({write:()=>require('../../../core/session/ledger.cjs').saveJson(path.join(directory,'app-runtime.json'),runtime.report),label:'IZ2S resident app telemetry'});
  const diagnostics=require('../../../core/packages/runtime-log.cjs').create({directory,stateRoot:process.env.IZ11_STATE_DIR||path.join(require('../../../core/root.cjs'),'data/state/current')});
  const cleanup=require('../../../core/packages/runtime-log.cjs').cleanup;let primaryError;
  let stop=false;process.on('SIGINT',()=>stop=true);process.on('SIGTERM',()=>stop=true);
@@ -34,7 +34,7 @@ async function main(directory,attempt='',instance=''){
  try{
  startup.phase('application catalog');
  await diagnostics.stage('initialize-app-runtime',{},true);
- runtime=await require('../../../core/services/app-runtime.cjs').create({rpc,menu:prepared,directory,resident:residentMode,deferMenuUpload:!residentMode,rasterMenu:require('./raster.cjs').raster,prepareMenu:()=>require('./scene-state.cjs').initialize({rpc,mapped:prepared.controls.mapped})});
+ runtime=await require('../../../core/services/app-runtime.cjs').create({rpc,menu:prepared,directory,resident:residentMode,deferMenuUpload:!residentMode,rasterMenu:require('./raster.cjs').raster,scanMenu:residentMode?undefined:require('./homebrew-catalog.cjs').scan,prepareMenu:()=>require('./scene-state.cjs').initialize({rpc,mapped:prepared.controls.mapped})});
  startup.phase('frame function verification');
  for(const c of [...Object.values(code),timing.tick]){
   const expected=Buffer.from(c.bytes,'hex').subarray(0,256);await rpc.request({command:'verify-function',address:sdk+c.offset,hex:expected.toString('hex')});
@@ -89,7 +89,7 @@ async function main(directory,attempt='',instance=''){
    validateCandidate:async(app,current)=>resident.plan([...current.filter(a=>a.id!==app.id),app]),
    validateRemoval:async()=>{throw Error('This application stays in RAM until the resident session ends. Start a new session to free its memory.');},
    redrawProgress:()=>require('./progress-frame.cjs').present({rpc,menu:ramMenu,idle:()=>thread===null})});
- }else packageManager=await require('./package-manager.cjs').create({rpc,menu:prepared,directory,runtime,
+ }else packageManager=await require('./package-manager.cjs').create({rpc,menu:prepared,directory,runtime,refreshHomebrew:true,
   acquireStorageLease:async()=>{check(thread===null&&!runtime.active&&(!ordinaryController||ordinaryController.held),'SD access requires the joined menu renderer');let held=true;return {get active(){return held&&thread===null&&!runtime.active&&(!ordinaryController||ordinaryController.held);},async release(){check(thread===null&&!runtime.active,'SD menu ownership changed');held=false;}};},
   redrawProgress:()=>require('./progress-frame.cjs').present({rpc,menu:prepared,idle:()=>thread===null&&!runtime.active&&(!ordinaryController||ordinaryController.held)})});
  // Switch to the post-menu shell only after the original qualification passes.
@@ -227,15 +227,17 @@ async function main(directory,attempt='',instance=''){
    servicing=false;
   }
  }catch(error){
-  if(await offlinePolicy.canRetainRender({error,workerRunning:thread!==null,servicing,stopping:stop,directory})){
-   offline=true;report.offline={at:new Date().toISOString(),reason:error.message,workerWasRunning:true,executionUnverified:true};
-   await save();await offlinePolicy.retain(directory,error.message,{owner:'graphics',workerWasRunning:true,app:runtime.active?.app?.id||null});
+  const rpcState=runtime?.stopRequests?.(error);if(rpcState)report.appRPC=rpcState;
+  const uncontained=offlinePolicy.requiresRetention(error)||rpcState?.resourcesRetained===true;
+  if(uncontained||await offlinePolicy.canRetainRender({error,workerRunning:thread!==null,servicing,stopping:stop,directory})){
+   offline=true;report.appRPCRetained=uncontained;report.offline={at:new Date().toISOString(),reason:error.message,workerWasRunning:thread!==null,executionUnverified:true};
+   await save();await offlinePolicy.retain(directory,error.message,{owner:'graphics',workerWasRunning:thread!==null,app:runtime.active?.app?.id||null});
    await diagnostics.stage('offline-retained',{execution:'unverified',automaticReconnect:false},true);
    console.log('IZ launcher offline: render resources retained; waiting for STOP.');
    await offlinePolicy.waitForStop(stopping);
   }else{primaryError=error;await diagnostics.fail(error);throw error;}
  }finally{if(!offline)await cleanup(primaryError,[['screen',()=>screen?.close()],['worker',()=>stopWorker()],['resident-audio',()=>resident?.audio.close({workerStopped:thread===null})],['packages',()=>packageManager.close()]],diagnostics.cleanup);}
- }catch(error){primaryError||=error;await diagnostics.fail(primaryError);throw primaryError;}finally{if(!report.threadRunning&&!report.nativeMenuRetained)await cleanup(primaryError,[['sdk',()=>sdkRuntime?.close()],['data/app-links',()=>runtime?.close()]],diagnostics.cleanup);}
+ }catch(error){primaryError||=error;await diagnostics.fail(primaryError);throw primaryError;}finally{if(!report.threadRunning&&!report.nativeMenuRetained&&!report.appRPCRetained)await cleanup(primaryError,[['sdk',()=>sdkRuntime?.close()],['data/app-links',()=>runtime?.close()]],diagnostics.cleanup);}
  await diagnostics.complete();report.completed=new Date().toISOString();await save();console.log('IZ launcher stopped; resources retained.');
 }
 if(require.main===module)main(process.argv[2],process.argv[3],process.argv[4]).catch(e=>{console.error(e);process.exitCode=1;});

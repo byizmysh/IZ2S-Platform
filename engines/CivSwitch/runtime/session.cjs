@@ -22,7 +22,7 @@ function wrap(base,{root,preview=false,launch=spawn,configuration={},stopGraceMs
     })().finally(()=>{libraryRead=null;});
     return libraryRead;
   }
-  const selectionFile=path.join(root,'data/state/civ-launcher.json'),selection=readJson(selectionFile,{}).then(saved=>{if(['izlauncher','izpslauncher','original'].includes(saved.shell))shell=saved.shell;});
+  const selectionFile=path.join(root,'data/state/civ-launcher.json'),selection=readJson(selectionFile,{}).then(saved=>{if(['izlauncher','original'].includes(saved.shell))shell=saved.shell;});
   function log(message){const entry={at:new Date().toISOString(),type:'civ7-launcher',message:redact(message).slice(-2000)};events.push(entry);if(events.length>250)events.shift();if(run)logQueue=logQueue.then(()=>ledger.append(run.id,entry.type,entry.message)).catch(()=>{});}
   async function status(){
     if(!run)return {state:shutdownUnconfirmed?'stopping':'idle',shell,needsRestart,error:lastError,shutdownUnconfirmed,automaticLaunch:!!automatic};
@@ -35,7 +35,7 @@ function wrap(base,{root,preview=false,launch=spawn,configuration={},stopGraceMs
     const epoch=++launchEpoch,check=()=>{if(epoch!==launchEpoch||body.cancelled)throw Error('Launcher startup cancelled');};
     try{
       if(preview)throw Error('Preview cannot start a console launcher');
-      if(!['izlauncher','izpslauncher'].includes(body.launcher))throw Error('Choose IZlauncher or IZPSlauncher');
+      if(!['izlauncher'].includes(body.launcher))throw Error('Choose IZ2S');
       const state=await base.snapshot(),current=state[field];check();
       if(current.busy||!current.loaderReady)throw Error('Connect to the game loader on TCP 9026 first');
       const host=current.suggestedHost||current.host;
@@ -110,11 +110,11 @@ function wrap(base,{root,preview=false,launch=spawn,configuration={},stopGraceMs
   return {...base,snapshot,stop,hardStop:stop,historyLog:id=>run?.id===id?ledger.all(id):base.historyLog(id),remove:id=>ledger.removeFailure(id,processHandle?run?.id:undefined),ownsListener:()=>!!stopTask||shutdownUnconfirmed||posting||!!automatic||!!processHandle||base.ownsListener(),
     async action(body){
       await selection;
-      if(body.action==='select-shell'){if(processHandle||posting||automatic||stopTask||shutdownUnconfirmed)throw Error('Stop the current launcher first');if(!['izlauncher','izpslauncher','original'].includes(body.launcher))throw Error('Choose a console menu');shell=body.launcher;await saveJson(selectionFile,{shell});return {ok:true};}
+      if(body.action==='select-shell'){if(processHandle||posting||automatic||stopTask||shutdownUnconfirmed)throw Error('Stop the current launcher first');if(!['izlauncher','original'].includes(body.launcher))throw Error('Choose a console menu');shell=body.launcher;await saveJson(selectionFile,{shell});return {ok:true};}
       if(automatic)throw Error('Wait for automatic launcher startup or stop the session');
       if(body.action==='launch')return start(body);
       if(processHandle||posting||stopTask||shutdownUnconfirmed)throw Error('Stop the current launcher first');
-      const auto=body.launchAfterSuccess===true&&['start','auto-chat','resume-chat','watch-input','check-loader'].includes(body.action)&&['izlauncher','izpslauncher'].includes(body.launcher);
+      const auto=body.launchAfterSuccess===true&&['start','auto-chat','resume-chat','watch-input','check-loader'].includes(body.action)&&['izlauncher'].includes(body.launcher);
       const request=auto?{...body,cancelled:false}:null;
       if(request)automatic=request;
       let result;

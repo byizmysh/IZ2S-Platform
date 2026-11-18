@@ -31,16 +31,7 @@
       "switch/assets/data.bin",
       "switch/assets/font.json",
       "switch/assets/icon.png",
-      "switch/assets/state.bin",
-      "switch/shaders/abi.glsl",
-      "switch/shaders/app.comp",
-      "switch/shaders/app.frag",
-      "switch/shaders/app.vert",
-      "switch/shaders/draw.glsl",
-      "switch/shaders/hb.glsl",
-      "switch/shaders/labels.glsl",
-      "switch/shaders/pad-merge.glsl",
-      "switch/shaders/reader.glsl"
+      "switch/assets/state.bin"
     ]
   },
   "server": {

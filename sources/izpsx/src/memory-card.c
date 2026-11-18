@@ -22,7 +22,7 @@ static uint64_t hash(const void*data,size_t bytes){const uint8_t*p=data;uint64_t
 static uint64_t get64(const uint8_t*p){uint64_t n;memcpy(&n,p,8);return n;}
 static void put64(uint8_t*p,uint64_t n){memcpy(p,&n,8);}
 static int missing(uint32_t rc){return (rc&0x3fffffu)==0x202u;}
-static Ps1FileIO reader(void){Ps1FileIO io={.send=(uintptr_t)directory->send,.buffer=(uintptr_t)directory->buffer,.capacity=directory->capacity};return io;}
+static Ps1FileIO reader(void){Ps1FileIO io={.send=(uintptr_t)directory->send,.buffer=(uintptr_t)directory->buffer,.capacity=directory->capacity,.directory=(uintptr_t)directory};return io;}
 static uint32_t read_image(uint32_t handle,uint8_t*out){Ps1FileIO io=reader();ps1_ifile_reset();return ps1_ifile_read(&io,handle,0,out,IMAGE_BYTES,IMAGE_BYTES);}
 static int valid(const uint8_t*p,unsigned slot){return !memcmp(p,"IZPSXMC1",8)&&get64(p+8)==slot+1&&get64(p+16)>0&&get64(p+24)==IZPSX_CARD_BYTES&&get64(p+32)==hash(p+HEADER,IZPSX_CARD_BYTES)&&get64(p+40)==hash(p,40)&&p[HEADER]=='M'&&p[HEADER+1]=='C';}
 static uint32_t close_file(uint32_t h,uint32_t prior){uint32_t rc=ps1_sd_closefile(directory,h);ps1_ifile_reset();return prior?prior:rc;}

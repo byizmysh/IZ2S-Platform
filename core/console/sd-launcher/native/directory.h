@@ -10,6 +10,9 @@ _Static_assert(sizeof(IzFsDirectoryEntry)==0x310&&offsetof(IzFsDirectoryEntry,ty
  * Existing file methods retain the module-root path policy. Directory and
  * mkdir/type operations accept canonical absolute paths on the borrowed SD
  * filesystem; their controller must choose its explicit data/save roots. */
+void iz_fs_app_path(char*,const char*);
+u32 iz_fs_open_app_backup(IzFs*,const char*,u32*,u64*);
+u32 iz_fs_restore_app(IzFs*,const char*);
 u32 iz_fs_open_handle(IzFs*,const char*,u32*);
 u32 iz_fs_size(IzFs*,u32,u64*);
 u32 iz_fs_directory_open(IzFs*,const char*,u32 mode,u32*);

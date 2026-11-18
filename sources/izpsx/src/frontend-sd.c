@@ -1,8 +1,19 @@
 /* Cooperative SD entry shares the production frontend's conversion, controls,
  * options and platform adapters. A current longjmp frame exists for each call. */
 #include "frontend.c"
+#ifdef IZPSX_HEN
+/* libretro calls preinit before reading the application's core options.
+ * Select the interpreter before core initialization can request JIT memory. */
+int __real_emu_core_preinit(void);
+int __wrap_emu_core_preinit(void){
+ int result=__real_emu_core_preinit();
+ Config.Cpu=CPU_INTERPRETER;
+ return result;
+}
+#endif
 /* Qualify executable cache maintenance in this actual process before enabling
  * page publication. Exactly one private RX page; 64 changed warm executions. */
+#ifndef IZPSX_HEN
 uint32_t ps1_sd_jit_probe(Ps1Context*c){
  ps1_context=c;uint64_t bytes=c->jit_bytes;
  if(__builtin_setjmp(panic_frame)){c->jit_bytes=bytes;return c->base.error;}
@@ -15,12 +26,16 @@ uint32_t ps1_sd_jit_probe(Ps1Context*c){
  ps1_ro_unmap();memset((void*)(uintptr_t)c->jit_source,0,4096);memset((void*)(uintptr_t)c->jit_rw,0,4096);
  c->jit_bytes=bytes;c->jit_flushes=c->jit_patches=c->jit_bytes_published=0;return 0;
 }
+#endif
 uint32_t ps1_sd_core_begin(Ps1Context*c){
  ps1_context=c;HeavyContext*b=&c->base;
  if(__builtin_setjmp(panic_frame))return b->error;
  b->status=1;b->error=0;c->audio_hash=1469598103934665603ull;completed_frames=0;
  variable_count=0;previous_hash=0;memset(live_buttons,0,sizeof live_buttons);
- ps1_ro_map();ps1_platform_init();if(ps1_audio_open())ps1_fatal(140);
+#ifndef IZPSX_HEN
+ ps1_ro_map();
+#endif
+ ps1_platform_init();if(ps1_audio_open())ps1_fatal(140);
  retro_set_environment(environment);retro_set_video_refresh(video);retro_set_audio_sample_batch(audio);retro_set_audio_sample(sample);retro_set_input_poll(poll);retro_set_input_state(input);
  b->boot_start=tick();retro_init();struct retro_game_info game={.path=(const char*)(uintptr_t)c->game_path};
  if(!retro_load_game(&game)){
@@ -30,7 +45,11 @@ uint32_t ps1_sd_core_begin(Ps1Context*c){
    * not been opened yet, so this path never publishes a blank save card. */
   if((io&&io->errors)||(sd&&(sd->transport||sd->leaked_handle))||c->mapping_unknown)ps1_fatal(63);
   retro_unload_game();retro_deinit();for(unsigned i=0;i<variable_count;i++){free(variables[i].key);free(variables[i].value);}variable_count=0;
-  if(ps1_audio_close())ps1_fatal(142);ps1_ro_unmap();b->error=63;b->status=2;return 63;
+  if(ps1_audio_close())ps1_fatal(142);
+#ifndef IZPSX_HEN
+  ps1_ro_unmap();
+#endif
+  b->error=63;b->status=2;return 63;
  }
  if(Config.HLE)ps1_fatal(66);b->flags|=PS1_FLAG_BIOS_LOADED;
  retro_set_controller_port_device(0,RETRO_DEVICE_JOYPAD);
@@ -70,5 +89,9 @@ uint32_t ps1_sd_core_end(void){
  Ps1Context*c=ps1_context;HeavyContext*b=&c->base;if(__builtin_setjmp(panic_frame))return b->error;
  if(ps1_cards_poll(tick(),b->tick_hz,1))ps1_fatal(152);
  retro_unload_game();retro_deinit();for(unsigned i=0;i<variable_count;i++){free(variables[i].key);free(variables[i].value);}
- if(ps1_audio_close())ps1_fatal(142);ps1_ro_unmap();b->run_end=tick();b->status=2;return 0;
+ if(ps1_audio_close())ps1_fatal(142);
+#ifndef IZPSX_HEN
+ ps1_ro_unmap();
+#endif
+ b->run_end=tick();b->status=2;return 0;
 }

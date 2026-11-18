@@ -1,0 +1,77 @@
+{
+    "general": {
+        "video_copied": "Tautan video disalin ke papan klip",
+        "dislikes": "Tidak Suka",
+        "steam_controller_notice": "Pengontrol eksternal tidak terdeteksi? Coba plugin steamdeck-input-disabler dari Decky."
+    },
+    "settings": {
+        "generic": {
+            "title": "Pengaturan",
+            "description": "Buka menu pengaturan VacooTube. Akses menu ini dengan menekan Ctrl+O pada papan ketik.",
+            "button_label": "Buka Pengaturan VacooTube",
+            "hint": "Gunakan tombol panah untuk menjelajah"
+        },
+        "adblock": {
+            "title": "Blokir Iklan",
+            "description": "Blokir iklan beranda dan video, tanpa perlu khawatir terdeteksi YouTube"
+        },
+        "sponsorblock": {
+            "title": "SponsorBlock",
+            "description": "Lewati segmen sponsor pada video YouTube berdasarkan basis data publik. Saat ini hanya mendukung fitur lewati sponsor."
+        },
+        "dearrow": {
+            "title": "DeArrow",
+            "description": "Mengganti judul dan gambar pratinjau video yang lebih akurat dan tidak sensasional dari basis data publik yang dihimpun bersama. Proses pengambilan informasi akan memperlambat pemuatan aplikasi VacooTube."
+        },
+        "dislikes": {
+            "title": "Kembalikan 'Tidak Suka'",
+            "description": "Gunakan API Return YouTube Dislike (returnyoutubedislike.com) untuk mengembalikan fitur info jumlah 'Tidak Suka' pada video YouTube. Proses pengambilan info ini akan memperlambat pemuatan video."
+        },
+        "remove_super_resolution": {
+            "title": "Hapus Resolusi Super",
+            "description": "Hapus pilihan kualitas \"Resolusi super\" (pembesaran AI) dari video beresolusi rendah"
+        },
+        "hide_shorts": {
+            "title": "Sembunyikan Shorts",
+            "description": "Sembunyikan Shorts YouTube dari halaman utama"
+        },
+        "hardware_decoding": {
+            "title": "Optimasi Grafis",
+            "description": "Gunakan kartu grafis (GPU) untuk mengurai pemutaran video jika sanggup. Mematikan opsi ini mungkin dapat menyelesaikan sebagian masalah pemutaran, namun dapat menghambat video jika prosesor tidak memadai. Luncurkan ulang setelah mengubah."
+        },
+        "low_memory_mode": {
+            "title": "Optimasi Memori",
+            "description": "Lakukan optimasi untuk perangkat bermemori rendah dengan mengurangi beberapa efek visual. Luncurkan ulang setelah mengubah."
+        },
+        "fullscreen": {
+            "title": "Mode Layar Penuh",
+            "description": "Memastikan VacooTube selalu masuk dalam mode layar penuh setelah diluncurkan."
+        },
+        "keep_on_top": {
+            "title": "Tetap di Atas",
+            "description": "Memastikan jendela VacooTube selalu berada di atas jendela aplikasi lain."
+        },
+        "userstyles": {
+            "title": "Kustomisasi CSS (Userstyles)",
+            "description": "Letakkan file .css kustom pada direktori userstyles untuk mengubah tampilan VacooTube. Perubahan akan dimuat otomatis.",
+            "warn_empty": "CSS tidak ditemukan",
+            "open_folder": "Buka Direktori Userstyles",
+            "enable": "Aktifkan Userstyles",
+            "failed_to_load": "Gagal memuat CSS"
+        },
+        "controller_support": {
+            "title": "Dukungan Pengontrol",
+            "description": "Mengaktifkan dukungan untuk pengontrol konsol eksternal, termasuk kontrol navigasi halaman dan pemutaran video."
+        }
+    },
+    "sponsorblock": {
+        "sponsor_skipped": "Sponsor dilewati"
+    },
+    "donate_unused": {
+        "setting": {
+            "title": "Mari Berdonasi",
+            "description": "Dukung pengembangan VacooTube dengan berdonasi ke shy.rocks/donate. Tekan tombol berikut untuk membuka situs donasi di peramban Anda.",
+            "button_label": "Beri Donasi"
+        }
+    }
+}

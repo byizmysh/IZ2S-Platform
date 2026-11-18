@@ -151,6 +151,16 @@ function moduleDescriptor(v) {
       'Switch entry absent from file list',
     );
   }
+  if (v.switch?.downloadName !== undefined) {
+    assert(typeof v.switch.downloadName === 'string' &&
+      /^[a-z0-9][a-z0-9-]{0,46}\.iza$/.test(v.switch.downloadName),
+    'Invalid application download name');
+  }
+  if (v.switch?.sdImage !== undefined) {
+    const image = relative(v.switch.sdImage);
+    assert(image.startsWith('switch/') && image.endsWith('.iza') &&
+      v.switch.files.includes(image), 'Declare the standalone IZA in the Switch file list');
+  }
   if (v.server) {
     if(v.server.activation?.exclusiveGroup!==undefined)assert(ID.test(v.server.activation.exclusiveGroup),'Invalid module exclusive group');
     assert(v.server.runtime === 'node', 'Unsupported server runtime');

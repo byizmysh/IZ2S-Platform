@@ -20,6 +20,7 @@ async function createConnections({
   isTunnel = require('../platform/network.cjs').isTunnel,
   routeSource = require('../platform/network.cjs').routeSource,
   networkEnabled = !!run,
+  inputAddress = '',
   discover = network.discover,
 }) {
   const file = path.join(root, 'data/state/connections.json'),historyFile=path.join(root,'data/state/console-addresses.json');
@@ -59,6 +60,9 @@ async function createConnections({
             : '',
       },
     };
+    if (id === 'server')
+      preferences[id].modes = Array.isArray(old.modes) && old.modes.length &&
+        old.modes.every(value => modes.includes(value)) ? [...new Set(old.modes)] : [...modes];
     if (id === 'lan')
       preferences[id].modes =
         Array.isArray(old.modes) &&
@@ -80,7 +84,7 @@ async function createConnections({
     const candidates = hosts.filter((h) => h.mode === mode);
     const target =
       preferences.lan.addresses[selectedMode('lan')] ||
-      modeAddress('arm', selectedMode('arm'));
+      modeAddress('arm', selectedMode('arm')) || inputAddress;
     return (
       candidates.find(
         (h) => target && network.sameSubnet(h.address, target, h.netmask),
@@ -95,13 +99,14 @@ async function createConnections({
       return pref.modes.includes(activeConsoleMode)
         ? activeConsoleMode
         : pref.mode;
+    if (id === 'server' && pref.modes.length === 1) return pref.modes[0];
     if (!pref.automaticMode || pref.addresses[pref.mode]) return pref.mode;
     const choices =
       id === 'server' ? hosts : peers.filter((p) => p.kind === 'input');
     if (id === 'server') {
       const target =
         preferences.lan.addresses[selectedMode('lan')] ||
-        modeAddress('arm', selectedMode('arm'));
+        modeAddress('arm', selectedMode('arm')) || inputAddress;
       const matching = choices.find(
         (h) => target && network.sameSubnet(h.address, target, h.netmask),
       );
@@ -136,6 +141,12 @@ async function createConnections({
     );
   }
   const effective = (id) => modeAddress(id, selectedMode(id));
+  function serverPaths() {
+    return preferences.server.modes.map(mode => {
+      const ip = modeAddress('server', mode);
+      return {mode, address: hosts.some(host => host.mode === mode && host.address === ip) ? ip : ''};
+    });
+  }
   function sync() {
     settings.consoleHost = effective('server');
     settings.armAddress = effective('arm');
@@ -260,6 +271,7 @@ async function createConnections({
                       (p) => p.kind === (id === 'arm' ? 'input' : 'console'),
                     ),
               observedMode: modes.includes(observed) ? observed : null,
+              ...(id === 'server' ? {modes: [...pref.modes], paths: serverPaths()} : {}),
               ...(id === 'lan'
                 ? {
                     modes: [...pref.modes],
@@ -282,14 +294,14 @@ async function createConnections({
       throw Error('Invalid automatic connection setting');
     if (
       selected !== undefined &&
-      (id !== 'lan' ||
+      (!['lan', 'server'].includes(id) ||
         !Array.isArray(selected) ||
         !selected.length ||
         selected.length > 2 ||
         new Set(selected).size !== selected.length ||
         selected.some((m) => !modes.includes(m)))
     )
-      throw Error('Keep at least one console connection enabled');
+      throw Error('Keep at least one network connection enabled');
     if ((selected === undefined && !mode) || (ip !== undefined && !mode))
       throw Error('Choose LAN or Wi-Fi for this address');
     if (ip !== undefined && ip !== '') address(ip);
@@ -301,11 +313,17 @@ async function createConnections({
       next[id].mode = next[id].modes.includes(next[id].mode)
         ? next[id].mode
         : next[id].modes[0];
+    } else if (id === 'server' && selected) {
+      next.server.modes = modes.filter(value => selected.includes(value));
+      if (!next.server.modes.includes(next.server.mode)) next.server.mode = next.server.modes[0];
+      if (next.server.modes.length === 2) next.server.automaticMode = true;
     } else {
       next[id].mode = mode;
+      if (id === 'server' && !next.server.modes.includes(mode)) next.server.modes = [mode];
       next[id].automaticMode = automatic ?? (ip === '' ? true : false);
     }
-    if (automatic === true) next[id].addresses = { lan: '', wifi: '' };
+    if (automatic === true && id === 'server') next.server.addresses[mode] = '';
+    else if (automatic === true) next[id].addresses = { lan: '', wifi: '' };
     else if (ip !== undefined) next[id].addresses[mode] = ip;
     await saveJson(file, next);
     Object.assign(preferences, next);

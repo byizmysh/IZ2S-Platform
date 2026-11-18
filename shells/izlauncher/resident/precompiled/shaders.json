@@ -1,0 +1,10 @@
+{
+  "abi": 2,
+  "hashes": {
+    "router": "4f8d61d1facd8e3b905dd3828ceb149541fe19a602092bd8b302184262f6a0a5",
+    "slot-reset": "f1f54193066728d36a9e1141f909376aba4ff99cd52e42a25ca5e3e4b6d11d98",
+    "slot-input": "29f039accce43d742ac0c6e09c9b7baae3cf69fadd6a97b96ea610e6b679d4c0",
+    "slot-post": "f62ba8960b59a130e31cadbfe2b1e279a97be81201ddb4badc9fcea70a9b8a3c",
+    "service-control": "cf79d2c13c99d156e58113da4c2cc10ea8421fba86c2d2f4770fc895defd54a3"
+  }
+}

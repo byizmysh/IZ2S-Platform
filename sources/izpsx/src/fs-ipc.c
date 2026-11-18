@@ -2,9 +2,25 @@
  * capability is borrowed from the initial loader, never closed by this code. */
 #include "platform.h"
 #include <string.h>
+#ifdef IZPSX_SB4_STORAGE
+#include "sd-runtime/storage-sb4.h"
+#endif
 static struct {uint32_t handle;uint64_t offset,bytes;} cache;
 void ps1_ifile_reset(void){cache.handle=0;cache.offset=cache.bytes=0;}
 static uint32_t request(Ps1FileIO*io,uint32_t handle,uint32_t command,uint64_t offset,uint64_t bytes,uint64_t*value){
+#ifdef IZPSX_SB4_STORAGE
+ Ps1SdDirectory*sd=io?(void*)(uintptr_t)io->directory:NULL;
+ if(sd&&sd->app){
+  const Sb4StorageFiles*files=ps1_sb4_files(sd);
+  if(!files)return PS1_SD_INVALID;
+  if(command==4)return ps1_sb4_receipt(sd,files->size(sd->app,handle,value));
+  if(!io->buffer||!io->capacity||io->capacity>65536||bytes>io->capacity)return PS1_SD_INVALID;
+  uint32_t actual=0;
+  uint32_t rc=files->read(sd->app,handle,offset,(void*)(uintptr_t)io->buffer,(uint32_t)bytes,&actual);
+  *value=actual;
+  return ps1_sb4_receipt(sd,rc);
+ }
+#endif
  if(!io||!io->send||!io->buffer||io->buffer>=1ull<<39||(io->buffer&4095)||!io->capacity||io->capacity>65536||!handle||handle>=0x80000000u||bytes>io->capacity)return 1;
  _Alignas(4096) uint8_t message[4096];memset(message,0,sizeof message);uint32_t*p=(void*)message;unsigned raw=bytes?32:16;
  p[0]=4u|(bytes?1u<<24:0);p[1]=bytes?14:8;

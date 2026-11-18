@@ -1,146 +1,192 @@
-# IZ2S Platform 0.22
+# IZ2S Platform 0.25
 
-IZ2S Platform is a local PC control panel and console launcher system for Switch 2. Choose **SmileBASIC 4** or **Civilization VII**, connect the console, and manage applications in **IZlauncher** or **IZPSlauncher**. **IZ2S Core** is the default connection engine.
+IZ2S is a Homebrew launcher for Nintendo Switch.
 
-Support for **Balatro** will be added within a week after the developer receives a physical copy. Balatro is not included in this release.
+## Download 0.25
 
-**Version 0.22.0** is available in [GitHub Releases](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.22.0). Release targets are **Linux x64/ARM64 only**. Windows and macOS packages are not included. A supplied archive is not a hardware qualification claim. See [Compatibility](COMPATIBILITY.md).
-
-[Screenshots](#screenshots) · [Recommended setup](#recommended-console-and-network-setup) · [Install](#installation) · [Input devices](#input-devices) · [Additional modules](#additional-modules) · [SmileBASIC](#smilebasic-4) · [Civilization VII](#civilization-vii) · [Bundled apps](#included-applications) · [FAQ](FAQ.md) · [Release notes](RELEASE-NOTES.md) · [Support](SUPPORT.md)
-
-## Screenshots
-
-New images of the 0.22 interface. The PC panel is captured in an isolated preview with example connection/installation data. Console-menu images are rendered from the shipped 0.22 shaders and bundled app artwork, with example activity; they are not photographs of a running console. See [image provenance](docs/SCREENSHOTS.md).
-
-### PC control panel
-
-| Connection | App library |
+| System | Download |
 | --- | --- |
-| [![IZ2S Platform 0.22 connection page](docs/images/connection.png)](docs/images/connection.png) | [![IZ2S Platform 0.22 App library](docs/images/app-library.png)](docs/images/app-library.png) |
-| Connection status, launcher actions, files and uploads, and console inventory. | The bundled apps, RAM/SD installation choices, status and location filters. |
+| Linux x64 / ARM64 | [Linux installation archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/IZ2S-Platform-0.25-linux.tar.gz) |
+| Windows x64 | [Windows installation ZIP](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/IZ2S-Platform-0.25-windows-x64.zip) |
+| File checksums | [SHA256SUMS.txt](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.25.0/SHA256SUMS.txt) |
 
-### Console menus
+Use the installation archives above. GitHub's automatic **Source code** downloads are for development, not the packaged installers.
 
-| IZlauncher | IZPSlauncher |
-| --- | --- |
-| [![IZlauncher 0.22](docs/images/izlauncher.png)](docs/images/izlauncher.png) | [![IZPSlauncher 0.22](docs/images/izpslauncher.png)](docs/images/izpslauncher.png) |
-| App tiles, selected app and recent activity over the animated background. | Alternative console library and navigation using the same bundled applications. |
+## Before installation
 
-## Recommended console and network setup
+Extract the entire archive into a new folder. Keep the folder structure intact. Installation creates a separate per-user copy; do not extract over an existing installation. Network access is required when the installer needs to download host dependencies.
 
-Prepare these before First Setup and a fresh native launch:
+## Linux x64 / ARM64 installation
 
-1. Check the [supported game/system configuration](COMPATIBILITY.md). For SmileBASIC FS acquisition, start in **handheld mode** and use **wired LAN** where available. These are setup recommendations, not a guarantee of acquisition.
-2. Keep the PC and console on the same reachable local network. For automatic input, the PC must also reach the chosen ADV/ARM device. Guest Wi-Fi or client isolation can prevent local devices from communicating even when all show internet access. Allow the application's required local traffic in the PC firewall; do not disable the firewall wholesale.
-3. Restrict the console's internet access while preserving local communication. [SWFence](https://github.com/byizmysh/SWFence) provides a LAN-only policy on a compatible OpenWrt router. [90DNS](https://gitlab.com/a/90dns) filters Nintendo domains; **it does not block all internet traffic**. Follow each project's current instructions. With SWFence, use local IPv4 addresses when hostname/mDNS discovery is unavailable.
-4. Keep the input device's **USB data cable** connected to the console/dock as required by its guide. A charging cable is insufficient. Wi-Fi reachability alone does not prove USB keyboard/controller readiness.
-5. On a fresh SmileBASIC launch, open **Make a Program → Direct**, use the expected English/US keyboard layout and match Caps Lock in the panel. For Civ7, follow the wizard's lobby/chat or Load Game screen for the selected stage instead of entering a BASIC Direct screen.
+Open a terminal in the extracted folder and run this single command:
 
-For repeated SmileBASIC FS failures, stop the attempt and fully restart Switch 2. The recovery workaround is to open an installed game for about **10 seconds**, close it completely, then open **SmileBASIC 4 → Make a Program → Direct** and try Launch again. It is not guaranteed; do not retry over an uncertain retained native session. [FS and network FAQ](FAQ.md#recommended-console-and-network-setup).
+```sh
+sh ./install.sh --launch
+```
 
-## Installation
+Setup installs the missing prerequisites, verifies the installation, creates desktop and application-menu shortcuts and opens the panel automatically. Your package manager may request your password. No manual Node.js or Python setup is required on supported Linux systems.
 
-Download the [Linux archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.22.0/iz2s-platform-0.22.0-linux.tar.gz) and optional [SHA256SUMS](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.22.0/SHA256SUMS). The [source archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.22.0/iz2s-platform-0.22.0-source.zip) includes the corresponding IZPSX source and component licenses.
+The installer checks Python 3, Pillow, curl, tar, xz and SSH; it can install system prerequisites with your package manager and prepare Node.js 24 if needed. The installer prints the final destination.
 
-Extract the whole archive into a writable folder. Keep its files together; do not run an entry point from inside a ZIP.
+For later launches, choose **IZ2S Platform 0.25** from the application menu, or open the installed folder and run:
 
-| Host | Install | Start later |
-| --- | --- | --- |
-| Linux x64 / ARM64 | `Install-Linux.desktop`, or `sh install.sh --launch` | Application shortcut or `start.sh` |
+```sh
+./start.sh
+```
 
-Linux supports apt, pacman and dnf dependency installation; initial setup needs internet access. The installer prepares the PC application and does not start a console session, flash a device or install a board OS.
+The default location is a new versioned folder under:
 
-Use [host acceptance steps](distribution/HOST-TESTING.md) to qualify an actual machine. Native features remain subject to each component's host declaration; this release does not enable or qualify other host systems.
+```text
+~/.local/share/iz2s-platform/releases/
+```
 
-## Input devices
+The installer does not require an existing Node.js installation if it can download the private runtime. To choose a destination without system package changes or desktop shortcuts:
 
-**Cardputer ADV and ARM PC are alternatives; you do not need both.** They provide automatic USB input for SmileBASIC and Civ7 USB delivery. Civ7 **IZ2S core Wi-Fi** First Setup uses the PC Wi-Fi adapter directly and needs neither device. After a supported session connects, ordinary launcher/file traffic uses LAN/Wi-Fi.
+```sh
+./install.sh --prefix /absolute/path/iz2s-platform --no-system-packages --no-desktop
+```
 
-### Cardputer ADV
+## Windows x64 installation
 
-1. Choose **Cardputer ADV** in the panel and open **Setup and firmware**. Use the package offered for the selected game. The release keeps the SmileBASIC profile at **0.21.3** and supplies the Civ7/default composite firmware at **0.22.4**; do not select a firmware just because its number is higher.
-2. Connect ADV to the PC with a data cable and enable **USB storage** in M5Launcher. Let the panel copy only to a positively identified ADV card, or download the **File** package and extract it to the card root. Keep M5Launcher, other firmware and existing Wi-Fi configuration. The package carries its pairing file; keep it private.
-3. Eject storage normally. Use **SD → Utilities** in M5Launcher and run the application image supplied by the package. This is an M5Launcher application, not an address-zero bootloader image; use the offered filename rather than renaming/flashing it manually.
-4. Join the local Wi-Fi that can reach the PC. Select the access point on ADV, type its password and press Enter. **Tab** shows/hides the password. If `iz2s-adv.local` is unavailable, enter the IPv4 address displayed on ADV in the panel's device settings. A plain IP is accepted.
-5. Move the ADV **USB data cable from the PC to Switch 2/dock**. The PC continues controlling ADV over Wi-Fi. The panel checks USB state over that link; complete **Confirm connection** if offered. A manual cable confirmation records your cable choice and does not replace measured keyboard/controller readiness.
-6. Match the panel's **Caps Lock** setting to the console. Wait for the required USB interfaces to become ready, then follow First Setup or the fresh Launch screen. Use panel **Stop**, or the documented ADV stop control, to interrupt input. Accepted input is not automatically replayed after losing a receipt or restarting ADV.
+Extract the complete ZIP with **Extract All**, then double-click:
 
-The composite Civ7 profile provides keyboard and controller input; the SmileBASIC profile uses its supplied keyboard workflow. Idle USB recovery must not replay source text or reset active typing. A charge-only cable, unavailable dock data port or guest-network isolation needs the corresponding cable/host/network fix. See the [full ADV firmware, Wi-Fi, USB and recovery guide](hardware/devices/cardputer-adv/README.txt), [M5Stack device documentation](https://docs.m5stack.com/en/core/Cardputer-Adv) and [M5Launcher application guide](https://github.com/bmorcelli/Launcher/wiki/Explaining-the-project).
+```text
+Install.cmd
+```
 
-### ARM PC
+Wait until setup prints **Installed** and opens the panel automatically. For later launches, use the **IZ2S Platform** desktop or Start-menu shortcut, or open the printed destination folder and double-click:
 
-1. Prepare the board's own Linux OS first: Python 3, systemd, SSH and a working **USB device/OTG controller** with configfs/libcomposite/HID support. A USB-C connector alone is not evidence of gadget support. The IZ2S package does not install a board OS or supply a missing USB driver.
-2. Connect the PC and board over LAN. Verify the board's SSH host fingerprint through its own console, then enter its IPv4 address, user and optional private-key path in the panel's **Device settings**. Keep password entry in the terminal; the panel never uploads your private key.
-3. Choose **Install package** for that board, or download the self-contained ARM installer for manual/password-only setup. Civ7 and SmileBASIC installer names contain the same input agent; use the file offered by the panel. Existing input API 1 installations do not need replacing for every launcher update.
-4. For manual installation, copy the downloaded installer to the board, connect by SSH and run it there with Python 3 and the necessary privileges. `--check` inspects the board; `--check-package` validates the embedded package without installing. Do not run it on the server PC unless that PC is itself the intended USB input board.
-5. Connect the board's **USB data/OTG port to Switch 2/dock**. Check the keyboard interface for SmileBASIC and both keyboard/controller interfaces for Civ7 automatic input. A successful SSH connection does not prove that Switch has configured USB input.
-6. Start input from the panel only on the requested game screen. Stop releases the owned input interfaces; losing an SSH receipt is not permission to enqueue the same source again. Leave unrelated board USB gadgets and services intact.
+```text
+Start.vbs
+```
 
-See the [full ARM setup, manual installation, checks and troubleshooting guide](hardware/agents/arm-input/README.md). The PC-to-ARM LAN link and ARM-to-console USB link are separate; a Civilization VII wireless lobby may temporarily pause the console's IP network without breaking PC-to-ARM SSH.
+The desktop and Start-menu shortcuts include the IZ2S icon and open the panel without a console window. For an existing installation, use those shortcuts or Start.vbs in the installed folder. Start.cmd is retained as a console diagnostic entry point; do not start files from the downloaded ZIP. Setup prepares private Node.js, Python and Pillow, and an SSH client if missing. Windows x64 is required; Windows ARM64 and 32-bit systems are not supported. The panel and console packages are included; the Linux PC media hosts and Civ7 Wi-Fi setup are not Windows-supported features.
 
-## SmileBASIC 4
+Windows may show its standard firewall permission dialog for Node.js. Allow access on your private network when connecting a console; the local panel itself works without opening incoming network access.
 
-The configured target is Switch 2 system 23.0.1 with SmileBASIC 4.4.9; other versions need verification. Choose **SmileBASIC 4**, a launcher and a connection engine. **IZ2S Core** is the default; **ns2jb by BermTheSequel** is the bundled alternative. The kurumoz original adapter is optional and fetched only on explicit request.
+## Opening the panel and checking the installation
 
-For the first BASIC installation, follow **First Setup** and confirm the save on the console. For each fresh launch, fully restart the console as instructed, open **SmileBASIC 4 → Make a Program → Direct**, confirm the displayed screen, and press **Load IZlauncher**. Automatic input uses Cardputer ADV or a configured ARM Linux keyboard device.
+The panel normally opens at:
 
-**Filesystem access** is an explicit, highlighted launch option. Acquisition is probabilistic: the panel shows an estimated **30–40% success per attempt**, not a guarantee. If an attempt reports retained or uncertain native resources, close/restart the game as instructed before another attempt. Creating a new PC attempt does not reset console memory.
+```text
+http://127.0.0.1:39524
+```
 
-## Civilization VII
+PC Link uses port **39525**. Installation verifies the packaged files automatically. The following optional commands use the private runtime from the installed folder; global Node.js/npm is not required.
 
-Two initial delivery methods are available: **IZ2S core Wi-Fi** (LDN from a native Linux PC) and **USB** input through ADV/ARM. LDN first setup requires an appropriate Wi-Fi radio, your own compatible `prod.keys`, helper dependencies and the displayed permission command. Do not include your keys in bug reports or releases. The configured game is the Switch 1 cartridge, version 1.0.0.
+Preview on Linux (does not establish a console session):
 
-**Launch supports both LAN and Wi-Fi.** After installing the loader save, open **Civilization VII → Load Game**, wait for **Awaiting payload**, select the LAN/Wi-Fi connection in the panel, and choose **Connect and start launcher**. The selected launcher starts automatically after verification. The Wi-Fi label on the initial delivery engine does not require later launches to use LDN.
+```sh
+./preview.sh
+```
 
-Save installation is explicit and requires backup/deletion consent. It replaces the game's single-player saves with `IZ2S.Civ7Save`; never skip the backup warning. Subsequent launches load that saved loader instead of repeating chat delivery.
+Preview on Windows:
+
+```powershell
+.\data\runtime\node\node.exe .\start.cjs --preview --no-open
+```
+
+Use the URL printed by the Preview process. To repeat the release-content checks on Linux:
+
+```sh
+./tools/node distribution/verify.cjs
+```
+
+On Windows:
+
+```powershell
+.\data\runtime\node\node.exe .\distribution\verify.cjs
+```
 
 ## Included applications
 
-The release includes exactly these user-facing apps/tools:
-
-| App | Use |
-| --- | --- |
-| [File Exchange](modules/iz-exchange/README.md) | Title-owned file access and FTP |
-| [File Exchange FS](modules/iz-exchange-fs/README.md) | Retained filesystem exports; depends on File Exchange |
-| [Book Reader](modules/BookReader/README.md) | TXT and unencrypted EPUB library |
-| [Super File Bros.](tools/fs-rpc-browser/README.md) | Integrated browser file manager for browsing and uploads to SD |
-| [IZPSX emulator 0.5.1](modules/izpsx/README.md) | PlayStation emulator; RAM/SD installation, local games/BIOS and persistent memory cards |
-
-Super File Bros. is integrated PC tooling, not an extra console IZM payload. The four console IZM modules are built from their included descriptors and assets on startup. **Games, BIOS, prod.keys, personal books, saves, logs and device credentials are not included.** The matching IZPSX corresponding source is in [sources/izpsx](sources/izpsx).
-
-BlitBun, VacooTube, IZDOOM, IZPS2, controller labs and experimental builds are **not bundled** in this release. Independently obtained compatible modules can still be installed through the App library.
-
-## Additional modules
-
-These are separate downloads, **not part of the five-app/tool bundle above**. Install IZ2S Platform first, then follow the selected module's own instructions and host/dependency requirements.
-
-| Module | What it does | Useful features | Download and setup |
+| Application | Version | Purpose | Restrictions |
 | --- | --- | --- | --- |
-| **[BlitBun](https://github.com/byizmysh/BlitBun)** | Streams a PC application's video and audio to Switch 2. | Live output-resolution changes, separate Dock/Handheld profiles and optional forwarding of controllers paired with the console to the PC. Streaming needs a running PC application and a usable local connection; FPS options are targets, not guaranteed rates. | [Latest release](https://github.com/byizmysh/BlitBun/releases/latest) · [Install and configure](https://github.com/byizmysh/BlitBun#readme) |
-| **[VacooTube](https://github.com/byizmysh/VacooTube)** | YouTube player controlled from Switch 2 through a TV-style interface; its application runs on the PC. | Console touch/controller navigation, search and playback, live interface-resolution settings and its own bundled BlitBun streaming engine. A separate BlitBun installation is not required; the PC/network and online video service remain necessary. | [Latest release](https://github.com/byizmysh/VacooTube/releases/latest) · [Install and configure](https://github.com/byizmysh/VacooTube#readme) |
+| [BlitBun](https://github.com/byizmysh/BlitBun) | 1.15.8 | PC video/audio streaming | Only Linux |
+| Book Reader | 0.1.0 | TXT/EPUB reader | |
+| Foldrift | 0.3.3 | Autonomous SD file manager | |
+| [IZ2S Cheese](https://github.com/byizmysh/iz2s-cheese) | 0.8.0 | Homebrew application catalog | |
+| [VacooTube](https://github.com/byizmysh/VacooTube) | 1.5.7 | Video player with PC source | Only Linux |
+| [IZPSX emulator](https://github.com/byizmysh/IZPSX-emulator) | 0.5.2 | PlayStation emulator | |
 
-Both packages carry their own PC/console integration and can be installed independently. Neither module requires the other. Use a release compatible with your platform/native ABI; downloading a package does not install its host dependencies or update an already running console session. Other compatible modules are described in [the module guide](modules/README.md).
+Open **App library** in the panel and install the selected application to the paired console. For a mounted SD card, use the platform's SD installation/export action. The installed entry is:
 
-## RAM, SD and files
+```text
+SD:/iz2s/modules/<id>/launcher.iza
+```
 
-**Load modules at startup** means RAM. Select apps explicitly: no previous RAM selection is restored automatically across games or sessions. App-library cards show observed **RAM** and **SD** status, installation location and installed/not-installed filters. RAM apps disappear when the game closes. SD apps persist until removed; their launch/runtime requirements are app-specific.
+Keep every exported companion resource, manifest and signature beside the executable.
 
-After connection, **Files & uploads → Open file manager** opens Super File Bros. Browse SD folders, upload files or game folders, create directories and inspect transfer progress. FTP is optional for an external client. IZPSX's Games and BIOS window uses the same file-service entry point; it does not require a separate Super File Bros. window. Exit a running native game before granting an SD file operation.
+For Foldrift:
 
-Paused uploads can resume from a verified checkpoint when the same original file is selected and the session/protocol still permit it. Do not treat an interrupted transfer as a finished file. See [FAQ](FAQ.md#uploads-and-resume).
+```text
+SD:/iz2s/modules/foldrift/launcher.iza
+```
 
-## Offline operation and controls
+For IZ2S Cheese:
 
-Supported local SD applications may continue after losing the PC connection, once the launcher/bootstrap has started. This does not provide a complete cold boot without a PC. Streaming, host commands and PC file services need their connection. Sleep/resume and reconnect depend on the running game's retained session; use **Restore connection** when offered.
+```text
+SD:/iz2s/modules/iz2s-cheese/launcher.iza
+```
 
-The launcher menu displays its current button hints, including **Minus: Remove**. Plus is not a global exit/reconnect binding. App controls differ; [IZPSX controls](sources/izpsx/README.md#controls) use Plus for PS1 Start and Minus for its menu. Do not apply a streaming app's shortcuts to every module.
+A PC download may be a package containing resources; do not simply rename that package to `launcher.iza`.
 
-The panel offers English, Russian, Spanish and Simplified Chinese. Console menus and individual module interfaces may have their own language scope.
+BlitBun uses its panel tab to select a browser share or a PC window. Native window/audio capture uses Linux, FFmpeg, X11/XWayland and PulseAudio/PipeWire (`pactl`/`parec`). Browser sharing requires an explicit selection in the browser. VacooTube includes its PC application source, streaming server and, in the Linux archive, clean Electron runtimes for x64/ARM64. No browser profile or login is included. These Linux media helpers are not supported on Windows; application files remain available for installation to Switch. Book Reader imports TXT/EPUB through its panel settings. IZ2S Cheese uses a configured catalog and its own download interface.
 
-## Build locally
+## IZPSX BIOS and games
 
-See [BUILDING.md](BUILDING.md). `python3 distribution/release.py --rebuild` builds clean source and Linux archives and writes `SHA256SUMS` and `SOURCE-MANIFEST.json`. Build outputs are separate from personal runtime state. Build/preview checks do not execute a console game and do not establish hardware qualification.
+BIOS and game images are not included. Add your own **512 KiB (524,288-byte)** BIOS at:
 
-## License and attribution
+```text
+SD:/iz2s/modules/izpsx/bios/bios.bin
+```
 
-See [LICENSE](LICENSE), [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [COPYRIGHT](COPYRIGHT) and [THIRD_PARTY.json](THIRD_PARTY.json). Upstream notices and component licenses remain in place. IZPSX includes PCSX-ReARMed under GPL-2.0; its corresponding source and build instructions accompany this release.
+Put games in:
+
+```text
+SD:/iz2s/modules/izpsx/games/<game name>/
+```
+
+Keep each CUE file with all referenced BIN/IMG tracks; put PBP files in the same per-game layout.
+
+When updating, preserve settings and these folders:
+
+```text
+bios/
+games/
+saves/
+```
+
+The updated 0.5.2 native image and PC file interface both use these paths.
+
+## Connections and local state
+
+Select the input device and network adapters in the panel. Automatic discovery depends on a reachable local network; enter the device's displayed address when discovery is unavailable. Use the port actually shown in the console's FTP indicator; older installed runtimes can differ from the current **default of 1425**. Reopening the console menu is required to activate a newly installed native runtime.
+
+Personal settings, pairing keys and logs are created on first use under:
+
+```text
+data/
+```
+
+Or in the owning module's state directory. No credentials, Nintendo keys, BIOS, games, save files or previous sessions are supplied. Civ7 currently has no filesystem access; its Wi-Fi setup requires Linux networking tools. No delivery date is promised by this release.
+
+## Authors, upstream work and licenses
+
+**IZMYSH (@byizmysh)** authors and maintains IZ2S integration and the application adaptations. This project relies on work by many other authors; renaming an interface does not remove their authorship or license terms.
+
+- **BermTheSequel, pepsipu and kurumuz**: the ns2jb family and inherited console connection work. Exact retained origins/revisions are in the engine provenance and installer notices: [ns2jb2](https://gitlab.com/BermTheSequel/ns2jb2), [pepsipu/ns2jb](https://gitlab.com/pepsipu/ns2jb/), [kurumuz/ns2jb](https://gitlab.com/kurumuz/ns2jb).
+- **ouncebrew and contributors**: kaiHEN, libkaihen, libounce and related runtime components. Original names and notices are preserved for attribution in `engines/iz2s-core/runtime/package/licenses/` and runtime provenance. [kaiHEN](https://github.com/ouncebrew/kaihen).
+- **OunceVK, Mesa/NVK/Zink, devkitPro, switchbrew and their contributors**: graphics, native runtime and homebrew components. Individual component licenses apply; bundled texts include Mesa, libounce, libnx, nx-hbloader and nx-hbmenu.
+- **Gezine and the CivSwitch/LDN contributors**: Civilization VII integration. See `engines/CivSwitch/LICENSE` and `engines/CivSwitchLDN/LICENSES/`. [CivSwitch](https://github.com/Gezine/CivSwitch).
+- **misshexa66 and OunceCake contributors**: filesystem tooling. [OunceCake](https://github.com/misshexa66/OunceCake); original GPL notice retained in `core/filesystem/ouncecake/`.
+- **shy / shy1132 and VacuumTube contributors**: the MIT-licensed application underlying VacooTube. Its source copyright and license remain in `modules/VacooTube/app/`. [VacuumTube](https://github.com/shy1132/VacuumTube).
+- **hyln9 and nxhid contributors**: the Switch keyboard base. Firmware includes its MIT license, libnx and font notices. [nxhid](https://github.com/hyln9/nxhid).
+- **M5Stack, lovyan03, Benoit Blanchon, Ha Thach, Espressif and Arduino contributors**: Cardputer firmware dependencies, including M5Cardputer, M5Unified, M5GFX/LovyanGFX, ArduinoJson, TinyUSB, ESP-IDF, Arduino-ESP32 and IRremote. Versions and texts are retained with the firmware.
+- **DejaVu/Bitstream font authors, Monocypher authors, GitHub Octicons authors**, and the authors of Terser, Acorn, source-map, jridgewell mapping libraries and buffer-from: typography, signature verification, artwork and runtime JavaScript processing. Original notices remain beside their components.
+- **PCSX2, PCSX-ReARMed and their contributors**, plus VIXL, cubeb, SoundTouch, libchdr, fmt, ImGui, libzip, cpuinfo, simpleini, rcheevos, discord-rpc, plutosvg and plutovg authors: inherited statically linked runtime code. IZPSX is included; associated native dependency license texts are retained in `LICENSES/native-linked/`. Native source coverage is described in [SOURCES.md](SOURCES.md).
+- **Electron/Chromium, Node.js, Python, uv, Pillow, OpenSSH, FFmpeg and audio-stack contributors**: bundled or separately installed host dependencies. Electron's complete third-party HTML notice is preserved in each bundled runtime. Downloaded tools retain their own license terms.
+
+`LICENSE` and `COPYRIGHT` cover independently authored IZMYSH code under **GPL-2.0-or-later**. Explicit MIT components (including Foldrift and IZ2S Cheese), third-party code, fonts and prior grants retain their own licenses. This is not a blanket relicensing. See [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [THIRD_PARTY.json](THIRD_PARTY.json), [AUTHORS.md](AUTHORS.md) and [LICENSES/INDEX.md](LICENSES/INDEX.md).
+
+The native runtime contains additional previously linked components, whose notices remain applicable. Their notices must be preserved. See [SOURCES.md](SOURCES.md) for the scope of the available native sources and [COMPATIBILITY.md](COMPATIBILITY.md) for platform support.

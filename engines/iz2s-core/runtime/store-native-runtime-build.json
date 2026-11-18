@@ -1,0 +1,15 @@
+{
+  "baseSha256": "5ae768326d1fb3f23d765a95dc2bf439c8e095463bf32e9956007f3ecbb4cfd9",
+  "sha256": "707250429767a6e00a057e0c9daa3df50e870e916fd5fc376e25106509d17eaa",
+  "storeCodeInRuntime": false,
+  "nativeServices": 1,
+  "sourceSha256": "57771f89742893e70d5902eb62faf9b5d885874431d15f5809f6e3694c2d7985",
+  "sdkCompatSha256": "47fd24455874f151fc25390b5483b8b09ce8e7dc26280d0e0dc42462a88727e9",
+  "validation": [
+    "Store package/catalog/install tests passed",
+    "IZA and NRO same-version self-update tests passed",
+    "Actual ARM64 image lifecycle with mock device services passed",
+    "FTP readback hashes verified"
+  ],
+  "hardwareValidated": false
+}

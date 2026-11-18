@@ -2,7 +2,7 @@ const path = require('node:path'),
   fs = require('node:fs'),
   { scan, assert, relative } = require('../core/descriptors.cjs');
 function create(ROOT = require('../core/root.cjs')) {
-  const DEFAULT = 'izmysh';
+  const DEFAULT = 'iz2s-core';
   function find(id = DEFAULT) {
     const result = scan(ROOT, 'engine'),
       value = result.items.find((x) => x.id === id);
@@ -103,7 +103,7 @@ function create(ROOT = require('../core/root.cjs')) {
             path.join(cache, 'engines', shared),
           );
         }
-        for (const name of ['core', 'sdk', 'modules', 'profiles', 'hardware', 'shells'])
+        for (const name of ['core', 'sdk', 'modules', 'hardware', 'shells'])
           try {
             await af.symlink(
               path.relative(cache, path.join(ROOT, name)),

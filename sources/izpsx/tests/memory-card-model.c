@@ -11,6 +11,72 @@ typedef struct {char path[769];uint8_t*data;size_t size;unsigned opened;} File;
 static File files[4];static unsigned count,open_count,writes,flushes,reads;
 static uint8_t*scratch;static int fail_write,fail_flush,short_read,bad_readback,close_fault;
 static unsigned checks;
+#ifdef IZPSX_SB4_STORAGE
+#include <sb4/native-app.h>
+static IzNativeApp7Storage model_app;
+static File *model_file(IzNativeApp *app,uint32_t token){
+ assert(app==(void*)&model_app&&token>=100&&token<100+count&&files[token-100].opened);
+ return files+(token-100);
+}
+static void model_path(char physical[769],const char*name){
+ int n=snprintf(physical,769,"%s/%s",IZPSX_SD_ROOT,name);assert(n>0&&n<769);
+ assert(ps1_sd_path_valid(IZPSX_SD_ROOT,physical));
+}
+static uint32_t model_open(IzNativeApp *app,const char*name,uint32_t mode,uint32_t*token,uint64_t*size){
+ assert(app==(void*)&model_app&&(mode==1||mode==3));
+ char physical[769];model_path(physical,name);
+ for(unsigned i=0;i<count;i++)if(!strcmp(physical,files[i].path)){
+  ++files[i].opened;++open_count;*token=100+i;*size=files[i].size;return 0;
+ }
+ return 0x202;
+}
+static uint32_t model_read(IzNativeApp*app,uint32_t token,uint64_t at,void*out,uint32_t bytes,uint32_t*actual){
+ File*f=model_file(app,token);assert(out==scratch&&bytes<=65536&&at+bytes<=f->size);
+ ++reads;
+ memcpy(out,f->data+at,bytes);
+ if(bad_readback&&at==0)((uint8_t*)out)[40]^=1;
+ *actual=short_read?bytes-1:bytes;
+ return 0;
+}
+static uint32_t model_write(IzNativeApp*app,uint32_t token,uint64_t at,const void*data,uint32_t bytes){
+ File*f=model_file(app,token);assert(bytes<=65536&&at+bytes<=f->size);
+ if(++writes==(unsigned)fail_write)return 0xbeef;
+ memcpy(f->data+at,data,bytes);return 0;
+}
+static uint32_t model_size(IzNativeApp*app,uint32_t token,uint64_t*size){*size=model_file(app,token)->size;return 0;}
+static uint32_t model_resize(IzNativeApp*app,uint32_t token,uint64_t size){
+ File*f=model_file(app,token);
+ f->data=realloc(f->data,size);assert(f->data);f->size=size;return 0;
+}
+static uint32_t model_flush(IzNativeApp*app,uint32_t token){model_file(app,token);++flushes;return fail_flush?0xdead:0;}
+static uint32_t model_close(IzNativeApp*app,uint32_t token){
+ File*f=model_file(app,token);if(close_fault)return 0xfafa;--f->opened;--open_count;return 0;
+}
+static uint32_t model_create(IzNativeApp*app,const char*name,uint64_t size){
+ assert(app==(void*)&model_app&&count<4);
+ File*f=files+count++;model_path(f->path,name);f->data=calloc(1,size);assert(f->data);f->size=size;return 0;
+}
+static uint32_t model_mkdir(IzNativeApp*app,const char*name){assert(app==(void*)&model_app&&!strcmp(name,"saves"));return 0x402;}
+static uint32_t model_commit(IzNativeApp*app){assert(app==(void*)&model_app);return 0;}
+static uint32_t list_unused(IzNativeApp*a,const char*p,Sb4StorageEntry*e,uint32_t c,uint32_t*n){assert(a&&p&&e&&c&&n);return 1;}
+static uint32_t stat_unused(IzNativeApp*a,const char*p,uint64_t*n){assert(a&&p&&n);return 1;}
+static Sb4CFunction resolve_c(const char *name){(void)name;return NULL;}
+static IzServiceFunction resolve_service(uint32_t mod,uint32_t id){(void)mod;(void)id;return NULL;}
+static uint32_t allocate(void **out,size_t alignment,size_t bytes){(void)out;(void)alignment;(void)bytes;return 1;}
+static uint64_t ticks(void){return 1;}
+static void sleep_ns(uint64_t ns){(void)ns;}
+static Ps1SdDirectory setup_sd(void){
+ static const Sb4Compat api={SB4_COMPAT_VERSION,sizeof(Sb4Compat),SB4_COMPAT_LIBOUNCE,0,
+  resolve_c,resolve_service,allocate,free,ticks,ticks,sleep_ns};
+ static const Sb4StorageFiles ops={SB4_STORAGE_VERSION,sizeof(Sb4StorageFiles),
+  model_open,model_read,model_write,model_size,model_resize,model_flush,model_close,model_create,model_mkdir,model_commit};
+ static const Sb4Storage storage={SB4_STORAGE_VERSION,sizeof(Sb4Storage),list_unused,stat_unused,&ops};
+ IzNativeApp*app=(void*)&model_app;
+ app->magic=0x414e5a49;app->version=SB4_NATIVE_ABI;app->bytes=sizeof model_app;
+ model_app.base.sb4=&api;model_app.storage=&storage;
+ return (Ps1SdDirectory){.app=app,.buffer=scratch,.capacity=65536};
+}
+#else
 static void response(void*m,uint32_t rc,uint64_t value,uint32_t handle){
  memset(m,0,4096);uint32_t*p=m;if(handle){p[1]=0x80000008;p[2]=1u<<5;p[3]=handle;}p[4]=0x4f434653;p[6]=rc;memcpy((uint8_t*)m+32,&value,8);
 }
@@ -31,7 +97,7 @@ static uint32_t send(void*m,uint64_t bytes,uint32_t handle){
   if(cmd==0){assert(i==count&&count<4&&p[1]==12);uint64_t size;memcpy(&size,(uint8_t*)m+40,8);File*f=files+count++;strcpy(f->path,path);f->data=calloc(1,size);assert(f->data);f->size=size;response(m,0,0,0);return 0;}
   assert(cmd==8&&(p[8]==1||p[8]==3));if(i==count){response(m,0x202,0,0);return 0;}files[i].opened++;open_count++;response(m,0,0,100+i);return 0;
  }
- assert(handle>=100&&handle<100+count);File*f=files+handle-100;assert(f->opened);
+ assert(handle>=100&&handle<100+count);File*f=files+(handle-100);assert(f->opened);
  if(cmd==4){response(m,0,f->size,0);return 0;}
  if(cmd==3){uint64_t n;memcpy(&n,(uint8_t*)m+32,8);f->data=realloc(f->data,n);assert(f->data);f->size=n;response(m,0,0,0);return 0;}
  if(cmd==2){flushes++;response(m,fail_flush?0xdead:0,0,0);return 0;}
@@ -41,6 +107,8 @@ static uint32_t send(void*m,uint64_t bytes,uint32_t handle){
  else{assert(p[0]==(4u|(1u<<24)));reads++;memcpy(scratch,f->data+offset,size);if(bad_readback&&offset==0)scratch[40]^=1;response(m,0,short_read?size-1:size,0);}return 0;
 }
 static uint32_t close_handle(uint32_t h){assert(h>=100&&h<100+count&&files[h-100].opened);if(close_fault)return 0xfafa;files[h-100].opened--;open_count--;return 0;}
+static Ps1SdDirectory setup_sd(void){return (Ps1SdDirectory){.send=send,.close_handle=close_handle,.filesystem=42,.buffer=scratch,.capacity=65536};}
+#endif
 static uint8_t card1[IZPSX_CARD_BYTES],card2[IZPSX_CARD_BYTES];
 static void blank(void){memset(card1,0,sizeof card1);memset(card2,0,sizeof card2);card1[0]=card2[0]='M';card1[1]=card2[1]='C';}
 static void check(int ok){if(!ok)fprintf(stderr,"failed check %u; files=%u opened=%u writes=%u flushes=%u\n",checks+1,count,open_count,writes,flushes);assert(ok);checks++;}
@@ -49,12 +117,12 @@ unsigned izpsx_model_card_writes(void){return writes;}
 Ps1SdDirectory* izpsx_model_directory(void){
  static Ps1SdDirectory sd;
  scratch=mmap((void*)0x60020000,65536,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);assert(scratch==(void*)0x60020000);
- sd=(Ps1SdDirectory){.send=send,.close_handle=close_handle,.filesystem=42,.buffer=scratch,.capacity=65536};return &sd;
+ sd=setup_sd();return &sd;
 }
 #else
 int main(void){
  scratch=mmap(0,65536,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_32BIT,-1,0);assert(scratch!=MAP_FAILED);
- Ps1SdDirectory sd={.send=send,.close_handle=close_handle,.filesystem=42,.buffer=scratch,.capacity=65536};
+ Ps1SdDirectory sd=setup_sd();
  blank();check(!ps1_cards_open(&sd,card1,card2)&&count==2&&!open_count&&ps1_cards_saved()==2);
  unsigned before=writes;card1[8123]=17;ps1_card_mark(card1);check(!ps1_cards_poll(1000,1000,0)&&writes==before);check(!ps1_cards_poll(1499,1000,0)&&writes==before);check(!ps1_cards_poll(1500,1000,0)&&writes>before&&count==3&&!open_count);
  blank();check(!ps1_cards_open(&sd,card1,card2)&&card1[8123]==17&&!ps1_cards_saved());

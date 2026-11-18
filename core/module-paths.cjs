@@ -28,21 +28,22 @@ function discover(root, {pinned = true} = {}) {
     if (!entry.isDirectory() || !DIRECTORY.test(entry.name)) continue;
     const home = path.join(parent, entry.name), file = path.join(home, 'module.json');
     try {
-      let descriptor;
+      let descriptor, installedDirectory;
       if (!fs.existsSync(file)) {
-        const names=fs.readdirSync(home).filter(name=>/^[a-z0-9][a-z0-9-]{0,47}\.izm$/.test(name));
+        const names=fs.readdirSync(home).filter(name=>/^[a-z0-9][a-z0-9-]{0,47}\.module\.zip$/.test(name));
         if(!names.length)continue;
         if(names.length!==1)throw Error('Ambiguous module package');
         const source=path.join(home,names[0]),stat=fs.lstatSync(source),archive=require('./archive.cjs');
         if(!stat.isFile()||stat.isSymbolicLink()||stat.size>archive.MAX_ARCHIVE)throw Error('Invalid module package file');
-        descriptor=packagedDescriptor(source,stat,root,names[0].slice(0,-4),home,pinned);
+        descriptor=packagedDescriptor(source,stat,root,names[0].slice(0,-'.module.zip'.length),home,pinned);
       } else {
       const stat = fs.lstatSync(file);
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 65536) throw Error('Invalid module descriptor file');
       descriptor = JSON.parse(fs.readFileSync(file, 'utf8'));
+      installedDirectory = directory(descriptor);
       descriptor = (pinned && require('./module-pins.cjs').descriptor(root,descriptor.id,home))||descriptor;
       }
-      const name = directory(descriptor);
+      const name = installedDirectory ?? directory(descriptor);
       // The identity-named directory remains readable during an explicit migration.
       if (entry.name !== name && entry.name !== descriptor.id) throw Error('Module installation directory mismatch');
       items.push({ id: descriptor.id, home, descriptor });

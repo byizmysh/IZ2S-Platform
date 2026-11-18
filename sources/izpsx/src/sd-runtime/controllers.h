@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "settings.h"
+#ifdef IZPSX_SB4_COMPAT
+#include <sb4/compat.h>
+#endif
 enum {PS1_PAD_FULL=1,PS1_PAD_HANDHELD=2,PS1_PAD_DUAL=4,PS1_PAD_LEFT=8,PS1_PAD_RIGHT=16};
 typedef struct {
  uint64_t buttons,sample;
@@ -16,8 +19,12 @@ typedef struct {
  uint32_t assignment[PS1_PLAYER_COUNT];
  uint32_t configured,configuration_error,polls,style_error,original_styles,restore_styles;
 } Ps1Controllers;
+#ifdef IZPSX_SB4_COMPAT
+uint32_t ps1_controllers_bind_sb4(Ps1Controllers*,const Sb4Compat*);
+#else
 /* Borrow only the public environment's SDK mapping. No supervisor layout. */
 uint32_t ps1_controllers_bind(Ps1Controllers*,uintptr_t sdk,uint64_t bytes);
+#endif
 uint32_t ps1_controllers_enable(Ps1Controllers*);
 uint32_t ps1_controllers_poll(Ps1Controllers*);
 uint32_t ps1_controllers_restore(Ps1Controllers*);

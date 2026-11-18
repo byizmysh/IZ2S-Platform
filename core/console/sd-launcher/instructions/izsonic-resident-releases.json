@@ -1,0 +1,155 @@
+{
+  "izsonic-audio14": {
+    "version": "0.14.0-experimental",
+    "archiveName": "izsonic-0.14.0-experimental.izm",
+    "archiveSha256": "d87cf2ab092c2574e4812c30ec7f4a92243c30a8a9ceb39fc9652489344637c9",
+    "checksumsSha256": "31a7022d8d255e0224397fe6686ce05c85aceebaa3c7800657c83a7a57441cdb",
+    "files": {
+      "app.json": "0bedd63524fa2ae4a8e107403151379c5cc784c41aa9df4f8c94f1724f17db0d",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+      "memory.bin.deflate": "6a80c71baebd8d9d51b718389186760d5c56dd61be90757624ab8363b88e161b",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "c359268fd73069000e2ca66adfbff92544189bf9e02c8235855da4bc81e9e01a",
+      "begin.comp.spv": "acd76f207aadbced7451fe68f2d3d67cc69c95124bac50fea48dc023026254e0",
+      "after.comp.spv": "ef6e0e4814bf96ea6f63543414df369293f6a4b0e19ac9c008dcd1f4e006e9e2"
+    }
+  },
+  "izsonic-audio14-1": {
+    "version": "0.14.1-experimental",
+    "archiveName": "izsonic-0.14.1-experimental.izm",
+    "archiveSha256": "93fc18b2046cf9c4a41a95d715cbd2e0a962ac9e386c38e5dd8e3705e470b906",
+    "checksumsSha256": "f0c11a434c724c9334c377d90131d20b8bb646ede01029122668f4ae81235609",
+    "files": {
+      "app.json": "e3a98b0922b048ee238055213e214f7bc0b393eeacff8fcf008628473d5fee52",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "573a332d2afc8ce82b74067ed65e98b74edf511b88d171ebcb923b9b5d559089",
+      "memory.bin.deflate": "4312562b4b78fe17422e43793656e2cabd35198484c888b96f41b3f9d76fd2cf",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "1b775c593d060054da1a5c2845e7db04bd0109d5bc60bdd8f04ccf33f0dcee2d",
+      "begin.comp.spv": "a262e829077d2b1a211eca5ff79a2f116156db654887b263e70799adbd786a93",
+      "after.comp.spv": "48a253345930a484e7ddae94448576f161b693019c97aff6bd1e129dcf64c36b"
+    }
+  },
+  "izsonic-audio14-2": {
+    "version": "0.14.2-experimental",
+    "archiveName": "izsonic-0.14.2-experimental.izm",
+    "archiveSha256": "92621165751df63316b53aeea7a05e91eadc32e45abc1ac177f3e876820bb609",
+    "checksumsSha256": "bbb70a7c1c2b865c4ea9d7db083e2aa46f909237410cccf2b1afed99c4e5dd71",
+    "files": {
+      "app.json": "792543b0c4d1fbee752113e9260008be487c17a4a60c2aeb7aacb94e8ceca2d4",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "573a332d2afc8ce82b74067ed65e98b74edf511b88d171ebcb923b9b5d559089",
+      "memory.bin.deflate": "4312562b4b78fe17422e43793656e2cabd35198484c888b96f41b3f9d76fd2cf",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "78d4fae843fa1477f024fdf61a21dd84a3ed50fd26ccde8dc65b0a4b56f3a481",
+      "begin.comp.spv": "94c1caa4d35080f73317597d94e8390b340117569b209b0c3c57cc672b33cd68",
+      "after.comp.spv": "c93b60f14109bfdcabf0cfae0dd81af41046ba572bd6442c8aed3dcdb2e393e5"
+    }
+  },
+  "izsonic-smooth14-3": {
+    "version": "0.14.3-experimental",
+    "archiveName": "izsonic-0.14.3-experimental.izm",
+    "archiveSha256": "3833ac50b56db447db0ee9c01b623acbc8773f9d4e14d7104221da6054777568",
+    "checksumsSha256": "749c97caec193d6047807aefdfca2379ab3c4536e3b46115b8823f7a464bddcd",
+    "files": {
+      "app.json": "9d52c403bcd3badcf232a246404c585ddbe0d960f29eddb97fdf3c2f65b3dee2",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "573a332d2afc8ce82b74067ed65e98b74edf511b88d171ebcb923b9b5d559089",
+      "memory.bin.deflate": "4312562b4b78fe17422e43793656e2cabd35198484c888b96f41b3f9d76fd2cf",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "78d4fae843fa1477f024fdf61a21dd84a3ed50fd26ccde8dc65b0a4b56f3a481",
+      "begin.comp.spv": "e5bb969b1fad7e8a30a47629ab96832902adba8aed2c0b0f15c4d847f2ac0c4a",
+      "after.comp.spv": "aafdd0aaf7f30eef5961e2f689dab9f97795be34b1b07f68363268fa8f020163"
+    }
+  },
+  "izsonic-smooth14-4": {
+    "version": "0.14.4-experimental",
+    "archiveName": "izsonic-0.14.4-experimental.izm",
+    "archiveSha256": "74798bd35f8fbef3005d2a7edbdd07c492e12547d5baf30e9791e79566f2ac18",
+    "checksumsSha256": "f931357e019a0f7e24a49f84736f0c9e6c948a2ea09f4045d0714b97ee83c0f2",
+    "files": {
+      "app.json": "3f0af35e9fda268af5eda692e0cc1f0e3b0c13460941d072a8631f2bab44d60e",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "573a332d2afc8ce82b74067ed65e98b74edf511b88d171ebcb923b9b5d559089",
+      "memory.bin.deflate": "4312562b4b78fe17422e43793656e2cabd35198484c888b96f41b3f9d76fd2cf",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "78d4fae843fa1477f024fdf61a21dd84a3ed50fd26ccde8dc65b0a4b56f3a481",
+      "begin.comp.spv": "15c010ebb5f479a5f9e22b9e8731c8973b94f04bd911c7a5a37800849a854521",
+      "after.comp.spv": "aafdd0aaf7f30eef5961e2f689dab9f97795be34b1b07f68363268fa8f020163"
+    }
+  },
+  "izsonic-direct15": {
+    "version": "0.15.0-experimental",
+    "archiveName": "izsonic-0.15.0-experimental.izm",
+    "archiveSha256": "6bdf33d47f8f234449ef3f1267cfcbe2f56a8a1ec7ea9713152b2f3542dbb031",
+    "checksumsSha256": "13de9e078f6c459b5c2b1601ebe114920f98113c281d9a612790e71a93ae4fd1",
+    "files": {
+      "app.json": "5e4bb7585ea174ada348e6e914516329451a541b86685cdf5f411d1ef387b735",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "573a332d2afc8ce82b74067ed65e98b74edf511b88d171ebcb923b9b5d559089",
+      "memory.bin.deflate": "c6f7a4dfeb5b2de759e78f4246636939f1eb59c0ba0526272c67f74248a7c5b7",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "78d4fae843fa1477f024fdf61a21dd84a3ed50fd26ccde8dc65b0a4b56f3a481",
+      "begin.comp.spv": "98f7109b955c16fa63da64af95245e8fc33356b7811a627a4249dc70c66f59d3",
+      "after.comp.spv": "aafdd0aaf7f30eef5961e2f689dab9f97795be34b1b07f68363268fa8f020163"
+    }
+  },
+  "izsonic-hotpass16": {
+    "version": "0.16.0-experimental",
+    "archiveName": "izsonic-0.16.0-experimental.izm",
+    "archiveSha256": "bdc2331b1dbb92d780d6b20d2df25731c29e637467b1151f237f41cc5e2aae0a",
+    "checksumsSha256": "c2857a6bd2b1e44a4671fca585130ce9af3373f89065e8c98f5fb27368a66500",
+    "files": {
+      "app.json": "bfdfda28a05b5be3a328e7e528eeca053a30eac98e07c9711656e4746c795019",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "573a332d2afc8ce82b74067ed65e98b74edf511b88d171ebcb923b9b5d559089",
+      "memory.bin.deflate": "5180654e273cb0f4719b35d0433c61263410c963d991b0eeeea6b04cec65c578",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "78d4fae843fa1477f024fdf61a21dd84a3ed50fd26ccde8dc65b0a4b56f3a481",
+      "begin.comp.spv": "c6fae732d1f40186c3a6cb9be1042e0baa255fb478164df3a6f980dd2c6ff81c",
+      "after.comp.spv": "aafdd0aaf7f30eef5961e2f689dab9f97795be34b1b07f68363268fa8f020163"
+    }
+  },
+  "izsonic-hotpass16-1": {
+    "version": "0.16.1-experimental",
+    "archiveName": "izsonic-0.16.1-experimental.izm",
+    "archiveSha256": "f11c7fe4972d529f5303f6613d71159e082530e56084bffbaa8a32d3354f0ee2",
+    "checksumsSha256": "308e08ef9484474c8adb536045646fc2808d67f23381b68c652168f9cba88088",
+    "files": {
+      "app.json": "ee983a4c57e570e9c19d2ac62e2a19c0ee54e5669a517ecf7655a145ff1f0da6",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "573a332d2afc8ce82b74067ed65e98b74edf511b88d171ebcb923b9b5d559089",
+      "memory.bin.deflate": "5180654e273cb0f4719b35d0433c61263410c963d991b0eeeea6b04cec65c578",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "78d4fae843fa1477f024fdf61a21dd84a3ed50fd26ccde8dc65b0a4b56f3a481",
+      "begin.comp.spv": "c6fae732d1f40186c3a6cb9be1042e0baa255fb478164df3a6f980dd2c6ff81c",
+      "after.comp.spv": "aafdd0aaf7f30eef5961e2f689dab9f97795be34b1b07f68363268fa8f020163"
+    }
+  },
+  "izsonic-audio17": {
+    "version": "0.17.0-experimental",
+    "archiveName": "izsonic-0.17.0-experimental.izm",
+    "archiveSha256": "88adbe03130559713ace57a7e24ca8c0da981691ca6e555370c5c7ec601c7a64",
+    "checksumsSha256": "ea5aeaf45d44c3bdc5291b3d9974295b58635d0b7dec0ac68f2d7b5466f44bee",
+    "files": {
+      "app.json": "51dd8cdff41f0fe1fa4125e29bf28739fa0736a17401f9e72db653a37a9a992d",
+      "state.bin": "2eb8fef6a3b5a86928d9209c49a1bcbae38f2251794411e6ccbd85dae4d0b829",
+      "data.bin": "573a332d2afc8ce82b74067ed65e98b74edf511b88d171ebcb923b9b5d559089",
+      "memory.bin.deflate": "3853c1301b46d99bee9f931984d05a120ac98ab7ce214e4205b05934db20638c",
+      "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+      "app.frag.spv": "636e59bd5ec554e4ba382bd5bae5ef0844cec57d4eea1b9ba9f63e1e5cfbd532",
+      "app.comp.spv": "e2010a102a89c94bd9ab97cef03b42a57348c7969f0c7b88ae1d4317b92430e8",
+      "begin.comp.spv": "d86bbb2ce045841304e9c907122ec5882e30df98d17c55e76291bd2bb8e9084b",
+      "after.comp.spv": "d8e357572bdf9dbffadcd6ab2398fe22d3091f1c5dc4aeba04487eeb84db004d"
+    }
+  }
+}

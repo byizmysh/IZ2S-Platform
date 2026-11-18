@@ -1,0 +1,7 @@
+{
+  "product": "VacooTube",
+  "applicationVersion": "2.0.1-vacoo.1",
+  "source": "app/",
+  "attribution": "THIRD_PARTY.json",
+  "license": "app/LICENSE"
+}

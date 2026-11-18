@@ -1,0 +1,2 @@
+#define IZ_STREAM_PRIVATE 1
+const uint CB=(0x700000u-1024u)/4u,CMAGIC=0x495a4335u;

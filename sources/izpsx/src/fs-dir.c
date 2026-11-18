@@ -1,5 +1,9 @@
 #include "fs-dir.h"
 #include <string.h>
+#ifdef IZPSX_SB4_STORAGE
+#include "sd-runtime/storage-sb4.h"
+#include <stdlib.h>
+#endif
 
 static size_t bounded_length(const char *s,size_t max){size_t n=0;if(!s)return max;while(n<max&&s[n])n++;return n;}
 static int name_valid(const char *s){size_t n=bounded_length(s,PS1_SD_ENTRY_NAME_MAX);if(!n||n>=PS1_SD_ENTRY_NAME_MAX)return 0;if((n==1&&s[0]=='.')||(n==2&&s[0]=='.'&&s[1]=='.'))return 0;for(size_t i=0;i<n;i++)if((unsigned char)s[i]<32||(unsigned char)s[i]==127||s[i]=='/'||s[i]=='\\')return 0;return 1;}
@@ -23,6 +27,20 @@ static uint32_t response(Ps1SdDirectory *s,uint8_t *m,int opened,uint32_t *handl
 }
 uint32_t ps1_sd_list(Ps1SdDirectory *s,const char *root,const char *path,Ps1SdEntry *entries,size_t capacity,size_t *count){
  if(count)*count=0;
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  if(!count||!entries||!capacity||capacity>SB4_STORAGE_LIST_MAX)return PS1_SD_INVALID;
+  const Sb4Storage*storage=sb4ModuleStorage(s->app);
+  const char*name=ps1_sb4_relative(root,path);
+  if(!storage||!name)return PS1_SD_INVALID;
+  uint32_t found=0;s->transport=0;s->calls++;
+  uint32_t rc=storage->list(s->app,name,entries,(uint32_t)capacity,&found);
+  if(!rc&&found>capacity)rc=PS1_SD_LIMIT;
+  s->error=rc==SB4_STORAGE_LIMIT?PS1_SD_LIMIT:rc;
+  if(s->error)return s->error;
+  *count=found;s->entries_read+=found;return 0;
+ }
+#endif
  if(!s||!count||!entries||!capacity||!s->send||!s->close_handle||!s->filesystem||s->filesystem>=0x80000000u||!s->buffer||((uintptr_t)s->buffer&4095)||s->capacity<0x310||s->capacity>65536||!ps1_sd_path_valid(root,path))return PS1_SD_INVALID;
  if(s->leaked_handle)return PS1_SD_CLOSE;
  s->error=s->transport=0;_Alignas(4096) uint8_t message[4096];memset(s->buffer,0,PS1_SD_PATH_MAX);memcpy(s->buffer,path,strlen(path));memset(message,0,sizeof message);uint32_t *p=(void*)message;uintptr_t a=(uintptr_t)s->buffer;
@@ -39,4 +57,105 @@ uint32_t ps1_sd_list(Ps1SdDirectory *s,const char *root,const char *path,Ps1SdEn
 static unsigned lower(unsigned c){return c>='A'&&c<='Z'?c+32:c;}
 static int suffix(const char *s,const char *ext){size_t n=strlen(s),k=strlen(ext);if(n<k)return 0;for(size_t i=0;i<k;i++)if(lower((unsigned char)s[n-k+i])!=(unsigned char)ext[i])return 0;return 1;}
 static int compare(const Ps1SdEntry *a,const Ps1SdEntry *b){if(a->directory!=b->directory)return a->directory?-1:1;for(size_t i=0;;i++){unsigned x=lower((unsigned char)a->name[i]),y=lower((unsigned char)b->name[i]);if(x!=y)return x<y?-1:1;if(!x)return 0;}}
-size_t ps1_sd_filter_images(Ps1SdEntry *e,size_t count){int cue=0;for(size_t i=0;i<count;i++)if(!e[i].directory&&suffix(e[i].name,".cue"))cue=1;size_t n=0;for(size_t i=0;i<count;i++)if(e[i].directory||suffix(e[i].name,".cue")||suffix(e[i].name,".pbp")||(!cue&&suffix(e[i].name,".bin"))){if(i!=n)e[n]=e[i];n++;}for(size_t i=1;i<n;i++){Ps1SdEntry row=e[i];size_t j=i;while(j&&compare(&row,&e[j-1])<0){e[j]=e[j-1];j--;}e[j]=row;}return n;}
+static int catalog_entry(const Ps1SdEntry *entry, int include_bin) {
+    return entry->directory || suffix(entry->name, ".cue") || suffix(entry->name, ".pbp") ||
+        (include_bin && suffix(entry->name, ".bin"));
+}
+
+#ifdef IZPSX_SB4_STORAGE
+static int compare_catalog(const void *a, const void *b) { return compare(a, b); }
+
+static uint32_t grow_catalog(const Sb4Compat *compat, Ps1SdCatalog *catalog, size_t capacity, size_t used) {
+    if (capacity <= catalog->capacity) return 0;
+    if (capacity > SIZE_MAX / sizeof(Ps1SdEntry)) return PS1_SD_LIMIT;
+    void *memory = NULL;
+    uint32_t rc = compat->allocate_aligned(&memory, 4096, capacity * sizeof(Ps1SdEntry));
+    if (rc) return rc;
+    if (!memory) return PS1_SD_INVALID;
+    if (catalog->entries) {
+        if (used) memcpy(memory, catalog->entries, used * sizeof(Ps1SdEntry));
+        compat->release(catalog->entries);
+    }
+    *catalog = (Ps1SdCatalog){memory, capacity};
+    return 0;
+}
+
+uint32_t ps1_sd_catalog_load(Ps1SdDirectory *sd, const char *root, const char *path,
+                            Ps1SdCatalog *catalog, size_t *count) {
+    *count = 0;
+    const Sb4Compat *compat = sb4ModuleCompat(sd->app);
+    const Sb4Storage *storage = sb4ModuleStorage(sd->app);
+    const char *name = ps1_sb4_relative(root, path);
+    if (!compat || !storage || !name) return PS1_SD_INVALID;
+    const Sb4StorageDirectories *dirs = sb4StorageDirectories(storage);
+    if (!dirs) {
+        // Older launchers expose only the bounded, one-shot listing.
+        uint32_t rc = grow_catalog(compat, catalog, 128, 0);
+        if (rc) return sd->error = rc;
+        const size_t capacity = catalog->capacity < SB4_STORAGE_LIST_MAX
+            ? catalog->capacity : SB4_STORAGE_LIST_MAX;
+        rc = ps1_sd_list(sd, root, path, catalog->entries, capacity, count);
+        if (rc != PS1_SD_LIMIT || capacity == SB4_STORAGE_LIST_MAX) return rc;
+        rc = grow_catalog(compat, catalog, SB4_STORAGE_LIST_MAX, 0);
+        return rc ? (sd->error = rc) : ps1_sd_list(sd, root, path, catalog->entries, SB4_STORAGE_LIST_MAX, count);
+    }
+
+    uint32_t token = 0;
+    uint32_t rc = ps1_sb4_receipt(sd, dirs->open(sd->app, name, &token));
+    if (rc) return rc;
+    if (!token) return sd->error = PS1_SD_PACKET;
+    Ps1SdEntry page[SB4_STORAGE_PAGE_MAX];
+    size_t used = 0;
+    for (;;) {
+        uint32_t rows = 0;
+        rc = ps1_sb4_receipt(sd, dirs->read(sd->app, token, page, SB4_STORAGE_PAGE_MAX, &rows));
+        if (rc || !rows) break;
+        if (rows > SB4_STORAGE_PAGE_MAX) { rc = PS1_SD_PACKET; break; }
+        for (uint32_t i = 0; i < rows; ++i) {
+            if (!name_valid(page[i].name) || page[i].directory > 1) { rc = PS1_SD_ENTRY; break; }
+            if (!catalog_entry(&page[i], 1)) continue;
+            if (used == catalog->capacity) {
+                if (used > SIZE_MAX / 2) { rc = PS1_SD_LIMIT; break; }
+                rc = grow_catalog(compat, catalog, used ? used * 2 : 128, used);
+                if (rc) break;
+            }
+            catalog->entries[used++] = page[i];
+        }
+        if (rc) break;
+        sd->entries_read += rows;
+    }
+    const uint32_t closed = dirs->close(sd->app, token);
+    sd->calls++;
+    if (rc || closed) return sd->error = rc ? rc : closed;
+    *count = used;
+    return sd->error = 0;
+}
+
+void ps1_sd_catalog_release(Ps1SdDirectory *sd, Ps1SdCatalog *catalog) {
+    if (catalog->entries) sb4ModuleCompat(sd->app)->release(catalog->entries);
+    *catalog = (Ps1SdCatalog){0};
+}
+#endif
+
+size_t ps1_sd_filter_images(Ps1SdEntry *entries, size_t count) {
+    int cue = 0;
+    for (size_t i = 0; i < count; ++i)
+        if (!entries[i].directory && suffix(entries[i].name, ".cue")) cue = 1;
+    size_t kept = 0;
+    for (size_t i = 0; i < count; ++i) {
+        if (!catalog_entry(&entries[i], !cue)) continue;
+        if (kept != i) entries[kept] = entries[i];
+        ++kept;
+    }
+#ifdef IZPSX_SB4_STORAGE
+    if (kept > 1) qsort(entries, kept, sizeof *entries, compare_catalog);
+#else
+    for (size_t i = 1; i < kept; ++i) {
+        Ps1SdEntry row = entries[i];
+        size_t j = i;
+        while (j && compare(&row, &entries[j - 1]) < 0) { entries[j] = entries[j - 1]; --j; }
+        entries[j] = row;
+    }
+#endif
+    return kept;
+}

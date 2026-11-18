@@ -1,0 +1,35 @@
+{
+  "format": "hblauncher.gpu-app",
+  "abi": 1,
+  "id": "iz2s-cheese",
+  "name": "IZ2S Cheese",
+  "version": "0.8.0",
+  "description": "Install Switch 2 homebrew from SD or GitHub",
+  "icon": "assets/icon.png",
+  "transition": "none",
+  "sdOnly": true,
+  "initialState": "assets/state.bin",
+  "data": "assets/data.bin",
+  "shaders": {
+    "vertex": "app.vert.spv",
+    "compute": "app.comp.spv",
+    "fragment": "app.frag.spv"
+  },
+  "native": {
+    "format": "iz2s.native-app",
+    "abi": 7,
+    "code": "native.bin",
+    "dataBytes": 4096,
+    "capabilities": [
+      "engine-image"
+    ],
+    "assets": [
+      {
+        "file": "asset-c6891007c193ecd89f79cc6cbeec2e4db9ee3862af4266967a155dd0324e549c.izdata",
+        "path": "asset-c6891007c193ecd89f79cc6cbeec2e4db9ee3862af4266967a155dd0324e549c.izdata",
+        "bytes": 94752,
+        "sha256": "c6891007c193ecd89f79cc6cbeec2e4db9ee3862af4266967a155dd0324e549c"
+      }
+    ]
+  }
+}

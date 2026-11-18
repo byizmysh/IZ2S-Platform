@@ -1,0 +1,154 @@
+--- a/legacy/native/native-loader.c
++++ b/legacy/native/native-loader.c
+@@ -4,6 +4,45 @@
+ #include "../instructions/checkpoint.h"
+ #include <string.h>
+ #include <strings.h>
++#include "sb4-storage-scope.h"
++#include "sd-storage-policy.h"
++#ifdef __SWITCH2__
++#include <stdio.h>
++#include <switch/crypto/sha256.h>
++#include "iz-file-deck-publisher.h"
++#include "monocypher-ed25519.h"
++#endif
++#ifdef __SWITCH2__
++/* 0: not opened, 1: module folder, 2: whole SD, 3: root opened. */
++static u32 foldrift_sd_status;
++u32 iz_foldrift_sd_status(void){
++    return __atomic_load_n(&foldrift_sd_status,__ATOMIC_RELAXED);
++}
++
++static int verify_ed25519(const uint8_t public_key[32], const uint8_t signature[64],
++                          const uint8_t *message, size_t length){
++    return crypto_ed25519_check(signature,public_key,message,length)==0;
++}
++
++int iz_foldrift_approve_image(const IzAppHeader *header, const uint8_t *image){
++    uint8_t digest[32];
++    sha256CalculateHash(digest,image,header->total_bytes);
++    if(iz2sWholeSdApproved(header->id,digest,iz2s_file_deck_public_key,
++                          iz2s_file_deck_bundled_signature,verify_ed25519))return 1;
++
++    uint8_t signature[64];
++    FILE *file=fopen("sdmc:" IZ_SD_ROOT "/foldrift/launcher.iza.sig","rb");
++    if(!file)return 0;
++    const size_t bytes=fread(signature,1,sizeof signature,file);
++    const int tail=fgetc(file);
++    const int error=ferror(file);
++    const int closed=fclose(file);
++    return bytes==sizeof signature && tail==EOF && !error && !closed &&
++           iz2sWholeSdApproved(header->id,digest,iz2s_file_deck_public_key,
++                               signature,verify_ed25519);
++}
++#endif
++
+ #ifdef IZ_OUNCE_PRELINKED
+ IzNativeEntry iz_prelinked_entry(u32 abi, const char *id, const void *code, u32 bytes);
+ IzNativeEntry iz_linked_engine_app(u32 abi,const char *id,const void *code,u32 bytes)
+@@ -91,6 +130,8 @@
+         (name[length - 1] == '.' && (length == 1 || name[length - 2] == '/')));
+ }
+ static const char *storage_path(IzNative *n, const char *name, char full[769], int file_only) {
++    if (iz2sStorageHasWholeSd(n->app7_storage.storage))
++        return iz2sWholeSdPath(name, full, file_only);
+     name = storage_relative_name(n, name);
+     if (!name) return NULL;
+     size_t length = 0;
+@@ -140,9 +181,10 @@
+ }
+ static const char *relative_sd(IzNativeApp *app, const char *name) {
+     IzNative *n = storage_owner(app, SB4_STORAGE_WORKER_READ);
+-    const char *relative = n ? storage_relative_name(n, name) : NULL;
++    if (!n || !name) return NULL;
+     char full[769];
+-    return relative && storage_path(n, name, full, 0) ? relative : NULL;
++    if (!storage_path(n, name, full, 0)) return NULL;
++    return iz2sStorageHasWholeSd(n->app7_storage.storage) ? name : storage_relative_name(n, name);
+ }
+ static u32 stat_sd(IzNativeApp *app, const char *name, Sb4StorageInfo *info) {
+     if (!info) return SB4_STORAGE_INVALID;
+@@ -208,6 +250,13 @@
+ static int storage_change_path(IzNative *n, const char *name, char full[769], int file_only) {
+     name = storage_path(n, name, full, file_only);
+     if (!name || !*name) return 0;
++    if (iz2sStorageHasWholeSd(n->app7_storage.storage)) {
++        const char prefix[] = IZ_SD_ROOT "/";
++        if (strncasecmp(full, prefix, sizeof prefix-1)) return 1;
++        const char *subpath = strchr(full+sizeof prefix-1, '/');
++        if (!subpath || !subpath[1]) return 1;
++        name = subpath+1;
++    }
+     // These names at the module root belong to the installer.
+     size_t length = strlen(name);
+     int companion = length == 77 && !strncasecmp(name, "asset-", 6) &&
+@@ -216,7 +265,8 @@
+     int bundle = length == 79 && !strncasecmp(name, "sd-bundle-", 10) &&
+         !strcasecmp(name + 74, ".json") &&
+         strspn(name + 10, "0123456789abcdefABCDEF") == 64;
+-    return strcasecmp(name, "launcher.iza") && strcasecmp(name, "sd-bundle.json") &&
++    return strcasecmp(name, "launcher.iza") && strcasecmp(name, "launcher.iza.sig") &&
++        strcasecmp(name, "sd-bundle.json") &&
+         !companion && !bundle && strncasecmp(name, ".install", 8) &&
+         strncasecmp(name, ".launcher-", 10) && strncasecmp(name, ".asset-", 7) &&
+         strncasecmp(name, ".removed-", 9);
+@@ -271,7 +321,12 @@
+     char full[769];
+     if (!n || !token || !storage_path(n, name, full, 0)) return SB4_STORAGE_INVALID;
+     const Sb4StorageProvider *provider = n->fs->c->platform_files;
+-    return provider->open_dir ? provider->open_dir(n, full, token) : SB4_STORAGE_INVALID;
++    u32 rc=provider->open_dir ? provider->open_dir(n,full,token) : SB4_STORAGE_INVALID;
++#ifdef __SWITCH2__
++    if(!rc && !strcmp(full,"/") && iz2sStorageHasWholeSd(sb4ModuleStorage(app)))
++        __atomic_store_n(&foldrift_sd_status,3u,__ATOMIC_RELAXED);
++#endif
++    return rc;
+ }
+ static u32 read_dir_sd(IzNativeApp *app, u32 token, Sb4StorageEntry *entries, u32 cap, u32 *count) {
+     if (count) *count = 0;
+@@ -297,6 +352,12 @@
+ static const Sb4Storage sd_storage={
+  SB4_STORAGE_VERSION,sizeof(Sb4Storage),list_sd,size_sd,&sd_files,0,stat_sd,&sd_directories,relative_sd,
+ };
++#ifdef __SWITCH2__
++static const Sb4Storage sd_whole_storage={
++ SB4_STORAGE_VERSION,sizeof(Sb4Storage),list_sd,size_sd,&sd_files,
++ IZ2S_STORAGE_WHOLE_SD,stat_sd,&sd_directories,relative_sd,
++};
++#endif
+ static const Sb4Storage sd_worker_storage={
+  SB4_STORAGE_VERSION,sizeof(Sb4Storage),list_sd,size_sd,&sd_files,
+  SB4_STORAGE_WORKER_READ|SB4_STORAGE_WORKER_WRITE,stat_sd,&sd_directories,relative_sd,
+@@ -521,7 +582,10 @@
+  if(h->flags&IZ_APP_AUDIO_OUT)for(unsigned i=0;i<IZ_AUDIO_FUNCTIONS;i++)if(!c->audio_functions[i])return 0xe40a;
+  return 0;
+ }
+-u32 iz_native_load_saved(IzFs*fs,const IzAppHeader*h,const u8*image,IzNative*n,void*private_memory,u64 private_bytes,const void*saved){
++u32 iz_native_load_saved_with_storage(IzFs*fs,const IzAppHeader*h,const u8*image,IzNative*n,void*private_memory,u64 private_bytes,const void*saved,int whole_sd){
++#ifndef __SWITCH2__
++ (void)whole_sd;
++#endif
+  if(n->source||n->data||n->mapped||n->image_state)return 0xe407;
+  IzContext*c=fs->c;u32 rc=iz_native_compatible(c,h);if(rc)return rc;
+  const int compat=(h->flags&IZ_APP_SB4_COMPAT)!=0;
+@@ -573,6 +637,12 @@
+    const Sb4StorageProvider *provider=c->platform_files;
+    n->app7_storage.storage=!provider?&sd_metadata:
+     provider->set_scope&&provider->get_scope&&(h->flags&IZ_APP_WORKER)?&sd_worker_storage:&sd_storage;
++#ifdef __SWITCH2__
++   if(provider && !strcmp(h->id,"iz-file-deck") && !(h->flags&IZ_APP_ASSETS)){
++    __atomic_store_n(&foldrift_sd_status,whole_sd?2u:1u,__ATOMIC_RELAXED);
++    if(whole_sd)n->app7_storage.storage=&sd_whole_storage;
++   }
++#endif
+    app->bytes=sizeof n->app7_storage;
+   }
+  }
+@@ -585,4 +655,7 @@
+  size_t root=sizeof(IZ_SD_ROOT)-1;memcpy(n->root,IZ_SD_ROOT,root);n->root[root++]='/';memcpy(n->root+root,h->id,strlen(h->id)+1);
+  c->native_data=n->data;c->native_data_bytes=n->data_bytes;c->native_code_reads+=h->section[code].bytes;c->native_launches++;n->initialized=1;rc=iz_native_event(n,IZ_NATIVE_INIT);c->native_status=rc;return rc;
+ }
++u32 iz_native_load_saved(IzFs*fs,const IzAppHeader*h,const u8*image,IzNative*n,void*p,u64 bytes,const void*saved){
++ return iz_native_load_saved_with_storage(fs,h,image,n,p,bytes,saved,0);
++}
+ u32 iz_native_load(IzFs*fs,const IzAppHeader*h,const u8*image,IzNative*n,void*p,u64 bytes){return iz_native_load_saved(fs,h,image,n,p,bytes,0);}

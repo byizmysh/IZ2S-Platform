@@ -1,7 +1,7 @@
 {
   "id": "iz-reconnect",
-  "bytes": 143840,
-  "sha256": "13f75283f433eec07d0dcb09abed4150bcc974decf36751632f7e8647e5adbed",
+  "bytes": 145856,
+  "sha256": "5b2bbf3507995e1e581ca8d11ed4af5cd979c6188dbaf3bcd754c47b4726bb26",
   "native": {
     "format": "iz2s.native-app",
     "abi": 1,

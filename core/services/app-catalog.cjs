@@ -11,8 +11,8 @@ async function asset(root,name,max){
  const stat=await fs.stat(file);check(stat.isFile()&&stat.size>0&&stat.size<=max,'Invalid asset size: '+name);
  return {file,bytes:await fs.readFile(file)};
 }
-async function readApp(directory,{validate=true}={}){
- const root=await fs.realpath(directory),manifestAsset=await asset(root,'app.json',16384),m=JSON.parse(manifestAsset.bytes);
+async function readApp(directory,{validate=true,entry='app.json'}={}){
+ const root=await fs.realpath(directory),manifestAsset=await asset(root,entry,16384),m=JSON.parse(manifestAsset.bytes);
  check(m.format==='hblauncher.gpu-app'&&m.abi===1,'Unsupported app format/ABI');
  check(typeof m.id==='string'&&/^[a-z0-9][a-z0-9-]{0,47}$/.test(m.id),'Invalid app id');
  check(typeof m.name==='string'&&m.name.trim().length>0&&m.name.length<=64,'Invalid app name');
@@ -87,19 +87,21 @@ async function scan(root=ROOT){
  }
  return {root,apps,rejected};
 }
-function summary(catalog){return {root:catalog.root,apps:catalog.apps.map(a=>({id:a.id,name:a.name,version:a.version,description:a.description,root:a.root,fingerprint:a.fingerprint,effects:a.effects})),rejected:catalog.rejected};}
+function summary(catalog){return {root:catalog.root,apps:catalog.apps.map(a=>({id:a.id,name:a.name,version:a.version,description:a.description,root:a.root,fingerprint:a.fingerprint,effects:a.effects,...(a.previewOnly?{previewOnly:true,format:'nro',author:a.author}:{})})),rejected:catalog.rejected};}
 async function raster(catalog,directory,label='catalog',{postprocess=[]}={}){
  check(Array.isArray(postprocess)&&postprocess.length<=2&&postprocess.every(file=>typeof file==='string'&&path.isAbsolute(file)),'Invalid raster pipeline');
  const input=path.join(directory,label+'.json'),output=path.join(directory,label+'.bin');
  const labels=[];
  const language=await require('../../language/node.cjs').forConsole();
  for(const [i,a] of catalog.apps.entries()){
-  const icon=path.join(directory,label+'-icon-'+i+'.png');await fs.writeFile(icon,a.files.icon.bytes);
-  labels.push({name:a.name,searchName:a.name,description:language.t(a.description),icon,category:require('./catalog-category.cjs').classify(a),transition:a.manifest.transition,displayOnly:a.manifest.displayOnly===true,builtin:a.manifest.builtin,scene:a.manifest.shellContribution?.scene,launchCommand:a.manifest.shellContribution?.launchCommand});
+  let icon=null;
+  if(a.files.icon){icon=path.join(directory,label+'-icon-'+i+'.png');await fs.writeFile(icon,a.files.icon.bytes);}
+  const description=a.previewOnly?a.description:language.t(a.description);
+  labels.push({name:a.name,searchName:a.name,description,icon,category:require('./catalog-category.cjs').classify(a),transition:a.manifest.transition,displayOnly:a.manifest.displayOnly===true,builtin:a.manifest.builtin,scene:a.manifest.shellContribution?.scene,launchCommand:a.manifest.shellContribution?.launchCommand,previewOnly:a.previewOnly===true});
  }
  await fs.writeFile(input,JSON.stringify(labels,null,2));
  const fontEnvironment=postprocess.length?{IZ2S_RASTER_FONT:language.font||process.env.HB_FONT||''}:language.font?{HB_FONT:language.font}:{};
- await run(require('../platform/python.cjs').command(),[path.join(__dirname,postprocess.length?'raster-pipeline.py':'catalog-assets.py'),input,output,...postprocess],{timeout:15000*(1+postprocess.length),maxBuffer:65536,env:{...process.env,...fontEnvironment}});
+ await run(require('../platform/python.cjs').command(),[path.join(__dirname,postprocess.length?'raster-pipeline.py':'catalog-assets.py'),input,output,...postprocess],{windowsHide:true,timeout:15000*(1+postprocess.length),maxBuffer:65536,env:{...process.env,...fontEnvironment}});
  const bytes=await fs.readFile(output);check(bytes.length===MAX_APPS*SLOT_BYTES,'Invalid catalog raster');return bytes;
 }
 module.exports={ROOT,MAX_APPS,SLOT_BYTES,ATLAS_BYTES,asset,readApp,scan,summary,raster};

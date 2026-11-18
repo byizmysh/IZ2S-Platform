@@ -7,7 +7,7 @@
   const offline=civ?.state==='offline'||active?.status==='offline'||!!state?.offline||retained&&!!state?.link&&['waiting-for-dock','waiting-for-network','offline'].includes(state.link.state);
   const stopping=active?.status==='stopping'||civ?.state==='stopping';
   const unconfirmed=stopping&&(active?.nativeParentRetention?.awaitingActualClose||civ?.shutdownUnconfirmed);
-  return {running,offline,stopping,unconfirmed:!!unconfirmed,compact:running||offline||stopping&&active?.kind!=='bootstrap',title:unconfirmed?'Shutdown unconfirmed':stopping?'Disconnecting\u2026':offline?'Connection interrupted':running?'Session is running':'Connection',game:['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?'Civilization VII':'SmileBASIC 4',launcher:(civ?.shell||state?.platform?.variant)==='izpslauncher'?'IZPSlauncher':(civ?.shell||state?.platform?.variant)==='original'?'Core only':'IZlauncher'};
+  return {running,offline,stopping,unconfirmed:!!unconfirmed,compact:running||offline||stopping&&active?.kind!=='bootstrap',title:unconfirmed?'Shutdown unconfirmed':stopping?'Disconnecting\u2026':offline?'Connection interrupted':running?'Session is running':'Connection',game:['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?'Civilization VII':'SmileBASIC 4',launcher:(civ?.shell||state?.platform?.variant)==='izpslauncher'?'IZPSlauncher':(civ?.shell||state?.platform?.variant)==='original'?'Core only':'IZ2S'};
  }
  function directNetwork(state){
   if(!state?.platform||['civswitch','civswitch-ldn'].includes(state.platform.loaderId)||state.active?.kind==='bootstrap')return false;
@@ -29,7 +29,8 @@
  }
  function job(job){
   const complete=['complete','ready'].includes(job.status),removed=job.operation==='remove';
-  return {complete,removed,label:complete?(removed?(job.target==='sd'?'Removed from SD':'Removed from session'):job.target==='sd'?'Installed on SD':'Ready in menu'):job.status,failed:job.status==='failed',active:['queued','loading','publishing'].includes(job.status)};
+  const storedOnly=job.target==='sd'&&job.nativeCatalogAccepted===false;
+  return {complete,removed,label:complete?(removed?(job.target==='sd'?'Removed from SD':'Removed from session'):job.target==='sd'?(storedOnly?'Stored on SD':'Installed on SD'):'Ready in menu'):job.status,failed:job.status==='failed',active:['queued','loading','publishing'].includes(job.status)};
  }
  const phases={verify:'Checking files',prepare:'Preparing on PC',graphics:'Preparing graphics',install:'Installing on PC',transfer:'Sending files to console','sd-prepare':'Preparing SD application','sd-write':'Writing to SD','sd-verify':'Verifying SD','sd-publish':'Waiting for the SD menu'};
  function transfer(state){
@@ -72,8 +73,12 @@
  }
  // Status is evaluated for the selected destination, so “Not installed + SD”
  // also finds apps which already have a separate RAM copy.
- function libraryFilter(state,{query='',status='all',location='all',focusId=null}={}){
-  state||={};const q=query.trim().toLocaleLowerCase(),rows=library(state).filter(p=>(!focusId||p.id===focusId)&&(!q||[p.name,p.description,p.id].join(' ').toLocaleLowerCase().includes(q)));
+ function appFormat(app){
+  if(app.format==='.nro'||app.format==='.iza')return app.format;
+  return app.module?.switch||app.sd?.compatible||app.coreSd?.compatible||app.sdOnly?'.iza':null;
+ }
+ function libraryFilter(state,{query='',status='all',location='all',format='all',focusId=null}={}){
+  state||={};const q=query.trim().toLocaleLowerCase(),rows=library(state).filter(p=>(!focusId||p.id===focusId)&&(format==='all'||appFormat(p)===format)&&(!q||[p.name,p.description,p.id].join(' ').toLocaleLowerCase().includes(q)));
   const present=p=>{const v=versions(state,p);return location==='ram'?v.onSession:location==='sd'?v.onSd:v.onSession||v.onSd;};
   const installed=rows.filter(present).length;
   return {ids:rows.filter(p=>status==='uninstalled'?!present(p):status==='installed'||location!=='all'?present(p):true).map(p=>p.id),total:rows.length,installed,uninstalled:rows.length-installed};
@@ -89,14 +94,14 @@
   if(/fetch|socket|network|9026|connection|econn|host.*unreachable|game loader|awaiting payload|wi-fi|\u043f\u043e\u0434\u043a\u043b\u044e\u0447|\u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d/.test(text))return 'network';
   if(/hid|keyboard|input|chat|receipt|\u0432\u0432\u043e\u0434|\u043a\u043b\u0430\u0432\u0438\u0430\u0442/.test(text))return 'input';
   if(/vulkan|render|graphics|display|gpu|\u0433\u0440\u0430\u0444\u0438\u043a/.test(text))return 'graphics';
-  if(/package|application|module|launcher stopped|\.izm|\u043f\u0440\u0438\u043b\u043e\u0436|\u043c\u043e\u0434\u0443\u043b/.test(text))return 'application';
+  if(/package|application|module|launcher stopped|\.iza|\u043f\u0440\u0438\u043b\u043e\u0436|\u043c\u043e\u0434\u0443\u043b/.test(text))return 'application';
   return 'other';
  }
  function attempt(row,{activeId}={}){
   const success=['complete','running'].includes(row.status)||!!row.connectedAt&&['running','offline','stopped'].includes(row.status);
   const outcome=success?'successful':terminal.has(row.status)?'unsuccessful':'pending';
   const label={failed:'Failed',cancelled:'Cancelled',complete:'Completed',stopped:success?'Completed':'Stopped',running:'Running',offline:'Connection interrupted',starting:'Starting',typing:'Entering commands',stopping:'Stopping'}[row.status]||'Interrupted';
-  return {success,outcome,label,errorType:outcome==='unsuccessful'?errorType(row):null,tone:outcome==='unsuccessful'?'error':success?'success':'neutral',deletable:terminal.has(row.status)&&row.id!==activeId};
+  return {success,outcome,label,errorType:outcome==='unsuccessful'?errorType(row):null,tone:outcome==='unsuccessful'?'error':success?'success':'neutral',deletable:terminal.has(row.status)&&row.id!==activeId&&!row.active};
  }
  function inPeriod(row,period,now){
   if(period==='all')return true;const created=new Date(row.created),today=new Date(now);if(!Number.isFinite(created.getTime()))return false;
@@ -114,5 +119,5 @@
   }).sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')));
   return {rows:filtered.slice(0,limit),total:filtered.length,more:filtered.length>limit};
  }
- const api={session,connectionMode,directNetwork,deviceLinks,job,transfer,versions,library,consoleApps,libraryFilter,attempt,history,statistics,errorLabels};root.IZ2S_PRESENTATION=api;if(typeof module==='object'&&module.exports)module.exports=api;
+ const api={session,connectionMode,directNetwork,deviceLinks,job,transfer,versions,library,consoleApps,appFormat,libraryFilter,attempt,history,statistics,errorLabels};root.IZ2S_PRESENTATION=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);

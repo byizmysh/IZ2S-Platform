@@ -1,0 +1,95 @@
+<section translate="no" id="iz2s-core" class="core-connection" aria-label="IZ2S core" hidden>
+<section id="core-workflow" class="installation">
+<div id="core-mode-heading" class="section-heading choice-heading"><h3 data-core-text="connection">Connection mode</h3><div class="segmented" role="tablist" aria-label="IZ2S connection mode" data-core-label="connection"><button id="core-mode-setup" type="button" role="tab" aria-controls="core-setup-panel" data-core-text="setup">First Setup</button><button id="core-mode-launch" type="button" role="tab" aria-controls="core-launch-panel" data-core-text="launch">Launch</button></div></div>
+<div id="core-preparation">
+<div id="core-setup-panel" role="tabpanel" aria-labelledby="core-mode-setup" hidden>
+<ol id="core-setup-steps" class="wizard-steps core-steps" data-core-label="setupProgress" aria-label="First setup progress">
+  <li data-core-text="setupStepPrepare">Preparation</li>
+  <li data-core-text="setupStepInput">Source entry</li>
+  <li data-core-text="setupStepReview">Review</li>
+  <li data-core-text="setupStepSave">Save</li>
+</ol>
+<p class="hint core-flow-intro" data-core-text="setupIntro">Установите bootstrap один раз. Уже сохранённый NS2IZM от IZ2S Core подходит — можно перейти к Launch.</p>
+<div class="slot-options">
+  <div class="hardware-row">
+    <label for="core-slot" data-core-text="slotLabel">Пустой слот программы</label>
+    <select id="core-slot">
+      <option value="0" data-core-text="slot" data-n="0">Slot 0</option>
+      <option value="1" data-core-text="slot" data-n="1">Slot 1</option>
+      <option value="2" data-core-text="slot" data-n="2">Slot 2</option>
+      <option value="3" data-core-text="slot" data-n="3">Slot 3</option>
+    </select>
+  </div>
+</div>
+<div class="session-confirmation">
+  <label class="ack"><input id="core-setup-ready" class="panel-switch" type="checkbox" role="switch"><span data-core-text="setupReady">Открыт Direct, выбранный слот пуст, клавиатура English (US); содержимое этого слота можно заменить.</span></label>
+</div>
+<div class="launch-row">
+  <button id="core-enter-source" class="primary" type="button" disabled>
+    <span data-core-text="enterSource">Ввести 229 строк</span><svg aria-hidden="true"><use href="#i-arrow"></use></svg>
+  </button>
+</div>
+<progress id="core-source-progress" max="229" value="0" hidden></progress>
+<div id="core-source-review" class="wizard-panel" hidden><label class="ack"><input id="core-reviewed" class="panel-switch" type="checkbox" role="switch"><span data-core-text="reviewed">В редакторе есть все 229 строк, последняя строка END.</span></label>
+<div class="wizard-actions"><button id="core-verify" type="button" disabled data-core-text="verify">Проверить три части</button><button id="core-save" class="primary" type="button" disabled data-core-text="save">Сохранить NS2IZM</button></div><p class="hint" data-core-text="optional">Проверка необязательна. При сохранении подтвердите диалог на Switch; существующий NS2IZM будет заменён только после вашего подтверждения.</p></div>
+<div id="core-check-values" hidden><p data-core-text="checkIntro">Введите шесть чисел с экрана: количество символов и контрольную сумму каждой из трёх частей.</p><div class="check-grid"><span data-core-text="part">Часть</span><span data-core-text="chars">Символы</span><span data-core-text="checksum">Сумма</span><span>1</span><input id="core-metric-0" aria-label="IZ2S part 1 characters" inputmode="numeric"><input id="core-metric-1" aria-label="IZ2S part 1 checksum" inputmode="numeric"><span>2</span><input id="core-metric-2" aria-label="IZ2S part 2 characters" inputmode="numeric"><input id="core-metric-3" aria-label="IZ2S part 2 checksum" inputmode="numeric"><span>3</span><input id="core-metric-4" aria-label="IZ2S part 3 characters" inputmode="numeric"><input id="core-metric-5" aria-label="IZ2S part 3 checksum" inputmode="numeric"></div><label class="ack"><input id="core-lines" class="panel-switch" type="checkbox" role="switch"><span data-core-text="lines">Проверка завершилась без ошибок; SOURCE LINES — 229 или 230 с пустой последней строкой.</span></label><button id="core-compare" type="button" data-core-text="compare">Сверить значения</button><p id="core-comparison" role="status"></p></div>
+<div id="core-save-confirmation" hidden><p data-core-text="savePrompt">Подтвердите Save / Overwrite на Switch и дождитесь окончания сохранения.</p><label class="ack"><input id="core-saved-ready" class="panel-switch" type="checkbox" role="switch"><span data-core-text="savedReady">NS2IZM успешно сохранён на консоли.</span></label><button id="core-confirm-saved" class="primary" type="button" disabled data-core-text="finishSetup">Завершить First Setup</button></div>
+</div><div id="core-launch-panel" role="tabpanel" aria-labelledby="core-mode-launch">
+<p class="hint core-flow-intro" data-core-text="launchIntro">Запуск из сохранённого NS2IZM. Доступ к SD запрашивается автоматически; после запуска IZ2S панель на ПК не нужна.</p>
+<aside class="session-options fs-access-panel core-fs-access" aria-labelledby="core-fs-heading">
+  <strong id="core-fs-heading" data-core-text="fsAccess">Filesystem access</strong>
+  <div class="fs-access-estimate"><strong>30–40%</strong><span data-core-text="estimate"></span></div>
+</aside>
+<div id="core-launch-readiness"><div id="core-fresh-confirmation" class="session-confirmation"><label class="ack"><input id="core-fresh" class="panel-switch" type="checkbox" role="switch"><span data-core-text="fresh">Switch 2 was fully restarted; fresh Direct is open.</span></label><p class="subtitle" data-core-text="cardputer"></p></div></div>
+<div class="launch-row"><button id="core-start" class="primary" type="button" disabled><span data-core-text="start">Запустить IZ2S</span><svg aria-hidden="true"><use href="#i-arrow"></use></svg></button><span id="core-network" class="hint"></span></div>
+</div></div>
+<section id="core-session" class="core-session" hidden aria-labelledby="core-session-title">
+<div class="core-success-heading"><span class="core-success-icon" aria-hidden="true">✓</span><div><span class="eyebrow">IZ2S core</span><h2 id="core-session-title" role="status" aria-live="polite" data-core-text="sessionReady">IZ2S is running</h2><p id="core-session-detail" class="hint"></p></div></div>
+<p class="core-success-intro" data-core-text="continueOnConsole">Continue on Switch 2 to open IZ2S.</p>
+<ol id="core-entry-steps" class="core-entry-steps"><li><span class="core-step-number" aria-hidden="true">1</span><div><strong data-core-text="exitSB4">Close SmileBASIC 4</strong><p data-core-text="closeSmile">Close SmileBASIC from the HOME menu.</p></div></li><li><span class="core-step-number" aria-hidden="true">2</span><div><strong data-core-text="openWithR">Hold R and open a Switch 2 game</strong><p data-core-text="holdR">Keep R held until IZ2S appears.</p></div></li></ol>
+<p id="core-close-note" class="core-session-note"></p>
+<div id="core-session-actions" class="core-session-actions"><button id="core-settings-toggle" class="secondary" type="button" aria-expanded="false" aria-controls="devices hardware-options-home" data-core-text="showSettings">Connection settings</button><button id="core-new-launch" class="quiet" type="button" data-core-text="newLaunch">New launch</button></div>
+</section>
+</section>
+<section class="installation core-monitor">
+<div id="core-session-tools" class="launch-row core-tools">
+  <button id="core-add-app" class="secondary" type="button" data-core-text="addApp"></button>
+  <button id="core-files" class="secondary" type="button" translate="no">Super File Bros.</button>
+  <button id="core-restore" class="connect" type="button" data-core-text="restore" aria-describedby="core-restore-note"></button>
+  <span id="core-restore-note" class="hint" role="status"></span>
+</div>
+<section id="core-attempt-card" class="core-attempt-card" hidden aria-labelledby="core-status">
+  <div id="core-current-status" class="core-result" hidden>
+    <h3 id="core-status" role="status" aria-live="polite"></h3>
+    <p id="core-detail" class="hint" hidden></p>
+    <p id="core-reboot-note" class="hint" hidden data-core-text="reboot"></p>
+    <ol id="core-stages" class="wizard-steps core-steps" hidden>
+      <li data-core-text="phase1"></li><li data-core-text="phase2"></li>
+      <li data-core-text="phase3"></li><li data-core-text="phase4"></li>
+    </ol>
+    <div id="core-stop-row" class="core-actions" hidden>
+      <button id="core-stop" class="danger" type="button" data-core-text="stop"></button>
+    </div>
+  </div>
+  <div id="core-action-result" class="core-result panel-message" data-tone="error" hidden>
+    <p id="core-action-error" role="alert"></p>
+    <p id="core-stale-note" class="hint" hidden></p>
+    <details id="core-action-details" class="technical-details core-details" hidden>
+      <summary data-core-text="technical"></summary><pre id="core-action-raw" translate="no"></pre>
+    </details>
+    <button id="core-status-retry" type="button" class="secondary" data-core-text="refresh" hidden></button>
+  </div>
+</section>
+<details id="core-journal-details" class="core-journal-details" open><summary data-core-text="journal">IZ2S activity</summary>
+<section id="core-log-section" class="core-journal" hidden aria-labelledby="core-log-heading">
+  <div class="core-journal-head">
+    <div><h3 id="core-log-heading" data-core-text="details"></h3><p id="core-log-meta" class="hint"></p></div>
+    <div class="core-actions">
+      <button id="core-refresh" type="button" class="connect" data-core-text="refresh"></button>
+      <button id="core-download" type="button" class="secondary" data-core-text="download"></button>
+    </div>
+  </div>
+  <p id="core-log-updated" class="hint"></p>
+  <div id="core-log" class="log core-log" tabindex="0" role="log" aria-live="off" data-core-label="details"></div>
+</section></details></section></section>
+

@@ -10,6 +10,10 @@ async function finish({directory, session, bridge, cleanup, reason = 'host-stopp
   owner = owners.create({directory, session}), interval = 250, prepareCleanup}) {
   if (typeof cleanup !== 'function' || !Number.isInteger(interval) || interval < 1)
     throw Error('Invalid native owner host boundary');
+  // This in-memory authority belongs to the original host. A saved status or
+  // a native menu-return receipt cannot release its retained RPC entry pages.
+  const dispatch=require('../console/sd-launcher/host-dispatch.cjs').lookup(directory);
+  const dispatchShutdown=dispatch?.sealForShutdown();
   const admission = bridge?.admission;
   let admissionReceipt, admissionError, admissionSettled;
   if (admission) {
@@ -91,6 +95,9 @@ async function finish({directory, session, bridge, cleanup, reason = 'host-stopp
   }
   try {
     for (;;) {
+      if(dispatchShutdown?.retained){
+        await park({phase:'guarded-dispatch-retained',reason:'guarded-sdk-generation-retains-resources'});continue;
+      }
       if (cleanupFailed) {
         await park({phase: 'admission-cleanup-retained', reason: 'original-host-cleanup-outcome-unknown'}); continue;
       }

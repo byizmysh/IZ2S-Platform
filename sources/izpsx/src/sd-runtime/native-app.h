@@ -1,3 +1,6 @@
+#ifdef IZPSX_HEN
+#include <sb4/native-app.h>
+#else
 #ifndef IZ_NATIVE_APP_H
 #define IZ_NATIVE_APP_H
 #include <stdint.h>
@@ -137,4 +140,5 @@ _Static_assert(offsetof(IzNativeApp6,graphics)==224&&sizeof(IzNativeApp6)==248,"
  * keep running. Release requires no owned worker and a real QueueWaitIdle.
  * The module additionally proves engine-specific nested joins/cleanup before
  * releasing. STOP success with a live presentation lease retains all owners. */
+#endif
 #endif

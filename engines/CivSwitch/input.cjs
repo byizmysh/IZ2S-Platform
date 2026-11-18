@@ -4,7 +4,7 @@ const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 async function payload(folder) {
   const manifest = JSON.parse(await fs.readFile(path.join(folder, 'input-manifest.json')));
   const source = await fs.readFile(path.join(folder, 'core.js'));
-  const packed = await fs.readFile(path.join(folder, 'PicoSwitch/payload.txt'));
+  const packed = await fs.readFile(path.join(folder, 'payloads/input.txt'));
   if (digest(source) !== manifest.coreSha256 || digest(packed) !== manifest.payloadSha256)
     throw Error('CivSwitch payload changed; rebuild and verify the input package first');
   const lines = packed.toString('ascii').trimEnd().split('\n');
@@ -25,7 +25,7 @@ function linePlan(text, id = crypto.randomUUID()) {
   ]};
 }
 function sourcePlan(folder, index = 0, id = crypto.randomUUID()) {
-  return {id, sourceFile:path.join(folder,'PicoSwitch/payload.txt'), sourceMode:'raw-lines', sourceLine:index, sourceAfter:1,
+  return {id, sourceFile:path.join(folder,'payloads/input.txt'), sourceMode:'raw-lines', sourceLine:index, sourceAfter:1,
     steps:[{type:'sleep',ms:1200},{type:'key',key:'enter',delayMs:200},{type:'key',key:'enter',delayMs:1200}]};
 }
 function automaticPlan(folder,index=0,id=crypto.randomUUID()) {
@@ -34,7 +34,7 @@ function automaticPlan(folder,index=0,id=crypto.randomUUID()) {
   // five A presses register the controller; no separator follows the last line.
   const before=[...Array.from({length:5},()=>a(800,'first-line')),
     {type:'key',key:'escape',delayMs:800},a(1200)];
-  return {id,sourceFile:path.join(folder,'PicoSwitch/payload.txt'),sourceMode:'raw-lines',sourceLine:index,sourceAfter:before.length,
+  return {id,sourceFile:path.join(folder,'payloads/input.txt'),sourceMode:'raw-lines',sourceLine:index,sourceAfter:before.length,
     steps:[...before,{type:'key',key:'enter',delayMs:200},{type:'key',key:'enter',delayMs:0},
       {type:'sleep',ms:800,when:'not-last-line'},a(1200,'not-last-line')]};
 }

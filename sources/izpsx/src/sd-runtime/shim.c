@@ -31,7 +31,10 @@ static uint32_t stop(IzNativeApp*app,IzpsxBridge*b){
  b->ticket=0;b->phase=0;return 0;
 }
 __attribute__((section(".text.iz_app"))) uint32_t iz_app(IzNativeApp*app,uint32_t event){
- if(!ps1_sd_public_app(app)||!ps1_sd_environment(app))return 0xf210;
+ if(!ps1_sd_public_app(app))return 0xf210;
+#ifndef IZPSX_HEN
+ if(!ps1_sd_environment(app))return 0xf210;
+#endif
  IzNativeApp4*x=(void*)app;IzpsxBridge*b=app->data;
  if(!x->base.base.private_memory||x->base.base.private_bytes!=IZPSX_PRIVATE_BYTES||!x->image_begin||!x->image_step||!x->image_release)return 0xf210;
  if(event==IZ_NATIVE_STOP)return stop(app,b);

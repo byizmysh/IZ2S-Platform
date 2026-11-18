@@ -1,0 +1,15 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=1) in;
+#include "state.glsl"
+#include "hb.glsl"
+void main(){
+ c.game.x++;
+ if(hbAvailable()){
+  if(!hbBusy()){
+   if(c.game.y!=0u){c.game.z=hbResult();c.stats.z=hbResponseByte(0u);c.game.w++;c.game.y=0u;c.bagMeta.x=c.game.x+180u;}
+   if(c.game.x>=c.bagMeta.x){hbRequestByte(0u,112u);hbRequestByte(1u,105u);hbRequestByte(2u,110u);hbRequestByte(3u,103u);if(hbSendUdp(0u,4u))c.game.y=1u;}
+  }
+ }
+ if((hbPressed()&HB_B)!=0u)hbExit();hbEndFrame();
+}

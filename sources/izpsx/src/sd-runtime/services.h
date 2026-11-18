@@ -23,8 +23,14 @@ int memcmp(const void*,const void*,size_t);
 /* ABI revisions add suffixes. We consume only the ABI 5 prefix and required
  * callbacks. Declaring ABI 5 means older providers refuse before execution. */
 static inline int ps1_sd_public_app(const IzNativeApp*a){
+#ifdef IZPSX_HEN
+ return sb4ModuleCompat(a)&&sb4StorageFiles(sb4ModuleStorage(a))&&a->data&&a->data_bytes>=256u*1024u&&
+        a->controls&&a->controls_bytes>=1024&&a->tick_hz&&a->request_exit;
+#else
  return a&&a->magic==0x414e5a49&&a->version>=5&&a->bytes>=sizeof(IzNativeApp5)&&a->data&&a->data_bytes>=256u*1024u&&a->controls&&a->controls_bytes>=1024;
+#endif
 }
+#ifndef IZPSX_HEN
 static inline const IzNativeEnvironment*ps1_sd_environment(const IzNativeApp*a){
  if(!ps1_sd_public_app(a))return 0;
  const IzNativeEnvironment*e=((const IzNativeApp5*)a)->environment;
@@ -35,5 +41,6 @@ static inline void ps1_sd_copy_services(Ps1SdServices*s,const IzNativeApp*a,cons
  s->pid=e->application_pid;s->ro_pid=e->ro_pid;s->ro_handle=e->ro_handle;s->filesystem=e->filesystem;s->tick_hz=e->tick_hz;s->ram_only=!!(a->flags&IZ_NATIVE_SOURCE_RAM);
 }
 _Static_assert(offsetof(IzNativeApp5,environment)==192,"Required ABI 5 environment prefix");
+#endif
 _Static_assert(offsetof(IzNativeApp4,image_begin)==168,"Required image loading prefix");
 #endif

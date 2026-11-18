@@ -1,9 +1,22 @@
 #include "fs-file.h"
 #include <string.h>
+#ifdef IZPSX_SB4_STORAGE
+#include "sd-runtime/storage-sb4.h"
+#endif
 
 static int valid_handle(uint32_t h){return h&&h<0x80000000u;}
 static int valid_context(const Ps1SdDirectory *s){return s&&s->send&&s->close_handle&&valid_handle(s->filesystem)&&s->buffer&&!((uintptr_t)s->buffer&4095)&&s->capacity>=0x310&&s->capacity<=65536&&(uint64_t)(uintptr_t)s->buffer<(1ull<<39)&&s->capacity<=(1ull<<39)-(uint64_t)(uintptr_t)s->buffer;}
 uint32_t ps1_sd_closefile(Ps1SdDirectory *s,uint32_t handle){
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  const Sb4StorageFiles*files=ps1_sb4_files(s);
+  if(!files)return PS1_SD_INVALID;
+  uint32_t rc=ps1_sb4_receipt(s,files->close(s->app,handle));
+  if(rc)s->leaked_handle=handle;
+  else if(s->leaked_handle==handle)s->leaked_handle=0;
+  return rc;
+ }
+#endif
  if(!s||!s->close_handle||!valid_handle(handle)||handle==s->filesystem)return PS1_SD_INVALID;
  uint32_t rc=s->close_handle(handle);
  if(rc){s->leaked_handle=handle;if(!s->error)s->error=rc;return rc;}
@@ -27,6 +40,15 @@ static uint32_t file_reply(Ps1SdDirectory *s,uint8_t *m,int open,uint32_t *handl
 uint32_t ps1_sd_openfile_mode(Ps1SdDirectory *s,const char *root,const char *path,uint32_t mode,uint32_t *handle,uint64_t *size){
  if(handle)*handle=0;
  if(size)*size=0;
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  const Sb4StorageFiles*files=ps1_sb4_files(s);
+  const char*name=ps1_sb4_relative(root,path);
+  if(!files||!handle||!size||!name||!*name||(mode!=1&&mode!=3))return PS1_SD_INVALID;
+  if(s->leaked_handle)return PS1_SD_CLOSE;
+  return ps1_sb4_receipt(s,files->open(s->app,name,mode,handle,size));
+ }
+#endif
  if(!handle||!size||!valid_context(s)||(mode!=1&&mode!=3)||!ps1_sd_path_valid(root,path))return PS1_SD_INVALID;
  if(s->leaked_handle)return PS1_SD_CLOSE;
  s->error=s->transport=0;
@@ -51,6 +73,16 @@ static uint32_t result_only(Ps1SdDirectory*s,uint8_t*m,uint32_t handle){
  rc=file_reply(s,m,0,&handle,NULL);return s->error=rc;
 }
 static uint32_t path_mutation(Ps1SdDirectory*s,const char*root,const char*path,uint32_t command,uint64_t size){
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  const Sb4StorageFiles*files=ps1_sb4_files(s);
+  const char*name=ps1_sb4_relative(root,path);
+  if(!files||!name||!*name||size>INT64_MAX)return PS1_SD_INVALID;
+  if(s->leaked_handle)return PS1_SD_CLOSE;
+  uint32_t rc=command==0?files->create(s->app,name,size):files->mkdir(s->app,name);
+  return ps1_sb4_receipt(s,rc);
+ }
+#endif
  if(!valid_context(s)||!ps1_sd_path_valid(root,path)||size>INT64_MAX)return PS1_SD_INVALID;
  if(s->leaked_handle)return PS1_SD_CLOSE;
  size_t n=strlen(path)+1;memmove(s->buffer,path,n);memset((uint8_t*)s->buffer+n,0,PS1_SD_PATH_MAX-n);
@@ -62,6 +94,21 @@ static uint32_t path_mutation(Ps1SdDirectory*s,const char*root,const char*path,u
 uint32_t ps1_sd_createfile(Ps1SdDirectory*s,const char*r,const char*p,uint64_t n){return path_mutation(s,r,p,0,n);}
 uint32_t ps1_sd_mkdir(Ps1SdDirectory*s,const char*r,const char*p){return path_mutation(s,r,p,2,0);}
 uint32_t ps1_sd_writefile(Ps1SdDirectory*s,uint32_t h,uint64_t offset,const void*data,size_t bytes){
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  const Sb4StorageFiles*files=ps1_sb4_files(s);
+  if(!files||!data||offset>INT64_MAX||bytes>INT64_MAX-offset)return PS1_SD_INVALID;
+  if(s->leaked_handle)return PS1_SD_CLOSE;
+  const uint8_t*src=data;
+  while(bytes){
+   uint32_t chunk=bytes<65536?(uint32_t)bytes:65536;
+   uint32_t rc=ps1_sb4_receipt(s,files->write(s->app,h,offset,src,chunk));
+   if(rc)return rc;
+   src+=chunk;offset+=chunk;bytes-=chunk;
+  }
+  return 0;
+ }
+#endif
  if(!valid_context(s)||!valid_handle(h)||h==s->filesystem||!data||offset>INT64_MAX||bytes>INT64_MAX-offset)return PS1_SD_INVALID;
  if(s->leaked_handle)return PS1_SD_CLOSE;
  const uint8_t*src=data;
@@ -73,22 +120,53 @@ uint32_t ps1_sd_writefile(Ps1SdDirectory*s,uint32_t h,uint64_t offset,const void
  }return 0;
 }
 uint32_t ps1_sd_flushfile(Ps1SdDirectory*s,uint32_t h){
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  const Sb4StorageFiles*files=ps1_sb4_files(s);
+  if(s->leaked_handle)return PS1_SD_CLOSE;
+  return files?ps1_sb4_receipt(s,files->flush(s->app,h)):PS1_SD_INVALID;
+ }
+#endif
  if(!valid_context(s)||!valid_handle(h)||h==s->filesystem)return PS1_SD_INVALID;
  if(s->leaked_handle)return PS1_SD_CLOSE;
  _Alignas(4096) uint8_t m[4096];memset(m,0,sizeof m);uint32_t*p=(void*)m;p[0]=4;p[1]=8;p[4]=0x49434653;p[6]=2;return result_only(s,m,h);
 }
 uint32_t ps1_sd_resizefile(Ps1SdDirectory*s,uint32_t h,uint64_t size){
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  const Sb4StorageFiles*files=ps1_sb4_files(s);
+  if(s->leaked_handle)return PS1_SD_CLOSE;
+  return files?ps1_sb4_receipt(s,files->resize(s->app,h,size)):PS1_SD_INVALID;
+ }
+#endif
  if(!valid_context(s)||!valid_handle(h)||h==s->filesystem||size>INT64_MAX)return PS1_SD_INVALID;
  if(s->leaked_handle)return PS1_SD_CLOSE;
  _Alignas(4096) uint8_t m[4096];memset(m,0,sizeof m);uint32_t*p=(void*)m;p[0]=4;p[1]=10;p[4]=0x49434653;p[6]=3;memcpy(m+32,&size,8);return result_only(s,m,h);
 }
 uint32_t ps1_sd_commit(Ps1SdDirectory*s){
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  const Sb4StorageFiles*files=ps1_sb4_files(s);
+  if(s->leaked_handle)return PS1_SD_CLOSE;
+  return files?ps1_sb4_receipt(s,files->commit(s->app)):PS1_SD_INVALID;
+ }
+#endif
  if(!valid_context(s))return PS1_SD_INVALID;if(s->leaked_handle)return PS1_SD_CLOSE;
  _Alignas(4096) uint8_t m[4096];memset(m,0,sizeof m);uint32_t*p=(void*)m;p[0]=4;p[1]=8;p[4]=0x49434653;p[6]=10;return result_only(s,m,s->filesystem);
 }
 uint32_t ps1_sd_statfile(Ps1SdDirectory *s,const char *root,const char *path,uint64_t *size){
  if(!size)return PS1_SD_INVALID;
- *size=0;uint32_t handle=0;uint64_t length=0;uint32_t rc=ps1_sd_openfile(s,root,path,&handle,&length);if(rc)return rc;
+ *size=0;
+#ifdef IZPSX_SB4_STORAGE
+ if(s&&s->app){
+  const Sb4Storage*storage=sb4ModuleStorage(s->app);
+  const char*name=ps1_sb4_relative(root,path);
+  if(!storage||!name||!*name)return PS1_SD_INVALID;
+  s->transport=0;s->calls++;
+  return s->error=storage->file_size(s->app,name,size);
+ }
+#endif
+ uint32_t handle=0;uint64_t length=0;uint32_t rc=ps1_sd_openfile(s,root,path,&handle,&length);if(rc)return rc;
  rc=ps1_sd_closefile(s,handle);if(rc)return rc;
  *size=length;return 0;
 }

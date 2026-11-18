@@ -8,9 +8,15 @@ void izPadWrite(uint i,uint value){pad.w[i]=value;}
 // Platform-owned gesture state sits in the reserved SDK header gap. It is
 // independent of an application's scratch words and survives skipped PC polls.
 void menuGesture(){
- const uint g=(0x7f0000u+576u)/4u,clock=0x700d70u/4u;
+ const uint g=(0x7f0000u+608u)/4u,clock=0x700d70u/4u;
  bool held=(pad.w[2]&32u)!=0u;
- if(pad.w[g]!=0x495a5233u){for(uint i=0u;i<8u;i++)pad.w[g+i]=0u;pad.w[g]=0x495a5233u;pad.w[g+1u]=held?1u:0u;}
+ const uint e=0x7f0000u/4u,h=e+12272u/4u;
+ if(pad.w[g+6u]==0x495a5250u)held=(pad.w[g+7u]&32u)!=0u;
+ else if(pad.w[e]==0x48425344u&&pad.w[e+1u]==1u&&(pad.w[e+3u]&64u)!=0u){
+  bool sweep=pad.w[h]==0x495a5044u&&pad.w[h+1u]==1u&&pad.w[h+2u]==32u;held=false;
+  for(uint i=0u;i<5u;i++){uint p=sweep?(i==0u?e+160u:e+3072u+(i-1u)*16u):e+160u+i*16u;if((pad.w[p+8u]&1u)!=0u&&(pad.w[p+2u]&32u)!=0u)held=true;}
+ }
+ if(pad.w[g]!=0x495a5233u){for(uint i=0u;i<6u;i++)pad.w[g+i]=0u;pad.w[g]=0x495a5233u;pad.w[g+1u]=held?1u:0u;}
  if(!held)pad.w[g+2u]=1u;
  bool valid=pad.w[clock+2u]==31250000u;
  if(held&&pad.w[g+1u]==0u&&pad.w[g+2u]!=0u&&valid){

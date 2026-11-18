@@ -1,0 +1,185 @@
+{
+  "format": "izlauncher.module",
+  "version": "1.15.8",
+  "id": "blitbun",
+  "name": "BlitBun",
+  "moduleVersion": "1.15.8",
+  "switch": {
+    "entry": "switch/app.json",
+    "files": [
+      "switch/app.comp.spv",
+      "switch/app.comp.spv.deflate",
+      "switch/app.frag.spv",
+      "switch/app.frag.spv.deflate",
+      "switch/app.json",
+      "switch/app.vert.spv",
+      "switch/app.vert.spv.deflate",
+      "switch/assets/font.bin",
+      "switch/assets/state.bin",
+      "switch/assets/video.bin",
+      "switch/icon.png",
+      "switch/icon.svg",
+      "switch/icon.webp",
+      "switch/modules/pc-screen-draw.glsl",
+      "switch/modules/pc-screen-input.glsl",
+      "switch/modules/pc-screen.glsl",
+      "switch/modules/tiny-calc.glsl",
+      "switch/shaders/abi.glsl",
+      "switch/shaders/app.comp",
+      "switch/shaders/app.frag",
+      "switch/shaders/app.vert",
+      "switch/shaders/common.glsl",
+      "switch/shaders/draw.glsl",
+      "switch/shaders/hb.glsl",
+      "switch/shaders/menu-draw.glsl",
+      "switch/shaders/menu-input.glsl",
+      "switch/shaders/overlay-font.glsl",
+      "switch/shaders/pad-merge.glsl",
+      "switch/shaders/pc-screen-draw.glsl",
+      "switch/shaders/pc-screen-input.glsl",
+      "switch/shaders/pc-screen.glsl",
+      "switch/shaders/standalone.glsl",
+      "switch/sd/blitbun.iza"
+    ],
+    "abi": 1,
+    "sdImage": "switch/sd/blitbun.iza"
+  },
+  "server": {
+    "entry": "server/entry.cjs",
+    "implementations": {
+      "create": "modules/blitbun/server/application-host.cjs",
+      "stream": "modules/blitbun/server/lib/hl2-stream.cjs",
+      "sessionHook": "modules/blitbun/server/session-hook.cjs",
+      "codec": "modules/blitbun/server/lib/pc-codec.js",
+      "windowFocus": "modules/blitbun/server/lib/window-focus.cjs",
+      "frameAvailability": "modules/blitbun/server/lib/frame-availability.cjs",
+      "nativeWindow": "modules/blitbun/server/lib/native-window-capture.cjs",
+      "standalone": "modules/blitbun/server/standalone.cjs"
+    },
+    "runtime": "node",
+    "assets": [
+      "server/lib/block-delta-worker.cjs",
+      "server/lib/capture-audio.js",
+      "server/lib/frame-codec.wasm",
+      "server/lib/frame-pacing.js",
+      "server/lib/frame-worker.cjs",
+      "server/lib/pc-codec.js",
+      "server/lib/pc-gpu-codec.js",
+      "server/lib/pc-screen.html",
+      "server/lib/pcm-capture-worklet.js",
+      "server/lib/remote/window-frames.py",
+      "server/lib/fast-compression.cjs",
+      "server/native/build.json",
+      "server/native/compression.c",
+      "server/lib/fast-frame-codec.cjs",
+      "server/native/bc1/build.json",
+      "server/native/bc1/encoder.c",
+      "server/lib/delta-compressor.cjs",
+      "server/lib/delta-prefetch.cjs",
+      "server/lib/native-window-capture.cjs",
+      "server/lib/native-window-audio.cjs",
+      "server/lib/remote/native-windows.py",
+      "server/lib/frame-availability.cjs",
+      "server/lib/delta-wire.cjs",
+      "server/lib/inflate-policy.cjs",
+      "server/lib/route-gate.cjs",
+      "server/standalone-service.cjs",
+      "server/lib/composite-source.cjs",
+      "server/lib/remote/composite-surface.py",
+      "server/lib/stream-preview.cjs",
+      "server/standalone.cjs",
+      "server/lib/stream-monitor.cjs"
+    ],
+    "systemDependencies": [
+      {
+        "command": "ffmpeg",
+        "purpose": "Selected-window capture",
+        "optional": false,
+        "platforms": [
+          "linux-x64",
+          "linux-arm64"
+        ]
+      },
+      {
+        "command": "parec",
+        "purpose": "Per-application audio capture",
+        "optional": false,
+        "platforms": [
+          "linux-x64",
+          "linux-arm64"
+        ]
+      },
+      {
+        "command": "pactl",
+        "purpose": "Audio routing discovery",
+        "optional": false,
+        "platforms": [
+          "linux-x64",
+          "linux-arm64"
+        ]
+      },
+      {
+        "command": "python3",
+        "purpose": "Window selection helpers",
+        "optional": false,
+        "platforms": [
+          "linux-x64",
+          "linux-arm64"
+        ]
+      },
+      {
+        "command": "cc",
+        "purpose": "Optional native codec acceleration",
+        "optional": true,
+        "platforms": [
+          "linux-x64",
+          "linux-arm64"
+        ]
+      },
+      {
+        "command": "pkg-config",
+        "purpose": "Optional native library discovery",
+        "optional": true,
+        "platforms": [
+          "linux-x64",
+          "linux-arm64"
+        ]
+      }
+    ]
+  },
+  "package": "blitbun.module.zip",
+  "legacy": {
+    "appFolder": "blitbun",
+    "packageNames": [
+      "pc-screen.izp",
+      "izlink.izp",
+      "pc-screen.izs"
+    ],
+    "moduleIds": [
+      "pc-screen"
+    ]
+  },
+  "formatVersion": 1,
+  "apiVersion": 1,
+  "author": "IZMYSH and upstream contributors",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "requires": {
+    "platformApi": 1,
+    "consoleAbi": 1,
+    "moduleDirectories": true
+  },
+  "capabilities": {
+    "streaming": true
+  },
+  "dependencies": [],
+  "settingsSchema": [],
+  "license": "GPL-2.0-or-later",
+  "provides": {
+    "stream-host": "create"
+  },
+  "description": "PC-to-Switch 2 streaming · video, audio and optional controller forwarding",
+  "installationDirectory": "BlitBun"
+}

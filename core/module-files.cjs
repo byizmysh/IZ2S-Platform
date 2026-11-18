@@ -1,5 +1,5 @@
 const modulePaths = require('./module-paths.cjs');
-// Synchronous bridge for legacy CommonJS imports. Resolve verified IZM contents,
+// Synchronous bridge for legacy CommonJS imports. Resolve verified module contents,
 // never a development checkout. New asynchronous callers use modules.loadServer.
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const archive = require('./archive.cjs'), { ID, relative, assert } = require('./descriptors.cjs');
@@ -11,7 +11,7 @@ function resolve(id, file, root = require('./root.cjs')) {
     assert(pinned.files.some(entry => entry.name === file), 'Unknown pinned module file: ' + id + '/' + file);
     return path.join(modulePaths.home(root, id), '.versions', pinned.sha256, file);
   }
-  const source = path.join(modulePaths.home(root, id), id + '.izm'), stat = fs.statSync(source);
+  const source = path.join(modulePaths.home(root, id), id + '.module.zip'), stat = fs.statSync(source);
   const stamp = [stat.ino, stat.size, stat.mtimeMs, stat.ctimeMs].join(':');
   let row = cache.get(source);
   if (!row || row.stamp !== stamp) {

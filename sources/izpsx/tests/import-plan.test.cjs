@@ -11,3 +11,10 @@ test('CUE imports validate every track before writes and repair only the SD copy
  await assert.rejects(prepare('games','',[file('bad.bin','1','../bad.bin')],true,[]),/Invalid/);
  await assert.rejects(prepare('games','',[file('A.bin','1'),file('a.bin','2')],false,[]),/same SD name/);
 });
+test('BIOS uploads require bios.bin and exactly 512 KiB',async()=>{
+ const good=new File([new Uint8Array(524288)],'bios.bin');
+ const accepted=await prepare('bios','',[good],false,[]);
+ assert.equal(accepted.items[0].name,'bios.bin');
+ await assert.rejects(prepare('bios','',[new File([new Uint8Array(524288)],'scph101.bin')],false,[]),/bios\.bin/);
+ await assert.rejects(prepare('bios','',[new File([new Uint8Array(524287)],'bios.bin')],false,[]),/512/);
+});

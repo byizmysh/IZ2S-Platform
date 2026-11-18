@@ -1,0 +1,159 @@
+{
+  "engine": "RUN13 ???",
+  "scope": "BC1/WASM encoder, frame scheduler, packet compression, TCP receiver, qualified SDK unpacking",
+  "files": [
+    {
+      "source": "smilebasic/engine/shared/frames.cjs",
+      "target": "run13/abi/frames.cjs",
+      "sha256": "d93929d1aa1008a8cd782beb63179153df48ced88d7e7946db6573b37fad2c1d",
+      "adaptations": []
+    },
+    {
+      "source": "smilebasic/engine/switch2/app/thread-code.json",
+      "target": "run13/abi/thread-code.json",
+      "sha256": "4c9d7290163df0c9e517d84def1ae05c3605a594e511c240f1caa1ede86ff051",
+      "adaptations": []
+    },
+    {
+      "source": "smilebasic/engine/switch2/app/timing-code.json",
+      "target": "run13/abi/timing-code.json",
+      "sha256": "d1cbda66d38640443020f53f9d39a7b7009487e7173a60852544686104556374",
+      "adaptations": []
+    },
+    {
+      "source": "sdk/native/ftp-functions.json",
+      "target": "run13/abi/ftp-functions.json",
+      "sha256": "dfd783fec4b963d4e9d8fab0281e520f60b9d35d9512480436e9f75bdedac17f",
+      "adaptations": []
+    },
+    {
+      "source": "sdk/native/connect-function.json",
+      "target": "run13/abi/connect-function.json",
+      "sha256": "0b3ad551e45aa51496b3c1de02fb928368e0ea0d9db7085876400b29aea1c41c",
+      "adaptations": []
+    },
+    {
+      "source": "sdk/native/ipc-functions.json",
+      "target": "run13/abi/ipc-functions.json",
+      "sha256": "ebb9d45e46bf344a6fe4c6ba58da2c7e6adc6c0123916e18b08067191e5bb27d",
+      "adaptations": []
+    },
+    {
+      "source": "sdk/native/zlib-functions.json",
+      "target": "run13/abi/zlib-functions.json",
+      "sha256": "f68ca7e943a61f05ef551cea6f0f1f9ba3f0017fc4b469f0bb82fc5ecfdb32c7",
+      "adaptations": []
+    },
+    {
+      "source": "sdk/native/client.cjs",
+      "target": "run13/abi/client.cjs",
+      "sha256": "627118142a7a634646c38bee0163542457acfb140b76f38e866e7e9868c1a76d",
+      "adaptations": []
+    },
+    {
+      "source": "homebrew-launcher/hl2-stream.cjs",
+      "target": "lib/hl2-stream.cjs",
+      "sha256": "8ff413ba4cb522fdb3b8ddef356ee17690a582429d7ee607a6e7bf1d03294a32",
+      "adaptations": [
+        "Module-local VacooTube profile default; explicit resolver supplied by session hook"
+      ]
+    },
+    {
+      "source": "homebrew-launcher/hl2-frame-worker.cjs",
+      "target": "lib/hl2-frame-worker.cjs",
+      "sha256": "4c5571d84c3415b743ee9f896b6cc671f28df96b45ed0818f90ab4bea0314c3e",
+      "adaptations": []
+    },
+    {
+      "source": "homebrew-launcher/frame-pacing.js",
+      "target": "lib/frame-pacing.js",
+      "sha256": "b89eb68400e64dde4153c8e9ba0b53a02dd943727b84598d5c6c87a6b45adab8",
+      "adaptations": []
+    },
+    {
+      "source": "homebrew-launcher/frame-codec.wasm",
+      "target": "lib/frame-codec.wasm",
+      "sha256": "29f09a8ae116c198e835e99de9b0d2d6fc58e2e0b114099d2cfec449f2751e41",
+      "adaptations": []
+    },
+    {
+      "source": "homebrew-launcher/pc-codec.js",
+      "target": "lib/pc-codec.js",
+      "sha256": "f27a95396e8846974af89792a69e751a7f48701239b526653dba5097d30ff6a4",
+      "adaptations": []
+    },
+    {
+      "source": "homebrew-launcher/block-delta.cjs",
+      "target": "lib/block-delta.cjs",
+      "sha256": "a41bdc69fa8d65f311a370c840dfb8a689e4d85fa0bcb8b37808c3edd0502890",
+      "adaptations": []
+    },
+    {
+      "source": "homebrew-launcher/block-delta-worker.cjs",
+      "target": "lib/block-delta-worker.cjs",
+      "sha256": "88fb4bf78411e1c2230694f7d056879c5eb19e3c5a3702bde49da3dfc94d8c24",
+      "adaptations": []
+    },
+    {
+      "source": "homebrew-launcher/delta-programs.cjs",
+      "target": "lib/delta-programs.cjs",
+      "sha256": "37c18fb5801daf2ddcd2a7f5a0e8f080a4c68fe05ff8ec507b624e2481c9e875",
+      "adaptations": [
+        "Local ABI dependency: frames.cjs",
+        "Local ABI dependency: thread-code.json",
+        "Local ABI dependency: timing-code.json"
+      ]
+    },
+    {
+      "source": "homebrew-launcher/pc-stream-delta.cjs",
+      "target": "lib/pc-stream-delta.cjs",
+      "sha256": "3f610f1d09adb8b4ae8b512bf0449acdbdc4851fff1f0ea23d422ddf05227106",
+      "adaptations": [
+        "Local ABI dependency: thread-code.json",
+        "Local ABI dependency: timing-code.json",
+        "Local ABI dependency: ftp-functions.json",
+        "Local ABI dependency: connect-function.json",
+        "Local ABI dependency: ipc-functions.json",
+        "Local ABI dependency: client.cjs"
+      ]
+    },
+    {
+      "source": "homebrew-launcher/pc-stream-tcp.cjs",
+      "target": "lib/pc-stream-tcp.cjs",
+      "sha256": "f85701d784ea040af1b53d955cbd3a092ab551c17cd0aa22b072f2d354b45059",
+      "adaptations": [
+        "Local ABI dependency: frames.cjs",
+        "Local ABI dependency: thread-code.json",
+        "Local ABI dependency: ftp-functions.json",
+        "Local ABI dependency: ipc-functions.json",
+        "Local ABI dependency: client.cjs"
+      ]
+    },
+    {
+      "source": "homebrew-launcher/ack-wait.cjs",
+      "target": "lib/ack-wait.cjs",
+      "sha256": "b2cc65d2aa547224b552c22c0a28c6f2f3ed1a6e70ea109a43fb9d25d2b91504",
+      "adaptations": []
+    },
+    {
+      "source": "homebrew-launcher/zlib-sdk.cjs",
+      "target": "lib/zlib-sdk.cjs",
+      "sha256": "a03e84d2f9573ce714f57e3b45129b4c26d737d1fd0b494ae6304fdff444ba5c",
+      "adaptations": [
+        "Local ABI dependency: zlib-functions.json",
+        "Local ABI dependency: client.cjs"
+      ]
+    },
+    {
+      "source": "homebrew-launcher/post-menu.cjs",
+      "target": "lib/post-menu.cjs",
+      "sha256": "9717d2374478ea8bf3a2a25620e6c6b47ec5a47d363abf4a5f0a879108e10ab2",
+      "adaptations": []
+    }
+  ],
+  "compatibility": [
+    "The RUN16 menu, audio, sensor/route gate and Electron application are retained.",
+    "The BC1 console shader and ABI are retained; they read the same published BC1 buffers.",
+    "A wrapper supplies RUN16 route readiness and display heartbeats without altering the RUN13 compression/receiver algorithms."
+  ]
+}

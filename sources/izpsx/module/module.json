@@ -4,7 +4,7 @@
   "apiVersion": 1,
   "id": "izpsx",
   "name": "IZPSX emulator",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "author": "@byizmysh",
   "platforms": [
     "linux-x64",
@@ -25,7 +25,7 @@
       "switch/app.vert.spv",
       "switch/data.bin",
       "switch/icon.png",
-      "switch/native/asset-f3107a73be92d2051d22b8ca78e2db5cf8ddc6d59bd577e205f57056daef898e.izdata",
+      "switch/native/asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata",
       "switch/native/shim.bin",
       "switch/pixels.bin",
       "switch/state.bin"
@@ -34,6 +34,7 @@
   "dependencies": [],
   "settingsSchema": [],
   "license": "GPL-2.0-only",
+  "installationDirectory": "IZPSX",
   "server": {
     "entry": "server/entry.cjs",
     "runtime": "node",

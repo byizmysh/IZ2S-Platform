@@ -28,7 +28,7 @@ async function prepare({host,directory,diagnostics=path.join(root,'data/diagnost
   return {client,addresses};
 }
 async function main(host,mode='copy',existing,shell='izlauncher'){
-  if(!['izlauncher','izpslauncher'].includes(shell))throw Error('Choose IZlauncher or IZPSlauncher');
+  if(!['izlauncher'].includes(shell))throw Error('Choose IZ2S');
   if(!['copy','display','menu'].includes(mode))throw Error('Choose copy, display or menu');
   let directory=existing?path.resolve(existing):await fs.mkdtemp(path.join(root,'data/diagnostics/civ-launcher-'));
   if(!existing)await prepare({host,directory});
@@ -40,7 +40,7 @@ async function main(host,mode='copy',existing,shell='izlauncher'){
     // Civ7 owns its renderer and shaders; package manifests retain the common ABI.
     process.env.HB_APPS_DIR||=path.join(directory,'apps');
     await fs.mkdir(process.env.HB_APPS_DIR,{recursive:true,mode:0o700});
-    await require('../'+(shell==='izpslauncher'?'pslauncher':'launcher')+'/prepare.cjs').main(directory,'auto');
+    await require('../'+('launcher')+'/prepare.cjs').main(directory,'auto');
   }else await require('./display.cjs').main(directory,mode);
 }
 if(require.main===module)main(process.argv[2],process.argv[3],process.argv[4],process.argv[5]).catch(error=>{console.error(error.stack);process.exitCode=1;});

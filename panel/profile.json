@@ -1,9 +1,9 @@
 {
   "version": 22,
-  "release": "0.22.0",
+  "release": "0.25.0",
   "consoleHost": "127.0.0.1",
   "consolePort": 39380,
-  "panelPort": 39523,
+  "panelPort": 39524,
   "deviceFolder": "/opt/iz2s/arm-input",
   "consoleAddress": "",
   "identity": "Created by IZMYSH (@byizmysh)"

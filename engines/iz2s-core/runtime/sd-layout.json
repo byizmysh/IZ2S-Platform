@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "root": "/iz2s/core",
+  "logRoot": "/iz2s/log/core",
+  "files": [
+    {"source": "iz2s/izlauncher.romfs", "target": "/iz2s/izlauncher.romfs", "kind": "romfs"},
+    {"source": "iz2s/izlauncher.iza", "target": "/iz2s/izlauncher.iza", "kind": "iza"},
+    {"source": "game/main", "target": "/iz2s/core/bin/game/main", "kind": "nso"},
+    {"source": "core/main", "target": "/iz2s/core/bin/core/main", "kind": "nso"}
+  ]
+}

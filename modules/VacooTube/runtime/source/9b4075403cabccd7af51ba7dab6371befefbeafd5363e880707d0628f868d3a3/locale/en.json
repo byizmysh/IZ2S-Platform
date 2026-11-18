@@ -1,0 +1,335 @@
+{
+  "general": {
+    "video_copied": "Video link copied to clipboard",
+    "dislikes": "Dislikes",
+    "steam_controller_notice": "External controller isn't detected? Try the steamdeck-input-disabler plugin from Decky.",
+    "encryption_error": {
+      "title": "Something went wrong",
+      "text": "This video couldn't be decoded. Movies aren't supported in VacooTube due to encryption. If this happens on other videos, try logging in or switching accounts.",
+      "switch_accounts": "Switch Accounts",
+      "okay": "Okay"
+    }
+  },
+  "settings": {
+    "generic": {
+      "title": "Settings",
+      "description": "Opens the VacooTube settings overlay. You can access this overlay anywhere by pressing Ctrl+O on your keyboard",
+      "button_label": "Open VacooTube Settings",
+      "hint": "Use arrow keys to navigate",
+      "option_count": "{count} options",
+      "translate": "Help translate VacooTube to {language}",
+      "ratio": "{on} of {total}"
+    },
+    "categories": {
+      "general": {
+        "title": "General",
+        "description": "How the VacooTube window behaves."
+      },
+      "playback": {
+        "title": "Playback",
+        "description": "Control what plays and how videos are presented."
+      },
+      "appearance": {
+        "title": "Appearance",
+        "description": "Change what the interface shows and how it looks."
+      },
+      "controls": {
+        "title": "Controls & Devices",
+        "description": "Input methods and connected devices."
+      },
+      "advanced": {
+        "title": "Advanced",
+        "description": "Performance tweaks and optional features."
+      }
+    },
+    "sections": {
+      "window": "Window",
+      "behavior": "Behavior",
+      "updates": "Updates",
+      "content": "Content",
+      "quality": "Quality & Compatibility",
+      "interface": "Interface",
+      "userstyles": "Custom CSS",
+      "input": "Input",
+      "devices": "Devices",
+      "performance": "Performance",
+      "experimental": "Experimental"
+    },
+    "adblock": {
+      "title": "Block Ads",
+      "description": "Seamlessly blocks video and feed ads, not subject to YouTube's methods of preventing blockers"
+    },
+    "sponsorblock": {
+      "title": "SponsorBlock",
+      "description": "Skips sponsor segments in YouTube videos using a crowdsourced database",
+      "categories_link": "Segments to skip",
+      "categories": {
+        "sponsor": {
+          "name": "Sponsor",
+          "description": "Paid promotion, paid referrals and direct advertisements. Not for self-promotion or free shoutouts to causes/creators/websites/products they like."
+        },
+        "selfpromo": {
+          "name": "Unpaid/Self Promotion",
+          "description": "Similar to 'sponsor' except for unpaid or self promotion. This includes sections about merchandise, donations, or information about who they collaborated with."
+        },
+        "interaction": {
+          "name": "Interaction Reminder (Subscribe)",
+          "description": "When there is a short reminder to like, subscribe or follow them in the middle of content. If it is long or about something specific, it should be under self promotion instead."
+        },
+        "intro": {
+          "name": "Intermission/Intro Animation",
+          "description": "An interval without actual content. Could be a pause, static frame, repeating animation. This should not be used for transitions containing information."
+        },
+        "outro": {
+          "name": "Endcards/Credits",
+          "description": "Credits or when the YouTube endcards appear. Not for conclusions with information."
+        },
+        "preview": {
+          "name": "Preview/Recap",
+          "description": "Collection of clips that show what is coming up in in this video or other videos in a series where all information is repeated later in the video."
+        },
+        "hook": {
+          "name": "Hook/Greetings",
+          "description": "Narrated trailers for the upcoming video, greetings and goodbyes. This should not skip conclusions with information."
+        },
+        "filler": {
+          "name": "Tangents/Jokes",
+          "description": "Tangential scenes or jokes that are not required to understand the main content of the video. This should not include segments providing context or background details. This is a very aggressive category meant for when you aren't in the mood for 'fun'."
+        }
+      }
+    },
+    "dearrow": {
+      "title": "DeArrow",
+      "description": "Replaces titles and thumbnails with more accurate, less sensationalized versions from a public crowdsourced database. Slows down loading, as it has to fetch info from the server"
+    },
+    "dislikes": {
+      "title": "Return Dislikes",
+      "description": "Uses community data from the Return YouTube Dislike API (returnyoutubedislike.com) to show rough dislike counts. Slows down video loading, as it has to fetch info from the server"
+    },
+    "remove_super_resolution": {
+      "title": "Remove Super Resolution",
+      "description": "Remove \"Super resolution\" (AI upscaled) qualities from low quality videos"
+    },
+    "hide_shorts": {
+      "title": "Hide Shorts",
+      "description": "Hides YouTube Shorts from the homepage"
+    },
+    "guide_tabs": {
+      "title": "Guide Tabs",
+      "description": "Choose which sidebar guide tabs are shown. Turn a tab off to hide it. Relaunch after changing",
+      "tabs": {
+        "search": "Search",
+        "shorts": "Shorts",
+        "subscriptions": "Subscriptions",
+        "library": "Library",
+        "gaming": "Gaming",
+        "music": "Music",
+        "news": "News",
+        "podcasts": "Podcasts",
+        "movies_and_tv": "Movies & TV",
+        "live": "Live",
+        "sports": "Sports"
+      }
+    },
+    "unlock_resolution": {
+      "title": "Unlock Resolution",
+      "description": "Removes monitor resolution cap and allows you to watch videos at any resolution. Relaunch after toggling"
+    },
+    "h264ify": {
+      "title": "Filter Video Codecs",
+      "description": "Codec filtering options. Relaunch after toggling any of the options.",
+      "enable_title": "Enable codec filter (h264ify)",
+      "enable_description": "Enables the codec filter. This can help with performance and battery life on slower devices, but may reduce the available resolutions.",
+      "disable_codec_title": "Disable {codec}",
+      "disable_codec_description": "Block {codec} streams.",
+      "codecs_link": "Blocked codecs"
+    },
+    "block_continue_watching": {
+      "title": "Block Continue Watching",
+      "description": "Blocks the \"Video paused. Continue watching?\" prompt that appears after being idle for a while"
+    },
+    "hardware_decoding": {
+      "title": "Hardware Decoding",
+      "description": "Uses your GPU to decode videos when possible. Disabling this may fix playback issues, but can cause lag depending on your CPU. Relaunch after toggling"
+    },
+    "wayland_hdr": {
+      "title": "Wayland HDR",
+      "description": "Enables HDR when using Wayland, but can cause desaturated colors on unsupported platforms. Relaunch after toggling"
+    },
+    "low_memory_mode": {
+      "title": "Low Memory Mode",
+      "description": "Tells YouTube to enable low memory mode, which may improve performance on slower devices at the cost of some visual effects. Relaunch after toggling"
+    },
+    "fullscreen": {
+      "title": "Fullscreen",
+      "description": "Enables fullscreen, and makes VacooTube always launch in fullscreen"
+    },
+    "no_window_decorations": {
+      "title": "No Window Decorations",
+      "description": "Disables window decorations, including the title bar and window border. Relaunch after toggling"
+    },
+    "keep_on_top": {
+      "title": "Keep on Top",
+      "description": "Enables Keep on Top, and makes VacooTube launch with the window pinned on top of every other window"
+    },
+    "auto_update": {
+      "title": "Automatic Updates",
+      "description": "Download new versions in the background and install them when VacooTube closes. When off, you can still check for updates from the About page"
+    },
+    "pause_on_blur": {
+      "title": "Pause on Blur",
+      "description": "Pause current video when VacooTube loses focus (e.g. tabbing out or minimizing the window)"
+    },
+    "features": {
+      "title": "Features",
+      "notice_title": "Not part of the default experience",
+      "notice_description": "These optional features extend VacooTube beyond the standard TV YouTube experience. Enable them below to acknowledge that they rely on internal YouTube behavior and may change or stop working without notice.",
+      "enable_title": "Enable optional features",
+      "enable_description": "I understand that these features are outside VacooTube's default experience and may change or break.",
+      "settings": {
+        "music_mode": {
+          "title": "Music Mode",
+          "description": "Adds a Music Mode toggle to the video settings menu for audio-only playback using YouTube's native music view."
+        },
+        "remaining_time": {
+          "title": "Show Remaining Time",
+          "description": "Displays the remaining video runtime in the player overlay instead of the elapsed time. Takes current playback speed into account. Press R to toggle it for the current video."
+        },
+        "ultrawide": {
+          "title": "Ultrawide Support",
+          "description": "Expands the interface to fill ultrawide displays when in fullscreen. May look buggy and weird in some ways."
+        }
+      }
+    },
+    "userstyles": {
+      "title": "Custom CSS (Userstyles)",
+      "description": "Place .css files in the userstyles folder to customize the interface. Changes are applied automatically",
+      "warn_empty": "No userstyles found",
+      "open_folder": "Open Userstyles folder",
+      "enable": "Enable Userstyles",
+      "failed_to_load": "Failed to load userstyles",
+      "manage_link": "Manage userstyles"
+    },
+    "touch_overlay": {
+      "title": "Touch Overlay",
+      "description": "Enables on-screen touch controls for easier navigation when touch input is detected"
+    },
+    "controller_support": {
+      "title": "Controller Support",
+      "description": "Enables support for game controllers, including navigation and video playback controls. Requires an external controller, such as an Xbox controller"
+    },
+    "device_discoverability": {
+      "title": "Device Discoverability",
+      "description": "Allows VacooTube to be discovered by the YouTube mobile app on devices within the same local network. Relaunch after toggling"
+    },
+    "mac_permissions": {
+      "title": "Permissions",
+      "description": "Manage macOS permissions used by VacooTube.",
+      "microphone_title": "Microphone",
+      "microphone_description": "Used only when you start YouTube voice search.",
+      "status_label": "Status",
+      "status_loading": "Checking microphone permission...",
+      "request_microphone": "Request Microphone Access",
+      "open_microphone_settings": "Open macOS Microphone Settings",
+      "reset_microphone": "Troubleshooting: Reset Permission Prompt",
+      "relaunch_app": "Relaunch VacooTube",
+      "restart_required": "Changes made in macOS Settings require relaunching VacooTube.",
+      "request_granted": "Microphone access is allowed. No permission prompt is needed.",
+      "request_not_determined": "macOS still has not shown a permission prompt. Use Reset Permission Prompt, then try again.",
+      "request_denied_help": "macOS will not show the permission prompt again while access is denied. Turn it on in macOS Settings, then relaunch VacooTube.",
+      "request_failed": "VacooTube could not request microphone access. Open macOS Settings and relaunch the app after changing access.",
+      "resetting_microphone": "Resetting the saved macOS microphone decision...",
+      "statuses": {
+        "not-determined": "Not Requested",
+        "granted": "Allowed",
+        "denied": "Denied",
+        "restricted": "Restricted",
+        "unknown": "Unknown",
+        "unsupported": "Unsupported"
+      }
+    },
+    "about": {
+      "title": "About",
+      "description": "YouTube for TV, on your PC",
+      "version": "Version {version}",
+      "platform_label": "Platform",
+      "installation_label": "Installation",
+      "update_method_label": "Update method",
+      "view_github": "View on GitHub",
+      "latest_releases": "Latest releases",
+      "platforms": {
+        "darwin": "macOS",
+        "win32": "Windows",
+        "linux": "Linux"
+      },
+      "architectures": {
+        "arm64": "arm64",
+        "x64": "x64",
+        "ia32": "x86"
+      },
+      "installations": {
+        "application": "Application",
+        "installer": "Installed application",
+        "portable": "Portable application",
+        "flatpak": "Flatpak",
+        "appimage": "AppImage",
+        "package": "System package",
+        "development": "Development build",
+        "unknown": "Unknown"
+      },
+      "update_methods": {
+        "automatic": "Automatic installer",
+        "manual": "Manual download",
+        "flatpak": "Flatpak"
+      },
+      "updates": {
+        "idle_title": "Updates",
+        "idle_detail": "Check whether a newer version of VacooTube is available.",
+        "check_now": "Check for updates",
+        "checking_title": "Checking for updates…",
+        "checking_detail": "Looking for the newest VacooTube release.",
+        "checking_button": "Checking…",
+        "current_title": "You’re up to date",
+        "current_detail": "VacooTube {version} is the newest version available.",
+        "check_again": "Check again",
+        "available_title": "VacooTube {version} is available",
+        "available_automatic_detail": "Download the update now, then restart VacooTube when it is ready.",
+        "available_manual_detail": "Download the latest build and replace your current copy.",
+        "download_update": "Download update",
+        "download_latest": "Download latest version",
+        "downloading_title": "Downloading update…",
+        "downloading_detail": "The update is {percent}% downloaded.",
+        "downloading_button": "Downloading… {percent}%",
+        "ready_title": "Update ready to install",
+        "ready_detail": "Restart VacooTube to install version {version}.",
+        "install_update": "Restart and install",
+        "error_title": "Couldn’t check for updates",
+        "error_detail": "Check your connection and try again, or open the releases page.",
+        "try_again": "Try again",
+        "development_title": "Development build",
+        "development_detail": "Automatic update checks are available in packaged builds.",
+        "unsupported_title": "Managed by IZ2S Platform",
+        "unsupported_detail": "Updates are supplied with the VacooTube module for IZ2S Platform.",
+        "view_update_source": "View update source",
+        "view_releases": "View latest releases"
+      }
+    }
+  },
+  "sponsorblock": {
+    "sponsor_skipped": "Sponsor skipped",
+    "selfpromo_skipped": "Self Promo skipped",
+    "interaction_skipped": "Interaction skipped",
+    "intro_skipped": "Intro skipped",
+    "outro_skipped": "Outro skipped",
+    "preview_skipped": "Preview skipped",
+    "hook_skipped": "Hook/Greetings skipped",
+    "filler_skipped": "Tangents/Jokes skipped"
+  },
+  "donate_unused": {
+    "setting": {
+      "title": "Donate",
+      "description": "Support VacooTube's development by making a donation! You can donate by visiting shy.rocks/donate, or by pressing the button below to open the donation page in your browser",
+      "button_label": "Donate"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+const {parentPort}=require('node:worker_threads'),fs=require('node:fs'),path=require('node:path'),codec=require('./pc-codec.js');
+codec.installWasm(fs.readFileSync(path.join(__dirname,'frame-codec.wasm')));
+const ready=require('./fast-frame-codec.cjs').prepare().then(result=>{try{return {...result,codec:result.path?require(result.path):null};}catch(error){return {codec:null,backend:'WASM SIMD',reason:error.message};}});
+parentPort.on('message',async f=>{try{const native=await ready,start=performance.now();const bytes=native.codec?native.codec.encode(Buffer.from(f.rgba.buffer,f.rgba.byteOffset,f.rgba.byteLength),f.w,f.h,!!f.bgra):codec.encode(f.rgba,f.w,f.h,1,{bgra:!!f.bgra});parentPort.postMessage({bytes,w:f.w,h:f.h,format:1,encodeMs:performance.now()-start,encoder:native.backend,encoderFallbackReason:native.reason,inputRgba:f.rgba},[bytes.buffer,f.rgba.buffer]);}catch(e){parentPort.postMessage({error:e.message});}});

@@ -1,6 +1,6 @@
 const modulePaths = require('./module-paths.cjs');
 // A native-session child receives metadata only. Verified files remain in the
-// immutable version directory; replacing an IZM cannot change that session.
+// immutable version directory; replacing a module archive cannot change that session.
 const fs = require('node:fs'), path = require('node:path');
 const archive = require('./archive.cjs'), { relative, assert, moduleDescriptor, ID } = require('./descriptors.cjs');
 let previous, view;

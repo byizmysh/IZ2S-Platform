@@ -1,0 +1,112 @@
+{
+  "id": "pc-switch1",
+  "name": "PC + Switch 1",
+  "executionHost": "pc",
+  "inputAdapter": "switch-wifi",
+  "description": "0.25 sends SB4 input over Wi-Fi; Switch 1 types it as a USB keyboard.",
+  "fields": [
+    {
+      "key": "consoleHost",
+      "label": "Server IPv4 address (empty = automatic)",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "consoleAddress",
+      "label": "Switch LAN IPv4 address (optional)",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "consoleWifiAddress",
+      "label": "Switch Wi-Fi IPv4 address (optional)",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "switchAddress",
+      "label": "Switch 1 Wi-Fi IPv4 address",
+      "type": "text",
+      "default": "",
+      "description": "Detected automatically on the local network. If unavailable, enter the address shown in IZ2S SB4 Keyboard."
+    }
+  ],
+  "format": "izlauncher.profile",
+  "apiVersion": 1,
+  "version": "1.0.0",
+  "entry": "entry.cjs",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "nodes": [
+    {
+      "id": "server",
+      "device": "linux-host",
+      "roles": [
+        "server"
+      ]
+    },
+    {
+      "id": "input",
+      "device": "switch1",
+      "roles": [
+        "input"
+      ]
+    },
+    {
+      "id": "console",
+      "device": "switch2",
+      "roles": [
+        "console"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "id": "input-network",
+      "from": "server",
+      "to": "input",
+      "type": "wifi"
+    },
+    {
+      "id": "control",
+      "from": "input",
+      "to": "console",
+      "type": "usb-hid"
+    },
+    {
+      "id": "stream",
+      "from": "server",
+      "to": "console",
+      "type": "network"
+    }
+  ],
+  "ui": {
+    "combined": false,
+    "checks": [
+      {
+        "id": "server",
+        "label": "Server",
+        "icon": "i-server"
+      },
+      {
+        "id": "arm",
+        "label": "Switch 1 · input",
+        "icon": "i-arm"
+      },
+      {
+        "id": "usb",
+        "label": "USB → Switch 2",
+        "icon": "i-usb"
+      },
+      {
+        "id": "lan",
+        "label": "Console",
+        "icon": "i-switch"
+      }
+    ]
+  },
+  "order": 3,
+  "selectable": true
+}

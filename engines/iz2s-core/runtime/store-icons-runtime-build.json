@@ -1,0 +1,39 @@
+{
+  "base": "R1043 (R1038 family)",
+  "baseSha256": "44713772c5e2c92f1b648075e255f06048863bcf89e37cef14d83f912f695bf5",
+  "immediateMenuRefresh": true,
+  "nroTileIcons": true,
+  "sha256": "938c9bc54944aa8cdb0283ace613e19534b43361068f551604262fbe59e18021",
+  "nativeServices": 1,
+  "storeCodeInRuntime": true,
+  "independentStoreModulePreserved": true,
+  "sources": {
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/main.c": "b9461417a2472b5574127041f6c616fbdd725b15fd9c33ae320f04abe7a8b6e3",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/store.c": "3a9467e83c76b27f39c83252efb003dab60c3c5dd6914cfd1ca2a6f1ae4030e3",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/ui.c": "d2f84108736ba20d2f1a6072dcb78991a2f2796e8c9df8ba0bd3d9df39159578",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/download.c": "e6d76092dc7281368b7b876d51abe76565b457293dda45e91abf3c2d31304a1b",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/installed-artwork.c": "16b8357490b6af6dc0adcb197f4ff3c59a16c67969ae7d2233b537ce70f3cf93",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-store/switch/iza/host.c": "511f7b60b6b279488fae0fb8dd84047a093f35430bbaf94d955da10a6350edea",
+    "workspace/outputs/iz2s-store/green-nx-fix/source/izlauncher/legacy/native/launcher.c": "c471804994404d3f5c203740140fe73539a2ace517f2fcf6e80fee6847243c0c",
+    "workspace/outputs/iz2s-store/green-nx-fix/source/izlauncher/ounce/apps.c": "b72e77f207c5b53fd6958bb62550ddf6825d468e89ef83ba5f8082b90a638b41"
+  },
+  "serviceCheck": {
+    "passed": true,
+    "requiredImports": 96,
+    "checked": "Actual SDK resolver plus embedded Store adapter executed on ARM64",
+    "deviceCalls": "Stubbed, not hardware-tested",
+    "legacyDispatch": true,
+    "ordinaryModuleIoScoped": true
+  },
+  "menuCheck": {
+    "passed": true,
+    "fixture": "Green-NX 1.0.31pre1-switch2 downloaded from console",
+    "checks": [
+      "actual publish_catalog tile bytes match saved SD icon",
+      "NACP application title",
+      "native NRO icon when sidecar absent",
+      "return from app sets rescan",
+      "removal reflected by catalog"
+    ]
+  }
+}

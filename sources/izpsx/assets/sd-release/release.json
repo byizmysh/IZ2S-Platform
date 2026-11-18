@@ -1,0 +1,9 @@
+{
+  "version": "0.5.2",
+  "sourceRebuild": "abi/native-052-rebuild.json",
+  "files": {
+    "launcher.iza": "6c15d65fbe65c0f9fc74a895c41d8051ae115501ff444a78611555e81f98f34c",
+    "sd-bundle.json": "d47aa0d0088b5a0e4bacda4f27689f820930b9beb1ac8b90d1429a9877794aec",
+    "asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata": "5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac"
+  }
+}

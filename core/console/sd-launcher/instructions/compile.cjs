@@ -11,7 +11,7 @@ function region(r,bytes,{write=false}={}){
  if(write&&r.space==='controls')assert((r.offset>=784&&r.offset+bytes<=960)||(r.offset>=1024&&r.offset+bytes<=0x700000),'Instructions may write only app state or app data');
  return [SPACE[r.space],r.offset];
 }
-function filename(name){assert(typeof name==='string'&&Buffer.byteLength(name)<128&&!/[\x00-\x1f\x7f\\:]/.test(name)&&name.split('/').every(p=>p&&p!=='.'&&p!=='..'),'Invalid local instruction file');assert(!/^\.?launcher\.izapp(?:\.|$)/.test(name)&&!/^\.install/.test(name),'Instructions cannot replace their own executable');return name;}
+function filename(name){assert(typeof name==='string'&&Buffer.byteLength(name)<128&&!/[\x00-\x1f\x7f\\:]/.test(name)&&name.split('/').every(p=>p&&p!=='.'&&p!=='..'),'Invalid local instruction file');assert(!/^\.?launcher\.iza(?:\.|$)/.test(name)&&!/^\.install/.test(name),'Instructions cannot replace their own executable');return name;}
 function compile(plan,{privateBytes=128*1024*1024}={}){
  keys(plan,['format','version','guards','initialize','rules','stop','assets']);assert.equal(plan.format,'iz2s.local-instructions');assert.equal(plan.version,1);
  if(plan.assets!==undefined)require('../assets.cjs').declarations({native:{assets:plan.assets}});

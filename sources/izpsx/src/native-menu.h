@@ -29,14 +29,17 @@ typedef struct {
  const char *controller_status; /* Optional live P1/P2 status for native inputs. */
  uint32_t controller_mask,controller_error,single_joycon;
  const char*controller_style[PS1_PLAYER_COUNT];
+#ifdef IZPSX_SB4_STORAGE
+ Ps1SdCatalog *catalog;
+#endif
 } Ps1MenuConfig;
 typedef struct {
  char directory[PS1_SD_PATH_MAX], selected[PS1_SD_PATH_MAX];
  size_t count,index,top;
  uint32_t previous,held_ticks,error,status,error_kind;
 } Ps1Menu;
-/* Config and workspaces remain owned by the caller. No allocation, host RPC,
- * file writes or background threads. init may report a filesystem error in
+/* Config and workspaces remain owned by the caller. An optional libsb4
+ * catalog manages its own storage. init may report a filesystem error in
  * state.error; that error is shown with A retry / B back. */
 int ps1_menu_init(Ps1Menu *,const Ps1MenuConfig *);
 int ps1_menu_step(Ps1Menu *,const Ps1MenuConfig *,uint32_t buttons);

@@ -8,7 +8,7 @@
    const local=folder?file.webkitRelativePath:file.name,name=[relative,local].filter(Boolean).join('/');
    if(!local||name.split('/').some(p=>!p||p==='.'||p==='..'||/[\x00-\x1f\x7f\\:]/.test(p)))throw Error('Invalid upload path: '+file.name);
    if(area==='games'&&!supported.test(name)){if(folder){skipped++;continue;}throw Error('Unsupported game file: '+file.name);}
-   if(area==='bios'&&(name!=='scph101.bin'||file.size!==524288))throw Error('Choose a 512 KB BIOS named scph101.bin');
+   if(area==='bios'&&(name!=='bios.bin'||file.size!==524288))throw Error('Choose a 512 KB BIOS named bios.bin');
    if(!file.size)throw Error('Empty file: '+file.name);const key=name.normalize('NFC').toLocaleLowerCase();if(byName.has(key))throw Error('Two files have the same SD name: '+name);
    const item={file,name};items.push(item);byName.set(key,item);
   }

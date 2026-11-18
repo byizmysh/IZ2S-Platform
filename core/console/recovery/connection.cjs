@@ -2,7 +2,7 @@
 const {EventEmitter}=require('node:events'),assert=require('node:assert/strict');
 const W=require('./wire.cjs'),J=require('./journal.cjs');
 const Routes=require('./routes.cjs');
-const {Connection}=require('../../../engines/izmysh/server/lib/connection.cjs');
+const {Connection}=require('../transport/server/lib/connection.cjs');
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});promise.catch(()=>{});return {promise,resolve,reject};}
 function receipt(frame,session){
  assert(frame.type===W.TYPES.RECEIPT&&frame.payload.length===64,'Expected console receipt');const b=frame.payload,sequence=Number(b.readBigUInt64LE()),state=['idle','executing','completed'][b.readUInt32LE(8)],responseBytes=b.readUInt32LE(12);

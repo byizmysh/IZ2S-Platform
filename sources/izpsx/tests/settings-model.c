@@ -13,7 +13,7 @@ static void legacy_journal(const Ps1Preferences*p){
 }
 int main(int argc,char**argv){
  scratch=mmap(0,65536,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_32BIT,-1,0);assert(scratch!=MAP_FAILED);
- Ps1SdDirectory sd={.send=send,.close_handle=close_handle,.filesystem=42,.buffer=scratch,.capacity=65536};Ps1Settings s,t;
+ Ps1SdDirectory sd=setup_sd();Ps1Settings s,t;
  check(!ps1_settings_load(&s,&sd)&&!s.generation&&!s.dirty&&ps1_preferences_valid(&s.prefs));
  check(ps1_setting_change(&s,PS1_FPS,1)&&ps1_display_limit(&s.prefs)==20);s.prefs.value[PS1_FPS]=3;check(!ps1_settings_save(&s,&sd)&&s.generation==1&&!s.dirty&&!open_count);
  s.prefs.value[PS1_VOLUME]=1;s.dirty=1;check(!ps1_settings_save(&s,&sd)&&s.generation==2&&count==2);

@@ -14,9 +14,9 @@ async function publish(root) {
       // Packages installed without a development checkout need no rebuilding.
       const sources = [descriptor.server?.entry, descriptor.switch?.entry].filter(Boolean);
       if (!(await Promise.all(sources.map(file => fs.access(path.join(folder, file)).then(() => true, () => false)))).every(Boolean)) continue;
-      const bytes = await archive.pack(folder), target = path.join(folder, descriptor.id + '.izm');
+      const bytes = await archive.pack(folder), target = path.join(folder, descriptor.id + '.module.zip');
       const previous = await fs.readFile(target).catch(error => { if (error.code !== 'ENOENT') throw error; return null; });
-      if (previous?.equals(bytes)) continue;
+      if (previous && archive.sameContents(previous, bytes)) continue;
       temporary = path.join(folder, '.publish-' + require('node:crypto').randomUUID());
       await fs.writeFile(temporary, bytes); await fs.rename(temporary, target); result.updated.push(descriptor.id);
     } catch (error) { result.errors.push({ id: entry.name, error: error.message }); }

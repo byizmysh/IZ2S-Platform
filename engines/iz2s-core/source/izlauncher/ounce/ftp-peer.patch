@@ -1,0 +1,54 @@
+--- a/ftpsrv.h
++++ b/ftpsrv.h
+@@ -40,6 +40,7 @@
+     unsigned port;
+     uint32_t bind_ipv4;
+     uint32_t peer_ipv4;
++    bool (*peer_allowed)(uint32_t ipv4);
+ 
+     // if set, anon access is allowed.
+     bool anon;
+--- a/ftpsrv.c
++++ b/ftpsrv.c
+@@ -140,6 +140,7 @@
+     struct FtpSocket pasv_sock;    // socket for PASV listen fd
+ 
+     struct sockaddr_in control_sockaddr;
++    uint32_t control_peer_ipv4;
+     struct sockaddr_in data_sockaddr;
+     struct sockaddr_in pasv_sockaddr;
+ 
+@@ -550,7 +551,7 @@
+                 ftp_data_transfer_end(session);
+             }
+         } else {
+-            if (g_ftp.cfg.peer_ipv4 && session->pasv_sockaddr.sin_addr.s_addr != g_ftp.cfg.peer_ipv4) {
++            if (session->pasv_sockaddr.sin_addr.s_addr != session->control_peer_ipv4) {
+                 ftp_socket_close(&session->data_sock);
+                 return;
+             }
+@@ -871,7 +872,7 @@
+         ftp_client_msg(session, 501, "Syntax error in parameters or arguments, %s.", strerror(errno));
+     } else {
+         rc = inet_aton(ip_buf, &session->data_sockaddr.sin_addr);
+-        if (rc < 0) {
++        if (!rc || session->data_sockaddr.sin_addr.s_addr != session->control_peer_ipv4) {
+             ftp_client_msg(session, 501, "Syntax error in parameters or arguments, %s.", strerror(errno));
+         } else {
+             session->data_sockaddr.sin_family = PF_INET;
+@@ -1422,12 +1423,14 @@
+     if (rc < 0) {
+         return rc;
+     } else {
+-        if (g_ftp.cfg.peer_ipv4 && sa.sin_addr.s_addr != g_ftp.cfg.peer_ipv4) {
++        if ((g_ftp.cfg.peer_ipv4 && sa.sin_addr.s_addr != g_ftp.cfg.peer_ipv4) ||
++            (g_ftp.cfg.peer_allowed && !g_ftp.cfg.peer_allowed(sa.sin_addr.s_addr))) {
+             ftp_socket_close(&session->control_sock);
+             return -1;
+         }
+         ftp_set_server_socket_options(&session->control_sock);
+         session->control_sockaddr = sa;
++        session->control_peer_ipv4 = sa.sin_addr.s_addr;
+         addr_len = sizeof(session->control_sockaddr);
+ 
+         rc = ftp_socket_getsockname(&session->control_sock, (struct sockaddr*)&session->control_sockaddr, &addr_len);

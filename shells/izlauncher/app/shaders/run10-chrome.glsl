@@ -37,11 +37,32 @@ float mouse(vec2 q,float t){
  return clamp(m,0.0,1.0);
 }
 
+float titleInk(vec2 p,vec2 origin,uint glyph){
+ float ink=focusAscii(p,origin,glyph);
+ ink=max(ink,focusAscii(p+vec2(-.9,0),origin,glyph));
+ ink=max(ink,focusAscii(p+vec2(.9,0),origin,glyph));
+ ink=max(ink,focusAscii(p+vec2(0,-.7),origin,glyph));
+ return max(ink,focusAscii(p+vec2(0,.7),origin,glyph));
+}
+
 void menuHeader(vec2 p,inout vec3 col){
  // The original brand silhouette, drawn analytically only inside its logo box.
  if(p.x>=70.0&&p.x<162.0&&p.y>=60.0&&p.y<126.0)col=mix(col,vec3(.76,1.0,.34),mouse((p-vec2(70,63))/.47,c.motion.x*.10));
- col=mix(col,INK,focusText(p,vec2(180,70),F_TITLE,.57));
- col=mix(col,MUTED,focusText(p,vec2(182,114),F_VERSION,1.0));
+ // The title uses the shared font in both the installed and streamed menus.
+ if(p.x>=176.0&&p.x<314.0&&p.y>=68.0&&p.y<132.0){
+  vec2 title=(p-vec2(180,70))/1.9;
+  float ink=titleInk(title,vec2(0),73u);        // I
+  ink=max(ink,titleInk(title,vec2(9,0),90u));  // Z
+  ink=max(ink,titleInk(title,vec2(27,0),50u)); // 2
+  ink=max(ink,titleInk(title,vec2(44,0),83u)); // S
+  col=mix(col,INK,ink);
+ }
+ vec2 versionPoint=(p-vec2(182,114))/.65;
+ float versionInk=focusAscii(versionPoint,vec2(0,0),48u);
+ versionInk=max(versionInk,focusAscii(versionPoint,vec2(17,0),46u));
+ versionInk=max(versionInk,focusAscii(versionPoint,vec2(26,0),50u));
+ versionInk=max(versionInk,focusAscii(versionPoint,vec2(43,0),53u));
+ col=mix(col,MUTED,versionInk);
  // Shared filter/search hit areas remain at their existing positions.
  float glass=box(p,vec2(1467,95),vec2(382,37),37.0);
  col=mix(col,vec3(.15,.20,.39),fill(glass)*.36);
@@ -49,15 +70,27 @@ void menuHeader(vec2 p,inout vec3 col){
 }
 void menuFooter(vec2 p,inout vec3 col){
  if(p.y<970.0||p.y>1040.0)return;
- col=mix(col,MUTED,focusText(p,vec2(1840.0-float(F_CREDIT.z),996),F_CREDIT,1));
- if(c.rows[1]!=0u||c.bagMeta.y!=0u)return;
- bool picker=c.piece.x!=0;uint count=focusCount(picker);bool appSelected=!picker&&c.state.x<min(c.library.x,15u)&&focusOrdinal(c.state.x,false)<count;
+ col=mix(col,MUTED,focusText(p,vec2(1840.0-float(F_CREDIT.z),1000),F_CREDIT,1));
+ if(c.rows[1]!=0u||c.rows[14]!=0u||c.bagMeta.y!=0u)return;
+ bool picker=c.piece.x!=0;uint count=focusCount(picker);
+#ifdef IZ_CORE_LOCAL_ADD
+ const uint addGrid=(0x704000u+98308u-1024u)/4u;
+ if(picker&&c.atlas[addGrid]==0x495a4752u)count=c.atlas[addGrid+1u];
+#endif
+ bool appSelected=!picker&&c.state.x<min(c.library.x,15u)&&focusOrdinal(c.state.x,false)<count;
  bool showA=count>0u&&(picker||c.library.x>0u),showB=picker,showX=!picker&&(!showA||appSelected);
+#ifdef IZ_CORE_LOCAL_ADD
+ const uint storeMeta=(0x704000u-1024u)/4u;
+ if(picker&&c.atlas[addGrid]==0x495a4752u){
+  uint selected=c.atlas[addGrid+2u]%15u;
+  if((c.atlas[storeMeta+37350u]&(1u<<selected))!=0u)showA=false;
+ }
+#endif
  float cursor=95.0;vec2 a=vec2(cursor,1008),b,x;
  if(showA){ivec4 caption=picker?F_INSTALL:appSelected?F_OPEN:F_ADDSMALL;col=mix(col,INK,line(length(p-a)-19.0,1.4));col=mix(col,INK,text(p,a-vec2(TEXT_BUTTON_A.zw)*.5,TEXT_BUTTON_A));col=mix(col,INK,focusText(p,a+vec2(35,-float(caption.w)*.5),caption,1));cursor+=35.0+float(caption.z)+48.0;}
  b=vec2(cursor,1008);
  if(showB){col=mix(col,INK,line(length(p-b)-19.0,1.4));col=mix(col,INK,text(p,b-vec2(TEXT_BUTTON_B.zw)*.5,TEXT_BUTTON_B));col=mix(col,INK,focusText(p,b+vec2(35,-float(F_BACK.w)*.5),F_BACK,1));cursor+=35.0+float(F_BACK.z)+48.0;}
  x=vec2(cursor,1008);
  if(showX){col=mix(col,INK,line(length(p-x)-19.0,1.4));col=mix(col,INK,focusText(p,x-vec2(F_X.zw)*.5,F_X,1));col=mix(col,INK,focusText(p,x+vec2(35,-float(F_ADDSMALL.w)*.5),F_ADDSMALL,1));cursor+=35.0+float(F_ADDSMALL.z)+48.0;}
- if(appSelected&&c.transition.y==0.0){vec2 key=F_REMOVE_KEY;col=mix(col,INK,line(length(p-key)-19.0,1.4));col=mix(col,INK,fill(box(p,key,vec2(7,1),1)));col=mix(col,INK,focusText(p,key+vec2(35,-float(F_REMOVE.w)*.5),F_REMOVE,1));}
+ if(appSelected&&c.transition.y==0.0&&!nroPreviewTile(nroPreviewBase(c.state.x))){vec2 key=F_REMOVE_KEY;col=mix(col,INK,line(length(p-key)-19.0,1.4));col=mix(col,INK,fill(box(p,key,vec2(7,1),1)));col=mix(col,INK,focusText(p,key+vec2(35,-float(F_REMOVE.w)*.5),F_REMOVE,1));}
 }

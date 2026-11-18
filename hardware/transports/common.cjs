@@ -7,7 +7,7 @@ function invoke(
   { input, env = process.env, timeout = 30000, onEvent } = {},
 ) {
   return new Promise((resolve, reject) => {
-    const child = spawn(file, args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(file, args, { env, windowsHide:true, stdio: ['pipe', 'pipe', 'pipe'] });
     let output = '',
       errors = '',
       tail = '',

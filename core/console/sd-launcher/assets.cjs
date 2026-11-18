@@ -1,8 +1,9 @@
 'use strict';
 // Immutable companion files. Native code/data chooses the declared hashed
-// relative path; the installer publishes these before launcher.izapp changes.
+// relative path; the installer publishes these before launcher.iza changes.
 const fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-const MAX_ASSETS=16,MAX_ASSET_BYTES=256*1024*1024,MAX_TOTAL_BYTES=512*1024*1024;
+// The manifest binding has a uint32 total; keep that ABI bound and slot count.
+const MAX_ASSETS=16,MAX_ASSET_BYTES=0xffffffff,MAX_TOTAL_BYTES=0xffffffff;
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 function identity(a){
  assert(a&&typeof a==='object'&&!Array.isArray(a),'Invalid SD asset declaration');
@@ -59,11 +60,28 @@ async function bundle(directory,{id,bytes,sha256,assets}){
  const file=path.join(directory,'sd-bundle.json'),temporary=file+'.'+crypto.randomUUID()+'.tmp',manifest={format:'iz2s.sd-bundle',version:1,id,launcher:{bytes,sha256},assets:assets.map(a=>({file:a.path,path:a.path,bytes:a.bytes,sha256:a.sha256}))};
  try{await fs.writeFile(temporary,JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});await fs.rename(temporary,file);}finally{await fs.rm(temporary,{force:true});}return file;
 }
-async function loadBundle(packageFile,bytes){
- const pkg=require('./package.cjs').decode(bytes),root=await fs.realpath(path.dirname(path.resolve(packageFile)));let manifest;
- try{const file=await fs.open(path.join(root,'sd-bundle.json'),'r');try{assert((await file.stat()).size<=16384,'SD bundle manifest is too large');manifest=JSON.parse(await file.readFile('utf8'));}finally{await file.close();}}
- catch(e){if(e.code!=='ENOENT')throw e;assert(!(pkg.flags&8),'This SD application requires its sd-bundle.json and companion files');return [];}
- assert(manifest.format==='iz2s.sd-bundle'&&manifest.version===1&&manifest.id===pkg.id,'SD bundle identity differs');assert(manifest.launcher?.bytes===bytes.length&&manifest.launcher.sha256===sha(bytes),'SD bundle launcher changed');
+async function loadBundle(packageFile,bytes,{optional=false,header}={}){
+ const pkg=header??require('./package.cjs').decode(bytes);
+ const root=await fs.realpath(path.dirname(path.resolve(packageFile))),digest=sha(bytes);
+ let manifest;
+ for(const name of ['sd-bundle-'+digest+'.json','sd-bundle.json']){
+  const filename=path.join(root,name);
+  const info=await fs.lstat(filename).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+  if(!info)continue;
+  assert(info.isFile(),'SD bundle manifest must be a file');
+  const file=await fs.open(filename,'r');
+  try{
+   assert((await file.stat()).size<=16384,'SD bundle manifest is too large');
+   manifest=JSON.parse(await file.readFile('utf8'));
+  }finally{await file.close();}
+  break;
+ }
+ if(manifest===undefined){
+  if(optional)return null;
+  assert(!(pkg.flags&8),'This SD application requires its sd-bundle.json and companion files');
+  return [];
+ }
+ assert(manifest?.format==='iz2s.sd-bundle'&&manifest.version===1&&manifest.id===pkg.id,'SD bundle identity differs');assert(manifest.launcher?.bytes===bytes.length&&manifest.launcher.sha256===digest,'SD bundle launcher changed');
  const rows=declarations({native:{assets:manifest.assets}});assert(Array.isArray(manifest.assets),'SD bundle companion list differs');verifyBinding(pkg,rows);
  const assets=[];for(const a of rows){assert.equal(a.file,a.path,'SD bundle source name differs');const file=await fs.realpath(path.join(root,a.file));assert(file.startsWith(root+path.sep),'SD bundle asset escapes its folder');assets.push({...a,file});}return prepared(assets);
 }

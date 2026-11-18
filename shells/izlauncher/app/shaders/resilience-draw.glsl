@@ -19,18 +19,21 @@ float rsMetricLabel(vec2 p,vec2 origin,uint index,float scale){
  return index==4u?rsType(p,origin,gaps,scale):rsType(p,origin,waits,scale);
 }
 uint rsMetricValue(uint index){return index==0u?rs(6u):index==1u?rs(7u):index==2u?rs(4u):index==3u?rs(5u):index==4u?rs(9u):rs(18u);}
-float rsStatusHint(vec2 p,vec2 center,float scale){
+float rsStickKeycap(vec2 p,vec2 center,float scale,uint stick){
  float m=line(box(p,center,vec2(18,13),7),.9);
  // Actual glyph ink is 18px high, inside a 32px atlas tile. Center that ink.
  vec2 local=(p-center)/scale;
- m=max(m,focusAscii(local,vec2(-16,-9),76u));m=max(m,focusAscii(local,vec2(0,-9),51u));
- // STATUS begins 1px into its first glyph; compensate for an exact 14px gap.
- return max(m,rsType(p,center+vec2(18.0+14.0-scale,-9.0*scale),RS_STATUS,scale));
+ m=max(m,focusAscii(local,vec2(-16,-9),stick));
+ return max(m,focusAscii(local,vec2(0,-9),51u));
 }
-vec3 rsDraw(vec2 p,vec3 col){
+float rsStatusHint(vec2 p,vec2 center,float scale){
+ // STATUS begins 1px into its first glyph; compensate for an exact 14px gap.
+ return max(rsStickKeycap(p,center,scale,76u),rsType(p,center+vec2(18.0+14.0-scale,-9.0*scale),RS_STATUS,scale));
+}
+vec3 rsDraw(vec2 p,vec3 col,vec2 statusCenter){
  if(!rsInlineAllowed()||loadProgressVisible())return col;
- if(p.y>=990.0&&p.y<=1026.0&&p.x>=1068.0&&p.x<=1225.0){
-  vec3 ink=rsVisible()?BLUE:MUTED;col=mix(col,ink,rsStatusHint(p,vec2(1090,1008),.65));
+ if(abs(p.y-statusCenter.y)<=18.0&&p.x>=statusCenter.x-22.0&&p.x<=statusCenter.x+135.0){
+  vec3 ink=rsVisible()?BLUE:MUTED;col=mix(col,ink,rsStatusHint(p,statusCenter,.65));
  }
  if(!rsInlineVisible()||p.y<935.0||p.y>979.0||p.x<79.0||p.x>1841.0)return col;
  float panel=box(p,vec2(960,957),vec2(880,21),9);col=mix(col,PANEL,fill(panel)*.97);col=mix(col,BLUE,line(panel,.5)*.32);

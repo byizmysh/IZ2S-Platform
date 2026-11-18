@@ -33,9 +33,9 @@ Optional reference-core tools may use `IZPSX_QEMU` or `qemu-aarch64`; emulated L
 
 ## Artifacts
 
-- `izpsx-emulator-0.5.1.izm`: platform-installable module.
-- `izpsx-emulator-0.5.1-sd.zip`: launcher.izapp and matching native asset under its SD directory.
-- `izpsx-emulator-0.5.1-source.zip` and `.tar.gz`: complete frozen module, corresponding source, vendor snapshot, licenses and build instructions.
+- `izpsx-emulator-0.5.2.iza`: platform-installable module.
+- `izpsx-emulator-0.5.2-sd.zip`: launcher.iza and matching native asset under its SD directory.
+- `izpsx-emulator-0.5.2-source.zip` and `.tar.gz`: complete frozen module, corresponding source, vendor snapshot, licenses and build instructions.
 - `SHA256SUMS`, `SOURCE-MANIFEST.json`, `release-report.json`: hashes and scope/limits.
 
 The source archives omit `.git`, `build/`, `dist/`, private data, games/BIOS and local caches. No native host platform is enabled just by producing one of these archives.
@@ -45,3 +45,9 @@ The GitHub check workflow pins the compatible public [IZ2S Platform SDK](https:/
 ## Native UI screenshots
 
 Run `python3 tools/screenshots.py` with a local C compiler and Pillow. It renders the actual pause/settings code into two PNGs with synthetic controller profiles, without contacting the console. Source hashes and the capture scope are recorded in docs/images/provenance.json.
+
+## Current native SDK variant
+
+0.5.2 uses the interpreter and the included libsb4 headers in `sdk/include/`. Run `python3 tools/build-native.py` then `python3 tools/build-sd.py --hen --product-version 0.5.2`. The retained `--hen` switch is an internal historical build option. `abi/native-052-rebuild.json` records the byte-identical local rebuild against the shipped module. `assets/sd-release/` contains the reviewed executable, matching engine and SHA-256 receipt. Packaging verifies and copies that frozen export; it does not silently regenerate it with whichever platform SDK happens to be installed.
+
+After modifying native code, explicitly generate and verify a new SD export using the target platform, then update the frozen export and its receipt together. `npm run package` is a packaging check, not proof that new source has been compiled.

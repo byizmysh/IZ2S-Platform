@@ -23,7 +23,7 @@ async function resolve(root, { kind, id }) {
       break;
     }
     case 'configuration': {
-      const profile = require('../profiles/index.cjs').list(root).find(p => p.id === identifier(id));
+      const profile = require('../hardware/profiles.cjs').list(root).find(p => p.id === identifier(id));
       if (!profile) throw Error('Unknown hardware configuration');
       folder = profile.folder; break;
     }

@@ -36,8 +36,38 @@ void ps1_ui_text(uint32_t*p,unsigned x,unsigned y,const char*s,unsigned scale,ui
 #define text ps1_ui_text
 static void hex(char out[9],uint32_t v){static const char h[]="0123456789ABCDEF";for(unsigned i=0;i<8;i++)out[i]=h[(v>>(28-i*4))&15];out[8]=0;}
 static void decimal(char out[24],size_t n){char reverse[24];size_t i=0,j=0;do{reverse[i++]=(char)('0'+n%10);n/=10;}while(n&&i<sizeof reverse);while(i)out[j++]=reverse[--i];out[j]=0;}
-static int config_valid(const Ps1MenuConfig *c){return c&&c->sd&&c->root&&c->entries&&c->capacity&&c->rgba&&ps1_sd_path_valid(c->root,c->root);}
-static void load(Ps1Menu *m,const Ps1MenuConfig *c){m->count=m->index=m->top=0;m->error_kind=0;m->error=ps1_sd_list(c->sd,c->root,m->directory,c->entries,c->capacity,&m->count);if(!m->error){if(!strcmp(m->directory,c->root)){size_t out=0;for(size_t i=0;i<m->count;i++)if(strcmp(c->entries[i].name,"bios"))c->entries[out++]=c->entries[i];m->count=out;}m->count=ps1_sd_filter_images(c->entries,m->count);}}
+static Ps1SdEntry *menu_entries(const Ps1MenuConfig *c) {
+#ifdef IZPSX_SB4_STORAGE
+    if (c->catalog) return c->catalog->entries;
+#endif
+    return c->entries;
+}
+static int config_valid(const Ps1MenuConfig *c) {
+    if (!c || !c->sd || !c->root || !c->rgba || !ps1_sd_path_valid(c->root,c->root)) return 0;
+#ifdef IZPSX_SB4_STORAGE
+    if (c->catalog) return 1;
+#endif
+    return c->entries && c->capacity;
+}
+static void load(Ps1Menu *m,const Ps1MenuConfig *c) {
+    m->count = m->index = m->top = 0;
+    m->error_kind = 0;
+#ifdef IZPSX_SB4_STORAGE
+    if (c->catalog)
+        m->error = ps1_sd_catalog_load(c->sd,c->root,m->directory,c->catalog,&m->count);
+    else
+#endif
+        m->error = ps1_sd_list(c->sd,c->root,m->directory,c->entries,c->capacity,&m->count);
+    if (m->error) return;
+    Ps1SdEntry *entries = menu_entries(c);
+    if (!strcmp(m->directory,c->root)) {
+        size_t kept = 0;
+        for (size_t i = 0; i < m->count; ++i)
+            if (strcmp(entries[i].name,"bios")) entries[kept++] = entries[i];
+        m->count = kept;
+    }
+    m->count = ps1_sd_filter_images(entries,m->count);
+}
 int ps1_menu_init(Ps1Menu *m,const Ps1MenuConfig *c){if(!m||!config_valid(c))return PS1_MENU_ERROR;memset(m,0,sizeof *m);memcpy(m->directory,c->root,strlen(c->root)+1);load(m,c);if(c->buttons)m->previous=c->buttons(c->user);return PS1_MENU_RUNNING;}
 int ps1_menu_step(Ps1Menu *m,const Ps1MenuConfig *c,uint32_t buttons){
  if(!m||!config_valid(c))return PS1_MENU_ERROR;
@@ -46,7 +76,7 @@ int ps1_menu_step(Ps1Menu *m,const Ps1MenuConfig *c,uint32_t buttons){
  if(direction&&direction==(m->previous&(PS1_MENU_UP|PS1_MENU_DOWN|PS1_MENU_LEFT|PS1_MENU_RIGHT))){m->held_ticks++;if(m->held_ticks>=20&&(m->held_ticks-20)%4==0)pressed|=direction;}else m->held_ticks=0;m->previous=buttons;
  if(pressed&PS1_MENU_EXIT_BUTTON)return m->status=PS1_MENU_EXIT;
  if(pressed&PS1_MENU_B){char p[PS1_SD_PATH_MAX];if(!ps1_sd_parent(c->root,m->directory,p))return m->status=PS1_MENU_CANCELLED;memcpy(m->directory,p,strlen(p)+1);load(m,c);return PS1_MENU_RUNNING;}
- if(pressed&PS1_MENU_A){if(m->error){load(m,c);return PS1_MENU_RUNNING;}if(m->count){Ps1SdEntry *e=&c->entries[m->index];char p[PS1_SD_PATH_MAX];if(!ps1_sd_join(c->root,m->directory,e->name,p)){m->error=PS1_SD_INVALID;return PS1_MENU_RUNNING;}if(e->directory){memcpy(m->directory,p,strlen(p)+1);load(m,c);}else{memcpy(m->selected,p,strlen(p)+1);return m->status=PS1_MENU_SELECTED;}}}
+ if(pressed&PS1_MENU_A){if(m->error){load(m,c);return PS1_MENU_RUNNING;}if(m->count){Ps1SdEntry *e=&menu_entries(c)[m->index];char p[PS1_SD_PATH_MAX];if(!ps1_sd_join(c->root,m->directory,e->name,p)){m->error=PS1_SD_INVALID;return PS1_MENU_RUNNING;}if(e->directory){memcpy(m->directory,p,strlen(p)+1);load(m,c);}else{memcpy(m->selected,p,strlen(p)+1);return m->status=PS1_MENU_SELECTED;}}}
  if(m->count&&!m->error){if(pressed&PS1_MENU_UP)m->index=m->index?m->index-1:m->count-1;if(pressed&PS1_MENU_DOWN)m->index=(m->index+1)%m->count;if(pressed&PS1_MENU_LEFT)m->index=m->index>=12?m->index-12:0;if(pressed&PS1_MENU_RIGHT)m->index=m->index+12<m->count?m->index+12:m->count-1;if(m->index<m->top)m->top=m->index;if(m->index>=m->top+12)m->top=m->index-11;}
  return PS1_MENU_RUNNING;
 }
@@ -70,13 +100,14 @@ void ps1_loading_draw(uint32_t*p,unsigned progress,const char*message){
 void ps1_menu_draw(const Ps1Menu *m,const Ps1MenuConfig *c){
  if(!m||!config_valid(c))return;uint32_t*p=c->rgba;ps1_ui_chrome(p,"YOUR PLAYSTATION LIBRARY",c->preferences);uint32_t accent=ps1_ui_accent(c->preferences);
  text(p,24,90,"SD",1,accent,2);const char*path=m->directory;size_t n=strlen(path);if(n>79)path+=n-79;text(p,48,90,path,1,0xffb3a79b,94);
- if(m->error){char code[9];hex(code,m->error);text(p,30,145,m->error_kind==1?"BIOS NOT READY":m->error_kind==2?"GAME NOT READY":"FOLDER UNAVAILABLE",3,0xffb4b8ff,25);text(p,30,190,m->error_kind==1?"Add your own 512 KB scph101.bin in the BIOS folder.":m->error_kind==2?"Check the game image and its CUE/BIN track files.":"Check the SD card and try again.",1,0xffd3e1e9,70);text(p,30,218,"ERROR",1,0xffb3a79b,5);text(p,72,218,code,1,0xffb3a79b,8);text(p,30,254,m->error_kind?"A LIBRARY    B BACK":"A RETRY    B BACK",2,accent,40);}
- else if(!m->count){text(p,30,155,"YOUR LIBRARY STARTS HERE",2,0xfff5f2ec,45);text(p,30,199,"ADD BIN/CUE OR PBP TO THE GAMES FOLDER",1,0xffb3a79b,80);text(p,30,225,"SD:/IZ2S/HOMEBREW/MODULES/IZPSX/GAMES",1,accent,80);}
+ if(m->error){char code[9];hex(code,m->error);text(p,30,145,m->error_kind==1?"BIOS NOT READY":m->error_kind==2?"GAME NOT READY":"FOLDER UNAVAILABLE",3,0xffb4b8ff,25);text(p,30,190,m->error_kind==1?"Add your own 512 KB bios.bin in the BIOS folder.":m->error_kind==2?"Check the game image and its CUE/BIN track files.":"Check the SD card and try again.",1,0xffd3e1e9,70);text(p,30,218,"ERROR",1,0xffb3a79b,5);text(p,72,218,code,1,0xffb3a79b,8);text(p,30,254,m->error_kind?"A LIBRARY    B BACK":"A RETRY    B BACK",2,accent,40);}
+ else if(!m->count){text(p,30,155,"YOUR LIBRARY STARTS HERE",2,0xfff5f2ec,45);text(p,30,199,"ADD BIN/CUE OR PBP TO THE GAMES FOLDER",1,0xffb3a79b,80);text(p,30,225,"SD:/iz2s/modules/IZPSX/GAMES",1,accent,80);}
  else for(size_t i=m->top;i<m->count&&i<m->top+12;i++){
   unsigned y=114+(unsigned)(i-m->top)*24;int selected=i==m->index;
   if(selected){ps1_ui_rect(p,22,y-5,596,23,0xff493623);ps1_ui_rect(p,22,y-5,3,23,accent);}
-  text(p,34,y,c->entries[i].directory?"+":">",2,selected?accent:0xff786451,1);
-  char label[PS1_SD_ENTRY_NAME_MAX];memcpy(label,c->entries[i].name,strlen(c->entries[i].name)+1);if(c->preferences&&!c->preferences->value[PS1_EXTENSIONS]&&!c->entries[i].directory){char*dot=strrchr(label,'.');if(dot)*dot=0;}text(p,62,y,label,2,selected?0xfff5f2ec:0xffc5b8ab,45);
+  const Ps1SdEntry *entry=&menu_entries(c)[i];
+  text(p,34,y,entry->directory?"+":">",2,selected?accent:0xff786451,1);
+  char label[PS1_SD_ENTRY_NAME_MAX];memcpy(label,entry->name,strlen(entry->name)+1);if(c->preferences&&!c->preferences->value[PS1_EXTENSIONS]&&!entry->directory){char*dot=strrchr(label,'.');if(dot)*dot=0;}text(p,62,y,label,2,selected?0xfff5f2ec:0xffc5b8ab,45);
  }
  text(p,24,432,"A OPEN    B BACK    D-PAD SELECT / PAGE",1,0xffe6d5c4,85);
  if(!m->error&&m->count){char value[24];decimal(value,m->index+1);text(p,24,455,value,1,accent,23);text(p,90,455,"OF",1,0xffb3a79b,2);decimal(value,m->count);text(p,114,455,value,1,0xffb3a79b,23);}

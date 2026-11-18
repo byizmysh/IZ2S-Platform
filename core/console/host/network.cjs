@@ -1,10 +1,22 @@
 const net=require('node:net');
 const definitions=require('../abi/service-functions.json');
+const receiveTimeouts=new WeakSet();
+function isReceiveTimeout(error){return error!==null&&typeof error==='object'&&receiveTimeouts.has(error);}
 function endpoint(value){
  if(!value||!net.isIPv4(value.address)||!Number.isInteger(value.port)||value.port<1||value.port>65535)throw Error('UDP endpoint requires an IPv4 address and port 1..65535');
  return {address:value.address,port:value.port};
 }
 async function create(rpc,directory){
+ if(rpc.generationGuarded===true){
+  if(typeof rpc.udp!=='function')throw Error('This guarded channel has no native UDP executor');let busy=false;
+  return {async exchange(destination,payload,{timeout=1000}={}){
+   destination=endpoint(destination);if(!Buffer.isBuffer(payload)||payload.length<1||payload.length>1024)throw Error('UDP payload must be 1..1024 bytes');if(!Number.isInteger(timeout)||timeout<1||timeout>5000)throw Error('UDP timeout must be 1..5000ms');if(busy)throw Error('UDP exchange already in flight');busy=true;
+   try{const receipt=await rpc.udp(destination,payload,{timeout});
+    if(receipt.result===4n){const error=Error('UDP receive timed out');error.code='ETIMEDOUT';receiveTimeouts.add(error);throw error;}
+    if(receipt.result!==0n)throw Object.assign(Error('Native UDP exchange failed: '+receipt.nativeResult),{nativeResult:receipt.nativeResult});return receipt.data;
+   }finally{busy=false;}
+  }};
+ }
  const names=['socket','sendto','recv','socketClose','errno','socketInitialized'];
  const api=await require('../native/client.cjs').create(rpc,Object.fromEntries(names.map(k=>[k,definitions[k]])));
  const worker=await require('../native/six.cjs').create(rpc,directory);let busy=false;
@@ -27,8 +39,8 @@ async function create(rpc,directory){
     const errno=await api.result('errno');if(errno!==35&&errno!==11)throw Error('UDP receive errno '+errno);
     await new Promise(r=>setTimeout(r,20));
    }while(Date.now()<until);
-   const error=Error('UDP receive timed out');error.code='ETIMEDOUT';throw error;
+   const error=Error('UDP receive timed out');error.code='ETIMEDOUT';receiveTimeouts.add(error);throw error;
   }finally{try{if(fd>=0)await api.result('socketClose',[fd]);}finally{busy=false;}}
  }};
 }
-module.exports={create,endpoint};
+module.exports={create,endpoint,isReceiveTimeout};

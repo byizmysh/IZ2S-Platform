@@ -1,0 +1,40 @@
+{
+    "general": {
+        "video_copied": "Videolänk kopierad till urklipp",
+        "dislikes": "Ogillat"
+    },
+    "settings": {
+        "adblock": {
+            "title": "Reklamblockering",
+            "description": "Blockerar sömlöst reklam i videor och flödet. Påverkas ej av YouTube:s metoder för att förhindra reklamblockering"
+        },
+        "dearrow": {
+            "title": "DeArrow",
+            "description": "Ersätter titlar och indexbilder med mer korrekta och mindre sensationella varianter från en publikt crowdsourcad databas. Saktar ner sidladdning, eftersom att DeArrow måste hämta informationen från servern"
+        },
+        "dislikes": {
+            "title": "Återinför Ogillningar",
+            "description": "Använder Return YouTube Dislike API (returnyoutubedislike.com) för att återinföra ogillningar till YouTube. Saktar ner videoladdning, eftersom information måste hämtas från servern"
+        },
+        "hardware_decoding": {
+            "title": "Hårdvaruavkodning",
+            "description": "Använder din enhets grafikkort för att avkoda videor när det är möjligt. Att avaktivera den här funktionen kan hjälpa med uppspelningsproblem, men kan orsaka lagg beroende på din processor. Starta om appen efter du har ändrat inställningen."
+        },
+        "low_memory_mode": {
+            "title": "Begränsat minne",
+            "description": "Säger till YouTube att aktivera läget för begränsat minne, vilket kan förbättra prestanda på längsammare enheter i utbyte mot borttagning av vissa visuella effekter. Starta om appen efter du har ändrat inställningen."
+        },
+        "fullscreen": {
+            "title": "Helskärm",
+            "description": "Aktiverar helskärm och ser till att VacooTube alltid startar i helskärmsläge."
+        },
+        "keep_on_top": {
+            "title": "Fäst högst upp",
+            "description": "Aktiverar \"fäst högst upp\", och startar VacooTube med sitt fönster fäst ovanför alla andra fönster."
+        },
+        "userstyles": {
+            "title": "Egen CSS (Stilmallar)",
+            "description": "Aktiverar egna stilmallar i CSS. Lägg dina .css-files i mappen userstyles."
+        }
+    }
+}

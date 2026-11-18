@@ -3,11 +3,11 @@ const path = require('node:path'),
 async function create({ root, settings: defaults, node, preview = false }) {
   const file = path.join(root, 'data/state/launcher-settings.json'),
     loaders = require('../engines/index.cjs').create(root),
-    configurations = require('../profiles/index.cjs');
+    configurations = require('../hardware/profiles.cjs');
   const cardputerOperation=require('../core/services/cancellable-operation.cjs').create();
   const saved = await readJson(file, {});
   let choice = {
-      loaderId: 'izmysh',
+      loaderId: 'iz2s-core',
       variant: 'izlauncher',
       loaderSettings: {},
       installationSlots: {},
@@ -27,29 +27,39 @@ async function create({ root, settings: defaults, node, preview = false }) {
     delivery,
     configState,
     initializedInstalled,
-    changing = false;
-  if (choice.loaderId === 'ns2jb2') choice.loaderId = 'bermthesequel';
-  for (const key of ['loaderSettings', 'installationSlots']) {
-    if (Object.hasOwn(choice[key] || {}, 'ns2jb2')) {
-      choice[key].bermthesequel ??= choice[key].ns2jb2;
-      delete choice[key].ns2jb2;
-    }
-  }
+    changing = false,
+    lastInputDiscoveryAt = 0;
   const panelCatalog = require('../core/packages/store-catalog.cjs');
+  const repository = require('../core/packages/repository.cjs');
+  const coreLibrary = await repository.create(root, {engine: 'iz2s-core', source: 'current'});
+  let libraryRead, librarySnapshot, libraryReadAt = 0;
+  async function readCoreLibrary() {
+    if (librarySnapshot && Date.now() - libraryReadAt < 2000) return librarySnapshot;
+    if (!libraryRead) libraryRead = coreLibrary.list().then(result => {
+      librarySnapshot = {packages: result.packages.map(repository.publicPackage), errors: result.errors};
+      libraryReadAt = Date.now();
+      return librarySnapshot;
+    }).finally(() => { libraryRead = null; });
+    return libraryRead;
+  }
+
   const panelLoaders = () => panelCatalog.normalizeSnapshot({platform:{loaders:loaders.list()}}).platform.loaders;
   const available = (id, variant) => panelCatalog.engineAvailable(loaders.list().find(loader => loader.id === id), variant);
   const availableLoaders = new Set(panelLoaders().map(loader => loader.id));
   choice.residentGraphics = false;
   choice.residentFiniteAudio = false;
-  if (!availableLoaders.has(choice.loaderId)) choice.loaderId='izmysh';
+  if (!availableLoaders.has(choice.loaderId)) choice.loaderId='iz2s-core';
   choice.loaderSettings=Object.fromEntries(Object.entries(choice.loaderSettings||{}).filter(([id])=>availableLoaders.has(id)));
   choice.installationSlots=Object.fromEntries(Object.entries(choice.installationSlots||{}).filter(([id])=>availableLoaders.has(id)));
   if (
     choice.variant !== 'original' &&
     !available(choice.loaderId, choice.variant)
   )
-    choice.loaderId = 'izmysh';
-  choice.schemaVersion = 2;
+    choice.loaderId = 'iz2s-core';
+  choice.variant = choice.loaderId === 'iz2s-core' ? 'izlauncher' : 'original';
+  choice.sdLauncher = false;
+  choice.nativeRecovery = false;
+  choice.schemaVersion = 3;
   const isIZ = () => choice.variant !== 'original',
     engine = () => iz || upstream;
   const selectedLoader = () =>
@@ -67,17 +77,25 @@ async function create({ root, settings: defaults, node, preview = false }) {
       runtime: 'original',
     });
   async function initialize() {
-    if(isIZ()&&choice.sdLauncher){
-      if(choice.loaderId!=='izmysh')throw Error('SD mode currently requires IZ2S Core');
-      choice.loaderSettings.izmysh={...choice.loaderSettings.izmysh,fsRpcMode:true};
-    }
     const installationReady = selectedLoader().manifest.installed !== false;
     configState = await configurations.load(root);
+    let inputDiscovery;
+    const pairingDevice={'pc-cardputer-adv':'cardputer-adv','pc-switch1':'switch1'}[configState.selected];
+    if(!preview&&pairingDevice){
+      const profile=configState.profiles?.[configState.selected]||{};
+      const restored=await require('../hardware/devices/'+pairingDevice+'/pairing.cjs').restore({root,profile});
+      inputDiscovery=restored.discovery;
+      if(JSON.stringify(restored.profile)!==JSON.stringify(profile)){
+        configState={...configState,profiles:{...configState.profiles,[configState.selected]:restored.profile}};
+        await configurations.save(root,configState);
+      }
+    }
     configuration = await configurations.resolve(configState.selected, {
       root,
       settings: defaults,
       profile: configState.profiles?.[configState.selected] || {},
     });
+    configuration.inputDiscovery=inputDiscovery;
     settings = configuration.settings;
     settings.consolePort =
       selectedLoader().manifest.consolePort ?? settings.consolePort;
@@ -90,8 +108,21 @@ async function create({ root, settings: defaults, node, preview = false }) {
         root,
         settings,
         networkEnabled: !preview,
+        inputAddress:inputDiscovery?.paired?inputDiscovery.address:'',
       });
-    input = await configurations.createInputLink({ root, configuration });
+    const currentConfiguration=configuration;
+    const recoverAddress=configuration.inputAdapter==='switch-wifi'?async()=>{
+      if(changing||configuration!==currentConfiguration)return;
+      const id=configuration.id,previous=configState.profiles?.[id]||{};
+      const restored=await require('../hardware/devices/switch1/pairing.cjs').restore({root,profile:previous});
+      if(changing||configuration!==currentConfiguration||configState.profiles?.[id]!==previous)return;
+      configuration.inputDiscovery=restored.discovery;
+      if(!restored.discovery.paired)return;
+      const next={...configState,profiles:{...configState.profiles,[id]:restored.profile}};
+      await configurations.save(root,next);configState=next;
+      Object.assign(settings,{switchAddress:restored.profile.switchAddress,switchPort:restored.profile.switchPort,switchToken:restored.profile.switchToken});
+    }:undefined;
+    input = await configurations.createInputLink({ root, configuration, recoverAddress });
     devices = await configurations.createChecks({
       root,
       configuration,
@@ -104,53 +135,6 @@ async function create({ root, settings: defaults, node, preview = false }) {
     });
     delivery = null;
     iz = null;
-    if (isIZ() && installationReady) {
-      if (!available(choice.loaderId, choice.variant))
-        throw Error('Selected loading method is unavailable for IZlauncher');
-      delivery = require('./delivery.cjs').create({
-        root,
-        id: choice.loaderId,
-        settings: selectedLoader().settings,
-        configuration,
-        input,
-        sdLauncher:choice.sdLauncher===true,
-        installSlot: selectedLoader().sourcePlan().bootstrap?.sourceSlot,
-      });
-      iz = require('../core/session/session.cjs').createSessionManager({
-        root,
-        settings,
-        node,
-        arm: delivery.input,
-        devices,
-        connections,
-        preview,
-        launchEnvironment: {
-          ...delivery.environment,
-          IZ2S_SD_LAUNCHER: choice.sdLauncher===true?'1':'0',
-          IZ2S_NATIVE_RECOVERY: selectedLoader().settings.fsRpcMode===true?'1':'0',
-          IZ2S_SHELL: choice.variant,
-          IZ15_SHELL: choice.variant,
-          IZ18_RESIDENT_GRAPHICS: choice.residentGraphics&&['izlauncher','izpslauncher'].includes(choice.variant)?'1':'0',
-          IZ18_RESIDENT_FINITE_AUDIO: choice.residentGraphics&&choice.residentFiniteAudio&&['izlauncher','izpslauncher'].includes(choice.variant)?'1':'0',
-        },
-        prepareLaunch: () =>
-          selectedLoader().plan({
-            host: settings.consoleHost,
-            node,
-            input: 'manual',
-            port: settings.consolePort,
-            runtime: 'izlauncher',
-          }),
-        sourceChecks: delivery.sourceChecks,
-        readBootstrapProfile: delivery.profile,
-        bootstrapProfileFile: delivery.profileFile,
-        bootstrapName: async (recovery) =>
-          delivery.installation(recovery).bootstrap.saveName,
-        loaderId: choice.loaderId,
-        recoveryAvailable: delivery.recoveryAvailable,
-      });
-      iz.preview = preview;
-    }
     const sessionFactory = ['civswitch', 'civswitch-ldn'].includes(choice.loaderId)
       ? require(path.join(selectedLoader().folder, 'adapter.cjs')).createSession
       : require('./upstream-session.cjs').create;
@@ -167,6 +151,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
       configuration,
     });
     initializedInstalled = installationReady;
+    lastInputDiscoveryAt = Date.now();
   }
   await initialize();
   await saveJson(file, choice);
@@ -194,17 +179,40 @@ async function create({ root, settings: defaults, node, preview = false }) {
     }}});
     signal.throwIfAborted();await initialize();signal.throwIfAborted();return bundle;
   }
+  async function prepareSwitchKeyboardBundle(){
+    const bundle=await require('../hardware/switch-keyboard.cjs').prepare(root);
+    const id='pc-switch1';configState=await configurations.load(root);
+    await configurations.save(root,{selected:configState.selected,profiles:{...configState.profiles,[id]:{
+      ...configState.profiles?.[id],switchToken:bundle.token,
+    }}});
+    await initialize();return bundle;
+  }
   return {
     preview,
+    inputLink(selected) {
+      if(selected!==configuration.id)throw Error('Input device selection changed; refresh the panel before starting.');
+      return input;
+    },
     inspectNS2HB: () => require('./ns2hb.cjs').inspect(root, choice.variant),
-    refresh: (...args) => engine().refresh(...args),
+    refresh: async (...args) => {
+      if(changing)return;
+      // Recovery used to reinitialize an unpaired device on every UI poll.
+      // Its temporary lock then made the picker permanently unavailable.
+      if(!preview&&configuration.setupRequired&&['cardputer-wifi','switch-wifi'].includes(configuration.inputAdapter)&&
+          (args[0]===true||Date.now()-lastInputDiscoveryAt>=30000)){
+        await assertIdle();changing=true;try{await initialize();}finally{changing=false;}
+      }
+      return engine().refresh(...args);
+    },
     begin: async (body) => {
       await reconcileInstallation();
       if(configuration.externalWorkflow)throw Error('Use the native companion app for this configuration');
       if (selectedLoader().manifest.installed === false)
         throw Error('Download or manually install the original engine first');
       if (!available(choice.loaderId, choice.variant))
-        throw Error('Selected loader is unavailable for IZlauncher');
+        throw Error('Selected loader is unavailable for IZ2S');
+      if(configuration.inputAdapter==='switch-wifi'&&['civswitch','civswitch-ldn'].includes(choice.loaderId))throw Error('Select ARM PC or Cardputer ADV for Civilization VII controller input. Switch 1 keyboard is configured for SmileBASIC 4.');
+      if (choice.loaderId === 'iz2s-core') throw Error('Use the IZ2S core launch action.');
       return engine().begin(body);
     },
     stop: (...args) => engine().stop(...args),
@@ -213,10 +221,11 @@ async function create({ root, settings: defaults, node, preview = false }) {
     async snapshot() {
       await reconcileInstallation();
       const state = await engine().snapshot(),
-        // CivSwitch has no IZM runtime. Do not verify the SmileBASIC app library
+        // CivSwitch has no IZA runtime. Do not verify the SmileBASIC app library
         // just to open its game setup or refresh progress.
         moduleInventory = isIZ() || state.civLauncher?.state==='running' ? await require('../core/modules.cjs').metadata(root) : {modules: [], errors: []},
         extensions = require('../core/extensions.cjs').catalog(root);
+      const library = isIZ() ? await readCoreLibrary() : null;
       let base, current, baseSource;
       if (delivery) {
         const profile = await delivery.profile();
@@ -241,12 +250,13 @@ async function create({ root, settings: defaults, node, preview = false }) {
       }
       return {
         ...state,
+        ...(library ? {library: library.packages} : {}),
         fsRpc: state.active?.runDirectory
           ? await readJson(path.join(state.active.runDirectory, 'fs-rpc-state.json'), null)
           : null,
         checks:choice.loaderId==='civswitch-ldn'?state.checks:require('../hardware/index.cjs').present(configuration,state.checks),
         moduleCatalog: moduleInventory.modules.map((m) => m.descriptor).filter(panelCatalog.visible),
-        moduleErrors: moduleInventory.errors,
+        moduleErrors: [...moduleInventory.errors, ...(library?.errors || [])],
         moduleStates: require('../core/host-modules.cjs').status(),
         hardwareOperation:cardputerOperation.snapshot(),
         version: 22,
@@ -288,7 +298,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
           izModules: isIZ() || state.civLauncher?.state==='running',
           baseSource,
           delivery: {
-            application: isIZ() ? (choice.variant === 'izpslauncher' ? 'IZPSlauncher' : 'IZlauncher') : 'Core only',
+            application: isIZ() ? (choice.variant === 'izpslauncher' ? 'IZPSlauncher' : 'IZ2S') : 'Core only',
             method: choice.loaderId,
             bootstrapName: current.bootstrap.saveName,
             baseBootstrapName: base.bootstrap.saveName,
@@ -306,6 +316,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
             executionHost: configuration.executionHost,
             inputAdapter: configuration.inputAdapter,
             inputDirectory:settings.deviceFolder,
+            inputDiscovery:configuration.inputDiscovery,
             externalWorkflow:configuration.externalWorkflow,
             hardware:configuration.hardware,
             ui:configuration.ui,
@@ -315,6 +326,23 @@ async function create({ root, settings: defaults, node, preview = false }) {
           locked: !!state.active || !!state.emergencyInputPending || changing,
         },
       };
+    },
+    async prepareSwitchKeyboardSD() {
+      await assertIdle();
+      if(preview)throw Error('Prepare the SD package from the running panel');
+      if(configuration.inputAdapter!=='switch-wifi')throw Error('Select Switch 1 first');
+      changing=true;
+      try{const bundle=await prepareSwitchKeyboardBundle();return {ok:true,filename:path.basename(bundle.path)};}
+      finally{changing=false;}
+    },
+    async installSwitchKeyboard() {
+      if(process.platform!=='linux')throw Error('Download the SD package and extract the ZIP to the root of the Switch 1 SD card.');
+      await assertIdle();
+      if(preview)throw Error('Preview cannot install homebrew');
+      if(configuration.inputAdapter!=='switch-wifi')throw Error('Select Switch 1 first');
+      changing=true;
+      try{const bundle=await prepareSwitchKeyboardBundle();return await require('../hardware/switch-keyboard.cjs').install(root,bundle);}
+      finally{changing=false;}
     },
     async confirmCardputerUsb() {
       await assertIdle();
@@ -401,17 +429,21 @@ async function create({ root, settings: defaults, node, preview = false }) {
               .items.map((s) => s.id),
           ].includes(next.variant)
         )
-          throw Error('Choose IZlauncher, IZPSlauncher or Core only');
+          throw Error('Choose IZ2S, IZPSlauncher or Core only');
+        if (next.loaderId === 'iz2s-core' && next.variant !== 'izlauncher') throw Error('Choose IZ2S.');
         loaders.select(
           next.loaderId,
           body.loaderSettings || choice.loaderSettings?.[next.loaderId] || {},
         );
-        if (!available(next.loaderId, next.variant)) {
+        const selectingEngine = body.loaderId !== undefined || body.variant !== undefined || body.loaderSettings !== undefined;
+        // Input/network preferences are independent of host engine qualification.
+        // An unchanged engine must not prevent saving an input device on Windows.
+        if (selectingEngine && !available(next.loaderId, next.variant)) {
           if (body.variant !== undefined && body.variant !== 'original' && body.loaderId === undefined)
-            next.loaderId = 'izmysh';
+            next.loaderId = 'iz2s-core';
           else
             throw Error(
-              'Selected loading method is unavailable for IZlauncher',
+              'Selected loading method is unavailable for IZ2S',
             );
         }
         if (body.installSlot !== undefined) {
@@ -520,36 +552,27 @@ async function create({ root, settings: defaults, node, preview = false }) {
     },
     loadPackages: async (ids,options) => {
       if(['civswitch','civswitch-ldn'].includes(choice.loaderId))return upstream.loadPackages(ids,options);
-      if (!isIZ()) throw Error('Select a console shell to load IZM modules');
+      if (!isIZ()) throw Error('Select a console shell to load IZA modules');
       if(choice.sdLauncher||options?.target==='sd'||Object.values(options?.targets||{}).includes('sd')){
         if(preview)throw Error('Preview cannot write to SD');
       }
-      return iz.loadPackages(ids,options);
+      throw Error('Use the IZ2S core app library to install applications.');
     },
     unloadPackages: async (ids,target) => {
       if(['civswitch','civswitch-ldn'].includes(choice.loaderId))return upstream.unloadPackages(ids,target);
       if(preview)throw Error('Preview cannot remove console modules');
       if(!isIZ())throw Error('Select a console shell to remove modules');
       if(choice.residentGraphics&&(await engine().snapshot()).active)throw Error('Restart the resident session to change its prepared app set');
-      return iz.unloadPackages(ids,target);
+      throw Error('Use the IZ2S core app library to remove applications.');
     },
-    refreshSdInventory:()=>{if(!isIZ())throw Error('Select a console shell first');return iz.refreshSdInventory();},
+    refreshSdInventory:()=>{if(!isIZ())throw Error('Select a console shell first');throw Error('Use the IZ2S core SD inventory.');},
     async source(id) {
       await reconcileInstallation();
       if (loaders.select(id).manifest.installed === false)
         throw Error('Install the original engine first');
-      if (isIZ()) {
-        const method = await require('./delivery.cjs').selected({
-          root,
-          id,
-          settings: choice.loaderSettings?.[id] || {},
-          host: settings.consoleHost,
-          port: settings.consolePort,
-          recovery: id === 'izmysh' && !!(await delivery.profile()).recovery,
-          sdLauncher:choice.sdLauncher===true,
-        });
-        return { file: method.bootstrap.file, name: method.bootstrap.saveName };
-      }
+      if (id === 'iz2s-core') return {
+        file: path.join(root, 'engines/iz2s-core/runtime/bootstrap.bas'), name: 'NS2IZA',
+      };
       const loader = loaders.select(id, choice.loaderSettings?.[id] || {}),
         plan = loader.sourcePlan();
       if (!plan.bootstrap)

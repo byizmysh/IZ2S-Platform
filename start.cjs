@@ -45,14 +45,14 @@ async function main() {
         health = await fetch(url.origin + '/health', { signal: AbortSignal.timeout(1500) }).then(
           (r) => r.json(),
         );
-      if (health.version !== 22 || health.pid !== previous.pid || health.preview !== preview)
+      if (health.version !== 22 || !['0.25', 'RUN' + '25'].includes(health.edition) || health.pid !== previous.pid || health.preview !== preview)
         throw Error('Stale IZ2S Platform window');
       running = true;
     } catch {}
   if (running) {
     if (restart) {
       if (!preview) {
-        await require('./core/session/panel-handover.cjs').handover({root, port: settings.panelPort, restart: true});
+        await require('./core/session/panel-handover.cjs').handover({root, port: settings.panelPort, restart: true, force: false, timeout: 30000});
       } else {
       process.kill(previous.pid, 'SIGTERM');
       const deadline = Date.now() + 20000;
@@ -74,12 +74,13 @@ async function main() {
     }
   }
   if (!preview && !running)
-    await require('./core/session/panel-handover.cjs').handover({ root, port: settings.panelPort, restart: true });
-  if (!preview) {
+    await require('./core/session/panel-handover.cjs').handover({root, port: settings.panelPort, restart: true, force: false, timeout: 30000});
+  if (!preview && !args.includes('--skip-module-publication')) {
     const publication = await require('./sdk/publish-modules.cjs').publish(root);
     await saveJson(path.join(root, 'data/state/module-publish.json'), publication);
     for (const error of publication.errors) console.error('Module source not published: ' + error.id + ': ' + error.error);
   }
+  if (!preview) await require('./core/platform/core-migration.cjs').migrate(root);
   const manager = await require('./panel/controller.cjs').create({ root, settings, node, preview });
   let previousToken;
   try {
@@ -97,6 +98,9 @@ async function main() {
     manager,
     port: preview ? 0 : settings.panelPort,
     ...(previousToken ? { token: previousToken } : {}),
+  }).catch(async error=>{
+    if(error.code!=='EADDRINUSE')throw error;
+    throw await require('./core/session/panel-handover.cjs').occupiedPort(settings.panelPort);
   });
   await saveJson(stateFile, {
     pid: process.pid,
@@ -126,6 +130,11 @@ async function main() {
   });
   process.on('SIGINT', () => shutdown.finish().catch(console.error));
   process.on('SIGTERM', () => shutdown.finish().catch(console.error));
+  window.setShutdown(async () => {
+    const result = await shutdown.finish();
+    if (result.closed) process.exit(0);
+    return result;
+  });
   } finally {
     await releaseStartup();
   }

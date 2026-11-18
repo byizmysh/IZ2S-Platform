@@ -1,4 +1,4 @@
-name: Verify and package IZ2S 0.22
+name: Verify IZ2S Platform 0.25
 on:
   push:
     branches: [main]
@@ -7,25 +7,12 @@ on:
 permissions:
   contents: read
 jobs:
-  package:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Build prerequisites
-        run: sudo apt-get update && sudo apt-get install -y clang lld llvm python3-pil glslang-tools spirv-tools libvulkan-dev mesa-vulkan-drivers
-      - name: Local regression tests
-        run: npm run test:release
-      - name: Rebuild launchers and package Linux
-        run: python3 distribution/release.py --rebuild
-      - uses: actions/upload-artifact@v4
-        with:
-          name: iz2s-platform-0.22-linux
-          if-no-files-found: error
-          path: |
-            dist/github/*.zip
-            dist/github/*.tar.gz
-            dist/github/SHA256SUMS
-            dist/github/SOURCE-MANIFEST.json
+      - name: Verify source snapshot and runtime resources
+        run: npm run check

@@ -1,0 +1,40 @@
+{
+    "general": {
+        "video_copied": "Link videa kopiran u međuspremnik",
+        "dislikes": "Palac dole"
+    },
+    "settings": {
+        "adblock": {
+            "title": "Bloker Reklama",
+            "description": "Besprijekorno blokira video i feed oglase, ne podliježe YouTubeovim metodama za sprječavanje blokatora"
+        },
+        "dearrow": {
+            "title": "DeArrow",
+            "description": "Zamjenjuje naslove i sličice tačnijim, manje senzacionalističkim verzijama iz javne baze podataka prikupljenim sa strane korisnika. Usporava učitavanje, jer mora preuzeti informacije sa servera"
+        },
+        "dislikes": {
+            "title": "Vratite donji palac",
+            "description": "Koristi YouTube API za vraćanje palca prema dolje (returnyoutubedislike.com) za ponovno dodavanje oznake 'nesviđa mi se' na YouTube. Usporava učitavanje videa jer mora preuzeti informacije sa servera"
+        },
+        "hardware_decoding": {
+            "title": "Hardversko Dekodiranje",
+            "description": "Koristi vašu grafičku karticu za dekodiranje videa kada je to moguće. Onemogućavanje ove opcije može riješiti probleme s reprodukcijom, ali može uzrokovati kašnjenje ovisno o vašem procesoru. Ponovo pokrenite nakon prebacivanja."
+        },
+        "low_memory_mode": {
+            "title": "Režim za Nisku Memoriju",
+            "description": "Uputuje YouTube-u da omogući način rada s malo memorije, što može poboljšati pokretanje na sporijim uređajima, ali na štetu nekih izglednih efekata. Ponovo pokrenite nakon prebacivanja."
+        },
+        "fullscreen": {
+            "title": "Cijeli Ekran",
+            "description": "Omogućava cijeli ekran i čini da se VacooTube uvijek pokrene u punom ekranu."
+        },
+        "keep_on_top": {
+            "title": "Ostani na vrhu",
+            "description": "Omogućava opciju \"Ostani na vrhu\" i pokreće VacooTube s prozorom zakačenim preko svakog drugog prozora."
+        },
+        "userstyles": {
+            "title": "Prilagođeni CSS (korisnički stilovi)",
+            "description": "Omogućava ubrizgavanje prilagođenih CSS stilova. Postavite svoje .css datoteke u mapu 'korisnički stilovi'."
+        }
+    }
+}

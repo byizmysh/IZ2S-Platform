@@ -1,12 +1,13 @@
-// Portable IZM v1: ZIP (stored/deflate), UTF-8 paths, per-file SHA-256 and CRC32.
+// PC module archive: ZIP (stored/deflate), UTF-8 paths, per-file SHA-256 and CRC32.
 const fs = require('node:fs/promises'),
   path = require('node:path'),
   zlib = require('node:zlib'),
   crypto = require('node:crypto');
 const { assert, relative, moduleDescriptor } = require('./descriptors.cjs');
-const MAX_ARCHIVE = 256 * 1024 * 1024,
-  MAX_EXPANDED = 512 * 1024 * 1024,
-  MAX_FILE = 128 * 1024 * 1024,
+// Portable packages use ZIP32. 0xffffffff is the ZIP64 sentinel, not a size.
+const MAX_ARCHIVE = 0xfffffffe,
+  MAX_EXPANDED = 0xfffffffe,
+  MAX_FILE = 0xfffffffe,
   MAX_FILES = 4096;
 const table = Array.from({ length: 256 }, (_, n) => {
   for (let i = 0; i < 8; i++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1;
@@ -59,6 +60,7 @@ function encode(entries) {
     c.writeUInt32LE(offset, 42);
     centrals.push(c, n);
     offset += h.length + n.length + packed.length;
+    assert(offset <= MAX_ARCHIVE, 'Package exceeds ZIP32 offset range');
   }
   const central = Buffer.concat(centrals),
     end = Buffer.alloc(22);
@@ -67,11 +69,12 @@ function encode(entries) {
   end.writeUInt16LE(entries.length, 10);
   end.writeUInt32LE(central.length, 12);
   end.writeUInt32LE(offset, 16);
+  assert(offset + central.length + end.length <= MAX_ARCHIVE, 'Package exceeds ZIP32 size range');
   const out = Buffer.concat([...locals, central, end]);
   assert(out.length <= MAX_ARCHIVE, 'Package archive too large');
   return out;
 }
-function decode(bytes) {
+function decode(bytes, { allowDirectories = false } = {}) {
   assert(
     Buffer.isBuffer(bytes) && bytes.length >= 22 && bytes.length <= MAX_ARCHIVE,
     'Invalid archive size',
@@ -102,7 +105,8 @@ function decode(bytes) {
   );
   const entries = [],
     names = new Set(),
-    ranges = [];
+    ranges = [],
+    directories = [];
   let at = start,
     total = 0;
   for (let i = 0; i < count; i++) {
@@ -122,18 +126,20 @@ function decode(bytes) {
       'Encrypted/streamed/unsupported ZIP entry',
     );
     assert(
-      !mode || !(mode & 0xf000) || (mode & 0xf000) === 0x8000,
-      'Links and special files are forbidden',
-    );
-    assert(
       expanded <= MAX_FILE && size <= MAX_ARCHIVE && at + 46 + n + extra + comment <= end,
       'Oversized ZIP entry',
     );
     const name = bytes.subarray(at + 46, at + 46 + n).toString('utf8');
     assert(!name.includes('\ufffd'), 'Invalid UTF-8 path');
-    relative(name);
-    assert(!names.has(name.toLowerCase()), 'Duplicate ZIP path');
-    names.add(name.toLowerCase());
+    const directory = allowDirectories && name.endsWith('/');
+    const type = mode & 0xf000;
+    assert(!type || type === (directory ? 0x4000 : 0x8000), 'Links and special files are forbidden');
+    if (directory) assert(expanded === 0, 'ZIP directory contains file data');
+    const member = directory ? name.slice(0, -1) : name;
+    relative(member);
+    const folded = member.toLowerCase();
+    assert(!names.has(folded), 'Duplicate ZIP path');
+    names.add(folded);
     assert(
       offset + 30 <= start && bytes.readUInt32LE(offset) === 0x04034b50,
       'Invalid local ZIP header',
@@ -164,15 +170,33 @@ function decode(bytes) {
           ? zlib.inflateRawSync(packed, { maxOutputLength: Math.max(1, expanded) })
           : Buffer.from(packed);
     assert(data.length === expanded && crc32(data) === crc, 'ZIP integrity check failed');
-    entries.push({ name, bytes: data });
+    if (directory) directories.push(folded);
+    else entries.push({ name, bytes: data });
     at += 46 + n + extra + comment;
   }
   assert(at === end, 'Invalid ZIP directory size');
+  if (directories.length) {
+    const parents = new Set();
+    for (const {name} of entries) {
+      const folded = name.toLowerCase();
+      for (let slash = folded.indexOf('/'); slash !== -1; slash = folded.indexOf('/', slash + 1))
+        parents.add(folded.slice(0, slash));
+    }
+    assert(directories.every(name => parents.has(name)), 'ZIP directory has no file entries');
+  }
   return entries;
 }
 function inspect(bytes) {
   const inspected = inspectFiles(decode(bytes));
   return { ...inspected, sha256: sha(bytes), packageBytes: bytes.length };
+}
+// Compression bytes differ across supported Node/zlib versions. Validate both
+// archives before comparing payloads; generated checksum JSON ordering is not content.
+function sameContents(left, right) {
+  const a = inspect(left).files.filter(file => file.name !== 'checksums.json');
+  const b = new Map(inspect(right).files.filter(file => file.name !== 'checksums.json')
+    .map(file => [file.name, file.bytes]));
+  return a.length === b.size && a.every(file => b.get(file.name)?.equals(file.bytes));
 }
 // The same content validation for already extracted, session-pinned files.
 // Do not ZIP/compress/decompress them merely to reconstruct an inventory.
@@ -186,7 +210,7 @@ function inspectFiles(files) {
     total += bytes.length; assert(total <= MAX_EXPANDED, 'Expanded package too large');
   }
   const byName = new Map(files.map((f) => [f.name, f.bytes]));
-  assert(byName.has('module.json') && byName.has('checksums.json'), 'Not an IZM module');
+  assert(byName.has('module.json') && byName.has('checksums.json'), 'Invalid PC module archive');
   assert(
     byName.get('module.json').length <= 65536 && byName.get('checksums.json').length <= 1024 * 1024,
     'Metadata too large',
@@ -242,6 +266,7 @@ async function pack(folder) {
       if (
         e.name.startsWith('.') ||
         ['node_modules', 'runtime', 'data', 'test-data', '__pycache__'].includes(e.name) ||
+        e.name.endsWith('.module.zip') ||
         e.name.endsWith('.izm') ||
         e.name === 'checksums.json'
       )
@@ -270,17 +295,35 @@ async function unpack(bytes, destination) {
   await fs.mkdir(destination, { recursive: true });
   assert((await fs.readdir(destination)).length === 0, 'Extraction destination must be empty');
   try {
-    for (const f of pkg.files) {
-      const target = path.join(destination, relative(f.name));
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.writeFile(target, f.bytes, { flag: 'wx', mode: 0o600 });
-    }
+    await writeFiles(destination, pkg.files);
   } catch (e) {
     await fs.rm(destination, { recursive: true, force: true });
     throw e;
   }
   return pkg;
 }
+
+// Use the declared manifest's directory as the base for Switch assets.
+function switchApp({descriptor, files}) {
+  const entry = descriptor.switch?.entry;
+  assert(entry?.startsWith('switch/'), 'This package has no Switch app.');
+  const prefix = path.posix.dirname(entry) + '/';
+  const source = files.find(file => file.name === entry);
+  assert(source, 'The Switch app manifest is missing.');
+  const manifest = JSON.parse(source.bytes);
+  assert(manifest?.id === descriptor.id, 'Switch application identity differs.');
+  return {entry, prefix, manifest, files: files.filter(file => file.name.startsWith(prefix))
+    .map(file => ({name: file.name.slice(prefix.length), bytes: file.bytes}))};
+}
+
+async function writeFiles(destination, files) {
+  for (const file of files) {
+    const target = path.join(destination, relative(file.name));
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, file.bytes, { flag: 'wx', mode: 0o600 });
+  }
+}
+
 module.exports = {
   MAX_ARCHIVE,
   MAX_EXPANDED,
@@ -291,7 +334,10 @@ module.exports = {
   encode,
   decode,
   inspect,
+  sameContents,
   inspectFiles,
+  switchApp,
+  writeFiles,
   pack,
   unpack,
 };

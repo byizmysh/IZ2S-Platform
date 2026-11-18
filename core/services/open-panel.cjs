@@ -13,7 +13,7 @@ function openPanel(url,{env=process.env,launch=spawn,exists=fs.existsSync,main=f
   }
   if(u.pathname!=='/'||!/^#[a-f0-9]{48}$/.test(u.hash))throw Error('Invalid local panel URL');
   const [program,args]=browserCommand(u.href,{env,exists,...options});
-  const child=launch(program,args,{env,detached:true,stdio:'ignore',shell:false});
+  const child=launch(program,args,{env,detached:true,windowsHide:true,stdio:'ignore',shell:false});
   child.once('error',error=>console.error('Could not open IZ2S: '+error.message));child.unref();return true;
 }
 module.exports={openPanel,browserCommand};

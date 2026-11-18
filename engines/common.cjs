@@ -19,13 +19,4 @@ function connectSteps({command,bootstrapName='NS2',fromEditor=false,preloaded=fa
  return [...(fromEditor?[{type:'key',key:'f4',delayMs:2000}]:[]),...launchPrefix(bootstrapName).slice(preloaded?2:0),{type:'line',text,delayMs:0}];
 }
 function launchPrefix(name){return [{type:'line',text:'LOAD "TXT:'+name+'"',delayMs:2000},{type:'key',key:'enter',delayMs:2000},{type:'line',text:'RUN',delayMs:3000},{type:'line',text:'REMOVE NSR,&H60000000,&H3FFFFFFF',delayMs:3000}];}
-function izPlan({id,manifest,settings={},options={},bootstrap}){
- const {host,node}=base(options),root=path.resolve(__dirname,'..'),port=Number(options.port??options.consolePort??39380);
- if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Port must be 1024..65535');
- const data=startup({root:path.join(__dirname,id),manifest,bootstrap:bootstrap.file,saveName:bootstrap.saveName,arity:bootstrap.arity,runRoot:path.join(root,'data/sessions'),persistent:true,readyPatterns:['IZ launcher runtime is running\\.']});
- Object.assign(data.bootstrap,bootstrap);
- const env={IZ15_LOADER:id,IZ15_LOADER_SETTINGS:JSON.stringify(settings),HB_PORT:String(port),HB_MANUAL_INPUT:'1',HB_INPUT:'manual',HB_RESUME:bootstrap.recovery?'1':'0'};
- if(options.appsRoot)env.HB_APPS_DIR=path.resolve(options.appsRoot);
- return {loaderId:id,mode:'izlauncher',runtime:'izlauncher',runner:'izlauncher',command:node,args:[options.izEntrypoint||'core/session/console-runner.cjs',host],cwd:root,env,startup:data,bootstrap:data.bootstrap,manualCommands:data.manualCommands,runRoot:data.runRoot,lifecycle:data.lifecycle,capabilities:{...manifest.capabilities,sharedIzRuntime:true,izPackages:true,streaming:true},notes:['The selected acquisition transport is qualified before the common IZlauncher runtime starts. Original upstream launch remains a separate target.']};
-}
-module.exports={startup,base,inputSteps,connectSteps,izPlan,MANUAL_COMMANDS};
+module.exports={startup,base,inputSteps,connectSteps,MANUAL_COMMANDS};

@@ -1,0 +1,11 @@
+//"Sign in with your remote" is very buggy and broken in VacooTube (sometimes breaks module injection, can't use controller, and also simply doesn't work in the end), so we disable it
+
+const configOverrides = require('../util/configOverrides')
+
+module.exports = async () => {
+    configOverrides.environmentOverrides.push({
+        flags: {
+            enable_direct_sign_in: false
+        }
+    })
+}

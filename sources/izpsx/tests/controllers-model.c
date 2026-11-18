@@ -26,7 +26,49 @@ static uint32_t set_styles(uint32_t mask){if(styles_reject)return styles_reject;
 static uint32_t get_styles(uint32_t*out){*out=supported_styles;return 0;}
 static uint32_t disconnected_id=99,disconnect_reject;
 static uint32_t disconnect_pad(const uint32_t*id){disconnected_id=*id;if(disconnect_reject)return disconnect_reject;connected[*id]=0;return 0;}
+#ifdef IZPSX_SB4_COMPAT
+static uint32_t missing_service,pad_error;
+#define WRAP(name,body) static uint64_t call_##name(uint64_t a,uint64_t b,uint64_t c,uint64_t d,\
+ uint64_t e,uint64_t f,uint64_t g,uint64_t h){assert(!c&&!d&&!e&&!f&&!g&&!h);body;}
+WRAP(set_ids,return set_ids((const void*)(uintptr_t)a,(int32_t)b))
+WRAP(get_styles,assert(!b);return get_styles((void*)(uintptr_t)a))
+WRAP(set_styles,assert(!b);return set_styles((uint32_t)a))
+WRAP(disconnect_pad,assert(!b);return disconnect_pad((const void*)(uintptr_t)a))
+#define PAD_WRAP(name) WRAP(name,if(pad_error)return pad_error;name((void*)(uintptr_t)a,(const void*)(uintptr_t)b);return 0)
+PAD_WRAP(full)
+PAD_WRAP(handheld)
+PAD_WRAP(dual)
+PAD_WRAP(left)
+PAD_WRAP(right)
+#undef PAD_WRAP
+#undef WRAP
+static IzServiceFunction resolve_service(uint32_t module,uint32_t id){
+ assert(module==5);
+ if(id==missing_service)return NULL;
+ switch(id){
+  case SB4_HID_SET_SUPPORTED_IDS:return call_set_ids;
+  case SB4_HID_SET_SUPPORTED_STYLES:return call_set_styles;
+  case SB4_HID_GET_SUPPORTED_STYLES:return call_get_styles;
+  case SB4_HID_DISCONNECT_PAD:return call_disconnect_pad;
+  case SB4_HID_READ_FULL_KEY:return call_full;
+  case SB4_HID_READ_HANDHELD:return call_handheld;
+  case SB4_HID_READ_JOY_DUAL:return call_dual;
+  case SB4_HID_READ_JOY_LEFT:return call_left;
+  case SB4_HID_READ_JOY_RIGHT:return call_right;
+  default:return NULL;
+ }
+}
+static Sb4CFunction resolve_c(const char*name){(void)name;return NULL;}
+static uint32_t allocate_aligned(void**p,size_t a,size_t n){(void)p;(void)a;(void)n;return 1;}
+static void release(void*p){(void)p;}
+static uint64_t tick(void){return 1;}
+static void sleep_ns(uint64_t ns){(void)ns;}
+static const Sb4Compat api={SB4_COMPAT_VERSION,sizeof api,SB4_COMPAT_LIBOUNCE,0,
+ resolve_c,resolve_service,allocate_aligned,release,tick,tick,sleep_ns};
+static void setup(Ps1Controllers*p){assert(!ps1_controllers_bind_sb4(p,&api));}
+#else
 static void setup(Ps1Controllers*p){memset(p,0,sizeof *p);p->functions[PS1_HID_setIds]=(uintptr_t)set_ids;p->functions[PS1_HID_padFullKey]=(uintptr_t)full;p->functions[PS1_HID_padHandheld]=(uintptr_t)handheld;p->functions[PS1_HID_padJoyDual]=(uintptr_t)dual;p->functions[PS1_HID_padJoyLeft]=(uintptr_t)left;p->functions[PS1_HID_padJoyRight]=(uintptr_t)right;p->functions[PS1_HID_disconnect]=(uintptr_t)disconnect_pad;p->functions[PS1_HID_setStyles]=(uintptr_t)set_styles;p->functions[PS1_HID_getStyles]=(uintptr_t)get_styles;}
+#endif
 /* A wireless Pro can remain connected after undocking. AUTO must follow
  * handheld availability rather than waiting for that Pro to disconnect. */
 static void docking_handoff(void){
@@ -65,9 +107,19 @@ static void docking_handoff(void){
  assert(p.player[0].id==32&&p.player[1].id==0); /* Reserved external pad. */
 }
 int main(void){
+#ifdef IZPSX_SB4_COMPAT
+ Ps1Controllers p;
+ assert(ps1_controllers_bind_sb4(&p,NULL));
+ missing_service=SB4_HID_GET_SUPPORTED_STYLES;
+ assert(ps1_controllers_bind_sb4(&p,&api));
+ for(unsigned i=0;i<PS1_HID_COUNT;i++)assert(!p.functions[i]);
+ missing_service=0;
+#else
  size_t n=6164480;unsigned char*sdk=mmap(0,n,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_32BIT,-1,0);assert(sdk!=MAP_FAILED);
  for(unsigned i=0;i<PS1_HID_COUNT;i++)memcpy(sdk+ps1_hid_bindings[i].offset,ps1_hid_bindings[i].bytes,64);
  Ps1Controllers p;assert(!ps1_controllers_bind(&p,(uintptr_t)sdk,n));assert(ps1_controllers_bind(&p,(uintptr_t)sdk,1));sdk[ps1_hid_bindings[2].offset]^=1;assert(ps1_controllers_bind(&p,(uintptr_t)sdk,n));sdk[ps1_hid_bindings[2].offset]^=1;
+ munmap(sdk,n);
+#endif
  setup(&p);assert(!ps1_controllers_enable(&p)&&set_calls==1);assert(!ps1_controllers_poll(&p));assert(p.player[0].buttons==1&&p.player[1].buttons==2&&p.player[0].axes[0]==19000&&p.player[1].axes[1]==-20000);
  connected[0]=0;connected[8]=0;assert(!ps1_controllers_poll(&p));assert(!p.player[0].connected&&!p.player[0].buttons&&!p.player[0].axes[0]&&p.player[1].buttons==2);
  connected[8]=1;assert(!ps1_controllers_poll(&p));assert(p.player[0].id==32&&p.player[0].buttons==4&&p.player[1].buttons==2);
@@ -90,7 +142,17 @@ int main(void){
  assert(supported_styles==31&&p.restore_styles);styles_reject=0x123;assert(ps1_controllers_restore(&p)==0x123&&p.restore_styles);styles_reject=0;assert(!ps1_controllers_restore(&p)&&supported_styles==7&&!p.restore_styles);
  styles_reject=0x234;assert(ps1_controllers_enable(&p)==0x234&&p.configured&&p.style_error==0x234);styles_reject=0;assert(!ps1_controllers_enable(&p));
  docking_handoff();
+#ifdef IZPSX_SB4_COMPAT
+ pad_error=0x1234;
+ assert(ps1_controllers_poll(&p)==pad_error&&!p.menu.buttons&&!p.player[0].buttons);
+ pad_error=0;
+#endif
  overrun=1;assert(ps1_controllers_poll(&p)==0xf331&&!p.player[0].buttons&&!p.player[1].buttons);
  assert(ps1_controller_buttons(2)==1&&ps1_controller_buttons(1)==256&&ps1_controller_buttons(0x400)==8&&ps1_controller_buttons(0x800)==0&&ps1_controller_buttons(32)==0);
- munmap(sdk,n);puts("PASS: exact SDK binding; four independent pads and sticks; sideways Joy-Con halves; style restoration; stable slots; neutral disconnect; handheld fallback; reconnect; configuration rejection and overrun guard");
+#ifdef IZPSX_SB4_COMPAT
+ puts("PASS: libsb4 HID callbacks with no original SDK pointer; rejection of missing or failed callbacks");
+#else
+ puts("PASS: checked SmileBASIC HID profile still accepted");
+#endif
+ puts("PASS: four independent pads and sticks; sideways Joy-Con halves; style restoration; stable slots; neutral disconnect; handheld fallback; reconnect; configuration rejection and overrun guard");
 }

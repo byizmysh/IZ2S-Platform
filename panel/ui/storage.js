@@ -4,6 +4,13 @@
 (function(root){
  const civ=state=>['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId);
  const targets=['session','sd'],label={session:'Session memory',sd:'SD card'},idOf=row=>typeof row==='string'?row:row?.id;
+ function forStore(state){
+  if(!state?.coreSd?.selected)return state;
+  return {...state,connected:state.coreSd.ready,platform:{sdLauncher:true},
+   sdRuntime:null,sdStorage:null,installed:[],jobs:[],sessionCatalog:[],
+   sdInstalled:state.coreSd.apps||[],
+   library:(state.library||[]).map(p=>({...p,sd:p.coreSd,supported:p.coreSd?.compatible===true}))};
+ }
  function installed(state,id){return {session:!state?.platform?.sdLauncher&&(state?.installed||[]).some(row=>idOf(row)===id),sd:[...(state?.sdInstalled||[]),...(state?.platform?.sdLauncher?state?.installed||[]:[])].some(row=>idOf(row)===id)};}
  function compatible(state,pkg,target){
   if(target==='session')return !state?.platform?.sdLauncher&&pkg?.session?.compatible!==false;
@@ -21,6 +28,9 @@
   if(state?.preview)return 'Preview · device commands disabled';
   if(civ(state)&&target==='sd')return 'Civilization VII currently loads applications into session memory.';
   if(!remove&&civ(state)&&pkg?.session?.compatible===false)return pkg.session.reason||'Unavailable for this game';
+  if(state?.coreSd?.selected&&!state.coreSd.ready)return 'Reconnect the IZ2S SD card to this PC or refresh its inventory.';
+  if(state?.coreSd?.selected&&!remove&&pkg?.coreSd?.compatible!==true)return pkg?.coreSd?.reason||'This module needs a standalone IZ2S package.';
+  if(!state?.coreSd?.selected&&!civ(state)&&state?.platform?.variant==='original')return 'Choose a launcher in Connection to load applications.';
   if(!state?.connected)return 'Connect Switch 2 and start the launcher first';
   if(!remove&&pkg?.supported===false)return 'This module is unavailable for this launcher';
   if(target==='session'){
@@ -60,7 +70,7 @@
    const box=el('div','app-storage');box.dataset.appId=pkg.id;const field=el('label','storage-destination'),select=el('select','storage-target');field.append(el('span','','Install to'));
    select.setAttribute('aria-label','Installation destination');for(const target of targets){const option=el('option','',label[target]);option.value=target;select.append(option);}select.onchange=()=>choose(pkg.id,select.value);field.append(select);
    const hint=el('p','storage-hint'),badge=el('p','storage-installed'),identity=el('p','storage-versions'),actions=el('div','storage-actions'),install=el('button','secondary module-install');install.type='button';install.onclick=action(()=>invoke('/api/load',payload(getState(),[pkg.id],preferences)));actions.append(install);
-   const manage=el('details','storage-more'),manageBody=el('div','storage-more-body');manage.append(el('summary','','Manage installation'),manageBody);
+   const manage=el('details','storage-more'),manageBody=el('div','storage-more-body menu-surface');manage.append(el('summary','','Manage installation'),manageBody);
    for(const target of targets){const button=el('button','secondary module-unload storage-remove-'+target,target==='sd'?'Remove from SD':'Remove from session');button.type='button';button.onclick=remove(pkg,target);manageBody.append(button);}
    badge.append(el('span','storage-badge-session','In RAM'),el('span','storage-badge-sd','On SD'));
    box.append(field,identity,hint,badge,actions,manage);update(box,pkg);return box;
@@ -84,5 +94,5 @@
   function selectionError(ids){try{selection(ids);return '';}catch(e){return e.message;}}
   return {mount,update,updateAll,selection,selectionError,preferences};
  }
- const api={installed,compatible,destination,reason,filesystemWarning,payload,create};root.IZ2S_STORAGE=api;if(typeof module==='object'&&module.exports)module.exports=api;
+ const api={installed,compatible,destination,reason,filesystemWarning,payload,create,forStore};root.IZ2S_STORAGE=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);

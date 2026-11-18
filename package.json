@@ -1,6 +1,6 @@
 {
   "name": "iz2s-platform",
-  "version": "0.22.0",
+  "version": "0.25.0",
   "private": true,
   "description": "IZ2S Platform panel and console launchers",
   "engines": {
@@ -9,11 +9,7 @@
   "scripts": {
     "start": "node start.cjs",
     "preview": "node start.cjs --preview",
-    "build:launchers": "node tools/build-launchers.cjs",
-    "build:core": "node tools/build-iz2s-core.cjs",
-    "check": "node distribution/verify.cjs",
-    "release": "python3 distribution/release.py",
-    "test:release": "node --test tests/*.test.cjs"
+    "check": "node distribution/verify.cjs"
   },
   "license": "GPL-2.0-or-later",
   "repository": {

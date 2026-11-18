@@ -8,7 +8,7 @@ bool rsVisible(){return rs(0u)==RS_MAGIC&&rs(8u)!=0u;}
 const uint RS_TOGGLE=16u; // Left stick click (L3).
 bool rsInlineAllowed(){
  const uint toast=0x1f0000u/4u;
- return c.rows[1]==0u&&c.rows[15]==0u&&c.rows[16]==0u&&c.transition.y==0.0&&c.bagMeta.y==0u&&
+ return c.rows[1]==0u&&c.rows[14]==0u&&c.rows[15]==0u&&c.rows[16]==0u&&c.transition.y==0.0&&c.bagMeta.y==0u&&
  !(c.atlas[toast]==0x495a4e31u&&uintBitsToFloat(c.atlas[toast+4u])>0.0);
 }
 bool rsInlineVisible(){return rsVisible()&&rsInlineAllowed();}
@@ -55,7 +55,7 @@ void rsCopy(uint base){
 }
 void rsCancel(){
  c.transition=vec4(0);c.reserved.y=0u;c.reserved.z=0u;
- c.piece.w=0;c.bagMeta.y=0u;c.rows[15]=0u;c.rows[16]=0u;
+ c.piece.w=0;c.bagMeta.y=0u;c.rows[14]=0u;c.rows[15]=0u;c.rows[16]=0u;
  c.library.w=0u;c.motion.w=0.0;rsPut(10u,0u);
 }
 void rsHome(){
@@ -74,12 +74,12 @@ bool rsBegin(){
  uint epoch=floatBitsToUint(c.refresh.w);bool a=rsValid(RS_A),b=rsValid(RS_B);
  if(rs(0u)!=RS_MAGIC&&!a&&!b){
   for(uint i=0u;i<64u;i++)rsPut(i,0u);
-  rsPut(0u,RS_MAGIC);rsPut(1u,epoch);
+  rsPut(0u,RS_MAGIC);rsPut(1u,epoch);rsPut(14u,1u);
   if(!rsShape()){rsHome();rsPut(4u,16u);rsPut(14u,1u);}
   rsSeal();rsCopy(RS_A);rsCopy(RS_B);
  }else if(rs(0u)==RS_MAGIC&&rs(1u)!=epoch){
   // The host publishes this epoch only while rendering is paused.
-  rsPut(1u,epoch);rsPut(10u,0u);rsPut(13u,0u);
+  rsPut(1u,epoch);rsPut(10u,0u);rsPut(13u,0u);rsPut(14u,1u);c.rows[14]=0u;
   if(!rsShape()){rsHome();rsPut(4u,rs(4u)|16u);rsPut(14u,1u);}
   rsSeal();rsCopy(RS_A);rsCopy(RS_B);
  }else{
@@ -105,9 +105,14 @@ bool rsBegin(){
   if(upper!=0u||delta>15625000u){rsPut(9u,rs(9u)+1u);rsCancel();rsPut(14u,1u);}
  }
  rsPut(11u,lo);rsPut(12u,hi);rsPut(13u,clock?1u:0u);
+ // On a new menu epoch (including app return), consume held input before any menu action.
+ if(rs(14u)!=0u){
+  c.library.w=0u;
+  if(hbButtons()==0u&&hbTouchCount()==0u)rsPut(14u,0u);
+  hbEndFrame();return false;
+ }
  // Status expands in the menu; normal controls and animations continue.
  if((pressed&RS_TOGGLE)!=0u)rsPut(8u,rsVisible()?0u:1u);
- if(rs(14u)!=0u){if(hbButtons()==0u&&hbTouchCount()==0u)rsPut(14u,0u);hbEndFrame();return false;}
  if(c.transition.y!=0.0||c.bagMeta.y!=0u||c.rows[16]!=0u){
   rsPut(10u,rs(10u)+1u);
   // Frames stop during serviced transitions. An unserviced request is bounded.

@@ -11,7 +11,7 @@ function trim(b){let n=b.length;while(n>4&&b[n-1]===0)n--;return b.subarray(0,Ma
 const {candidate}=require('../../shells/izlauncher/resident/compatibility.cjs');
 async function resolve(source,cache){
  source=path.resolve(source);
- if(!source.endsWith('.izm'))return C.readApp(source);
+ if(!source.endsWith('.module.zip'))return C.readApp(source);
  const bytes=await fs.readFile(source),pkg=require('../../core/archive.cjs').inspect(bytes);
  if(!pkg.descriptor.switch?.entry)throw Error('Capsule has no GPU app');
  const dir=path.join(cache,pkg.sha256);
@@ -52,7 +52,7 @@ async function prepare(output,sources,{budgetBytes=256*1024*1024,qualifyFiniteAu
    shaderSHA256:Object.fromEntries(['vertex','fragment','compute','computeBegin','computeAfter'].filter(s=>app.files[s]).map(s=>[s,sha(app.files[s].bytes)]))});
  }
  await fs.writeFile(path.join(output,'resident.bin'),L.make(specs));
- const shaders=await require('../../shells/izlauncher/resident/build.cjs').build(path.join(output,'shaders'));
+ const shaders=await require('../../shells/izlauncher/resident/shader-assets.cjs').stage(path.join(output,'shaders'));
  const manifest={format:'izlauncher.resident-preparation',version:1,shell,slots:inventory,estimatedBufferBytes:used,budgetBytes,
   restartOnEntry:true,shaders,consoleExecuted:false,audioProviderReady:false,finiteAudioLifetimeQualification:qualifyFiniteAudio,
   qualification:'Desktop preparation only. No app without a hostRuntime is presumed hardware-qualified merely from its manifest.'};

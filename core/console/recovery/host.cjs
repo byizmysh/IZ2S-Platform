@@ -16,9 +16,10 @@ async function candidates({root,peer,port,discovered=[]}){
   return Number(signed(b))-Number(signed(a))||Date.parse(b.receivedAt||0)-Date.parse(a.receivedAt||0)||0;
  });
 }
-function create({native,directory,root,peer,onState=()=>{},open=require('./connection.cjs').open,listen=require('./discovery.cjs').listen,verifyImage=require('./check.cjs').verify}){
- const stable=new SwitchableConnection(native.connection);native.connection=stable;
- let connection,discovery,arming,enabled=false,closed=false,lastState='unarmed',lastEvent='',writes=Promise.resolve(),lastError,probeRequested=false,probeGeneration=0;
+function create({native,directory,root,peer,onState=()=>{},prepareDispatchMaintenance,protectedParent=process.env.IZ2S_NATIVE_PARENT_RETENTION==='1',dispatchGateway=process.env.IZ2S_GUARDED_APP_RPC==='1',open=require('./connection.cjs').open,listen=require('./discovery.cjs').listen,verifyImage=require('./check.cjs').verify}){
+ const dispatch=require('../sd-launcher/host-dispatch.cjs').create({native,directory,protectedParent,...(prepareDispatchMaintenance?{prepareMaintenance:prepareDispatchMaintenance}:{})});
+ const stable=new SwitchableConnection(native.connection,{beforeWrite:dispatch.beforeWrite});native.connection=stable;
+ let connection,discovery,arming,gateway,gatewayStarting,enabled=false,closed=false,lastState='unarmed',lastEvent='',writes=Promise.resolve(),lastError,probeRequested=false,probeGeneration=0;
  const reportFile=path.join(directory,'native-recovery-worker.json');
  function event(row){if(!enabled||!['connected','synchronizing','waiting-for-network','waiting-for-command-completion','closed'].includes(row.state))return;const key=JSON.stringify([row.state,row.address,row.mode]);if(key===lastEvent)return;lastEvent=key;lastState=row.state;
   // Route attempts are diagnostics. The parent sees only meaningful native
@@ -64,7 +65,12 @@ function create({native,directory,root,peer,onState=()=>{},open=require('./conne
   })().catch(async e=>{if(!enabled){connection?.close();connection=null;await discovery?.close();discovery=null;}lastError=e.message;throw e;}).finally(()=>{arming=null;});
   return arming;
  }
- function status(){return {available:true,enabled,state:enabled?connection.suspended?'waiting-for-network':lastState:'unarmed',protocol:enabled?3:null,address:enabled?connection.remoteAddress:null,mode:enabled?connection.mode:null,...(lastError?{diagnostic:lastError}:{})};}
- return {arm,status,connection:stable,wake(){connection?.wake();discovery?.refresh();if(enabled)connection.probeRoute({force:true});return status();},async close(){if(closed)return;closed=true;connection?.close();await discovery?.close();await writes;}};
+ function startDispatchGateway(){
+  assert(!closed,'Recovery manager closed');
+  gatewayStarting??=require('../sd-launcher/host-gateway.cjs').serve({native,dispatch,directory,verifyExtended:async()=>{try{const report=await readJson(path.join(directory,'native-recovery-worker.json'));return await require('./stack.cjs').verifier({native,report})();}catch(error){throw Object.assign(error,{resourcesRetained:true,code:'IZ2S_RECOVERY_STACK_UNVERIFIED'});}}}).then(async service=>{gateway=service;if(closed)await service.close();return service;});return gatewayStarting;
+ }
+ function status(){const guarded=dispatch.inspect();return {available:true,enabled,...(!['open','legacy-shutdown'].includes(guarded.phase)?{guardedDispatch:guarded}:{}),...(gateway?{applicationGateway:gateway.inspect()}:{}),state:enabled?connection.suspended?'waiting-for-network':lastState:'unarmed',protocol:enabled?3:null,address:enabled?connection.remoteAddress:null,mode:enabled?connection.mode:null,...(lastError?{diagnostic:lastError}:{})};}
+ if(dispatchGateway)startDispatchGateway().catch(error=>{lastError='Application gateway: '+error.message;});
+ return {arm,status,connection:stable,dispatch,startDispatchGateway,wake(){connection?.wake();discovery?.refresh();if(enabled)connection.probeRoute({force:true});return status();},async close(){if(closed)return;closed=true;dispatch.sealForShutdown();if(gatewayStarting)await gatewayStarting.then(service=>service.close(),()=>{});connection?.close();await discovery?.close();await writes;}};
 }
 module.exports={create,candidates};

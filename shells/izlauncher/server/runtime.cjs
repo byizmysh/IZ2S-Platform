@@ -42,7 +42,7 @@ async function start({launchStage, watchAuxiliary, closeSession}, directory) {
     );
     await watchAuxiliary(effects, 'Game sound effects', serviceExit);
   } else console.log('No package sound effects: native audio polling is disabled.');
-  console.log('IZlauncher runtime is running.');
+  console.log('IZ2S runtime is running.');
   return { done: Promise.race(completions), close: closeSession };
 }
 

@@ -9,11 +9,14 @@ async function createWindowServer({
   port,
   token = crypto.randomBytes(24).toString('hex'),
   stateReadTimeoutMs = 10000,
+  coreOut,
+  coreSdStore,
   openRpcPage = require('../core/rpc-browser.cjs').open,
   workspace = require('../core/workspace.cjs'),
 }) {
   if (!Number.isFinite(stateReadTimeoutMs) || stateReadTimeoutMs <= 0)
     throw Error('Status read timeout must be positive');
+  let exportingApp = false, closing = false, shutdownHook;
   let actualPort,
     mutation = Promise.resolve(),
     mutationEpoch = 0,
@@ -27,7 +30,12 @@ async function createWindowServer({
   function readSnapshot() {
     Promise.resolve().then(() => manager.refresh()).catch(() => {});
     const sequence=++snapshotSequence,epoch=mutationEpoch;
-    const job = Promise.resolve().then(() => manager.snapshot());
+    const job = Promise.resolve().then(async () => {
+      const value=await manager.snapshot(),coreRows=await coreController.history.list();
+      const rows=new Map((value.history||[]).map(row=>[row.id,row]));
+      for(const row of coreRows)rows.set(row.id,row);
+      return {...value,history:[...rows.values()].sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')))};
+    });
     stateJobs.add(job);
     const release = () => { stateJobs.delete(job); };
     job.then(value=>{if(epoch===mutationEpoch&&sequence===snapshotSequence)lastSnapshot={value,at:Date.now()};release();}, release);
@@ -67,14 +75,26 @@ async function createWindowServer({
   }
   const assets = {
     '/reconnect.svg': ['reconnect.svg', 'image/svg+xml'],
-    '/': ['panel.html', 'text/html; charset=utf-8'],
     '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+    '/blitbun-capture.js': ['blitbun-capture.js', 'text/javascript; charset=utf-8'],
     '/storage.js': ['storage.js', 'text/javascript; charset=utf-8'],
     '/startup.js': ['startup.js', 'text/javascript; charset=utf-8'],
     '/cardputer-setup.js': ['cardputer-setup.js', 'text/javascript; charset=utf-8'],
     '/civswitch.js': ['civswitch.js', 'text/javascript; charset=utf-8'],
     '/style.css': ['style.css', 'text/css; charset=utf-8'],
     '/icon.svg': ['icon.svg', 'image/svg+xml'],
+  };
+  const blitBrowser = require('./blitbun-browser.cjs').create({root,out:coreOut});
+  const blitAssets = {
+    '/blitbun-codec.js':['pc-codec.js','text/javascript; charset=utf-8'],
+    '/blitbun-codec.wasm':['frame-codec.wasm','application/wasm'],
+    '/blitbun-pcm.js':['pcm-capture-worklet.js','text/javascript; charset=utf-8'],
+  };
+  const corePanel = require('../engines/iz2s-core/panel.cjs');
+  const coreController = corePanel.create({root, manager, out: coreOut, sdStore:coreSdStore});
+  const withCoreSd = async value => {
+    const coreSd=await coreController.sdStore.status();
+    return coreSd.selected?{...value,coreSd}:value;
   };
   function send(res, status, headers, body) {
     if (res.destroyed || res.writableEnded) return;
@@ -90,9 +110,9 @@ async function createWindowServer({
     const body = await fs.readFile(file);
     send(res, 200, headers, body);
   }
-  function fail(res, error) {
+  function fail(res, error, coreRequest = false) {
     try {
-      reply(res, error?.statusCode === 503 ? 503 : 400, {error: require('../language/error-text.js').canonical(redact(error?.message || String(error))).slice(0,1200)});
+      reply(res, error?.statusCode === 503 ? 503 : 400, {error: (coreRequest ? redact(error?.message || String(error)) : require('../language/error-text.js').canonical(redact(error?.message || String(error)))).slice(0,1200)});
     } catch {
       if (!res.destroyed) res.destroy();
     }
@@ -124,17 +144,59 @@ async function createWindowServer({
       if (req.method === 'GET' && url.pathname === '/health')
         return reply(res, 200, {
           version: 22,
+          edition: '0.25',
+          release: '0.25.0',
+          coreApi: '/api/iz2s-core',
           pid: process.pid,
           preview: manager.preview === true,
+          closing,
+          handoverProtocol: 1,
         });
+      if (req.method === 'GET' && url.pathname === '/') {
+        const html = await fs.readFile(path.join(root, 'panel/ui/panel.html'), 'utf8');
+        return send(res, 200, {'content-type': 'text/html; charset=utf-8'}, await corePanel.insertConnection(html));
+      }
+      const coreAsset = url.pathname.match(/^\/engines\/iz2s-core\/([a-z.]+)$/)?.[1];
+      if (req.method === 'GET' && coreAsset && Object.hasOwn(corePanel.assets, coreAsset)) {
+        return await sendFile(res, path.join(corePanel.ui, coreAsset), {'content-type': corePanel.assets[coreAsset]});
+      }
       if (req.method === 'GET' && assets[url.pathname]) {
         const [name, type] = assets[url.pathname];
         return await sendFile(res, path.join(root, 'panel/ui', name), {'content-type': type});
+      }
+      if (req.method === 'GET' && url.pathname === '/blitbun-encoder.js') {
+        return await sendFile(res,path.join(root,'panel/ui/blitbun-encoder.js'),{
+          'content-type':'text/javascript; charset=utf-8',
+          'content-security-policy':"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'",
+        });
+      }
+      if (req.method === 'GET' && Object.hasOwn(blitAssets,url.pathname)) {
+        const [file,type] = blitAssets[url.pathname];
+        return await sendFile(res,path.join(root,'modules/BlitBun/server/lib',file),{'content-type':type});
       }
       if (req.headers['x-iz-key'] !== token)
         return reply(res, 403, {
           error: 'Reopen the application using its launch link',
         });
+      if (req.method === 'GET' && url.pathname === '/api/apps/download') {
+        if (closing) return reply(res,503,{error:'The panel is shutting down.'});
+        const id = url.searchParams.get('id') || '';
+        if (!/^[a-z0-9][a-z0-9-]{0,46}$/.test(id))
+          return reply(res,400,{error:'Choose an application from the library.'});
+        if (exportingApp) return reply(res,503,{error:'An app download is already being prepared.'});
+        exportingApp = true;
+        try {
+          const module = await require('../core/modules.cjs').read(root,id,{pinned:false});
+          if (!module.descriptor.switch || !require('../core/packages/store-catalog.cjs').visible(module.descriptor))
+            return reply(res,400,{error:'That application is unavailable for download.'});
+          const app = await require('../engines/iz2s-core/tools/prepare-sd-app.cjs').packageModule(module);
+          return send(res,200,{
+            'content-type':app.packed?'application/zip':'application/octet-stream',
+            'content-disposition':'attachment; filename="'+app.name+'"',
+            'content-length':app.bytes.length,
+          },app.bytes);
+        } finally { exportingApp = false; }
+      }
       if (req.method === 'GET' && url.pathname === '/api/extensions') {
         const inventory = await require('../core/modules.cjs').list(root);
         return reply(res, 200, {
@@ -144,10 +206,17 @@ async function createWindowServer({
         });
       }
       if (req.method === 'GET' && url.pathname === '/api/state') {
-        return reply(res, 200, await snapshot());
+        return reply(res, 200, await withCoreSd(await snapshot()));
       }
+      if (req.method === 'GET' && url.pathname === '/api/iz2s-core/sd/volumes')
+        return reply(res, 200, await coreController.sdStore.volumes());
+      if (req.method === 'GET' && url.pathname === '/api/iz2s-core/pc-tool')
+        return reply(res, 200, await corePanel.pcTool(url.searchParams.get('view'), fetch, {preview:manager.preview,root,out:coreOut,open:url.searchParams.get('open')==='1'}));
+      if(req.method==='GET'&&url.pathname==='/api/iz2s-core')return reply(res,200,await coreController.state());
+      if (req.method === 'GET' && url.pathname === '/api/iz2s-core/log')
+        return await coreController.downloadLog(url.searchParams.get('id'), res);
       if (req.method === 'GET' && url.pathname === '/api/startup') {
-        return reply(res, 200, await snapshot({startup: true}));
+        return reply(res, 200, await withCoreSd(await snapshot({startup: true})));
       }
       if (req.method === 'GET' && url.pathname === '/api/loader-source') {
         const source = await manager.source(url.searchParams.get('id'));
@@ -155,6 +224,12 @@ async function createWindowServer({
           'content-type': 'text/plain; charset=utf-8',
           'content-disposition': 'attachment; filename=' + source.name + '.bas',
         });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/switch-keyboard/firmware')
+        return await sendFile(res, require('../hardware/switch-keyboard.cjs').firmwarePath(root), {'content-type':'application/octet-stream','content-disposition':'attachment; filename="iz2skeyboard.nro"'});
+      if (req.method === 'GET' && url.pathname === '/api/switch-keyboard/package') {
+        const archive = require('../hardware/switch-keyboard.cjs').packagePath(root);
+        return await sendFile(res, archive, {'content-type':'application/zip','content-disposition':`attachment; filename="${path.basename(archive)}"`});
       }
       if (req.method === 'GET' && url.pathname === '/api/cardputer/firmware') {
         const firmware=require('../hardware/cardputer.cjs'),profile=url.searchParams.get('profile')||'sb4';
@@ -174,10 +249,10 @@ async function createWindowServer({
         return reply(res, 200, {
           text: await manager.setupReport(url.searchParams.get('id')),
         });
-      if (req.method === 'GET' && url.pathname === '/api/log')
-        return reply(res, 200, {
-          events: await manager.historyLog(url.searchParams.get('id')),
-        });
+      if (req.method === 'GET' && url.pathname === '/api/log') {
+        const id=url.searchParams.get('id'),coreLog=await coreController.history.log(id);
+        return reply(res,200,coreLog||{events:await manager.historyLog(id)});
+      }
       if (req.method === 'GET' && url.pathname === '/api/workspace') {
         if(manager.preview)return reply(res,200,{tabs:[]});
         const current=lastSnapshot&&Date.now()-lastSnapshot.at<1500?lastSnapshot.value:await snapshot();
@@ -188,7 +263,102 @@ async function createWindowServer({
         return reply(res, 403, {
           error: 'The request must come from this application',
         });
+      if (closing) return reply(res,503,{error:'The panel is shutting down.'});
+      if (url.pathname === '/api/platform/shutdown') {
+        if (manager.preview || !shutdownHook) return reply(res,503,{error:'This panel cannot be handed over yet.'});
+        if (exportingApp) return reply(res,503,{error:'An application download is still active.'});
+        closing = true;
+        try {
+          await mutation;
+          coreController.assertCanClose();
+          await require('../core/session/panel-handover.cjs').waitForIdle({root,port:actualPort,pid:process.pid,timeout:0});
+        } catch (error) { closing = false; throw error; }
+        reply(res,200,{ok:true});
+        setImmediate(async () => {
+          try { if (!(await shutdownHook())?.closed) closing = false; }
+          catch (error) { closing = false; console.error(error); }
+        });
+        return;
+      }
+      if (url.pathname === '/api/iz2s-core/pc/install-nro') {
+        if (manager.preview) return reply(res,403,{error:'Preview cannot install console apps'});
+        if (req.headers['content-type'] !== 'application/octet-stream')
+          return reply(res,400,{error:'Send one NRO file.'});
+        const result = await require('../engines/iz2s-core/tools/pc-link-service.cjs').installNro(
+          coreOut, req, url.searchParams.get('name')
+        );
+        return reply(res,200,result);
+      }
+      if (url.pathname === '/api/iz2s-core/pc/install') {
+        if (manager.preview) return reply(res,403,{error:'Preview cannot install console apps'});
+        if (req.headers['content-type'] !== 'application/octet-stream')
+          return reply(res,400,{error:'Send one application file.'});
+        const result = await require('../engines/iz2s-core/tools/pc-link-service.cjs').install(coreOut,req);
+        return reply(res,200,result);
+      }
+      if (url.pathname === '/api/iz2s-core/sd/import') {
+        if (manager.preview) return reply(res,403,{error:'Preview cannot access the IZ2S SD store'});
+        if (req.headers['content-type'] !== 'application/octet-stream')
+          return reply(res,400,{error:'Send one application file.'});
+        return reply(res,200,await coreController.sdStore.importApp(req,url.searchParams.get('format'),url.searchParams.get('selection'),url.searchParams.get('name')));
+      }
+      if(url.pathname==='/api/iz2s-core/pc/refresh'){
+        require('../engines/iz2s-core/tools/pc-link-service.cjs').invalidateInventory();
+        return reply(res,200,{ok:true});
+      }
+      const browserMedia=url.pathname.match(/^\/api\/iz2s-core\/media\/browser\/(begin|frame|audio|stop)$/)?.[1];
+      if(browserMedia){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot share a PC source.'});
+        if(browserMedia==='begin')return reply(res,200,await blitBrowser.begin());
+        if(browserMedia==='stop')return reply(res,200,await blitBrowser.stop((await readBody(req)).id));
+        return reply(res,200,await blitBrowser.relay(req,browserMedia));
+      }
       const body = await readBody(req, url.pathname === '/api/civswitch-ldn' ? 131072 : 16384);
+      if(url.pathname.startsWith('/api/iz2s-core/media/')){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot share a PC source.'});
+        const media=require('../engines/iz2s-core/tools/pc-media-control.cjs');
+        if(url.pathname==='/api/iz2s-core/media/blitbun-profile')return reply(res,200,await blitBrowser.profile(body.width));
+        if(url.pathname==='/api/iz2s-core/media/windows')return reply(res,200,{windows:await media.windows()});
+        const action=url.pathname.match(/^\/api\/iz2s-core\/media\/(start|stop)$/)?.[1];
+        if(action){
+          const execute=()=>media.requestMedia(body.id,action,coreOut,body.window);
+          return reply(res,200,await (body.id==='blitbun'?blitBrowser.native(execute):execute()));
+        }
+      }
+      if(url.pathname==='/api/iz2s-core/pc/install-library'){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot install console apps'});
+        const id = body.id;
+        if(typeof id !== 'string' || !/^[a-z0-9][a-z0-9-]{0,46}$/.test(id))
+          return reply(res,400,{error:'Choose an application from the library.'});
+        const archive = require('../core/archive.cjs');
+        const module = await require('../core/modules.cjs').read(root, id, {pinned:false});
+        if(!module.descriptor.switch || !require('../core/packages/store-catalog.cjs').visible(module.descriptor))
+          return reply(res,400,{error:'That application is unavailable for installation.'});
+        const nro = await require('../engines/iz2s-core/tools/nro-package.cjs').moduleProgram(module, archive.switchApp(module));
+        const bytes = nro || await fs.readFile(module.packagePath);
+        if (!nro && archive.sha(bytes) !== module.sha256)
+          return reply(res,409,{error:'The PC package changed. Refresh the library and retry.'});
+        const upload = require('node:stream').Readable.from([bytes]);
+        upload.headers = {'content-length': String(bytes.length)};
+        const pcLink = require('../engines/iz2s-core/tools/pc-link-service.cjs');
+        return reply(res,200,nro ? await pcLink.installNro(coreOut,upload,id+'.nro') : await pcLink.install(coreOut,upload));
+      }
+      if(url.pathname==='/api/iz2s-core/pc/remove'){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot remove console apps'});
+        return reply(res,200,await require('../engines/iz2s-core/tools/pc-link-service.cjs').remove(coreOut,body.id,body.format));
+      }
+      if(url.pathname==='/api/iz2s-core/pc/menu-update'){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot update IZ2S'});
+        return reply(res,200,await require('../engines/iz2s-core/tools/pc-link-service.cjs').menuUpdate(coreOut,{retry:body.retry===true}));
+      }
+      if(url.pathname==='/api/iz2s-core/pc/reset'){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot reset PC Link'});
+        return reply(res,200,await coreController.reset());
+      }
+      if(url.pathname==='/api/iz2s-core/setup')return reply(res,200,await coreController.setup(body));
+      if(url.pathname==='/api/iz2s-core/start')return reply(res,200,await coreController.start(body));
+      if(url.pathname==='/api/iz2s-core/stop')return reply(res,200,await coreController.stop());
+      coreController.assertAvailable(url.pathname);
       // Emergency stop must bypass a blocked ordinary mutation queue.
       if (url.pathname === '/api/hard-stop') {
         mutationEpoch++;
@@ -297,6 +467,8 @@ async function createWindowServer({
           return manager.configureLaunch(body);
         if (url.pathname === '/api/ns2hb/check')
           return manager.inspectNS2HB();
+        if (url.pathname === '/api/switch-keyboard/prepare') return manager.prepareSwitchKeyboardSD();
+        if (url.pathname === '/api/switch-keyboard/install') return manager.installSwitchKeyboard();
         if (url.pathname === '/api/cardputer/confirm-usb') return manager.confirmCardputerUsb();
         if (url.pathname === '/api/cardputer/prepare') return manager.prepareCardputerSD(body);
         if (url.pathname === '/api/cardputer/install') return manager.installCardputerSD(body);
@@ -311,6 +483,13 @@ async function createWindowServer({
         if (url.pathname === '/api/civswitch') return manager.civswitchAction(body);
         if (url.pathname === '/api/civswitch-ldn') return manager.civswitchLdnAction(body);
         if (url.pathname === '/api/retry') return manager.retry();
+        if (url.pathname === '/api/iz2s-core/sd/select') return coreController.sdStore.select(body.target);
+        if (body.store === 'core-sd') {
+          if (url.pathname === '/api/load') return coreController.sdStore.load(body.ids,body.selection);
+          if (url.pathname === '/api/unload') return coreController.sdStore.unload(body.ids,body.selection);
+          if (url.pathname === '/api/sd/refresh') return coreController.sdStore.refresh(body.selection);
+          throw Error('Unknown IZ2S SD operation');
+        }
         if (url.pathname === '/api/load') {
           await manager.loadPackages(body.ids,{target:body.target,targets:body.targets});
           return { ok: true };
@@ -322,7 +501,7 @@ async function createWindowServer({
         }
         if(url.pathname==='/api/sd/refresh')return manager.refreshSdInventory();
         if (url.pathname === '/api/delete') {
-          await manager.remove(body.id);
+          if(!await coreController.history.remove(body.id))await manager.remove(body.id);
           return { ok: true };
         }
         if (url.pathname === '/api/dismiss') {
@@ -338,7 +517,7 @@ async function createWindowServer({
       lastSnapshot = null;
       reply(res, 200, value);
     } catch (e) {
-      fail(res, e);
+      fail(res, e, /^\/api\/iz2s-core(?:[/?]|$)/.test(req.url));
     }
   }
   const server = http.createServer((req, res) => {
@@ -355,8 +534,18 @@ async function createWindowServer({
   return {
     server,
     token,
+    setShutdown: hook => { shutdownHook = hook; },
     url: 'http://127.0.0.1:' + actualPort + '/#' + token,
-    close: async () => { await require('../core/module-settings.cjs').close(root); await new Promise((r) => server.close(r)); },
+    close: async () => {
+      coreController.assertCanClose();
+      await blitBrowser.close();await require('../core/module-settings.cjs').close(root);
+      await new Promise(r => {
+        server.close(r);
+        // Handover has rejected active transfers and blocked new mutations.
+        // Read-only UI polling must not retain a closing panel indefinitely.
+        if (closing) server.closeAllConnections();
+      });
+    },
   };
 }
 module.exports = { createWindowServer };

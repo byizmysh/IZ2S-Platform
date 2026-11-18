@@ -15,7 +15,7 @@ bool menuRemovalInput(uint pressed){
   c.library.w=touching?1u:0u;hbEndFrame();return true;
  }
  bool real=c.transition.y==0.0&&focusOrdinal(c.state.x,false)<focusCount(false)&&c.piece.x==0&&c.rows[1]==0u&&c.bagMeta.y==0u&&c.state.x<min(c.library.x,15u);
- if(real&&((pressed&HB_MINUS)!=0u||(tap&&all(lessThanEqual(abs(point-F_REMOVE_CENTER),F_REMOVE_HALF))))){
+ if(real&&!nroPreviewTile(nroPreviewBase(c.state.x))&&((pressed&HB_MINUS)!=0u||(tap&&all(lessThanEqual(abs(point-F_REMOVE_CENTER),F_REMOVE_HALF))))){
   c.rows[15]=c.state.x+1u;c.library.w=touching?1u:0u;hbEndFrame();return true;
  }
  return false;

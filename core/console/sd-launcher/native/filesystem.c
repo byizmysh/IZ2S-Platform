@@ -72,10 +72,21 @@ u32 iz_fs_open(IzFs*s,const char*path,u32*out,u64*size){
 u32 iz_fs_directory_open(IzFs*s,const char*path,u32 mode,u32*out){
  if(!out)return BAD;*out=0;if(s->c->ram_only||s->c->poisoned||!canonical_path(path)||!mode||mode>3)return BAD;u64 h=0;u32 rc=path_call_wire(s,9,path,0,&mode,4,1,&h);if(!rc)*out=(u32)h;return rc;
 }
+static u32 read_directory_page(IzFs*s,u32 h,u32 capacity,u32*count){
+ _Alignas(4096) u8 m[4096];memset(m,0,sizeof m);
+ u32*p=(void*)m;u64 a=(u64)(uintptr_t)s->buffer;
+ p[0]=4|(1u<<24);p[1]=8;p[2]=capacity*sizeof(IzFsDirectoryEntry);
+ p[3]=(u32)a;p[4]=((u32)(a>>36)&7)<<2|((u32)(a>>32)&15)<<28;p[8]=0x49434653;
+ u64 got=0;u32 rc=send(s,h,m,0,&got);
+ if(rc)return rc;
+ if(got>capacity)return poison(s,BAD);
+ *count=(u32)got;return 0;
+}
 u32 iz_fs_directory_read(IzFs*s,u32 h,IzFsDirectoryEntry*out,u32 capacity,u32*count){
  if(!count)return BAD;*count=0;if(!out||!capacity||capacity>32||!owned(s,h)||(h&0x80000000u))return BAD;
- _Alignas(4096) u8 m[4096];memset(m,0,sizeof m);u32*p=(void*)m;u64 a=(u64)(uintptr_t)s->buffer;p[0]=4|(1u<<24);p[1]=8;p[2]=capacity*sizeof *out;p[3]=(u32)a;p[4]=((u32)(a>>36)&7)<<2|((u32)(a>>32)&15)<<28;p[8]=0x49434653;
- u64 got=0;u32 rc=send(s,h,m,0,&got);if(rc)return rc;if(got>capacity)return poison(s,BAD);memcpy(out,s->buffer,(size_t)got*sizeof *out);*count=(u32)got;return 0;
+ u32 rc=read_directory_page(s,h,capacity,count);
+ if(!rc)memcpy(out,s->buffer,(size_t)*count*sizeof *out);
+ return rc;
 }
 u32 iz_fs_entry_type(IzFs*s,const char*path,u32*out){
  if(!out)return BAD;*out=0;if(s->c->ram_only||s->c->poisoned||!canonical_path(path))return BAD;u64 type=0;u32 rc=path_call_wire(s,7,path,0,0,0,0,&type);if(!rc){if(type>1)return BAD;*out=(u32)type;}return rc;
@@ -100,20 +111,172 @@ u32 iz_fs_read(IzFs*s,u32 h,u64 offset,void*data,u32 bytes){return transfer(s,h,
  * very slow; no complete image or second pass is needed for its file CRC. */
 u32 iz_fs_read_crc(IzFs*s,u32 h,u64 offset,void*data,u32 bytes,u32 expected){u32 crc=0,rc=transfer(s,h,offset,data,bytes,0,&crc);return rc?rc:(crc==expected?0:0xe110);}
 static int directory_id(const char*p){unsigned n=0;while(n<48&&p[n]){char c=p[n];if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||(n&&c=='-')))return 0;n++;}return n&&n<48;}
-u32 iz_fs_dirs(IzFs*s,char names[][48],u32*count){
- *count=0;if(s->c->ram_only){if(!ram_valid(s->c)||!directory_id(s->c->ram_app_id))return BAD;memcpy(names[0],s->c->ram_app_id,48);*count=1;return 0;}
- u32 mode=1;u64 directory=0;u32 rc=path_call(s,9,IZ_SD_ROOT,0,&mode,4,1,&directory);if(rc)return rc;
- unsigned seen=0;
- for(;;){_Alignas(4096) u8 m[4096];memset(m,0,sizeof m);u32*p=(void*)m;u64 a=(u64)(uintptr_t)s->buffer;u32 bytes=32*0x310;
-  p[0]=4|(1u<<24);p[1]=8;p[2]=bytes;p[3]=(u32)a;p[4]=((u32)(a>>36)&7)<<2|((u32)(a>>32)&15)<<28;p[8]=0x49434653;
-  u64 got=0;rc=send(s,(u32)directory,m,0,&got);if(rc)break;if(got>32){rc=poison(s,BAD);break;}if(!got)break;
-  if((seen+=got)>200000){rc=0xe003;break;}
-  for(unsigned i=0;i<got;i++){u8*row=s->buffer+i*0x310;if(row[0x304]!=0||!directory_id((char*)row))continue;if(*count==IZ_MAX_DIRS){rc=0xe004;break;}memset(names[*count],0,48);memcpy(names[(*count)++],row,strlen((char*)row));}if(rc)break;
+void iz_fs_app_path(char*out,const char*id){
+ size_t n=sizeof(IZ_SD_ROOT)-1;
+ memcpy(out,IZ_SD_ROOT,n);out[n++]='/';
+ size_t length=strlen(id);
+ memcpy(out+n,id,length);n+=length;
+ memcpy(out+n,"/launcher.iza",sizeof "/launcher.iza");
+}
+enum { DIR_ALL,DIR_WITH_PACKAGE,DIR_VALID_HEADER };
+static u32 find_app_backup(IzFs*,const char*,char*);
+static void retain_earliest_dir(char names[][48],u32*count,const char name[48]){
+ if(*count<IZ_MAX_DIRS){
+  memcpy(names[(*count)++],name,48);
+  return;
  }
- if(!s->c->poisoned){u32 close=iz_fs_close(s,(u32)directory);if(!rc)rc=close;}return rc;
+ unsigned largest=0;
+ for(unsigned i=1;i<*count;i++)
+  if(memcmp(names[i],names[largest],48)>0)largest=i;
+ if(memcmp(name,names[largest],48)<0)memcpy(names[largest],name,48);
+}
+/* Filter missing files first. Inspect headers only if that smaller list
+ * still overflows, so a large directory of saves adds no header reads.
+ * Keep the earliest eligible names regardless of directory enumeration order. */
+static u32 read_dir_names(IzFs*s,char names[][48],u32*count,unsigned filter){
+ *count=0;
+ u32 directory=0,rc=iz_fs_directory_open(s,IZ_SD_ROOT,1,&directory);
+ if(rc)return !s->c->poisoned&&(rc&0x3fffffu)==0x202?0:rc;
+ unsigned seen=0;
+ for(;;){
+  u32 got=0;rc=read_directory_page(s,directory,32,&got);
+  if(rc||!got)break;
+  if((seen+=got)>200000){rc=0xe003;break;}
+  // Package opens overwrite IPC scratch. Keep only the names from this page.
+  char page[32][48];unsigned entries=0;
+  for(unsigned i=0;i<got;i++){
+   const IzFsDirectoryEntry*row=(const void*)(s->buffer+i*sizeof *row);
+   if(row->type!=0||!directory_id(row->name))continue;
+   size_t length=strlen(row->name)+1;
+   char*name;
+   if(filter!=DIR_ALL)name=page[entries++];
+   else {
+    if(*count==IZ_MAX_DIRS){rc=0xe004;break;}
+    name=names[(*count)++];
+   }
+   memset(name,0,48);memcpy(name,row->name,length);
+  }
+  for(unsigned i=0;!rc&&i<entries;i++){
+   char path[128];iz_fs_app_path(path,page[i]);
+   u32 file=0;u64 size=0;
+   u32 opened=filter==DIR_VALID_HEADER?iz_fs_open(s,path,&file,&size):iz_fs_open_handle(s,path,&file);
+   if(s->c->poisoned){rc=s->c->error;break;}
+   if((opened&0x3fffffu)==0x202){
+    // Overflow filtering must keep recoverable modules. Publication will
+    // restore the selected packages after closing the root enumeration.
+    char backup[160];
+    opened=find_app_backup(s,page[i],backup);
+    if(!opened)opened=iz_fs_open(s,backup,&file,&size);
+    if(s->c->poisoned){rc=s->c->error;break;}
+    if(opened)continue; // Optional recovery must not hide other packages.
+   }
+   if(opened){
+    if((opened&0x3fffffu)==0x202)continue;
+    rc=opened;break;
+   }
+   IzAppHeader header;
+   u32 checked=filter==DIR_VALID_HEADER&&size>=sizeof header?iz_fs_read(s,file,0,&header,sizeof header):0;
+   if(s->c->poisoned){rc=s->c->error;break;}
+   rc=iz_fs_close(s,file);
+   if(rc)break;
+   // A file truncated between GetSize and Read cannot occupy a menu slot.
+   if(checked==0xe002)continue;
+   if(checked){rc=checked;break;}
+   if(filter==DIR_VALID_HEADER&&(size<sizeof header||iz_validate_header(&header,size)||memcmp(header.id,page[i],48)))continue;
+   if(filter==DIR_VALID_HEADER)retain_earliest_dir(names,count,page[i]);
+   else {
+    if(*count==IZ_MAX_DIRS){rc=0xe004;break;}
+    memcpy(names[(*count)++],page[i],48);
+   }
+  }
+  if(rc)break;
+ }
+ if(!s->c->poisoned){
+  u32 closed=iz_fs_close(s,directory);
+  if(closed)return closed;
+ }
+ return rc;
+}
+u32 iz_fs_dirs(IzFs*s,char names[][48],u32*count){
+ *count=0;
+ if(s->c->ram_only){
+  if(!ram_valid(s->c)||!directory_id(s->c->ram_app_id))return BAD;
+  memcpy(names[0],s->c->ram_app_id,48);*count=1;return 0;
+ }
+ // Keep ordinary cards on the single-pass path. Only valid package headers
+ // count against capacity when the unfiltered listing overflows.
+ u32 rc=read_dir_names(s,names,count,DIR_ALL);
+ if(rc==0xe004&&!s->c->poisoned)rc=read_dir_names(s,names,count,DIR_WITH_PACKAGE);
+ return rc==0xe004&&!s->c->poisoned?read_dir_names(s,names,count,DIR_VALID_HEADER):rc;
 }
 static u32 commit(IzFs*s){
  _Alignas(4096) u8 m[4096];memset(m,0,sizeof m);u32*p=(void*)m;p[0]=4;p[1]=8;p[4]=0x49434653;p[6]=10;return send(s,s->c->filesystem,m,0,0);
+}
+static int launcher_stage_name(const char*name,const char*suffix){
+ if(memcmp(name,".launcher-",10)||memcmp(name+26,suffix,5))return 0;
+ for(unsigned i=10;i<26;i++)
+  if(!((name[i]>='a'&&name[i]<='f')||(name[i]>='0'&&name[i]<='9')))return 0;
+ return 1;
+}
+/* Recognize one installer pair without trusting its unpublished image. */
+static u32 find_app_backup(IzFs*s,const char*id,char*backup){
+ if(s->c->ram_only||!directory_id(id))return 0x202;
+ char root[128],stage[160],candidate[31]={0};
+ iz_fs_app_path(root,id);
+ size_t base=strlen(root)-(sizeof "/launcher.iza"-1);
+ root[base]=0;
+ memcpy(backup,root,base);backup[base]='/';
+ memcpy(stage,backup,base+1);
+ u32 dir=0,rc=iz_fs_directory_open(s,root,2,&dir),seen=0;
+ if(rc)return rc;
+ for(;;){
+  u32 got=0;rc=read_directory_page(s,dir,32,&got);
+  if(rc||!got)break;
+  if((seen+=got)>4096){rc=0x202;break;}
+  // Copy the short names before a lookup overwrites the FS scratch page.
+  char names[32][31];unsigned count=0;
+  for(unsigned i=0;i<got;i++){
+   const IzFsDirectoryEntry*row=(const void*)(s->buffer+i*sizeof *row);
+   if(row->type==1&&launcher_stage_name(row->name,".bak"))memcpy(names[count++],row->name,31);
+  }
+  for(unsigned i=0;i<count;i++){
+   memcpy(stage+base+1,names[i],26);memcpy(stage+base+27,".tmp",5);
+   u32 type=0;rc=iz_fs_entry_type(s,stage,&type);
+   if((rc&0x3fffffu)==0x202&&!s->c->poisoned){rc=0;continue;}
+   if(rc)break;
+   if(type!=1)continue;
+   if(candidate[0]){rc=0x202;break;}
+   memcpy(candidate,names[i],31);
+  }
+  if(rc)break;
+ }
+ if(!s->c->poisoned){u32 closed=iz_fs_close(s,dir);if(!rc)rc=closed;}
+ if(rc||!candidate[0])return rc?rc:0x202;
+ memcpy(backup+base+1,candidate,sizeof candidate);
+ return 0;
+}
+static u32 open_app_backup(IzFs*s,const char*id,char*backup,u32*file,u64*size){
+ u32 rc=find_app_backup(s,id,backup);
+ return rc?rc:iz_fs_open(s,backup,file,size);
+}
+u32 iz_fs_open_app_backup(IzFs*s,const char*id,u32*file,u64*size){
+ char backup[160];
+ return open_app_backup(s,id,backup,file,size);
+}
+u32 iz_fs_restore_app(IzFs*s,const char*id){
+ char target[128],backup[160];
+ u32 file=0;u64 size=0;u32 rc=open_app_backup(s,id,backup,&file,&size);
+ if(rc)return rc;
+ iz_fs_app_path(target,id);
+ IzAppHeader header;
+ rc=size<sizeof header?0x202:iz_fs_read(s,file,0,&header,sizeof header);
+ if(!rc&&(iz_validate_header(&header,size)||memcmp(header.id,id,strlen(id)+1)))rc=0x202;
+ if(!s->c->poisoned){u32 closed=iz_fs_close(s,file);if(!rc)rc=closed;}
+ if(rc)return rc;
+ // Rename does not replace a destination on this filesystem. Never use the
+ // temporary package as a source, or retry an uncertain operation.
+ rc=path_call(s,5,backup,target,0,0,0,0);
+ return rc?rc:commit(s);
 }
 static int asset_name(const char*p){
  if(memcmp(p,"asset-",6))return 0;for(unsigned i=6;i<70;i++)if(!((p[i]>='0'&&p[i]<='9')||(p[i]>='a'&&p[i]<='f')))return 0;return !memcmp(p+70,".izdata",8);
@@ -121,28 +284,44 @@ static int asset_name(const char*p){
 u32 iz_fs_remove_app(IzFs*s,const char*id){
  if(s->c->ram_only||!directory_id(id))return BAD;
  char root[128]=IZ_SD_ROOT "/",path[256],stage[256];size_t base=strlen(root);memcpy(root+base,id,strlen(id)+1);base=strlen(root);
- memcpy(path,root,base);memcpy(path+base,"/launcher.izapp",sizeof "/launcher.izapp");
+ memcpy(path,root,base);memcpy(path+base,"/launcher.iza",sizeof "/launcher.iza");
  // Verify the currently published identity, then close every child capability
  // before renaming/deleting. User directories, games, BIOS and saves are never
  // traversed or selected, including symlink-like/invalid directory entries.
  u32 file=0;u64 size=0;u32 rc=iz_fs_open(s,path,&file,&size);if(rc)return rc;IzAppHeader h;
  rc=size<sizeof h?0xe111:iz_fs_read(s,file,0,&h,sizeof h);if(!rc)rc=iz_validate_header(&h,size);if(!rc&&memcmp(h.id,id,strlen(id)+1))rc=0xe112;
  if(!s->c->poisoned){u32 closed=iz_fs_close(s,file);if(!rc)rc=closed;}if(rc)return rc;
- char assets[128][78];u32 count=0,seen=0,mode=2;u64 dir=0;rc=path_call(s,9,root,0,&mode,4,1,&dir);if(rc)return rc;
+ char owned_files[128][78];u32 count=0,seen=0,mode=2;u64 dir=0;rc=path_call(s,9,root,0,&mode,4,1,&dir);if(rc)return rc;
  for(;;){
   _Alignas(4096) u8 m[4096];memset(m,0,sizeof m);u32*p=(void*)m;u64 a=(u64)(uintptr_t)s->buffer;
   p[0]=4|(1u<<24);p[1]=8;p[2]=32*0x310;p[3]=(u32)a;p[4]=((u32)(a>>36)&7)<<2|((u32)(a>>32)&15)<<28;p[8]=0x49434653;
   u64 got=0;rc=send(s,(u32)dir,m,0,&got);if(rc)break;if(got>32){rc=poison(s,BAD);break;}if(!got)break;
   if((seen+=(u32)got)>4096){rc=0xe003;break;}
-  for(unsigned i=0;i<got;i++){u8*row=s->buffer+i*0x310;if(row[0x304]!=1||!asset_name((char*)row))continue;if(count==128){rc=0xe004;break;}memcpy(assets[count++],row,78);}if(rc)break;
+  for(unsigned i=0;i<got;i++){
+   const IzFsDirectoryEntry*row=(const void*)(s->buffer+i*sizeof *row);
+   if(row->type!=1||(!asset_name(row->name)&&!launcher_stage_name(row->name,".tmp")))continue;
+   if(count==128){rc=0xe004;break;}
+   memset(owned_files[count],0,sizeof owned_files[0]);memcpy(owned_files[count++],row->name,strlen(row->name)+1);
+  }
+  if(rc)break;
  }
  if(!s->c->poisoned){u32 closed=iz_fs_close(s,(u32)dir);if(!rc)rc=closed;}if(rc)return rc;
+ // Invalidate interrupted update pairs before unpublishing, so a later
+ // scan cannot revive an app that the user removed.
+ int invalidated=0;
+ for(unsigned i=0;i<count;i++)if(launcher_stage_name(owned_files[i],".tmp")){
+  memcpy(stage,root,base);stage[base]='/';memcpy(stage+base+1,owned_files[i],31);
+  rc=path_call(s,1,stage,0,0,0,0,0);
+  if(rc)return rc;
+  invalidated=1;
+ }
+ if(invalidated){rc=commit(s);if(rc)return rc;}
  // Unpublish first, commit, then remove only immutable owned companions. A
  // failed/unknown mutation is never replayed or rolled back into a broken app.
  memcpy(stage,root,base);memcpy(stage+base,"/.removed-",10);const char hex[]="0123456789abcdef";u64 nonce=CALL(s->c,F_TICK,0,0,0,0,0,0,0,0);
- for(unsigned i=0;i<16;i++)stage[base+10+i]=hex[(nonce>>(60-i*4))&15];memcpy(stage+base+26,".izapp",7);
+ for(unsigned i=0;i<16;i++)stage[base+10+i]=hex[(nonce>>(60-i*4))&15];memcpy(stage+base+26,".iza",sizeof ".iza");
  rc=path_call(s,5,path,stage,0,0,0,0);if(rc)return rc;rc=commit(s);if(rc)return rc;
- for(unsigned i=0;!rc&&i<count;i++){memcpy(path,root,base);path[base]='/';memcpy(path+base+1,assets[i],78);rc=path_call(s,1,path,0,0,0,0,0);}
+ for(unsigned i=0;!rc&&i<count;i++)if(asset_name(owned_files[i])){memcpy(path,root,base);path[base]='/';memcpy(path+base+1,owned_files[i],78);rc=path_call(s,1,path,0,0,0,0,0);}
  if(!rc)rc=path_call(s,1,stage,0,0,0,0,0);if(!rc)rc=commit(s);return rc;
 }
 u32 iz_fs_probe(IzFs*s){
@@ -170,9 +349,21 @@ u32 iz_fs_write_file(IzFs*s,const char*path,const void*data,u32 bytes){
  if(!s->c->poisoned){u32 close=iz_fs_close(s,(u32)file);if(!rc)rc=close;}if(rc)return rc;
  u64 type=0;rc=path_call(s,7,path,0,0,0,0,&type);int existing=!rc;if(rc&&rc!=0x202)return rc;if(existing&&type!=1)return BAD;
  if(existing){rc=path_call(s,5,path,backup,0,0,0,0);if(rc)return rc;}
- rc=path_call(s,5,stage,path,0,0,0,0);if(rc)return rc;
- _Alignas(4096) u8 m[4096];memset(m,0,sizeof m);u32*p=(void*)m;p[0]=4;p[1]=8;p[4]=0x49434653;p[6]=10;rc=send(s,s->c->filesystem,m,0,0);if(rc)return rc;
- if(existing){rc=path_call(s,1,backup,0,0,0,0,0);if(rc)return rc;memset(m,0,sizeof m);p[0]=4;p[1]=8;p[4]=0x49434653;p[6]=10;rc=send(s,s->c->filesystem,m,0,0);}return rc;
+ rc=path_call(s,5,stage,path,0,0,0,0);
+ if(rc){
+  // Only a confirmed refusal leaves the old save safe to put back.
+  if(existing&&!s->c->poisoned){
+   u32 restored=path_call(s,5,backup,path,0,0,0,0);
+   if(!restored)restored=commit(s);
+   if(restored)return restored;
+   u32 removed=path_call(s,1,stage,0,0,0,0,0);
+   if(!removed)removed=commit(s);
+   if(s->c->poisoned)return removed;
+  }
+  return rc;
+ }
+ rc=commit(s);if(rc)return rc;
+ if(existing){rc=path_call(s,1,backup,0,0,0,0,0);if(!rc)rc=commit(s);}return rc;
 }
 /* Streaming checkpoint bank. The caller may replace only the inactive bank;
  * the active committed bank is kept until the new file passes readback. */

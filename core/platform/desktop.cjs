@@ -1,6 +1,6 @@
 // Optional host desktop integration; the panel itself runs without a GUI opener.
 const fs=require('node:fs'),path=require('node:path'),{execFileSync}=require('node:child_process');
-function browserCommand(url,{env=process.env,platform=process.platform,exists=fs.existsSync,query=(program,args)=>execFileSync(program,args,{encoding:'utf8',timeout:1500,stdio:['ignore','pipe','ignore']})}={}) {
+function browserCommand(url,{env=process.env,platform=process.platform,exists=fs.existsSync,query=(program,args)=>execFileSync(program,args,{encoding:'utf8',timeout:1500,windowsHide:true,stdio:['ignore','pipe','ignore']})}={}) {
   const searchPath=env[Object.keys(env).find(key=>key.toUpperCase()==='PATH')]||'';
   const locate=name=>{if(name.includes('/')||name.includes('\\'))return exists(name)?name:null;const separator=platform==='win32'?';':path.delimiter;for(const dir of searchPath.split(separator).filter(Boolean)){const file=(platform==='win32'?path.win32:path).join(dir,name);if(exists(file))return file;}return null;};
   const flags=program=>/firefox/i.test(program)?['--new-window',url]:['--new-window',url];

@@ -1,0 +1,38 @@
+{
+  "format": "izlauncher.module",
+  "formatVersion": 1,
+  "apiVersion": 1,
+  "id": "iz-file-deck",
+  "name": "Foldrift",
+  "version": "0.3.3",
+  "moduleVersion": "0.3.3",
+  "author": "IZMYSH",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "requires": {
+    "platformApi": 1,
+    "shell": "izlauncher",
+    "consoleAbi": 1
+  },
+  "switch": {
+    "entry": "switch/app.json",
+    "downloadName": "foldrift.iza",
+    "abi": 1,
+    "files": [
+      "switch/app.json",
+      "switch/app.vert.spv",
+      "switch/app.frag.spv",
+      "switch/app.comp.spv",
+      "switch/assets/icon.png",
+      "switch/assets/state.bin",
+      "switch/assets/font.bin",
+      "switch/native.bin"
+    ]
+  },
+  "dependencies": [],
+  "settingsSchema": [],
+  "license": "MIT",
+  "installationDirectory": "Foldrift"
+}

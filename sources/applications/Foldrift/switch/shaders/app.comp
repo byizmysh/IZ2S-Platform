@@ -1,0 +1,40 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x=1) in;
+#include "layout.glsl"
+const uint Plus=1024u,Minus=2048u;
+
+void main(){
+    uint buttons=c.raw[0].z;
+    uint pressed=buttons&~c.state.y;
+    uint held=buttons&(8192u|32768u);
+    c.game.x=held!=0u&&held==(c.state.y&(8192u|32768u))?c.game.x+1u:0u;
+    if(c.game.x>=19u&&c.game.x%5u==0u)pressed|=held;
+    c.state.y=buttons;
+    bool ready=deck(64u)==DeckReady&&deck(0u)==deck(68u);
+    if(ready&&deck(72u)==ViewBrowse&&(pressed&Plus)!=0u)c.game.z=1u;
+    // Return only after releasing the keys so the launcher receives no held shortcut.
+    if(c.game.z!=0u){
+        if((buttons&(Plus|Minus))==0u){c.game.z=0u;c.reserved.z=1u;}
+        return;
+    }
+    pressed&=~Minus;
+
+    bool touching=c.touch[2]!=0u&&(c.touch[6]&2u)==0u;
+    uint touch=0u;
+    if(touching&&c.game.y==0u&&deck(72u)==ViewBrowse){
+        vec2 p=vec2(c.touch[8],c.touch[9])*1.5;
+        if(p.x>=FilePanelTop.x&&p.x<FilePanelTop.x+FilePanelSize.x&&
+           p.y>=FileRowsTop.y&&p.y<FileRowsTop.y+FileRowPitch*float(FileRowsPerPage)){
+            uint row=uint((p.y-FileRowsTop.y)/FileRowPitch);
+            pressed|=1u<<30u;
+            touch=row;
+        }
+    }
+    c.game.y=touching?1u:0u;
+    if(pressed==0u||!ready)return;
+    c.atlas[Deck+1u]=pressed;
+    c.atlas[Deck+2u]=touch;
+    uint sequence=deck(0u)+1u;
+    c.atlas[Deck]=sequence==0u?1u:sequence;
+}

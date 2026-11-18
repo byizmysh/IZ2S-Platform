@@ -1,0 +1,12 @@
+{
+  "name": "vacootube-host",
+  "version": "1.3.0",
+  "private": true,
+  "main": "index.cjs",
+  "description": "VacooTube offscreen runtime and private input/capture bridge for IZ2S",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "sdk/tools": {
+    "install-runtime": "node install.cjs",
+    "check": "node install.cjs --check"
+  }
+}

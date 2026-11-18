@@ -1,8 +1,0 @@
-# Transient desktop fixtures; keep the reviewable screenshots and check report.
-preview/*.bin
-preview/*.rgba
-preview/catalog.json
-preview/typography.png
-preview/activity-demo.json
-preview/05-activity-empty.json
-preview/06-activity-short.json

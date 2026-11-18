@@ -3,6 +3,9 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { saveJson, redact } = require('./ledger.cjs');
 const codes = new Set(['ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ETIMEDOUT', 'ENOTCONN', 'ERR_STREAM_DESTROYED', 'ERR_SOCKET_CLOSED']);
+function requiresRetention(error) {
+  return Boolean(error && (error.uncertain || error.resourcesRetained || error.nativeRequestsRetained || error.restartRequired));
+}
 function isTransportLoss(error) {
   if (!error) return false;
   return codes.has(error.code) || /^(?:Native request timed out; it was not replayed|Console disconnected|Console response timed out; restart the application|(?:Console |Native |RPC )?(?:connection|socket|link) (?:is |was )?(?:closed|ended|lost)|socket hang up|read ECONNRESET|connect ECONNREFUSED)/i.test(error.message || '') || (error.cause && isTransportLoss(error.cause));
@@ -42,4 +45,4 @@ async function awaitCompletion({ hostDone, shellDone, directory, isStopping, par
   }
   if (outcome.error) throw outcome.error;
 }
-module.exports = { isTransportLoss, connectionClosed, canRetainRender, retain, waitForStop, awaitCompletion };
+module.exports = { requiresRetention, isTransportLoss, connectionClosed, canRetainRender, retain, waitForStop, awaitCompletion };

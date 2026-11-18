@@ -1,0 +1,200 @@
+--- a/core/bootstrap/source/policies.cpp
++++ b/core/bootstrap/source/policies.cpp
+@@ -4,8 +4,8 @@
+ 
+ namespace {
+ constexpr u64 MigrationProgramId = 0x040000000000003a;
+-constexpr char MigrationMain[] = "/iz2s/hen/bin/hen/main";
+-constexpr char MigrationPackage[] = "/iz2s/hen/bin/hen/exefs.nsp";
++constexpr char MigrationMain[] = "/iz2s/core/bin/core/main";
++constexpr char MigrationPackage[] = "/iz2s/core/bin/core/exefs.nsp";
+ }
+ 
+ Result prepareMigrationPackage(const BootstrapInput& input, BootstrapOperation* stage) {
+--- a/core/bootstrap/source/main.cpp
++++ b/core/bootstrap/source/main.cpp
+@@ -18,7 +18,7 @@
+ 
+ constexpr u64 PluginReadyTimeoutNs = 5000000000ull;
+ 
+-/// What happened to one plugin at startup, for /iz2s/log/hen/plugin-status.txt.
++/// What happened to one plugin at startup, for /iz2s/log/core/plugin-status.txt.
+ enum PluginOutcome : u32 {
+     PluginOutcome_Running,         ///< Started and ready.
+     PluginOutcome_Published,       ///< Started and ready, and HEN lists its service.
+@@ -520,7 +520,7 @@
+     record.result = args->result;
+ }
+ 
+-/// Starts the plugin /iz2s/hen/plugins/<name>.nso. A plugin whose name is
++/// Starts the plugin /iz2s/core/plugins/<name>.nso. A plugin whose name is
+ /// too long or whose package cannot be written is skipped: nothing of it has
+ /// run. Any later failure sets args->result and stops startup.
+ static void _launchPlugin(LaunchState* args, ounce::CompilerTlsScope& tls,
+@@ -530,11 +530,11 @@
+     char package_name[FS_MAX_PATH];
+     if (__builtin_strlen(name) >= HEN_PLUGIN_NAME_SIZE ||
+         !_launchPluginPath(executable, sizeof(executable),
+-                           "/iz2s/hen/plugins/", name, ".nso") ||
++                           "/iz2s/core/plugins/", name, ".nso") ||
+         !_launchPluginPath(package, sizeof(package),
+-                           "/iz2s/hen/plugin-packages/", name, ".nsp") ||
++                           "/iz2s/core/plugin-packages/", name, ".nsp") ||
+         !_launchPluginPath(package_name, sizeof(package_name),
+-                           "@Sdcard:/iz2s/hen/plugin-packages/", name, ".nsp")) {
++                           "@Sdcard:/iz2s/core/plugin-packages/", name, ".nsp")) {
+         _launchRecordPlugin(args, name, PluginOutcome_NameTooLong);
+         return;
+     }
+@@ -557,23 +557,23 @@
+         R_FAILED(args->result) ? PluginOutcome_StartFailed : args->current_outcome);
+ }
+ 
+-/// Makes sure that /iz2s/hen/plugins exists as a directory, and creates
+-/// /iz2s/hen/plugin-packages. `found` is false when there is no plugin
++/// Makes sure that /iz2s/core/plugins exists as a directory, and creates
++/// /iz2s/core/plugin-packages. `found` is false when there is no plugin
+ /// directory, which is not an error.
+ static Result _launchPreparePluginDirectories(FsFileSystem* sd, bool* found) {
+     *found = false;
+     FsDirEntryType type;
+-    if (R_FAILED(fsFsGetEntryType(sd, "/iz2s/hen/plugins", &type)))
++    if (R_FAILED(fsFsGetEntryType(sd, "/iz2s/core/plugins", &type)))
+         return 0;
+     if (type != FsDirEntryType_Dir)
+         return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+     *found = true;
+ 
+-    Result rc = fsFsGetEntryType(sd, "/iz2s/hen/plugin-packages", &type);
++    Result rc = fsFsGetEntryType(sd, "/iz2s/core/plugin-packages", &type);
+     if (R_SUCCEEDED(rc))
+         return type == FsDirEntryType_Dir ? 0 : MAKERESULT(Module_Libnx, LibnxError_BadInput);
+ 
+-    rc = fsFsCreateDirectory(sd, "/iz2s/hen/plugin-packages");
++    rc = fsFsCreateDirectory(sd, "/iz2s/core/plugin-packages");
+     if (R_SUCCEEDED(rc))
+         rc = fsFsCommit(sd);
+     return rc;
+@@ -605,7 +605,7 @@
+     return "unknown";
+ }
+ 
+-/// Writes /iz2s/log/hen/plugin-status.txt: one line for each plugin, with the
++/// Writes /iz2s/log/core/plugin-status.txt: one line for each plugin, with the
+ /// stage and result when it was not started. A failure to write it does not
+ /// stop startup.
+ static void _launchWritePluginStatus(LaunchState* args) {
+@@ -629,7 +629,7 @@
+ 
+     SdWriter writer;
+     const u64 size = static_cast<u64>(out - text);
+-    if (R_SUCCEEDED(writer.begin(args->input.fs_root_session, "/iz2s/log/hen/plugin-status.txt", size)) &&
++    if (R_SUCCEEDED(writer.begin(args->input.fs_root_session, "/iz2s/log/core/plugin-status.txt", size)) &&
+         R_SUCCEEDED(writer.write(text, size)))
+         writer.finish();
+ }
+@@ -655,7 +655,7 @@
+     if (R_FAILED(args->result) || !found)
+         goto close_sd;
+ 
+-    args->result = fsFsOpenDirectory(&sd, "/iz2s/hen/plugins", FsDirOpenMode_ReadFiles, &directory);
++    args->result = fsFsOpenDirectory(&sd, "/iz2s/core/plugins", FsDirOpenMode_ReadFiles, &directory);
+     if (R_FAILED(args->result))
+         goto close_sd;
+ 
+@@ -698,7 +698,7 @@
+     }
+     args->mark(BootstrapOperation_WriteMigrationPackage);
+     args->result = writeExeFsPackage(args->input.fs_root_session,
+-        "/iz2s/hen/bin/hen/main", "/iz2s/hen/bin/hen/exefs.nsp", policy);
++        "/iz2s/core/bin/core/main", "/iz2s/core/bin/core/exefs.nsp", policy);
+     if (R_FAILED(args->result)) {
+         return;
+     }
+--- a/core/hen/source/game_arm.cpp
++++ b/core/hen/source/game_arm.cpp
+@@ -24,10 +24,10 @@
+ constexpr u64 ApplicationProgramIdMin = 0x0400000000010000ull;
+ constexpr u64 ApplicationProgramIdMax = 0x04ffffffffffffffull;
+ constexpr u32 NativeNpadRevision = 5;
+-constexpr char GamePackagePath[] = "@Sdcard:/iz2s/hen/bin/game/exefs.nsp";
+-constexpr char GameMainPath[] = "/iz2s/hen/bin/game/main";
+-constexpr char GamePolicyPath[] = "/iz2s/hen/bin/game/main.npdm";
+-constexpr char GamePackageFile[] = "/iz2s/hen/bin/game/exefs.nsp";
++constexpr char GamePackagePath[] = "@Sdcard:/iz2s/core/bin/game/exefs.nsp";
++constexpr char GameMainPath[] = "/iz2s/core/bin/game/main";
++constexpr char GamePolicyPath[] = "/iz2s/core/bin/game/main.npdm";
++constexpr char GamePackageFile[] = "/iz2s/core/bin/game/exefs.nsp";
+ /// The first launch tries to capture the game's policy this many times, once
+ /// a second, while the game runs.
+ constexpr u32 CaptureAttempts = 20;
+--- a/core/libkaihen/source/plugin_server.cpp
++++ b/core/libkaihen/source/plugin_server.cpp
+@@ -1,6 +1,6 @@
+ // SPDX-License-Identifier: ISC
+ // A small CMIF server for opt-in kaiHEN plugin services
+-// (include/iz2s/hen/plugin.h).
++// (include/iz2s/core/plugin.h).
+ //
+ // HEN sends CreateSession on the control session for each homebrew program
+ // that opens the plugin, and waits for the reply in its only thread. The
+--- a/core/libkaihen/source/plugin_runtime.cpp
++++ b/core/libkaihen/source/plugin_runtime.cpp
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: ISC
+-// Startup for an kaiHEN plugin (include/iz2s/hen/plugin.h).
++// Startup for an kaiHEN plugin (include/iz2s/core/plugin.h).
+ //
+ // The plugin registers the temporary service mig:usr. The bootstrap connects
+ // to it and sends AdoptHandles with copies of its SM session and FS root. The
+--- a/core/libkaihen/include/kaihen/plugin.h
++++ b/core/libkaihen/include/kaihen/plugin.h
+@@ -4,7 +4,7 @@
+  * Startup for an kaiHEN plugin: a native program (NSO) that the bootstrap
+  * starts as its own process before HEN.
+  *
+- * At startup, the bootstrap reads every /iz2s/hen/plugins/<name>.nso on the
++ * At startup, the bootstrap reads every /iz2s/core/plugins/<name>.nso on the
+  * SD card, packages it with the migration program's policy, and starts it.
+  * Then it hands the plugin an initialized SM session and the FS root through
+  * a temporary mig:usr service. pluginRuntimeInitialize() receives those
+@@ -20,7 +20,7 @@
+  * running, but HEN does not list its service. The bootstrap skips a plugin
+  * whose file name is too long or whose package it cannot write. It stops
+  * startup, without HEN, when starting a plugin process or handing it the
+- * services fails. /iz2s/log/hen/plugin-status.txt says what happened to each
++ * services fails. /iz2s/log/core/plugin-status.txt says what happened to each
+  * plugin.
+  *
+  * A plugin has no services before pluginRuntimeInitialize(), so it replaces
+--- a/core/ro/source/wire.h
++++ b/core/ro/source/wire.h
+@@ -16,7 +16,7 @@
+     RoCmd_Initialize = 4,
+     /// Private: the bootstrap copies RO a HEN control session to keep.
+     RoCmd_ProvisionHenControl = 65001,
+-    // The homebrew commands (libkaihen/include/iz2s/hen/protocol.h).
++    // The homebrew commands (libkaihen/include/iz2s/core/protocol.h).
+     RoCmd_GetHomebrewSession = KaihenRoCommand_GetHomebrewSession,
+     RoCmd_MapJitCode = KaihenRoCommand_MapJitCode,
+     RoCmd_UnmapJitCode = KaihenRoCommand_UnmapJitCode,
+--- a/loader/clean_main.cpp
++++ b/loader/clean_main.cpp
+@@ -20,7 +20,7 @@
+ 
+ constexpr char MenuPath[] = "sdmc:/iz2s/izlauncher.iza";
+ // What the last NRO left behind; see checkAfterReturn.
+-constexpr char CleanupStatusPath[] = "/iz2s/log/hen/nro-cleanup.txt";
++constexpr char CleanupStatusPath[] = "/iz2s/log/core/nro-cleanup.txt";
+ constexpr size_t LoaderHeapBytes = 64 * 1024 * 1024;
+ constexpr size_t PageSize = 0x1000;
+ // The syscalls that the game's policy allows (the ACI0 kernel capabilities of
+@@ -297,7 +297,7 @@
+         return;
+     }
+ 
+-    const char* directories[] = {"/iz2s", "/iz2s/log", "/iz2s/log/hen"};
++    const char* directories[] = {"/iz2s", "/iz2s/log", "/iz2s/log/core"};
+     for (const char* directory : directories) {
+         FsDirEntryType type = FsDirEntryType_File;
+         Result result = fsFsGetEntryType(sd, directory, &type);

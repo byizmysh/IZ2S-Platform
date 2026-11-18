@@ -2,8 +2,8 @@
 // Presentation telemetry for package operations; bytes advance only after acknowledgement.
 const jobs=require('./jobs.cjs');
 const HEADER=1024+0x120000,BYTES=1024,MAGIC=0x495a5031;
-const PHASE={verify:1,prepare:2,graphics:3,install:4,transfer:5,ready:6,failed:7,'sd-prepare':1,'sd-write':4,'sd-verify':5};
-const LABEL={verify:'Checking files',prepare:'Preparing on PC',graphics:'Preparing graphics',install:'Installing on PC',transfer:'Sending menu to console',ready:'Ready in menu',failed:'Loading failed','sd-prepare':'Preparing SD application','sd-write':'Writing to SD','sd-verify':'Verifying SD'};
+const PHASE={verify:1,prepare:2,graphics:3,install:4,transfer:5,ready:6,failed:7,'sd-prepare':1,'sd-write':4,'sd-verify':5,'sd-publish':5};
+const LABEL={verify:'Checking files',prepare:'Preparing on PC',graphics:'Preparing graphics',install:'Installing on PC',transfer:'Sending menu to console',ready:'Ready in menu',failed:'Loading failed','sd-prepare':'Preparing SD application','sd-write':'Writing to SD','sd-verify':'Verifying SD','sd-publish':'Waiting for the SD menu'};
 const mib=n=>(n/1048576).toFixed(1)+' MiB';
 function encode(value){
  const b=Buffer.alloc(BYTES),known=Number.isSafeInteger(value.totalBytes)&&value.totalBytes>0;
@@ -24,6 +24,14 @@ function create({rpc,mapped,stateRoot,redraw=async()=>{},clock=Date.now}){
   const completed=known?Math.min(bytes.totalBytes,Math.max(0,bytes.completedBytes||0)):0;
   job.progress={phase,label:phase==='ready'&&job.target==='sd'?(job.operation==='remove'?'Removed from SD':'Stored on SD'):LABEL[phase],completedBytes:completed,totalBytes:known?bytes.totalBytes:null,remainingBytes:known?bytes.totalBytes-completed:null,
    percent:known?Math.min(100,Math.floor(completed*100/bytes.totalBytes)):phase==='ready'?100:null,updated:new Date(clock()).toISOString()};
+  if(phase==='sd-publish'){
+   // The native menu must accept input while it discovers the written file.
+   // Completion is observed from the PC without taking its renderer back.
+   current=null;
+   await rpc.write(mapped+HEADER,Buffer.alloc(4));
+   await jobs.save(stateRoot,job);
+   return;
+  }
   current={job,index:bytes.index||current?.index||1,count:bytes.count||current?.count||1};
   if(!force&&!changed&&completed!==bytes.totalBytes&&clock()-last<250)return;
   await jobs.save(stateRoot,job);await publish();last=clock();

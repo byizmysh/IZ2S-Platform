@@ -51,6 +51,7 @@ function forModule(root,id,{kind='module'}={}) {
 module.exports = {
   apiVersion,
   moduleDirectories: true,
+  moduleArchiveExtension: '.module.zip',
   streamMenuExtensions: true,
   moduleSettings: true,
   moduleWorkspace: true,

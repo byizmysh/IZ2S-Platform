@@ -64,7 +64,7 @@ async function build(apps, cacheRoot) {
     await fs.writeFile(path.join(folder, 'video-empty.bin'), Buffer.alloc(4));
   }
   await fs.writeFile(path.join(folder, 'app.json'), JSON.stringify(manifest));
-  await require('../../../core/packages/build-focus.cjs').build(folder);
+  await require('../../../shells/izlauncher/server/shader-assets.cjs').stage(folder);
   const app = await catalog.readApp(folder);
   await fs.writeFile(
     path.join(folder, 'ready.json'),

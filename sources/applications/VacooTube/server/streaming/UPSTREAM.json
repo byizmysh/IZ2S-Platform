@@ -1,0 +1,6 @@
+{
+  "project": "BlitBun",
+  "sourceVersion": "1.14.3",
+  "integration": "Vendored streaming implementation; no installed BlitBun module is required.",
+  "licenseNotice": "LICENSE"
+}

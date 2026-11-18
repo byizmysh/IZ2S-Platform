@@ -55,7 +55,8 @@ else:
  result=subprocess.run(command,input=body,text=True)
 raise SystemExit(result.returncode)
 ''' % (base64.b64encode(json.dumps(request).encode()).decode(), action)
-process = subprocess.Popen(peer+['python3','-'], stdin=subprocess.PIPE)
+process = subprocess.Popen(peer+['python3','-'], stdin=subprocess.PIPE,
+                           creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == 'nt' else 0)
 try:
     process.communicate(program.encode())
     raise SystemExit(process.returncode)

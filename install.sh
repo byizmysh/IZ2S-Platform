@@ -21,13 +21,34 @@ while [ "$#" -gt 0 ]; do
 done
 case "$(uname -s):$(uname -m)" in
   Linux:x86_64) IZ2S_ARCH=x64;; Linux:aarch64|Linux:arm64) IZ2S_ARCH=arm64;;
-  *) echo 'This release supports Linux x64/ARM64 only.' >&2; exit 1;;
+  *) echo 'Open Install.cmd on Windows or Install.command on macOS. This entry point supports Linux x64/ARM64.' >&2; exit 1;;
 esac
 iz2s_missing() {
   for iz2s_tool in python3 curl tar xz ssh; do
     command -v "$iz2s_tool" >/dev/null 2>&1 || echo "$iz2s_tool"
   done
   python3 -c "from PIL import Image,ImageDraw,ImageFont,ImageOps;assert hasattr(ImageDraw.ImageDraw,'textbbox') and hasattr(ImageFont.FreeTypeFont,'getlength') and hasattr(ImageOps,'contain')" >/dev/null 2>&1 || echo python-pillow
+}
+iz2s_download_runtime() {
+  iz2s_attempt=1
+  while :; do
+    if iz2s_http=$(curl --fail --location --proto '=https' --tlsv1.2 \
+        --connect-timeout 15 --speed-limit 1 --speed-time 30 \
+        --write-out '%{http_code}' --output "$2" "$1"); then
+      return 0
+    else
+      iz2s_error=$?
+    fi
+    rm -f -- "$2"
+    case "$iz2s_error:$iz2s_http" in
+      5:*|6:*|7:*|18:*|28:*|35:*|52:*|55:*|56:*|92:*|22:408|22:429|22:5??) ;;
+      *) return "$iz2s_error";;
+    esac
+    [ "$iz2s_attempt" -lt 3 ] || return "$iz2s_error"
+    printf 'Runtime download interrupted. Retrying (%s/3)…\n' "$((iz2s_attempt + 1))" >&2
+    sleep "$((iz2s_attempt * 2))"
+    iz2s_attempt=$((iz2s_attempt + 1))
+  done
 }
 IZ2S_MISSING=$(iz2s_missing)
 IZ2S_NODE_OK=0
@@ -44,13 +65,13 @@ if [ -n "$IZ2S_MISSING" ]; then
   if [ "$(id -u)" -eq 0 ]; then IZ2S_SUDO=; else IZ2S_SUDO=sudo; fi
   echo 'Installing runtime dependencies. Your package manager may request a password.'
   if command -v apt-get >/dev/null 2>&1; then
-    $IZ2S_SUDO apt-get update
-    $IZ2S_SUDO apt-get install -y python3 python3-pil curl ca-certificates tar xz-utils openssh-client
+    $IZ2S_SUDO apt-get -o Acquire::Retries=3 update
+    $IZ2S_SUDO apt-get -o Acquire::Retries=3 install -y python3 python3-pil python3-venv curl ca-certificates tar xz-utils openssh-client
   elif command -v pacman >/dev/null 2>&1; then
     echo 'Arch requires a synchronized system upgrade; review the package-manager prompt.'
     $IZ2S_SUDO pacman -Syu --needed python python-pillow curl ca-certificates tar xz openssh
   elif command -v dnf >/dev/null 2>&1; then
-    $IZ2S_SUDO dnf install -y python3 python3-pillow curl ca-certificates tar xz openssh-clients
+    $IZ2S_SUDO dnf install -y python3 python3-pillow python3-pip curl ca-certificates tar xz openssh-clients
   else
     printf 'Install these portable dependencies with your package manager, then run again:\n%s\n' "$IZ2S_MISSING" >&2
     exit 1
@@ -65,7 +86,7 @@ if [ -e "$IZ2S_DEST" ] || [ -L "$IZ2S_DEST" ]; then echo 'Destination exists. Ch
 mkdir -p "$(dirname -- "$IZ2S_DEST")"
 IZ2S_TMP=$(mktemp -d "$(dirname -- "$IZ2S_DEST")/.iz2s-install-XXXXXX")
 trap 'rm -rf -- "$IZ2S_TMP"' EXIT HUP INT TERM
-python3 - "$IZ2S_SOURCE" "$IZ2S_TMP" <<'PY'
+python3 -B - "$IZ2S_SOURCE" "$IZ2S_TMP" <<'PY'
 import importlib.util,sys
 from pathlib import Path
 source,destination=map(Path,sys.argv[1:])
@@ -75,7 +96,7 @@ exporter.copy_sources(destination)
 PY
 if [ "$IZ2S_NODE_OK" -eq 0 ]; then
   IZ2S_BASE=https://nodejs.org/dist/latest-v24.x
-  curl --fail --location --proto '=https' --tlsv1.2 --connect-timeout 15 "$IZ2S_BASE/SHASUMS256.txt" -o "$IZ2S_TMP/node-shasums.txt"
+  iz2s_download_runtime "$IZ2S_BASE/SHASUMS256.txt" "$IZ2S_TMP/node-shasums.txt"
   IZ2S_ARCHIVE=$(python3 - "$IZ2S_TMP/node-shasums.txt" "$IZ2S_ARCH" <<'PY'
 import re,sys
 rows=[line.split()[1] for line in open(sys.argv[1]) if re.fullmatch(r'node-v24\.\d+\.\d+-linux-'+sys.argv[2]+r'\.tar\.xz',line.split()[-1])]
@@ -83,7 +104,7 @@ if len(rows)!=1:raise SystemExit('Cannot resolve the official Node.js archive')
 print(rows[0])
 PY
 )
-  curl --fail --location --proto '=https' --tlsv1.2 --connect-timeout 15 "$IZ2S_BASE/$IZ2S_ARCHIVE" -o "$IZ2S_TMP/$IZ2S_ARCHIVE"
+  iz2s_download_runtime "$IZ2S_BASE/$IZ2S_ARCHIVE" "$IZ2S_TMP/$IZ2S_ARCHIVE"
   python3 - "$IZ2S_TMP" "$IZ2S_ARCHIVE" <<'PY'
 import hashlib,sys
 from pathlib import Path
@@ -100,7 +121,7 @@ IZ2S_ROOT="$IZ2S_TMP" IZ15_ROOT="$IZ2S_TMP" "$IZ2S_TMP/tools/node" "$IZ2S_TMP/di
 IZ2S_ROOT="$IZ2S_TMP" IZ15_ROOT="$IZ2S_TMP" "$IZ2S_TMP/tools/node" "$IZ2S_TMP/hardware/dependencies.cjs" --host-only --ssh
 mv -- "$IZ2S_TMP" "$IZ2S_DEST"
 trap - EXIT HUP INT TERM
-if [ "$IZ2S_DESKTOP" -eq 1 ]; then "$IZ2S_DEST/tools/node" "$IZ2S_DEST/desktop/install.cjs" --menu-only; fi
+if [ "$IZ2S_DESKTOP" -eq 1 ]; then "$IZ2S_DEST/tools/node" "$IZ2S_DEST/desktop/install.cjs"; fi
 printf '\nInstalled: %s\nLaunch: %s/start.sh\n' "$IZ2S_DEST" "$IZ2S_DEST"
 echo 'The installer did not send input to a console or replace any device firmware.'
 if [ "$IZ2S_LAUNCH" -eq 1 ]; then

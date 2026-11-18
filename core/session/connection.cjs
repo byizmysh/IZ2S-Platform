@@ -1,2 +1,2 @@
 // Compatibility import; protocol implementation belongs to the IZMYSH engine.
-module.exports = require("../../engines/izmysh/protocol/connection.cjs");
+module.exports = require("../console/transport/protocol/connection.cjs");

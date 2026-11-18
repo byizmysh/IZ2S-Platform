@@ -1,2 +1,2 @@
 // Compatibility import; implementation belongs to the selected server engine.
-module.exports = require('../../../../engines/izmysh/server/lib/connection.cjs');
+module.exports = require('../../../console/transport/server/lib/connection.cjs');

@@ -1,0 +1,40 @@
+{
+    "general": {
+        "video_copied": "Video bağlantısı panoya kopyalandı",
+		"dislikes": "Beğenmeyenler"
+    },
+    "settings": {
+        "adblock": {
+            "title": "Reklam Engelleyici",
+            "description": "Video ve yayıncı reklamlarını engeller, YouTube engelleyicileri engelleme yöntemlerine tabi değildir"
+        },
+		"dearrow": {
+            "title": "DeArrow",
+            "description": "Başlıkları ve küçük resimleri, herkese açık veritabanından alınan daha doğru ve daha az sansasyonel sürümlerle değiştirir. Sunucudan bilgi alması gerektiğinden yüklemeyi yavaşlatır"
+        },
+		"dislikes": {
+            "title": "Beğenmemeleri Göster",
+            "description": "YouTube beğenmeyenleri göstermek için YouTube Beğenmeme API (returnyoutubedislike.com) kullanır. Sunucudan bilgi alması gerektiğinden video yüklemesini yavaşlatır"
+        },
+        "hardware_decoding": {
+            "title": "Donanımsal Kod Çözücü",
+            "description": "Mümkünse videoları çözmek için GPU kullanır. Bu özelliği devre dışı bırakmak oynatma sorunlarını çözebilir, ancak CPU üstünde gecikmeye neden olabilir. Değiştirdikten sonra yeniden başlatın."
+        },
+        "low_memory_mode": {
+            "title": "Düşük Bellek Modu",
+            "description": "YouTube düşük bellek modu etkinleştirmesini sağlar. Bazı görsel efektlerden ödün vererek daha yavaş cihazlarda performansı artırabilir. Değiştirdikten sonra yeniden başlatın."
+        },
+        "fullscreen": {
+            "title": "Tam Ekran",
+            "description": "Tam ekran özelliğini etkinleştirir ve VacooTube her zaman tam ekranda başlatılır."
+        },
+        "keep_on_top": {
+            "title": "Üstte Tut",
+            "description": "Üstte Tutmayı etkinleştirir ve VacooTube tüm pencerelerin üstüne sabitlenerek başlatılır."
+        },
+        "userstyles": {
+            "title": "Özel CSS (Kullanıcı Stilleri)",
+            "description": "Özel CSS stillerinin eklenmesini sağlar. .css dosyalarınızı userstyles klasörüne yerleştirin."
+        }
+    }
+}

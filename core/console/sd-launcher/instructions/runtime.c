@@ -31,7 +31,7 @@ static const char*filename(Program*p,U at,int write){
  while(at+n<p->bytes&&n<128&&s[n])n++;if(!n||n==128||at+n>=p->bytes||s[0]=='/')return 0;
  for(U i=0;i<n;){U start=i;while(i<n&&s[i]!='/'){U c=(B)s[i++];if(c<32||c==127||c=='\\'||c==':')return 0;}U length=i-start;if(!length||(length==1&&s[start]=='.')||(length==2&&s[start]=='.'&&s[start+1]=='.'))return 0;i++;}if(s[n-1]=='/')return 0;
  const char*blocked=write?"asset-":"";if(write){U same=1;for(U i=0;i<6;i++)if(i>=n||s[i]!=blocked[i])same=0;if(same)return 0;}
- const char*executable="launcher.izapp";U same=1;for(U i=0;i<13;i++)if(i>=n||s[i]!=executable[i])same=0;if(same&&(n==13||s[13]=='.'))return 0;return s;
+ const char executable[]="launcher.iza";const U length=sizeof executable-1;U same=1;for(U i=0;i<length;i++)if(i>=n||s[i]!=executable[i])same=0;if(same&&(n==length||s[length]=='.'))return 0;return s;
 }
 static int valid_condition(IzNativeApp2*a,const Condition*c){return !c->reserved&&c->compare<=3&&!(c->offset&3)&&!(c->value&~c->mask)&&memory(a,c->space,c->offset,4,0);}
 static int conditions(IzNativeApp2*a,Program*p,U at,U count){

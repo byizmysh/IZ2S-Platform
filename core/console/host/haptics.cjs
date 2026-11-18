@@ -10,6 +10,12 @@ function validate({side=0,steps}={}){
 async function play(api,handles,options){
  const {side,steps}=validate(options),selected=side===2?handles:handles.slice(side,side+1);if(!selected.length||selected.some(h=>!h))throw Error('Vibration device unavailable');
  if(await api.result('vibrationPermitted',[api.base+0x900])!==0||(await api.read(0x900,1))[0]===0)throw Error('System vibration disabled');
+ if(api.rpc.generationGuarded===true){
+  if(typeof api.rpc.haptics!=='function')throw Error('This guarded channel has no native haptic executor');
+  const values=[];for(const handle of selected)values.push((await api.read(handle-api.base,4)).readUInt32LE());
+  const receipt=await api.rpc.haptics({handles:values,steps});if(receipt.result!==0n)throw Error('Native haptic effect failed: '+receipt.nativeResult);
+  return {result:0,actualResult:0,actual:receipt.actual,afterStop:receipt.afterStop};
+ }
  const value=Buffer.alloc(16);let result,worker;
  try{
   // Compile the entire bounded envelope, including stop commands, into one native job.

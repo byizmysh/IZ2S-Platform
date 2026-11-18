@@ -2,6 +2,7 @@
 #include "audio.h"
 #include <string.h>
 enum {INIT,OPEN,RATE,CHANNELS,FORMAT,SET,APPEND,START,STOP,COUNT,FLUSH,RELEASE,CLOSE};
+enum {AUDIO_SET_RECEIPT=1,AUDIO_APPEND_RECEIPT,AUDIO_START_RECEIPT,AUDIO_RELEASE_RECEIPT,AUDIO_WAIT_RECEIPT};
 #define SLOTS 8
 #define SLOT_BYTES 4096
 static unsigned output_volume=100,output_mute,output_mono,startup_buffers=6;
@@ -10,14 +11,20 @@ static struct {Ps1Audio*a;uint8_t busy[SLOTS];unsigned slot,frames,have_previous
 static uint64_t now(void){return ((uint64_t(*)(void))(uintptr_t)ps1_context->base.tick)();}
 static void poll_pause(void){if(owner.pause_poll)owner.pause_poll(owner.pause_argument);}
 static void nap(void){poll_pause();((void(*)(uint64_t))(uintptr_t)owner.a->sleep)(1000000);poll_pause();}
-static int release_buffers(void){Ps1Audio*a=owner.a;for(unsigned i=0;i<SLOTS;i++){void*p=((void*(*)(void*))(uintptr_t)a->functions[RELEASE])((void*)(uintptr_t)a->arena);if(!p)return 0;uintptr_t at=(uintptr_t)p-(a->arena+512);if(at>=SLOTS*64||at%64||!owner.busy[at/64]||!a->pending){a->uncertain=1;return 1;}owner.busy[at/64]=0;a->pending--;a->releases++;}return 0;}
-static int find_slot(void){for(unsigned wait=0;wait<2000;wait++){if(release_buffers())return 1;for(unsigned i=0;i<SLOTS;i++)if(!owner.busy[i]){owner.slot=i;return 0;}nap();}owner.a->uncertain=1;return 2;}
-static int start(void){Ps1Audio*a=owner.a;if(((uint32_t(*)(void*))(uintptr_t)a->functions[START])((void*)(uintptr_t)a->arena)){a->uncertain=1;return 1;}a->started=1;return 0;}
+static void receipt(Ps1Audio *audio,unsigned step,uint32_t result){audio->error=((uint64_t)step<<32)|result;}
+static int release_buffers(void){Ps1Audio*a=owner.a;for(unsigned i=0;i<SLOTS;i++){void*p=((void*(*)(void*))(uintptr_t)a->functions[RELEASE])((void*)(uintptr_t)a->arena);if(!p)return 0;uintptr_t at=(uintptr_t)p-(a->arena+512);if(at>=SLOTS*64||at%64||!owner.busy[at/64]||!a->pending){receipt(a,AUDIO_RELEASE_RECEIPT,0);a->uncertain=1;return 1;}owner.busy[at/64]=0;a->pending--;a->releases++;}return 0;}
+static int find_slot(void){for(unsigned wait=0;wait<2000;wait++){if(release_buffers())return 1;for(unsigned i=0;i<SLOTS;i++)if(!owner.busy[i]){owner.slot=i;return 0;}nap();}receipt(owner.a,AUDIO_WAIT_RECEIPT,0);owner.a->uncertain=1;return 2;}
+static int start(void){Ps1Audio*a=owner.a;uint32_t rc=((uint32_t(*)(void*))(uintptr_t)a->functions[START])((void*)(uintptr_t)a->arena);if(rc){receipt(a,AUDIO_START_RECEIPT,rc);a->uncertain=1;return 1;}a->started=1;return 0;}
 static int submit(void){
  Ps1Audio*a=owner.a;if(!owner.frames)return 0;if(owner.busy[owner.slot])return 1;
  void*desc=(void*)(uintptr_t)(a->arena+512+owner.slot*64),*pcm=(void*)(uintptr_t)(a->arena+4096+owner.slot*SLOT_BYTES);
+#ifdef IZPSX_HEN
+ uint64_t set=((uint64_t(*)(uint64_t,uint64_t,uint64_t,uint64_t))(uintptr_t)a->functions[SET])((uintptr_t)desc,(uintptr_t)pcm,SLOT_BYTES,owner.frames*4);
+ if(set){receipt(a,AUDIO_SET_RECEIPT,(uint32_t)set);return 1;}
+#else
  ((void(*)(void*,void*,uint64_t,uint64_t))(uintptr_t)a->functions[SET])(desc,pcm,SLOT_BYTES,owner.frames*4);
- uint32_t accepted=((uint32_t(*)(void*,void*))(uintptr_t)a->functions[APPEND])((void*)(uintptr_t)a->arena,desc);if(accepted!=1){if(accepted!=0)a->uncertain=1;return 2;}
+#endif
+ uint32_t accepted=((uint32_t(*)(void*,void*))(uintptr_t)a->functions[APPEND])((void*)(uintptr_t)a->arena,desc);if(accepted!=1){receipt(a,AUDIO_APPEND_RECEIPT,accepted);if(accepted!=0)a->uncertain=1;return 2;}
  if(owner.empty_since){a->empty_ticks+=now()-owner.empty_since;owner.empty_since=0;}
  owner.busy[owner.slot]=1;a->pending++;a->appends++;if(a->pending>a->peak_pending)a->peak_pending=a->pending;owner.frames=0;if(!a->started&&a->pending>=startup_buffers&&start())return 3;return find_slot();
 }

@@ -30,7 +30,7 @@ function draw(){
   }),'delete'));
   $('files').append(row);
  }
- if(!entries.length){const box=document.createElement('div');box.className='empty';const h=document.createElement('h3'),p=document.createElement('p');h.textContent=query?'No matches':'This folder is empty';p.textContent=query?'Try a different name.':area==='games'?'Upload a game folder or choose CUE and all of its tracks.':area==='bios'?'Upload your own 512 KB BIOS as scph101.bin.':'Memory cards appear after you start your first game.';box.append(h,p);$('files').append(box);}
+ if(!entries.length){const box=document.createElement('div');box.className='empty';const h=document.createElement('h3'),p=document.createElement('p');h.textContent=query?'No matches':'This folder is empty';p.textContent=query?'Try a different name.':area==='games'?'Upload a game folder or choose CUE and all of its tracks.':area==='bios'?'Upload your own 512 KB BIOS as bios.bin.':'Memory cards appear after you start your first game.';box.append(h,p);$('files').append(box);}
  controls();
 }
 async function browse(){cached=await api('/api/files',{area,relative});attached=true;draw();}

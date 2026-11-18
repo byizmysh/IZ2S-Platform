@@ -1,0 +1,38 @@
+{
+  "format": "izlauncher.module",
+  "formatVersion": 1,
+  "apiVersion": 1,
+  "id": "iz2s-cheese",
+  "installationDirectory": "iz2s-cheese",
+  "name": "IZ2S Cheese",
+  "version": "0.8.0",
+  "moduleVersion": "0.8.0",
+  "author": "IZMYSH",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "requires": {
+    "platformApi": 1,
+    "shell": "izlauncher",
+    "consoleAbi": 1
+  },
+  "switch": {
+    "abi": 1,
+    "entry": "switch/iza/app.json",
+    "files": [
+      "switch/iza/app.json",
+      "switch/iza/native.bin",
+      "switch/iza/app.vert.spv",
+      "switch/iza/app.frag.spv",
+      "switch/iza/app.comp.spv",
+      "switch/iza/assets/icon.png",
+      "switch/iza/assets/state.bin",
+      "switch/iza/assets/data.bin",
+      "switch/iza/asset-c6891007c193ecd89f79cc6cbeec2e4db9ee3862af4266967a155dd0324e549c.izdata"
+    ]
+  },
+  "dependencies": [],
+  "settingsSchema": [],
+  "license": "MIT"
+}

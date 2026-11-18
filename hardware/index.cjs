@@ -22,7 +22,7 @@ function compose(root,definition,inventory=catalog(root)){if(!definition.nodes)r
 function present(configuration,result){const ui=configuration.ui;if(!ui?.checks)return result;
  const source=new Map((result.items||[]).map(x=>[x.id,x]));
  const items=ui.checks.map(row=>{let item={id:row.id,ready:false,detail:'Not checked',...source.get(row.id),label:row.label,icon:row.icon};if(configuration.hardware?.combined&&row.id==='server'){const input=source.get('arm');if(input){item.ready=item.ready&&input.ready;item.detail=item.detail.replace(/\.$/,'')+'. Input: '+input.detail;}}return item;});
- return {...result,items,ready:items.every(x=>x.ready||x.pending)};
+ return {...result,items,ready:!result.setupRequired&&items.every(x=>x.ready||x.pending)};
 }
 function configurations(root,hardwareRoot=root){const inventory=catalog(hardwareRoot),scan=require('../core/descriptors.cjs').scan(root,'profile'),items=[],errors=[...scan.errors,...inventory.errors];for(const d of scan.items){try{items.push(compose(hardwareRoot,d,inventory));}catch(e){errors.push({id:d.id,error:e.message});}}return {items,errors};}
 module.exports={catalog,compose,present,configurations};

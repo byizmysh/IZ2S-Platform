@@ -1,0 +1,1 @@
+{"format":"izlauncher.native-build","version":1,"sources":["compression.c"],"args":["-O3","-std=c11","-fPIC","-shared","-I/usr/include/node"],"pkgConfig":["libdeflate"],"output":"frame-compression.node"}

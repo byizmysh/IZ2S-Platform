@@ -2,7 +2,7 @@
 const fs=require('node:fs/promises'),path=require('node:path');
 const root=path.resolve(__dirname,'../../..');
 async function main({host,shell='izlauncher',directory,moduleIds=[]}){
-  if(!['izlauncher','izpslauncher'].includes(shell))throw Error('Choose IZlauncher or IZPSlauncher');
+  if(!['izlauncher'].includes(shell))throw Error('Choose IZ2S');
   directory=path.resolve(directory);await fs.mkdir(directory,{recursive:true,mode:0o700});
   process.env.IZ11_STATE_DIR=directory;process.env.IZ2S_SHELL=shell;process.env.IZ15_SHELL=shell;
   process.env.IZ15_LOADER='civswitch';

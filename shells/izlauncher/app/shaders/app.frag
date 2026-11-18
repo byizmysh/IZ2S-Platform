@@ -14,6 +14,7 @@ layout(location=0) out vec4 outColor;
 #include "focus-ui.glsl"
 #include "load-progress.glsl"
 #include "load-progress-draw.glsl"
+#include "nro-preview.glsl"
 #include "run10-chrome.glsl"
 #include "focus-icons.glsl"
 #include "focus-light.glsl"
@@ -95,5 +96,15 @@ void main(){
 #endif
  vec3 col=iz2MenuDraw(p);
  loadProgressDraw(p,col,vec2(80,835),vec2(730,128));
- menuFooter(p,col);if(c.rows[1]!=0u)col=focusSearchDraw(p,col);col=menuRemovalDraw(p,col,1008.0);col=menuInstallDraw(p,col);col=menuLaunchErrorDraw(p,col);outColor=vec4(rsDraw(p,notification(p,col))*(1.0-c.transition.x),1);
+ vec2 statusCenter=vec2(1090,1008);
+#ifdef IZ_CORE_LOCAL_ADD
+ if(iz2HasFtpFooter()){
+  iz2FtpFooter(p,col);
+  statusCenter.x=CORE_SHORTCUT_LEFT+18.0;
+  col=menuSourceHint(p,col,vec2(1283,1002),.55);
+ }else
+#endif
+ col=menuSourceHint(p,col,vec2(850,996),.7);
+ menuFooter(p,col);
+ if(c.rows[1]!=0u)col=focusSearchDraw(p,col);col=menuRemovalDraw(p,col,1008.0);col=menuInstallDraw(p,col);col=nroPreviewDraw(p,col);col=menuLaunchErrorDraw(p,col);outColor=vec4(rsDraw(p,notification(p,col),statusCenter)*(1.0-c.transition.x),1);
 }

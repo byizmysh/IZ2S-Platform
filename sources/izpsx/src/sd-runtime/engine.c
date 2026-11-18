@@ -1,7 +1,9 @@
 /* IZPSX native SD engine. Serialized events on the console supervisor; no
  * network, host service, per-frame allocation or helper thread. */
 #include "services.h"
+#ifndef IZPSX_HEN
 #include "address.h"
+#endif
 #include "bridge.h"
 #include "platform.h"
 #include "audio.h"
@@ -13,23 +15,32 @@
 #include "replay.h"
 #include "sd-imports.h"
 #include "controllers.h"
+#include <stdio.h>
 #include <string.h>
 uint32_t ps1_sd_core_begin(Ps1Context*);
 uint32_t ps1_sd_core_frame4(uint32_t,uint32_t,uint32_t,uint32_t);
 uint32_t ps1_sd_core_end(void);
 uint32_t ps1_sd_core_reset(void);
 void ps1_sd_core_ports(uint32_t connected_mask);
+#ifndef IZPSX_HEN
 uint32_t ps1_sd_jit_probe(Ps1Context*);
 #define JIT_BYTES 0x1001000u
+#endif
 #define HEAP_BYTES (64u*1024u*1024u)
 #define STACK_BYTES (4u*1024u*1024u)
+#define AUDIO_ARENA_BYTES 65536u
 typedef struct {
  Ps1Context context;
  Ps1SdDirectory sd;
  Ps1FileIO io;
  Ps1Audio audio;
  uintptr_t imports[PS1_IMPORT_COUNT];
- Ps1Menu menu;Ps1Pause pause;Ps1SdEntry entries[128];
+ Ps1Menu menu;Ps1Pause pause;
+#ifdef IZPSX_HEN
+ Ps1SdCatalog catalog;
+#else
+ Ps1SdEntry entries[128];
+#endif
  Ps1Replay replay;
  Ps1Settings settings;Ps1SettingsMenu settings_menu;Ps1Preferences launched;
  Ps1FrameClock picture_clock;
@@ -42,7 +53,22 @@ typedef struct {
  char game[PS1_SD_PATH_MAX],log[8192];
 } State;
 _Static_assert(sizeof(State)+IZPSX_STATE_OFFSET<=IZPSX_APP_DATA_BYTES,"SD state allocation");
-static uint32_t fault(State*s,uint32_t rc){s->failed=rc;s->phase=4;s->context.base.error=rc;if(s->app&&s->app->base.base.base.controls){volatile uint32_t*t=(void*)((uint8_t*)s->app->base.base.base.controls+784);t[1]=4;t[3]=rc;}return rc;}
+static uint32_t fault(State*s,uint32_t rc){
+ s->failed=rc;s->phase=4;s->context.base.error=rc;
+ if(s->app){
+  IzNativeApp*app=&s->app->base.base.base;
+  if(app->controls){volatile uint32_t*t=(void*)((uint8_t*)app->controls+784);t[1]=4;t[3]=rc;}
+#ifdef IZPSX_HEN
+  if(app->write_file&&rc>=140&&rc<=143){
+   char details[160];
+   int n=snprintf(details,sizeof details,"IZPSX result=0x%08x audio_step=%u AudioOut_result=0x%08x queued=%u\n",rc,
+                  (uint32_t)(s->audio.error>>32),(uint32_t)s->audio.error,(uint32_t)s->audio.pending);
+   if(n>0&&(size_t)n<sizeof details)app->write_file(app,"audio-error.txt",details,(uint32_t)n);
+  }
+#endif
+ }
+ return rc;
+}
 static uint32_t library_error(State*s,uint32_t rc,unsigned kind){
  if(s->replay.frames){volatile uint32_t*q=(void*)((uint8_t*)s->app->base.base.base.controls+848);q[5]=3;q[6]=rc;__atomic_thread_fence(__ATOMIC_RELEASE);q[4]=s->replay.request;}
  s->replay.frames=0;s->menu.status=0;s->menu.error=rc;s->menu.error_kind=kind;s->phase=1;return 0;
@@ -66,7 +92,13 @@ static int unused_present(void*a,const uint32_t*b,unsigned w,unsigned h){(void)a
 static void unused_sleep(void*a,uint64_t ns){(void)a;(void)ns;}
 static Ps1MenuConfig config(State*s){
  uint32_t mask=0;for(unsigned i=0;i<PS1_PLAYER_COUNT;i++)mask|=s->controllers.player[i].connected<<i;
- Ps1MenuConfig c={.sd=&s->sd,.root=IZPSX_SD_GAMES,.entries=s->entries,.capacity=128,.rgba=(uint32_t*)s->app->base.base.private_memory+1024,.user=s,.buttons=menu_buttons,.present=unused_present,.sleep=unused_sleep,.preferences=&s->settings.prefs,.launch_source=s->owner->ram_only?"Loaded from session memory (RAM)":"Loaded from SD card",.controller_status="LIVE",.controller_mask=mask,.controller_error=s->controllers.configuration_error,.single_joycon=s->controllers.menu.style==PS1_PAD_LEFT||s->controllers.menu.style==PS1_PAD_RIGHT};
+ Ps1MenuConfig c={.sd=&s->sd,.root=IZPSX_SD_GAMES,.rgba=(uint32_t*)s->app->base.base.private_memory+1024,.user=s,.buttons=menu_buttons,.present=unused_present,.sleep=unused_sleep,.preferences=&s->settings.prefs,.launch_source=s->owner->ram_only?"Loaded from session memory (RAM)":"Loaded from SD card",.controller_status="LIVE",.controller_mask=mask,.controller_error=s->controllers.configuration_error,.single_joycon=s->controllers.menu.style==PS1_PAD_LEFT||s->controllers.menu.style==PS1_PAD_RIGHT};
+#ifdef IZPSX_HEN
+ c.catalog=&s->catalog;
+#else
+ c.entries=s->entries;
+ c.capacity=sizeof s->entries/sizeof *s->entries;
+#endif
  for(unsigned i=0;i<PS1_PLAYER_COUNT;i++)c.controller_style[i]=s->controllers.style_error?"Single Joy-Con unavailable - HID style configuration failed.":ps1_controller_style_name(s->controllers.player[i].style);
  return c;
 }
@@ -122,8 +154,40 @@ static uint32_t qualify_settings(State*s){
  else rc=0xf321;
  s->settings_request=id;q[5]=rc?3:2;q[6]=rc;__atomic_thread_fence(__ATOMIC_RELEASE);q[4]=id;return s->sd.transport?rc:0;
 }
+#ifdef IZPSX_HEN
+static const Sb4Compat*runtime_api;
+static u64 allocate_sb4(u64 out,u64 alignment,u64 bytes,u64 d,u64 e,u64 f,u64 g,u64 h){
+ (void)d;(void)e;(void)f;(void)g;(void)h;
+ void *pointer=NULL;u32 rc=runtime_api->allocate_aligned(&pointer,alignment,bytes);
+ *(u64*)(uintptr_t)out=(uintptr_t)pointer;return rc;
+}
+static u64 free_sb4(u64 data,u64 b,u64 c,u64 d,u64 e,u64 f,u64 g,u64 h){
+ (void)b;(void)c;(void)d;(void)e;(void)f;(void)g;(void)h;
+ runtime_api->release((void*)(uintptr_t)data);return 0;
+}
+static u64 tick_sb4(u64 a,u64 b,u64 c,u64 d,u64 e,u64 f,u64 g,u64 h){
+ (void)a;(void)b;(void)c;(void)d;(void)e;(void)f;(void)g;(void)h;
+ return runtime_api->ticks();
+}
+#endif
 static uint32_t bind(IzNativeApp*app,State*s){
  if(!ps1_sd_public_app(app))return 0xf202;
+#ifdef IZPSX_HEN
+ const Sb4Compat*api=sb4ModuleCompat(app);
+ if(api->tick_hz()!=app->tick_hz)return 0xf203;
+ uintptr_t imports[PS1_IMPORT_COUNT];
+ for(unsigned i=0;i<PS1_IMPORT_COUNT;i++){
+  Sb4CFunction fn=api->resolve_c(izpsx_import_names[i]);
+  if(!fn)return 0xf204;
+  imports[i]=(uintptr_t)fn;
+ }
+ for(unsigned i=0;i<PS1_IMPORT_COUNT;i++)ps1_imports[i]=imports[i];
+ runtime_api=api;
+ memset(s,0,sizeof *s);s->owner=&s->services;s->app=(void*)app;
+ s->owner->functions[F_ALLOCATE]=(uintptr_t)allocate_sb4;
+ s->owner->functions[F_FREE]=(uintptr_t)free_sb4;
+ s->owner->functions[F_TICK]=(uintptr_t)tick_sb4;
+#else
  const IzNativeEnvironment*e=ps1_sd_environment(app);if(!e)return 0xf203;
  uint64_t sdk=e->sdk;
  /* Check every byte before calling even memcpy/memset via the import table. */
@@ -137,13 +201,18 @@ static uint32_t bind(IzNativeApp*app,State*s){
   for(unsigned j=0;j<izpsx_services[i].length;j++)if(p[j]!=izpsx_services[i].bytes[j])return 0xf204;
   s->owner->functions[i]=sdk+izpsx_services[i].offset;
  }
+#endif
  for(unsigned i=0;i<PS1_IMPORT_COUNT;i++)s->imports[i]=ps1_imports[i];
  return 0;
 }
 static uint32_t begin(IzNativeApp*app,State*s){
  uint32_t rc=bind(app,s);if(rc)return rc;
+#ifdef IZPSX_HEN
+ rc=ps1_controllers_bind_sb4(&s->controllers,runtime_api);if(rc)return rc;
+#else
  const IzNativeEnvironment*environment=ps1_sd_environment(app);
  rc=ps1_controllers_bind(&s->controllers,environment->sdk,environment->sdk_bytes);if(rc)return rc;
+#endif
  /* A returned rejection keeps P1 usable and reports P2 unavailable in Controls. */
  ps1_controllers_enable(&s->controllers);
  rc=ps1_controllers_poll(&s->controllers);if(rc)return rc;
@@ -151,23 +220,43 @@ static uint32_t begin(IzNativeApp*app,State*s){
  IzNativeApp2*x=(void*)app;
  if(!x->audio||x->audio->version!=1||x->audio->bytes!=sizeof(IzNativeAudio)||!x->private_memory||x->private_bytes!=IZPSX_PRIVATE_BYTES)return 0xf205;
  for(unsigned i=0;i<IZ_AUDIO_FUNCTIONS;i++)if(!x->audio->functions[i])return 0xf205;
- const uint64_t sizes[]={HEAP_BYTES,STACK_BYTES,JIT_BYTES,JIT_BYTES,131072,1024*512*4};
- for(unsigned i=0;i<6;i++){rc=allocate(s,i,sizes[i]);if(rc)return fault(s,rc);}
+ const uint64_t sizes[]={HEAP_BYTES,STACK_BYTES,
+#ifdef IZPSX_HEN
+  AUDIO_ARENA_BYTES,0,
+#else
+  JIT_BYTES,JIT_BYTES,
+#endif
+  131072,1024*512*4};
+ for(unsigned i=0;i<6;i++)if(sizes[i]){rc=allocate(s,i,sizes[i]);if(rc)return fault(s,rc);}
  s->stack=s->allocations[1];IzpsxBridge*b=app->data;b->stack_top=s->stack+STACK_BYTES;
  Ps1Context*p=&s->context;HeavyContext*h=&p->base;
- h->magic=HEAVY_MAGIC;h->version=1;h->flags=PS1_FLAG_BIOS_REQUIRED|PS1_FLAG_MEMORY_CARDS|PS1_FLAG_PAGE_PUBLICATION;
- h->heap=s->allocations[0];h->heap_bytes=HEAP_BYTES;h->tick=s->owner->functions[F_TICK];h->tick_hz=app->tick_hz;h->frame=s->allocations[5];h->frame_capacity=1024*512*4;
+ h->magic=HEAVY_MAGIC;h->version=1;h->flags=PS1_FLAG_BIOS_REQUIRED|PS1_FLAG_MEMORY_CARDS;
+ h->heap=s->allocations[0];h->heap_bytes=HEAP_BYTES;h->tick_hz=app->tick_hz;h->frame=s->allocations[5];h->frame_capacity=1024*512*4;
  h->wad=(uintptr_t)&s->io;h->reserved=(uintptr_t)&s->audio;h->error_text=(uintptr_t)s->log;h->error_capacity=sizeof s->log;
  p->imports=(uintptr_t)s->imports;p->width=640;p->height=480;
+#ifdef IZPSX_HEN
+ h->tick=(uintptr_t)runtime_api->ticks;
+ memset((void*)(uintptr_t)h->frame,0,h->frame_capacity);
+ s->sd=(Ps1SdDirectory){.app=app,.buffer=(void*)(uintptr_t)s->allocations[4],.capacity=65536};
+ s->io=(Ps1FileIO){.buffer=s->allocations[4]+65536,.capacity=65536,.directory=(uintptr_t)&s->sd};
+ s->audio.sleep=(uintptr_t)runtime_api->sleep_ns;
+ s->audio.arena=s->allocations[2];
+#else
+ h->flags|=PS1_FLAG_PAGE_PUBLICATION;h->tick=s->owner->functions[F_TICK];
  p->jit_source=s->allocations[2];p->jit_rw=s->allocations[3];p->jit_bytes=JIT_BYTES;
  memset((void*)(uintptr_t)h->frame,0,h->frame_capacity);memset((void*)(uintptr_t)p->jit_source,0,JIT_BYTES);memset((void*)(uintptr_t)p->jit_rw,0,JIT_BYTES);
  p->pid=s->owner->pid;p->ro_pid=s->owner->ro_pid;p->service=s->owner->ro_handle;p->send=s->owner->functions[F_SEND];
  IzAddressPlan plan;rc=iz_address_find(s->owner,JIT_BYTES,&plan);if(rc)return fault(s,rc);p->jit_rx=plan.code_base;
  s->sd=(Ps1SdDirectory){.send=(void*)(uintptr_t)s->owner->functions[F_SEND],.close_handle=(void*)(uintptr_t)s->owner->functions[F_CLOSE],.filesystem=s->owner->filesystem,.buffer=(void*)(uintptr_t)s->allocations[4],.capacity=65536};
  s->io=(Ps1FileIO){.send=s->owner->functions[F_SEND],.buffer=s->allocations[4]+65536,.capacity=65536,.directory=(uintptr_t)&s->sd};
+ s->audio.sleep=s->owner->functions[F_SLEEP];
+ s->audio.arena=(uintptr_t)x->private_memory+0x410000;
+#endif
  const unsigned order[]={0,1,2,3,4,5,6,7,8,11,9,10,12};for(unsigned i=0;i<13;i++)s->audio.functions[i]=(uintptr_t)x->audio->functions[order[i]];
- s->audio.arena=(uintptr_t)x->private_memory+0x410000;s->audio.arena_bytes=65536;s->audio.sleep=s->owner->functions[F_SLEEP];
+ s->audio.arena_bytes=AUDIO_ARENA_BYTES;
+#ifndef IZPSX_HEN
  rc=ps1_sd_jit_probe(p);if(rc)return fault(s,rc);s->jit_ready=64;
+#endif
  ps1_context=p;ps1_platform_init();rc=ps1_settings_load(&s->settings,&s->sd);if(rc)return fault(s,rc);ps1_controllers_assign(&s->controllers,s->settings.prefs.controller_device);s->previous=s->controllers.menu.buttons;s->menu_source=s->controllers.menu.connected?(s->controllers.menu.id|(s->controllers.menu.style<<8)):UINT32_MAX;ps1_active_settings=&s->settings.prefs;apply_live(s);Ps1MenuConfig ui=config(s);rc=ps1_menu_init(&s->menu,&ui);if(rc)return fault(s,rc);
  s->phase=1;return 0;
 }
@@ -187,6 +276,9 @@ uint32_t izpsx_engine_event(IzNativeApp*app,uint32_t event){
   if(s->settings.dirty){rc=ps1_settings_save(&s->settings,&s->sd);if(rc)return fault(s,rc);}
   rc=ps1_controllers_restore(&s->controllers);if(rc)return fault(s,rc);
   if(s->sd.leaked_handle||s->io.opened||s->context.pages_mapped||s->context.mapping_unknown)return 0xf206;
+#ifdef IZPSX_HEN
+  ps1_sd_catalog_release(&s->sd,&s->catalog);
+#endif
   for(int i=5;i>=0;i--)if(i!=1&&s->allocations[i]){CALL(s->owner,F_FREE,s->allocations[i],0,0,0,0,0,0,0);s->allocations[i]=0;}return 0;
  }
  if(event!=IZ_NATIVE_FRAME)return 0xf207;
@@ -217,6 +309,9 @@ uint32_t izpsx_engine_event(IzNativeApp*app,uint32_t event){
   strcpy(s->game,"/ps1");strcat(s->game,s->menu.selected+strlen(IZPSX_SD_GAMES));s->context.game_path=(uintptr_t)s->game;
   if(s->settings.prefs.value[PS1_REMEMBER_GAME]&&strcmp(s->settings.prefs.recent,s->menu.selected)){strcpy(s->settings.prefs.recent,s->menu.selected);s->settings.dirty=1;rc=ps1_settings_save(&s->settings,&s->sd);if(rc)return fault(s,rc);}
   s->launched=s->settings.prefs;ps1_active_settings=&s->launched;s->context.interpreter=s->launched.value[PS1_CPU];apply_live(s);
+#ifdef IZPSX_HEN
+  s->context.interpreter=1;
+#endif
   s->core_live=1;rc=ps1_sd_core_begin(&s->context);
   if(rc==63&&!s->context.pages_mapped&&!s->context.mapping_unknown&&!s->audio.opened&&!s->audio.pending&&!s->audio.uncertain&&!s->io.opened&&!s->sd.leaked_handle&&!s->sd.transport){s->core_live=0;s->context.base.error=0;return library_error(s,rc,2);}
   if(rc)return fault(s,rc);

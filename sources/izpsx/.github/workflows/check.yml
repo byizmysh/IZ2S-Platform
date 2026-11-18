@@ -14,13 +14,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Package validation tools
+        run: sudo apt-get update && sudo apt-get install -y python3-pil glslang-tools spirv-tools
       - name: Local JS tests
         run: npm test
+      - name: Controller handoff regression
+        run: |
+          mkdir -p build/checks
+          cc -std=c11 -O1 -g -Wall -Wextra -Werror -Wno-misleading-indentation -fsanitize=address,undefined -Isrc -Isrc/sd-runtime tests/controllers-model.c src/sd-runtime/controllers.c -o build/checks/controllers
+          ASAN_OPTIONS=detect_leaks=0 build/checks/controllers
       - name: Checkout compatible platform SDK
         uses: actions/checkout@v4
         with:
           repository: byizmysh/IZ2S-Platform
-          ref: main
+          ref: b3de207c32375f9b5fd7191e15608f8ea3a6288b
           path: .sdk/IZ2S-Platform
       - name: Package existing native module; do not install or contact a console
         env:
@@ -28,6 +35,6 @@ jobs:
         run: python3 tools/release.py
       - uses: actions/upload-artifact@v4
         with:
-          name: izpsx-emulator-0.5.1-candidate
+          name: izpsx-emulator-0.5.2
           path: dist/*
           if-no-files-found: error

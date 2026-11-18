@@ -23,6 +23,11 @@ async function create({
       break;
     }
   if (!devices) throw Error('IZlauncher common device checks are missing');
+  const inputNames = {'cardputer-wifi': 'Cardputer ADV', 'switch-wifi': 'Switch 1'};
+  const inputName = inputNames[configuration.inputAdapter];
+  const inputSetup = inputName && configuration.setupRequired
+    ? configuration.requirements.join(' ')
+    : '';
   // Input transport is not the server/console route. Cardputer Wi-Fi must not be
   // rejected because the old ARM address selector was previously set to Ethernet.
   const adaptedConnections = connections
@@ -33,7 +38,7 @@ async function create({
           if (key === 'mode')
             return (id) =>
               id === 'arm'
-                ? ['kprox-http','cardputer-wifi'].includes(configuration.inputAdapter)
+                ? ['kprox-http','cardputer-wifi','switch-wifi'].includes(configuration.inputAdapter)
                   ? 'wifi'
                   : target.mode(id)
                 : target.mode(id);
@@ -51,12 +56,17 @@ async function create({
     connections: adaptedConnections,
     ownsListener,
     requiresArmAddress: configuration.inputAdapter === 'ssh-gadget',
-    ...(configuration.inputAdapter === 'cardputer-wifi' ? {inputName:'Cardputer ADV', inputAddress:settings.cardputerEndpoint} : {}),
+    ...(inputName && {
+      inputName,
+      inputAddress: configuration.inputAdapter === 'switch-wifi' ? settings.switchAddress : settings.cardputerEndpoint,
+      inputSetup,
+    }),
     ...options,
   });
   return {
     async inspect() {
-      if (configuration.setupRequired)
+      // Wi-Fi input settings gate the keyboard, but server and console routing are independent.
+      if (configuration.setupRequired && !inputSetup)
         return require('./index.cjs').present(configuration,{
           at: new Date().toISOString(),
           configuration: configuration.id,
@@ -66,6 +76,7 @@ async function create({
           items: ['server', 'arm', 'usb', 'lan'].map((id) => ({
             id,
             ready: false,
+            status: id === 'arm' ? 'setup' : 'waiting',
             detail:
               id === 'arm'
                 ? configuration.requirements.join(' ')
@@ -76,17 +87,22 @@ async function create({
         items = result.items.map((item) => ({ ...item }));
       const input = items.find((r) => r.id === 'arm'),
         usb = items.find((r) => r.id === 'usb');
+      if(input&&configuration.inputDiscovery){
+        const found=configuration.inputDiscovery;
+        input.address=found.address;input.pairingRequired=found.pairingRequired;
+        input.networkReachable=found.networkReachable;
+        if(found.pairingRequired&&found.networkReachable){
+          input.detail='Device found on the network. Pairing key is missing or was not accepted.';
+          if(usb)usb.detail='Pair the input device to read its USB status.';
+        }
+      }
       if (configuration.hardware?.combined) {
         if (input) input.label = 'ARM PC · local input service';
         if (usb) usb.label = 'ARM Type C - Switch';
       }
-      if (['kprox-http','cardputer-wifi'].includes(configuration.inputAdapter)) {
-        if (input) input.label = 'Cardputer ADV · Wi-Fi input';
-        if (usb) {usb.label = 'USB · Cardputer ADV → Switch 2';if(usb.ready)usb.detail='USB connected · keyboard ready.';}
-      }
-      if (configuration.setupRequired && input) {
-        input.ready = false;
-        input.detail = configuration.requirements.join(' ');
+      if (['kprox-http','cardputer-wifi','switch-wifi'].includes(configuration.inputAdapter)) {
+        if (input) input.label = (configuration.inputAdapter==='switch-wifi'?'Switch 1':'Cardputer ADV')+' · Wi-Fi input';
+        if (usb) {usb.label = 'USB · '+(configuration.inputAdapter==='switch-wifi'?'Switch 1':'Cardputer ADV')+' → Switch 2';if(usb.ready)usb.detail='USB connected · keyboard ready.';}
       }
       return require('./index.cjs').present(configuration,{
         ...result,

@@ -2,8 +2,8 @@
   "format": "izlauncher.shell",
   "apiVersion": 1,
   "id": "izlauncher",
-  "name": "IZlauncher",
-  "version": "0.22.0",
+  "name": "IZ2S",
+  "version": "0.25.0",
   "entry": "adapter.cjs",
   "platforms": [
     "linux-x64",

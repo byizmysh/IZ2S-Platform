@@ -8,14 +8,18 @@ async function prepare(rpc,menu,app,directory,{isolateControls=false,protectedRa
  const placement=require('../packages/install-plan.cjs').sessionEligibility(app.manifest);check(placement.compatible,placement.reason);
  const computeWorkgroups=app.manifest.computeWorkgroups===undefined?[1,1,1]:app.manifest.computeWorkgroups;
  const module=JSON.parse(await fs.readFile(path.join(directory,'compatibility-module.json')));
- const file=path.join(directory,'app-'+app.id+'-'+app.fingerprint.slice(0,16)+'.json');
+ const guardedCalls=rpc.generationGuarded===true;
+ check(!guardedCalls||Number.isInteger(rpc.epoch)&&rpc.epoch>0&&rpc.epoch<=0xffffffff,'GPU preparation requires a fixed native epoch');
+ const file=path.join(directory,'app-'+app.id+'-'+app.fingerprint.slice(0,16)+(guardedCalls?'-epoch-'+rpc.epoch:'')+'.json');
  await fs.writeFile(file,'{}',{flag:'wx'});
  const captureFrames=process.env.IZ12_GPU_PREVIEW==='1';
  const report={framePreview:{enabled:captureFrames,bytesPerFrame:captureFrames?1920*1080*4:0},session:rpc.a.session,id:app.id,fingerprint:app.fingerprint,started:new Date().toISOString(),resourcesRetained:true,commands:[],functions:{}};
  const save=()=>fs.writeFile(file,JSON.stringify(report,null,2));
- const worker=await workerFactory(rpc,directory),fn=report.functions;let callPending=false,uncertain=false;
+ check(!guardedCalls||rpc.nativeArgumentLimit>=6&&typeof rpc.callExtended==='function','GPU preparation requires verified wider calls in this guarded SDK channel');
+ const worker=guardedCalls?null:await workerFactory(rpc,directory),fn=report.functions;let callPending=false,uncertain=false;
+ report.nativeCalls=guardedCalls?'guarded-sdk-thread':'joined-sdk-worker';
  async function resolve(name){if(fn[name])return fn[name];const s=module.symbols.find(s=>s.name===name&&s.section&&s.type===2);check(s,'Missing '+name);const address=module.base+s.offset;await rpc.request({command:'verify-function',address,hex:(await rpc.read(address,32)).toString('hex')});return fn[name]=address;}
- async function call(name,...args){const address=await resolve(name);callPending=true;const result=args.length>4?await worker.call(address,args):(await rpc.callAddress(address,args)).result;callPending=false;return result;}
+ async function call(name,...args){const address=await resolve(name);callPending=true;const result=args.length>4?(guardedCalls?(await rpc.callExtended(address,args)).result:await worker.call(address,args)):(await rpc.callAddress(address,args)).result;callPending=false;return result;}
  const ok=async(name,...args)=>check(BigInt.asIntN(32,await call(name,...args))===0n,name+' failed');
  const p=rpc.a.scratch+0x10000,saved=await rpc.read(p,0x10000),put=(o,b)=>rpc.write(p+o,b),ptr=async o=>(await rpc.read(p+o,8)).readBigUInt64LE();
  const device=BigInt(menu.resources.device),queue=BigInt(menu.resources.queue),swapchain=BigInt(menu.resources.swapchain);
@@ -24,6 +28,7 @@ async function prepare(rpc,menu,app,directory,{isolateControls=false,protectedRa
  let boundControls=menu.controls,memoryProperties;
  async function properties(){
   if(memoryProperties)return memoryProperties;
+  if(guardedCalls){check(typeof rpc.getGraphicsMemoryProperties==='function','The guarded SDK channel has no supervisor graphics snapshot');memoryProperties=await rpc.getGraphicsMemoryProperties();check(Buffer.isBuffer(memoryProperties)&&memoryProperties.length===520&&memoryProperties.readUInt32LE()>=1&&memoryProperties.readUInt32LE()<=32,'Invalid supervisor graphics snapshot');report.graphicsMemoryProperties='supervisor-cache';return memoryProperties;}
   const display=JSON.parse(await fs.readFile(path.join(directory,'vulkan-display.json'))),instance=BigInt(display.displayResources.instance);
   await ok('vkEnumeratePhysicalDevices',instance,p+24,0);check((await rpc.read(p+24,4)).readUInt32LE()===1,'Physical device count');await ok('vkEnumeratePhysicalDevices',instance,p+24,p+32);const physical=await ptr(32);
   await call('vkGetPhysicalDeviceMemoryProperties',physical,p+0x3000);memoryProperties=await rpc.read(p+0x3000,520);return memoryProperties;
@@ -31,8 +36,8 @@ async function prepare(rpc,menu,app,directory,{isolateControls=false,protectedRa
  try{
   await put(0,Buffer.alloc(0x10000));const shaders=[];
   const largest=Math.max(...['vertex','fragment','compute','computeBegin','computeAfter'].filter(s=>app.files[s]).map(s=>app.files[s].bytes.length));
-  if(largest>stagingBytes){stagingBytes=Math.ceil(largest/65536)*65536;const allocation=await rpc.call(5732112,[rpc.output,65536,stagingBytes]);check(allocation.result===0n,'App shader staging allocation failed');shaderStaging=Number(allocation.output.readBigUInt64LE());check(Number.isSafeInteger(shaderStaging)&&shaderStaging>0&&shaderStaging%65536===0,'Invalid app shader staging');report.shaderStaging={address:shaderStaging,bytes:stagingBytes};}
-  if(isolateControls){boundControls=await require('./isolated-controls.cjs').allocate({rpc,menu,p,put,ptr,call,ok,properties:await properties(),record:report,protectedRanges});descriptor=BigInt(boundControls.descriptor);}
+  if(largest>stagingBytes){stagingBytes=Math.ceil(largest/65536)*65536;callPending=true;const allocation=await rpc.call(5732112,[rpc.output,65536,stagingBytes]);callPending=false;check(allocation.result===0n,'App shader staging allocation failed');shaderStaging=Number(allocation.output.readBigUInt64LE());check(Number.isSafeInteger(shaderStaging)&&shaderStaging>0&&shaderStaging%65536===0,'Invalid app shader staging');report.shaderStaging={address:shaderStaging,bytes:stagingBytes};}
+  if(isolateControls){const protectedStorage=[...protectedRanges,{base:shaderStaging,bytes:stagingBytes}];if(worker?.base&&worker.record?.bytes)protectedStorage.push({base:worker.base,bytes:worker.record.bytes});boundControls=await require('./isolated-controls.cjs').allocate({rpc,menu,p,put,ptr,call,ok,properties:await properties(),record:report,protectedRanges:protectedStorage});descriptor=BigInt(boundControls.descriptor);}
   if(app.files.memory){
    const propertiesData=await properties(),bytes=app.files.memory.allocationBytes;
    await put(0x100,struct(56,12,{32:0x20},{24:bytes}));await ok('vkCreateBuffer',device,p+0x100,0,p);const buffer=await ptr(0);

@@ -1,0 +1,717 @@
+[
+  {
+    "path": "AUTHORS.md",
+    "bytes": 724,
+    "sha256": "54ff59a89bff1cc1bd1b21a49a68cec01811cbab0d7c40f5afc56aadebe15c38"
+  },
+  {
+    "path": "COPYRIGHT",
+    "bytes": 851,
+    "sha256": "5831f979f36c92ed3dc0a0f436f3c3fb717113d16a34a16d0e764d4261fdc877"
+  },
+  {
+    "path": "LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "LICENSE-SCOPE.md",
+    "bytes": 1261,
+    "sha256": "7b6240fbfb8455a4797eb63316f99263fc2c0a6c8bf68cab7cd8e84a8e4cf187"
+  },
+  {
+    "path": "LICENSES/copyrights.json",
+    "bytes": 58857,
+    "sha256": "f097ce12653a7a398c45841f449f567bc0d028451c018e3662a81fe4f3435ae1"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/cpuinfo/LICENSE",
+    "bytes": 1424,
+    "sha256": "8e7e60636c3aa0cb03571a1a841ce5697f9551ff92b3c426c2561613d15ade70"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/cubeb/AUTHORS",
+    "bytes": 600,
+    "sha256": "829e45d138c7c8827799f302806fa4be8cd8bd4bad70a2fe26c3a27a5cf36948"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/cubeb/LICENSE",
+    "bytes": 732,
+    "sha256": "44c6b5ae5ec3fe2fbc608b00e6f4896f4d2d5c7e525fcbaa3eaa3cf2f3d5a983"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/discord-rpc/LICENSE",
+    "bytes": 1053,
+    "sha256": "12054cc15e274c9a10966fd7d8740c12dbd679dec2468e370818d899f9a3a634"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/fmt/LICENSE",
+    "bytes": 1094,
+    "sha256": "a65fcc5a1095fc33cc37e4fff69366e49d7e92f613558a2b95ed1b70e33758b4"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/imgui/LICENSE.txt",
+    "bytes": 1083,
+    "sha256": "173506a2d6f7fb67990d257fb2507f188690eca39060c39469ae7bef43aae2a3"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/libchdr/LICENSE.txt",
+    "bytes": 1493,
+    "sha256": "e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/libzip/AUTHORS",
+    "bytes": 62,
+    "sha256": "3a9c401cb1c37ffb14d43c38f21e42ae40b4e6946a04427b8d2be41ac036f163"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/libzip/LICENSE",
+    "bytes": 1454,
+    "sha256": "01c022eca6d566e2e8792fd0f091a28653b2a608319922bcd4de91c49d1438e1"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/lzma/LICENSE.txt",
+    "bytes": 293,
+    "sha256": "9f34035d01a354ed074f49944f4ac64778c44e043df4785baa0dd15f60f1d8df"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/plutosvg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/plutovg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/rcheevos/LICENSE",
+    "bytes": 1078,
+    "sha256": "bf820c034966a3b6be050bb85f94ec841a0b972bd5d477e362337d0574b5c219"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/simpleini/LICENCE.txt",
+    "bytes": 1089,
+    "sha256": "1f8d19cba3d929f45f74b8e7cdf84b2fee5b96be69d08d0084ed728316f9f2c2"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/soundtouch/COPYING.TXT",
+    "bytes": 24389,
+    "sha256": "84c6d82dc7de80f5b73f231edfd3ddc5b53513908117452bfa37ea36bb4b7e0a"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/vixl/AUTHORS",
+    "bytes": 242,
+    "sha256": "cb9ad140b715c6d84611431209d8b28d07eac7dc4d180c6d0855148cab4cba47"
+  },
+  {
+    "path": "LICENSES/native-linked/3rdparty/vixl/LICENCE",
+    "bytes": 1645,
+    "sha256": "11752b98d1c8e77c774fe092219e7faa0865bb77bdb741b71b123b26fc896ea5"
+  },
+  {
+    "path": "LICENSES/native-linked/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "LICENSES/native-linked/pcsx2/Docs/License.txt",
+    "bytes": 613,
+    "sha256": "297b6f030943c45c4c21d1f11c97da3f1a762cbb38719a0f0804d381f70a0931"
+  },
+  {
+    "path": "LICENSES/native-linked/pcsx_rearmed/COPYING",
+    "bytes": 18730,
+    "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
+  },
+  {
+    "path": "LICENSES/notices.json",
+    "bytes": 26600,
+    "sha256": "12421ab0cc2b6ea0b29d28761e7206cf68869be6492bef8c5c5aa5a9aa64b0ab"
+  },
+  {
+    "path": "core/filesystem/ouncecake/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "engines/CivSwitch/LICENSE",
+    "bytes": 1063,
+    "sha256": "c0675240c74693e44d256a070ddf59f3d99ce7a87c82f8dfa0dbda53f3647053"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/gen-mapping/LICENSE",
+    "bytes": 1080,
+    "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/resolve-uri/LICENSE",
+    "bytes": 1079,
+    "sha256": "b8778b155bfde5a28b023a558753c0fa058a52bb9de35c343c250be1bbcdedab"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/source-map/LICENSE",
+    "bytes": 1080,
+    "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/sourcemap-codec/LICENSE",
+    "bytes": 1080,
+    "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/trace-mapping/LICENSE",
+    "bytes": 1080,
+    "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/acorn/LICENSE",
+    "bytes": 1099,
+    "sha256": "76a876cf886ff9be2a8b5e2e86514fed06223c8c9f0c1e9ee9606e93841e00b7"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/buffer-from/LICENSE",
+    "bytes": 1078,
+    "sha256": "14275f5c8139d02054c5259d52a88ccbba662a86af18c30f071c8d082dc6004c"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/commander/LICENSE",
+    "bytes": 1098,
+    "sha256": "04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/LICENSE",
+    "bytes": 1526,
+    "sha256": "6cb0631f71c7749763fd3dd1d5bee52dd1070ec17f2edc1710079ad070bd2fbd"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/source-map-support/LICENSE.md",
+    "bytes": 1079,
+    "sha256": "3a7d3bb198e909ed642bd68bd29a7d7c09a636d27a51ec663d35f00c4760ec42"
+  },
+  {
+    "path": "engines/CivSwitch/installer-creator/node_modules/terser/LICENSE",
+    "bytes": 1303,
+    "sha256": "901d0a7fcaccaae9917d165039c0473c354e5da2e0e94140dde67aad9ffb19da"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSE",
+    "bytes": 35149,
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "path": "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md",
+    "bytes": 3066,
+    "sha256": "45867a66216fa1dddffaa8cf0b092468a67d6a0c9187593469171ac57db622e9"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/gen-mapping/LICENSE",
+    "bytes": 1080,
+    "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/resolve-uri/LICENSE",
+    "bytes": 1079,
+    "sha256": "b8778b155bfde5a28b023a558753c0fa058a52bb9de35c343c250be1bbcdedab"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/source-map/LICENSE",
+    "bytes": 1080,
+    "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/sourcemap-codec/LICENSE",
+    "bytes": 1080,
+    "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/trace-mapping/LICENSE",
+    "bytes": 1080,
+    "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/acorn/LICENSE",
+    "bytes": 1099,
+    "sha256": "76a876cf886ff9be2a8b5e2e86514fed06223c8c9f0c1e9ee9606e93841e00b7"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/buffer-from/LICENSE",
+    "bytes": 1078,
+    "sha256": "14275f5c8139d02054c5259d52a88ccbba662a86af18c30f071c8d082dc6004c"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/commander/LICENSE",
+    "bytes": 1098,
+    "sha256": "04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map/LICENSE",
+    "bytes": 1526,
+    "sha256": "6cb0631f71c7749763fd3dd1d5bee52dd1070ec17f2edc1710079ad070bd2fbd"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/source-map-support/LICENSE.md",
+    "bytes": 1079,
+    "sha256": "3a7d3bb198e909ed642bd68bd29a7d7c09a636d27a51ec663d35f00c4760ec42"
+  },
+  {
+    "path": "engines/CivSwitchLDN/node_modules/terser/LICENSE",
+    "bytes": 1303,
+    "sha256": "901d0a7fcaccaae9917d165039c0473c354e5da2e0e94140dde67aad9ffb19da"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/bzip2/LICENSE",
+    "bytes": 1896,
+    "sha256": "c6dbbf828498be844a89eaa3b84adbab3199e342eb5cb2ed2f0d4ba7ec0f38a3"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/expat-MIT.txt",
+    "bytes": 1144,
+    "sha256": "46336ab2fec900803e2f1a4253e325ac01d998efb09bc6906651f7259e636f76"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/freetype/LICENSE.TXT",
+    "bytes": 2074,
+    "sha256": "2e3bbb7d7c5c396368dd0853a790ec29ce5b8647163dde42a0493fb0d6556b2b"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/ftpd-Unlicense.txt",
+    "bytes": 1211,
+    "sha256": "60d2c28d19d2bdf7bbaa59829e7a595234265e8111a01ccb74d25d6c4d2d013a"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/harfbuzz-MIT.txt",
+    "bytes": 1971,
+    "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/kaiHEN-GPL-2.0.txt",
+    "bytes": 18092,
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libarchive/LICENSE",
+    "bytes": 3086,
+    "sha256": "b2cdf763345de2de34cebf54394df3c61a105c3b71288603c251f2fa638200ba"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libconfig/COPYING.LIB",
+    "bytes": 26528,
+    "sha256": "d80c9d084ebfb50ea1ed91bfbc2410d6ce542097a32c43b00781b83adcb8c77f"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libjpeg-turbo/LICENSE.md",
+    "bytes": 5213,
+    "sha256": "7d8683a7f048e715e08b4cada8b7f0d9a6ab8afad88ed09c1143ef764ecbc0f2"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libkaihen-ISC.txt",
+    "bytes": 737,
+    "sha256": "dd76999221b671901d57147c9b917237f63a131af5822496845f9878a3fd6b6e"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/liblzma-0BSD.txt",
+    "bytes": 607,
+    "sha256": "0b01625d853911cd0e2e088dcfb743261034a091bb379246cb25a14cc4c74bf1"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libnx-ISC.txt",
+    "bytes": 731,
+    "sha256": "5b6675f85016009624d29c9222201d3c0fc6a2d5c59253367f27d3e15011cdb2"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libogg-BSD.txt",
+    "bytes": 1466,
+    "sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libounce-ISC.txt",
+    "bytes": 739,
+    "sha256": "c125684a685ad177fb5c4650ab33981702b6eaf8aec6aba0a9dfe1b0f103ad16"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libpng/LICENSE",
+    "bytes": 5345,
+    "sha256": "16d9daaafbf63a31a5bdc91d4600972548fef5aaa1244202393288dbd079c49a"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libvorbis-BSD.txt",
+    "bytes": 1470,
+    "sha256": "ec1815db59fcd302846df949d7424876cb2e2dc5ed1606c5fb0b36787b1cf43a"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libwebp-BSD.txt",
+    "bytes": 1496,
+    "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libzstd/COPYING",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/libzstd/LICENSE",
+    "bytes": 1549,
+    "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/lz4-BSD.txt",
+    "bytes": 1311,
+    "sha256": "d15d99c8dc6b0ec22174c0e563a95bc40f9363ca7f9d9d793bb5c5a8e8d0af71"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/mimalloc-MIT.txt",
+    "bytes": 1096,
+    "sha256": "82ade5d7d9b029044b5fbbc326207fc47c2d44ee4dd71e8a559c36d728217de9"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/nanosvg-zlib.md",
+    "bytes": 387,
+    "sha256": "a81768be9e16832f22a632db8a9316cdbd8d12b0fe7b1749ab116f16b6be5061"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/notosans-OFL.txt",
+    "bytes": 4374,
+    "sha256": "f2095b08bed08b23a6fe26112fcd679a2bee3f002eef077eb05d215ed1051bd8"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/nx-hbloader-ISC.md",
+    "bytes": 737,
+    "sha256": "db88a9c4d4d3148cbe397ca0acb7886e7aebcc8b984d4ce3b949e9caabdc7223"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/nx-hbmenu-ISC.md",
+    "bytes": 736,
+    "sha256": "2e71cd947fbfdf7a8d3f8f386c1f7b52d06a1de1ded03c39141e651b9c25d819"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/oniguruma-BSD.txt",
+    "bytes": 1340,
+    "sha256": "ae266a1ad1c2ef50baf14a1a2993e926cd46d09c6cc8b0b3a8498e44da2746b8"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/ounceshell-GPL-3.0.txt",
+    "bytes": 34915,
+    "sha256": "cc8d9e517e07489053ef15db5bf78652b30c0490b85fa9d670eb301fe0b10bd5"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/physfs-zlib.txt",
+    "bytes": 898,
+    "sha256": "111b286674ab4720fd1b693ef8628a94bca8f06484d5fe3d75bd6db22fdc1cb2"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/sdl2-zlib.txt",
+    "bytes": 884,
+    "sha256": "9928507f684c1965d07f2b6ef4b4723d5efc2f6b4ab731f743a413c51c319927"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/sdl2_image/COPYING.txt",
+    "bytes": 996,
+    "sha256": "13240ed78c8726c510b9634976430d3d3a9ea2d1ced3214119766e9e71568a35"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/sdl2_ttf/LICENSE.txt",
+    "bytes": 878,
+    "sha256": "a0e8ce06504966e45088ee1cc7583cc8af9aac615d4cf56d47d847da9cb15139"
+  },
+  {
+    "path": "engines/iz2s-core/runtime/package/licenses/zlib/LICENSE",
+    "bytes": 1646,
+    "sha256": "807c3a7dd7f6203b3dae80e28c3064f231c333685488541825b040081087fc4d"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/NOTICE.txt",
+    "bytes": 2119,
+    "sha256": "fcaf3f0bff5280f1b63330722cf44fa2e1963fb479e420c2ae634be1adfe5c41"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/Arduino-ESP32.txt",
+    "bytes": 26338,
+    "sha256": "994ce1902a23c74519b5d118c6bbb657edabce91dd6b7cc825d86bb8f5c9780f"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/ArduinoJson.txt",
+    "bytes": 1117,
+    "sha256": "2d9db49bfc83e1148523121b87ed57dc5e3c2278a24705e6e19618a63f566df8"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/CivSwitch.txt",
+    "bytes": 1063,
+    "sha256": "c0675240c74693e44d256a070ddf59f3d99ce7a87c82f8dfa0dbda53f3647053"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/ESP-IDF.txt",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/IRremote.txt",
+    "bytes": 1227,
+    "sha256": "7e53f7b77b4ed079b6a0c195358c6b35c954c298e694b5dd3afc969dd4558332"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/LovyanGFX.txt",
+    "bytes": 5839,
+    "sha256": "34aa6c471f8810dacd49a158d9d3b65acbfd49386b5b064b7dd4376e359504da"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/M5Cardputer.txt",
+    "bytes": 1082,
+    "sha256": "ef0a5ad6fa02972bae0fd2572e34c35ef4b8235563675d4b1c31a96ca09e6dd9"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/M5GFX.txt",
+    "bytes": 1064,
+    "sha256": "2076614535b2a8ea22d46dc9c5469a924e1a726e9d81a7cb2723a5e9833fe7a3"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/M5Unified.txt",
+    "bytes": 1063,
+    "sha256": "44611d917bece311f5c8eeffce83d8bf9e9ca3f815d262f694ff4a7996af50ea"
+  },
+  {
+    "path": "hardware/devices/cardputer-adv/firmware/licenses/TinyUSB.txt",
+    "bytes": 1089,
+    "sha256": "b171720e8a442e7a3957d83c62cd3299dbb29da3db534cc626f9dded0de2ca44"
+  },
+  {
+    "path": "hardware/devices/switch1/firmware/LICENSE",
+    "bytes": 1065,
+    "sha256": "b591f6d409beea9c6403ac22e8952320c2a3028df1f1d84d176c54879abe45e4"
+  },
+  {
+    "path": "hardware/devices/switch1/firmware/LICENSE-font",
+    "bytes": 8816,
+    "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
+  },
+  {
+    "path": "hardware/devices/switch1/firmware/LICENSE-libnx",
+    "bytes": 731,
+    "sha256": "5b6675f85016009624d29c9222201d3c0fc6a2d5c59253367f27d3e15011cdb2"
+  },
+  {
+    "path": "language/fonts/LICENSE.txt",
+    "bytes": 8816,
+    "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
+  },
+  {
+    "path": "modules/BlitBun/COPYRIGHT",
+    "bytes": 851,
+    "sha256": "5831f979f36c92ed3dc0a0f436f3c3fb717113d16a34a16d0e764d4261fdc877"
+  },
+  {
+    "path": "modules/BlitBun/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "modules/BlitBun/LICENSE-SCOPE.md",
+    "bytes": 1261,
+    "sha256": "7b6240fbfb8455a4797eb63316f99263fc2c0a6c8bf68cab7cd8e84a8e4cf187"
+  },
+  {
+    "path": "modules/BookReader/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "modules/BookReader/licenses/DejaVu.txt",
+    "bytes": 8816,
+    "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
+  },
+  {
+    "path": "modules/Foldrift/LICENSE",
+    "bytes": 1076,
+    "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
+  },
+  {
+    "path": "modules/IZPSX/LICENSE",
+    "bytes": 18730,
+    "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
+  },
+  {
+    "path": "modules/VacooTube/COPYRIGHT",
+    "bytes": 851,
+    "sha256": "5831f979f36c92ed3dc0a0f436f3c3fb717113d16a34a16d0e764d4261fdc877"
+  },
+  {
+    "path": "modules/VacooTube/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "modules/VacooTube/LICENSE-SCOPE.md",
+    "bytes": 1261,
+    "sha256": "7b6240fbfb8455a4797eb63316f99263fc2c0a6c8bf68cab7cd8e84a8e4cf187"
+  },
+  {
+    "path": "modules/VacooTube/app/LICENSE",
+    "bytes": 1065,
+    "sha256": "298749dc21f7c3747cef0f15ce93e7d2c275a47af6f860377c310858f15e315a"
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-arm64/LICENSE",
+    "bytes": 1096,
+    "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-arm64/LICENSES.chromium.html",
+    "bytes": 20111209,
+    "sha256": "a62dabd1c6ef1327365b2a3fdffb806222684a746dcb8f4afd1c1f690eba5535"
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-x64/LICENSE.electron.txt",
+    "bytes": 1096,
+    "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-x64/LICENSES.chromium.html",
+    "bytes": 20111209,
+    "sha256": "a62dabd1c6ef1327365b2a3fdffb806222684a746dcb8f4afd1c1f690eba5535"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/LICENSE",
+    "bytes": 1065,
+    "sha256": "298749dc21f7c3747cef0f15ce93e7d2c275a47af6f860377c310858f15e315a"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/LICENSE",
+    "bytes": 12775,
+    "sha256": "de4d1f2d2ad5ad0cfd1657a106476b31cb5db5ef9d1ff842b237c0c81f0c8a23"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/builder-util-runtime/LICENSE",
+    "bytes": 1084,
+    "sha256": "bed8d0ab3e6031817f775a641ff37313b0f5591bc8ba0ed79b978dafbd4231ce"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/chokidar/LICENSE",
+    "bytes": 1124,
+    "sha256": "bdfd5e0edb6089e6586c8f15e6a86fab83ffbeeda3b3b7b33734ccb8c5906965"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/debug/LICENSE",
+    "bytes": 1139,
+    "sha256": "3a61c6c96caf5c1d9b623fb9b04c822b783dfcb78aa7e49c76a3f643e6ed7f95"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/electron-updater/LICENSE",
+    "bytes": 1084,
+    "sha256": "bed8d0ab3e6031817f775a641ff37313b0f5591bc8ba0ed79b978dafbd4231ce"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/electron-updater/node_modules/semver/LICENSE",
+    "bytes": 765,
+    "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/fs-extra/LICENSE",
+    "bytes": 1084,
+    "sha256": "1e76029602ae9b21cc4e612db2496d92febed882ba13ba745f8b3309e85f9d39"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/graceful-fs/LICENSE",
+    "bytes": 791,
+    "sha256": "f65c5d9f22a317b2a10803bd1868461ce6499c2ed7217bc80c0cc772a748789c"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/js-yaml/LICENSE",
+    "bytes": 1084,
+    "sha256": "a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/jsonfile/LICENSE",
+    "bytes": 1110,
+    "sha256": "a9801fb52ba22ef808682a094da8a7a480584b7ed0dfd0d888ab543616335031"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/lodash.escaperegexp/LICENSE",
+    "bytes": 1951,
+    "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/lodash.isequal/LICENSE",
+    "bytes": 1950,
+    "sha256": "e159c6d48c989185448658f276375bfb2300362ec6d4ae5525a2d49c4bcb947d"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/ms/license.md",
+    "bytes": 1079,
+    "sha256": "1662fae9b5314d11cf51284e2dcd1f006a354f7343f08712a730fcff9a359801"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/readdirp/LICENSE",
+    "bytes": 1114,
+    "sha256": "dffec71d93f273d2af7b54c6c7e7e70b3289c632ec0d7253210ec21ac336d5ac"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/sax/LICENSE.md",
+    "bytes": 1552,
+    "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/string-argv/LICENSE",
+    "bytes": 1101,
+    "sha256": "2aca619a9845c352d678fb94a7f1dc2a7f9824db7cced3a320d215107847dc72"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/tiny-typed-emitter/LICENSE",
+    "bytes": 1104,
+    "sha256": "4b3faf884ee71eec3df920b66c98fc6618af28e824cf3a32ef3d8774048cc76d"
+  },
+  {
+    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/universalify/LICENSE",
+    "bytes": 1100,
+    "sha256": "3fda5977c0904e226190b4e21d64340c1731e2142d6fe5f3dee0090a216b8b63"
+  },
+  {
+    "path": "modules/VacooTube/server/streaming/COPYRIGHT",
+    "bytes": 863,
+    "sha256": "5bf9fac2228f9bac0ea551ec38dc9a2f6938a4b9299a437c51c9a1c2fc9ed1c5"
+  },
+  {
+    "path": "modules/VacooTube/server/streaming/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "modules/iz2s-cheese/LICENSE",
+    "bytes": 1076,
+    "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
+  },
+  {
+    "path": "modules/iz2s-cheese/licenses/DejaVu.txt",
+    "bytes": 8816,
+    "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
+  },
+  {
+    "path": "modules/iz2s-cheese/licenses/Octicons.txt",
+    "bytes": 1068,
+    "sha256": "da259c8bd0de62713ccdcf88910aebca810644f98c2c912bad814fc79ea778df"
+  },
+  {
+    "path": "modules/iz2s-cheese/licenses/stb_image.txt",
+    "bytes": 2538,
+    "sha256": "f33b83c6b554f7b31ad63dcda01205db2d2151c5ba9016a9747d03739c2e2857"
+  },
+  {
+    "path": "sdk/LICENSE",
+    "bytes": 1076,
+    "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/AUTHORS.md",
+    "bytes": 2139,
+    "sha256": "75a4d04559754a1016006f2c0e194cc7b459583cf9b1e2ce4ec10c74cb3de578"
+  },
+  {
+    "path": "shells/izlauncher/native/monocypher/LICENCE.md",
+    "bytes": 9085,
+    "sha256": "5f8360e4c06ddcc584bdb4b210c6af824c4bb301e6a9a521869b6d90795ca4b3"
+  },
+  {
+    "path": "tools/fs-rpc-browser/THIRD_PARTY_NOTICES.md",
+    "bytes": 1404,
+    "sha256": "e156955227fdf2ac092ab143109262fb22ddd353697337d25cc958f461a4f45c"
+  }
+]

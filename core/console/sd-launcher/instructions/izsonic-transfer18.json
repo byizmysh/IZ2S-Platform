@@ -1,0 +1,89 @@
+{
+  "format": "iz2s.local-instructions-profile",
+  "id": "izsonic-transfer18",
+  "version": "0.18.0-experimental",
+  "files": {
+    "app.json": "082666f58e98abfb10b79e78a584965c1a825106e09392de367747b719553e95",
+    "state.bin": "cb512e12a2c626e528ecce127fba7ba574fb6b228a6bc2801d988e07b0f76181",
+    "data.bin": "b25a6169d8b72b82ed54cb215eaf2b1b9744a5ff2af0e10c4ca3372eea1a5efc",
+    "memory.bin.deflate": "6869825de5b52853c17148ecde63f50f323fb37cc2f48f9ea35481324f201fd1",
+    "app.vert.spv": "9e9dcf3a2c3acaaf0b6c54abbfe4bac99af75238b39fd0e902c7280a9870f9fc",
+    "app.frag.spv": "8d003b859b3ed4eba57db819670dab2c367848bdba2b7f954f5dc9bb07e8ce64",
+    "app.comp.spv": "e54133faff441028331aba6db5100b01c67e9e7e4040e4729a7d3027f1e86387",
+    "begin.comp.spv": "17e26e98f42bf2d13a65488c95f53d8ddb6e3a864fb608aea8981b1f3ded61c7",
+    "after.comp.spv": "26d49e1c3a7044f84ff1568fe9f96c926c5c72fd031eb943a3c4cb4fd0b2b8d4"
+  },
+  "plan": {
+    "format": "iz2s.local-instructions",
+    "version": 1,
+    "guards": [
+      {"space": "controls", "offset": 784, "value": 1396781364},
+      {"space": "controls", "offset": 788, "value": 1},
+      {"space": "controls", "offset": 792, "value": 119799808},
+      {"space": "controls", "offset": 796, "value": 4194304},
+      {"space": "controls", "offset": 800, "value": 48000},
+      {"space": "controls", "offset": 804, "value": 2},
+      {"space": "controls", "offset": 808, "value": 1048576},
+      {"space": "controls", "offset": 812, "value": 128},
+      {"space": "controls", "offset": 916, "value": 31250000},
+      {"space": "controls", "offset": 920, "value": 32},
+      {"space": "controls", "offset": 924, "value": 33554432},
+      {"space": "controls", "offset": 928, "value": 9680078},
+      {"space": "controls", "offset": 932, "value": 8},
+      {"space": "controls", "offset": 936, "value": 75497472},
+      {"space": "controls", "offset": 940, "value": 24000},
+      {"space": "controls", "offset": 944, "value": 32768, "compare": "lte"},
+      {"space": "controls", "offset": 948, "value": 0},
+      {"space": "controls", "offset": 952, "value": 0},
+      {"space": "controls", "offset": 956, "value": 1093743687},
+      {"space": "controls", "offset": 816, "value": 1, "compare": "lte"},
+      {"space": "controls", "offset": 820, "value": 5, "compare": "lte"},
+      {"space": "controls", "offset": 828, "value": 2, "compare": "lte"},
+      {"space": "controls", "offset": 840, "value": 1, "compare": "lte"}
+    ],
+    "rules": [
+      {
+        "when": [{"space": "controls", "offset": 832, "value": 0, "compare": "ne"}],
+        "actions": [{"op": "exit"}]
+      },
+      {
+        "when": [{"space": "controls", "offset": 836, "value": 0, "compare": "ne"}],
+        "actions": [{"op": "exit"}]
+      },
+      {
+        "when": [{"space": "controls", "offset": 820, "value": 4, "compare": "gte"}],
+        "actions": [{"op": "exit"}]
+      },
+      {
+        "when": [
+          {"space": "controls", "offset": 820, "value": 1},
+          {"space": "controls", "offset": 816, "value": 0},
+          {"space": "controls", "offset": 840, "value": 0},
+          {"space": "controls", "offset": 832, "value": 0},
+          {"space": "controls", "offset": 836, "value": 0},
+          {"space": "controls", "offset": 824, "value": 1048576}
+        ],
+        "actions": [
+          {"op": "audio-queue", "offset": 75497472, "capacity": 4194304, "bytes": 4194304, "descriptors": 32},
+          {"op": "set", "to": {"space": "controls", "offset": 840}, "value": 1}
+        ]
+      },
+      {
+        "when": [
+          {"space": "controls", "offset": 820, "value": 2},
+          {"space": "controls", "offset": 828, "value": 2},
+          {"space": "controls", "offset": 816, "value": 0},
+          {"space": "controls", "offset": 840, "value": 1},
+          {"space": "controls", "offset": 832, "value": 0},
+          {"space": "controls", "offset": 836, "value": 0}
+        ],
+        "actions": [
+          {"op": "copy", "to": {"space": "controls", "offset": 844}, "from": {"space": "controls", "offset": 852}, "bytes": 4},
+          {"op": "copy", "to": {"space": "controls", "offset": 848}, "from": {"space": "controls", "offset": 856}, "bytes": 4},
+          {"op": "audio-start"},
+          {"op": "set", "to": {"space": "controls", "offset": 816}, "value": 1}
+        ]
+      }
+    ]
+  }
+}

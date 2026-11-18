@@ -21,8 +21,8 @@ async function serve(req, res) {
   }
   if (req.method !== 'GET') return false;
   let file, type;
-  if (url.pathname === '/language/style.css') {
-    file = path.join(__dirname, 'style.css');
+  if (url.pathname === '/language/style.css' || url.pathname === '/language/theme.css') {
+    file = path.join(__dirname, path.basename(url.pathname));
     type = 'text/css; charset=utf-8';
   } else if (url.pathname === '/language/runtime.js') {
     file = path.join(__dirname, 'runtime.js');

@@ -1,7 +1,7 @@
 'use strict';
 // Device preparation belongs to Connection settings, independently of console sessions.
 globalThis.IZ2S_ADV_SETUP = (() => {
-  function usbDescription(state, wifi, usb) {
+  function usbDescription(wifi, usb) {
     if (!wifi?.ready) return 'USB status unavailable until ADV reconnects.';
     if (usb?.usb?.localHost === 'this-pc') return 'ADV USB is connected to this PC. Move its USB data cable to Switch 2.';
     if (usb?.usb?.suspended) return 'USB inactive. Wake the console or check the cable.';
@@ -13,11 +13,29 @@ globalThis.IZ2S_ADV_SETUP = (() => {
     return {manual,label:manual?'Connected (manual)':null,
       detail:manual?'USB connection confirmed manually.':null};
   }
-  function create({document,changed,confirmUsb=async()=>({ok:true})}) {
+  function create({document,changed,confirmUsb=async()=>({ok:true}),refreshUsb=async()=>{}}) {
     const $=id=>document.getElementById(id);
+    const confirmationButton = $('adv-usb-next');
     let phase=1,boot=null,usbIdentity=null,usbConfirmed=false,context=null;
     let previousUsb=null,confirming=false;
+    let switchConfirmed=false,switchProfile=null,switchWasReady=false;
     function select(value){phase=value;changed();}
+    function renderUsbTile(state) {
+      const card = $('device-usb');
+      if (!card) return;
+      const rows = state?.checks?.items || [];
+      // A new snapshot is reconciled in render before it can show a manual badge.
+      const presentation = context && context.state === state
+        ? usbPresentation(rows.find(row=>row.id==='arm'),rows.find(row=>row.id==='usb'),
+          context.adapter==='switch-wifi' ? switchConfirmed : usbConfirmed)
+        : null;
+      card.classList.toggle('manual-confirmed',!!presentation?.manual);
+      if (presentation?.manual) {
+        card.querySelector('.state').textContent=presentation.label;
+        card.querySelector('.detail-text').textContent=presentation.detail;
+        card.querySelector('.detail-help').hidden=true;
+      }
+    }
     for(const tab of document.querySelectorAll('[data-adv-phase]'))tab.onclick=()=>select(Number(tab.dataset.advPhase));
     $('adv-steps').addEventListener('keydown',event=>{
       if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
@@ -28,24 +46,46 @@ globalThis.IZ2S_ADV_SETUP = (() => {
       tabs[next].click();tabs[next].focus();
     });
     $('adv-firmware-next').onclick=()=>select(2);
-    $('adv-usb-next').onclick=async()=>{
+    confirmationButton.onclick=async()=>{
       if(!context||context.locked||context.blocked||confirming)return;
       // This records the user's cable choice immediately. Device synchronization
       // and measured keyboard readiness are separate from a manual acknowledgement.
-      usbConfirmed=true;confirming=true;changed();
-      try {if(context.wifi)await confirmUsb();}
+      const {adapter,wifi}=context;
+      if(adapter==='switch-wifi')switchConfirmed=true;
+      else usbConfirmed=true;
+      confirming=true;changed();
+      try {if(wifi)await (adapter==='switch-wifi'?refreshUsb():confirmUsb());}
       finally {confirming=false;changed();}
     };
     function render({state,busy=false,serverUnavailable=false,manual=false,preparation=null}) {
-      const enabled=!manual&&state?.platform?.configuration?.inputAdapter==='cardputer-wifi';
-      $('cardputer-setup').hidden=!enabled;
-      $('adv-usb-next').hidden=!enabled;
-      if(!enabled)return;
+      const adapter=state?.platform?.configuration?.inputAdapter;
+      const showHardware=!manual&&state?.platform?.loaderId!=='civswitch-ldn';
+      const adv=showHardware&&adapter==='cardputer-wifi';
+      const switchKeyboard=showHardware&&adapter==='switch-wifi';
+      $('cardputer-setup').hidden=!adv;
+      confirmationButton.hidden=!adv&&!switchKeyboard;
+      if(!switchKeyboard){switchConfirmed=false;switchProfile=null;switchWasReady=false;}
+      if(!adv&&!switchKeyboard){
+        context=null;
+        renderUsbTile(state);
+        return;
+      }
       const wifi=state?.checks?.items?.find(row=>row.id==='arm'),usb=state?.checks?.items?.find(row=>row.id==='usb');
       const telemetry=usb?.usb;
       const locked=busy||serverUnavailable||!!state?.platform?.locked||!!state?.preview;
-      context={wifi:!!wifi?.ready,usb:!!usb?.ready,locked,blocked:telemetry?.localHost==='this-pc'};
-      if(context.wifi){
+      context={state,adapter,wifi:!!wifi?.ready,usb:!!usb?.ready,locked,blocked:telemetry?.localHost==='this-pc'};
+      if(switchKeyboard){
+        const id=state.platform.configurationId;
+        const identity=id+':'+(state.platform.profiles?.[id]?.switchAddress||'');
+        const disconnected=context.wifi&&switchWasReady&&!context.usb;
+        if(switchProfile!==identity||context.blocked||disconnected){
+          switchConfirmed=false;
+          if(switchProfile!==null)$('screen-ready').checked=false;
+        }
+        switchProfile=identity;
+        // The Switch 1 app reports keyboard readiness without a cable generation.
+        if(context.wifi)switchWasReady=context.usb;
+      } else if(context.wifi){
         const identity=wifi.bootId||'detected';
         if(boot!==identity){if(boot!==null)usbConfirmed=false;boot=identity;previousUsb=null;usbIdentity=null;$('screen-ready').checked=false;}
         const generation=telemetry?.generation;
@@ -62,6 +102,10 @@ globalThis.IZ2S_ADV_SETUP = (() => {
         if(!context.blocked&&(telemetry?.confirmed||telemetry?.confirmation>0))usbConfirmed=true;
         previousUsb=telemetry;
       }
+      confirmationButton.disabled=locked||confirming||context.blocked;
+      confirmationButton.textContent=(switchKeyboard?switchConfirmed:usbConfirmed)?'Confirm again':'Confirm connection';
+      renderUsbTile(state);
+      if(!adv)return;
       for(const tab of document.querySelectorAll('[data-adv-phase]')){
         const selected=Number(tab.dataset.advPhase)===phase;
         tab.classList.toggle('selected',selected);tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;
@@ -77,21 +121,10 @@ globalThis.IZ2S_ADV_SETUP = (() => {
       $('cardputer-cancel').disabled=!preparation||preparation.stopping||serverUnavailable||!cancellable;
       $('cardputer-cancel').textContent=preparation?.stopping?'Cancelling…':'Cancel';
       $('adv-firmware-next').disabled=false;
-      $('adv-usb-next').disabled=locked||confirming||context.blocked;
-      $('adv-usb-next').textContent=usbConfirmed?'Confirm again':'Confirm connection';
-      const presentation=usbPresentation(wifi,usb,usbConfirmed),card=$('device-usb');
-      if(card){
-        card.classList.toggle('manual-confirmed',presentation.manual);
-        if(presentation.manual){
-          card.querySelector('.state').textContent=presentation.label;
-          card.querySelector('.detail-text').textContent=presentation.detail;
-          card.querySelector('.detail-help').hidden=true;
-        }
-      }
       $('adv-usb-pending').hidden=!usbConfirmed||context.usb;
-      $('adv-device-status').textContent=context.wifi?'Firmware '+(wifi.firmwareVersion||'· ADV connected'):'ADV offline';
-      $('adv-wifi-status').textContent=context.wifi?'ADV found on Wi-Fi.':'Waiting for ADV on Wi-Fi.';
-      const description=usbDescription(state,wifi,usb);
+      $('adv-device-status').textContent=context.wifi?'Firmware '+(wifi.firmwareVersion||'· ADV connected'):wifi?.networkReachable?'Pairing required':'ADV offline';
+      $('adv-wifi-status').textContent=context.wifi?'ADV found on Wi-Fi.':wifi?.networkReachable?'Device found on the network. Pairing key is missing or was not accepted.':'Waiting for ADV on Wi-Fi.';
+      const description=usbDescription(wifi,usb);
       $('cardputer-usb-prompt').textContent=description;
       $('adv-usb-status').textContent=context.usb?'USB connected · keyboard ready.':usbConfirmed
         ?'Connection confirmed. Waiting for the USB host before typing.'
@@ -101,7 +134,8 @@ globalThis.IZ2S_ADV_SETUP = (() => {
             :'Use Confirm connection in the device card. Update ADV firmware to confirm with Enter on the device.'
           :description;
     }
-    return {render,select,get phase(){return phase;},get confirmed(){return usbConfirmed;}};
+    return {render,renderUsbTile,select,get phase(){return phase;},get confirmed(){return usbConfirmed;},
+      get switchConfirmed(){return switchConfirmed;}};
   }
   return {create,usbDescription,usbPresentation};
 })();

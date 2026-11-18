@@ -1,21 +1,41 @@
 'use strict';
 const fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-const {BASE,MAX_CHUNK}=require('./storage.cjs'),{decode,build}=require('./package.cjs');
+const {BASE,MAX_CHUNK}=require('./storage.cjs'),{crc32,decode,decodeHeader,build}=require('./package.cjs');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const modulePaths=require('../../module-storage.cjs');
-function paths(id){assert(/^[a-z0-9][a-z0-9-]{0,46}$/.test(id));const p=modulePaths.paths(id);return {...p,packagePath:p.virtualPath+'/launcher.izapp'};}
-async function ensure(storage,id){assert(/^[a-z0-9][a-z0-9-]{0,46}$/.test(id));let current='/sd';for(const component of ['IZ2S','Homebrew','Modules',id]){const rows=await storage.list(current);const existing=rows.find(r=>r.name.toLowerCase()===component.toLowerCase());if(existing){assert.equal(existing.type,'dir','A file blocks the SD application directory');assert.equal(existing.name,component,'SD directory letter case differs from the native path');}else await storage.mkdir(current+'/'+component);current+='/'+component;}return current;}
+function paths(id){assert(/^[a-z0-9][a-z0-9-]{0,46}$/.test(id));const p=modulePaths.paths(id);return {...p,packagePath:p.virtualPath+'/launcher.iza'};}
+async function ensure(storage,id){
+ const components=paths(id).path.slice(1).split('/');
+ let current='/sd';
+ for(const component of components){
+  const matches=(await storage.list(current)).filter(row=>row.name.toLowerCase()===component);
+  assert(matches.length<=1,'Ambiguous SD application directory');
+  const [existing]=matches;
+  if(existing)assert.equal(existing.type,'dir','A file blocks the SD application directory');
+  current+='/'+component;
+  if(!existing)await storage.mkdir(current);
+ }
+ return current;
+}
+function verifyReadback(matches,message){if(!matches)throw Object.assign(Error(message),{code:'SD_READBACK_MISMATCH'});}
 async function readback(storage,target,size,expected,notify,chunks){
  let file;async function close(){const current=file;file=null;try{await storage.close(current);}catch(e){e.resourcesRetained=true;throw e;}}
  try{
-  file=await storage.openRead(target);assert.equal(file.size,size,'SD file size differs');const check=crypto.createHash('sha256');
-  const native=typeof storage.readHash==='function'&&Array.isArray(chunks);
+  file=await storage.openRead(target);verifyReadback(file.size===size,'SD file size differs');const check=chunks?null:crypto.createHash('sha256');
+  const native=typeof storage.readHash==='function'&&!!chunks;
   let index=0;for(let offset=0;offset<size;){const count=Math.min(MAX_CHUNK,size-offset);
-   if(native){const part=chunks[index++];assert(part&&part.offset===offset&&part.bytes===count&&/^[a-f0-9]{64}$/.test(part.sha256),'Incomplete SD verification plan');assert.equal(await storage.readHash(file,offset,count),part.sha256,'Full SD readback differs');}
-   else{const chunk=await storage.read(file,offset,count);assert(Buffer.isBuffer(chunk)&&chunk.length===count,'Short SD readback');check.update(chunk);}
+   const part=chunks?.[index++];
+   if(chunks)assert(part&&part.offset===offset&&part.bytes===count&&/^[a-f0-9]{64}$/.test(part.sha256),'Incomplete SD verification plan');
+   if(native)verifyReadback(await storage.readHash(file,offset,count)===part.sha256,'Full SD readback differs');
+   else{
+    const chunk=await storage.read(file,offset,count);
+    assert(Buffer.isBuffer(chunk)&&chunk.length===count,'Short SD readback');
+    if(part)verifyReadback(hash(chunk)===part.sha256,'Full SD readback differs');
+    else check.update(chunk);
+   }
    offset+=count;await notify('verify',count);
   }
-  await close();if(native)assert.equal(index,chunks.length,'SD verification plan exceeds file');else assert.equal(check.digest('hex'),expected,'Full SD readback differs');
+  await close();if(chunks)assert.equal(index,chunks.length,'SD verification plan exceeds file');else verifyReadback(check.digest('hex')===expected,'Full SD readback differs');
   return {method:native?'console-sha256-chunks-after-reopen':'full-readback-sha256-after-reopen',readBytes:size,digestBytes:native?chunks.length*32:32,downloadedFileBytes:native?0:size};
  }catch(e){if(file&&!storage.uncertain&&!e.resourcesRetained)try{await close();}catch(cleanup){e.cleanupError=cleanup.message;e.resourcesRetained=true;}if(storage.uncertain)e.resourcesRetained=true;throw e;}
 }
@@ -37,60 +57,199 @@ async function localSource(asset){
  const file=await fs.open(asset.file,'r');try{const stat=await file.stat();assert(stat.isFile()&&stat.size===asset.bytes,'SD asset source size changed');}catch(e){await file.close();throw e;}
  const buffer=Buffer.alloc(MAX_CHUNK);return {bytes:asset.bytes,sha256:asset.sha256,async read(offset,count){let done=0;while(done<count){const {bytesRead}=await file.read(buffer,done,count-done,offset+done);assert(bytesRead>0,'Short local SD asset');done+=bytesRead;}return buffer.subarray(0,count);},close:()=>file.close()};
 }
+async function publish(storage,stage,target,backup){
+ if(backup)await storage.rename(target,backup);
+ try{await storage.rename(stage,target);}catch(error){
+  // Roll back only a confirmed native rejection, never a lost acknowledgement.
+  if(backup&&error.nativeResult!==undefined&&!storage.uncertain&&!error.resourcesRetained){try{await storage.rename(backup,target);await storage.commit();error.previousVersionRestored=true;}catch(restore){error.restoreError=restore.message;if(storage.uncertain||restore.resourcesRetained)error.resourcesRetained=true;}}
+  throw error;
+ }
+ await storage.commit();if(backup){await storage.remove(backup);await storage.commit();}
+}
+function interruptedBackup(entries){
+ const files=entries.filter(row=>row.type==='file');
+ if(files.length>4096)return null;
+ const names=new Set(files.map(row=>row.name));
+ const backups=files.filter(row=>/^\.launcher-[a-f0-9]{16}\.bak$/.test(row.name)&&names.has(row.name.slice(0,-4)+'.tmp'));
+ return backups.length===1?backups[0].name:null;
+}
+function checkedHeader(header,size,id){
+ try{const info=decodeHeader(header,size);return info.id===id?info:null;}
+ catch(error){if(error.code!=='ERR_ASSERTION')throw error;return null;}
+}
+async function readExistingHeader(storage,target,id){
+ const file=await storage.openRead(target);
+ try{
+  if(file.size<512)return null;
+  const header=await storage.read(file,0,512);
+  assert.equal(header.length,512,'Short SD application header read');
+  return checkedHeader(header,file.size,id);
+ }finally{
+  if(!storage.uncertain)try{await storage.close(file);}catch(error){error.resourcesRetained=true;throw error;}
+ }
+}
+function checkExecutionMode(previous,next){
+ if(previous&&!previous.delegated&&next.delegated)
+  throw Object.assign(Error('This update requires the PC server. The existing autonomous SD version was kept.'),{code:'SD_AUTONOMY_REGRESSION'});
+}
+async function restoreInterruptedInstall(storage,directory,destination,pkg,entries){
+ const candidate=interruptedBackup(entries);
+ if(!candidate)return false;
+ const backup=directory+'/'+candidate,previous=await readExistingHeader(storage,backup,pkg.id);
+ if(!previous)return false;
+ checkExecutionMode(previous,pkg);
+ // A fresh listing proved both the previous image and its unpublished
+ // replacement exist. Restore only the previous image under its normal name.
+ await storage.rename(backup,destination);await storage.commit();
+ return true;
+}
 async function installBytes(storage,bytes,{progress=()=>{},assets=[]}={}){
  if(storage.uncertain)throw Object.assign(Error('Previous SD transfer outcome is unknown'),{resourcesRetained:true});
  assets=require('./assets.cjs').prepared(assets);const pkg=decode(bytes),{id}=pkg;const assetManifest=require('./assets.cjs').verifyBinding(pkg,assets);const digest=hash(bytes),directory=await ensure(storage,id),destination=paths(id).packagePath,nonce=crypto.randomBytes(8).toString('hex'),stage=directory+'/.launcher-'+nonce+'.tmp',backup=directory+'/.launcher-'+nonce+'.bak';
- const entries=await storage.list(directory),old=entries.find(r=>r.name==='launcher.izapp');if(old)assert.equal(old.type,'file');
+ const entries=await storage.list(directory),old=entries.find(r=>r.name.toLowerCase()==='launcher.iza');
+ if(old)assert(old.type==='file'&&old.name==='launcher.iza','A conflicting entry blocks the SD launcher');
+ if(old&&pkg.delegated)checkExecutionMode(await readExistingHeader(storage,destination,id),pkg);
+ const replacing=!!old||await restoreInterruptedInstall(storage,directory,destination,pkg,entries);
  const total=bytes.length+assets.reduce((n,a)=>n+a.bytes,0),completed={write:0,verify:0},receipts=[];
  const notify=name=>async(phase,count)=>{completed[phase]+=count;assert(completed[phase]<=total);await progress({phase,bytes:completed[phase],total,file:name});};
+ function trackedVerification(report){
+  let reported=0;
+  return ()=>{
+   let checked=0;
+   return async(phase,count)=>{
+    if(phase==='write')return report(phase,count);
+    checked+=count;
+    // A replacement can verify the same prefix again. Count each byte once.
+    if(checked>reported){const difference=checked-reported;reported=checked;await report('verify',difference);}
+   };
+  };
+ }
  for(const asset of assets){
   const target=directory+'/'+asset.path,existing=entries.find(r=>r.name.toLowerCase()===asset.path.toLowerCase()),report=notify(asset.path);
-  let verification;
-  if(existing){assert(existing.type==='file'&&existing.name===asset.path,'A conflicting entry blocks an immutable SD asset');let source;try{source=await localSource(asset);const chunks=typeof storage.readHash==='function'?await verificationPlan(source):undefined;verification=await readback(storage,target,asset.bytes,asset.sha256,report,chunks);}finally{await source?.close();}completed.write+=asset.bytes;}
-  else{
-   const temporary=directory+'/.asset-'+crypto.randomBytes(8).toString('hex')+'.tmp',source=await localSource(asset);
-   try{verification=await transfer(storage,temporary,source,report);}finally{await source.close();}
-   await storage.rename(temporary,target);await storage.commit();
-  }
-  receipts.push({relativePath:asset.path,path:target,displayPath:'SD:'+target.slice(3),bytes:asset.bytes,sha256:asset.sha256,readbackVerified:true,reused:!!existing,verification});
+  if(existing)assert(existing.type==='file'&&existing.name===asset.path,'A conflicting entry blocks an immutable SD asset');
+  let verification,repaired=false;
+  const source=await localSource(asset);
+  try{
+   const verificationProgress=trackedVerification(report);
+   if(existing){
+    const chunks=typeof storage.readHash==='function'?await verificationPlan(source):undefined;
+    try{verification=await readback(storage,target,asset.bytes,asset.sha256,verificationProgress(),chunks);}catch(error){
+     if(error.code!=='SD_READBACK_MISMATCH'||storage.uncertain||error.resourcesRetained)throw error;
+     repaired=true;
+    }
+   }
+   if(verification)completed.write+=asset.bytes;
+   else{
+    const temporary=directory+'/.asset-'+crypto.randomBytes(8).toString('hex');
+    verification=await transfer(storage,temporary+'.tmp',source,verificationProgress());
+    await publish(storage,temporary+'.tmp',target,repaired?temporary+'.bak':null);
+   }
+  }finally{await source.close();}
+  receipts.push({relativePath:asset.path,path:target,displayPath:'SD:'+target.slice(3),bytes:asset.bytes,sha256:asset.sha256,readbackVerified:true,reused:!!existing&&!repaired,...(repaired?{repaired}:{}),verification});
  }
- const verification=await transfer(storage,stage,{bytes:bytes.length,sha256:digest,read:async(offset,count)=>bytes.subarray(offset,offset+count)},notify('launcher.izapp'));
- if(old)await storage.rename(destination,backup);
- try{await storage.rename(stage,destination);}catch(error){
-  // Roll back only a confirmed native rejection, never a lost acknowledgement.
-  if(old&&error.nativeResult!==undefined&&!storage.uncertain){try{await storage.rename(backup,destination);await storage.commit();error.previousVersionRestored=true;}catch(restore){error.restoreError=restore.message;}}
-  throw error;
+ const source={bytes:bytes.length,sha256:digest,read:async(offset,count)=>bytes.subarray(offset,offset+count)},report=notify('launcher.iza'),verificationProgress=trackedVerification(report);
+ let verification;
+ if(replacing){
+  const chunks=await verificationPlan(source);
+  try{verification=await readback(storage,destination,bytes.length,digest,verificationProgress(),chunks);}
+  catch(error){if(error.code!=='SD_READBACK_MISMATCH'||storage.uncertain||error.resourcesRetained)throw error;}
  }
- await storage.commit();if(old){await storage.remove(backup);await storage.commit();}
- return {id,path:destination,displayPath:'SD:'+destination.slice(3),bytes:bytes.length,sha256:digest,headerSha256:hash(bytes.subarray(0,512)),readbackVerified:true,verification,assets:receipts,assetManifest,totalBytes:total,...(storage.metrics?{transferMetrics:storage.metrics}:{})};
+ const reused=!!verification;
+ if(reused)await report('write',bytes.length);
+ else{
+  verification=await transfer(storage,stage,source,verificationProgress());
+  await publish(storage,stage,destination,replacing?backup:null);
+ }
+ return {id,path:destination,displayPath:'SD:'+destination.slice(3),bytes:bytes.length,sha256:digest,headerSha256:hash(bytes.subarray(0,512)),headerCrc:require('./package.cjs').crc32(bytes.subarray(0,512)),readbackVerified:true,...(reused?{reused}:{}),verification,assets:receipts,assetManifest,totalBytes:total,...(storage.metrics?{transferMetrics:storage.metrics}:{})};
 }
 async function installModule({root,directory,id,shell,progress,expectedSha256,storage:providedStorage}){
- paths(id);const repo=await require('../../packages/repository.cjs').create(root,{shell,source:'current'}),pkg=await repo.inspect(id+'.izm');assert(pkg.supported,'This module is not supported by the selected launcher');
+ const location=paths(id),repo=await require('../../packages/repository.cjs').create(root,{shell,source:'current'}),pkg=await repo.inspect(id+'.module.zip');assert(pkg.supported,'This module is not supported by the selected launcher');
  const buildRoot=path.join(root,'data/build-cache/sd-apps',id+'-'+crypto.randomUUID());let attachment,storage=providedStorage,retained=false;
  try{
-  await repo.install(pkg.file,buildRoot,{expectedSha256});let result,nativeBuildError;
-  // Try the actual contents, rather than trusting an SD eligibility flag.
-  // A host-dependent or unsupported local entry is preserved as its original
-  // package and dispatched through the ordinary launcher when selected.
-  try{result=await build(path.join(buildRoot,id),path.join(buildRoot,'package'));}
-  catch(error){nativeBuildError=error.message;result=await require('./managed-package.cjs').build(pkg,await require('../../services/app-catalog.cjs').readApp(path.join(buildRoot,id)),path.join(buildRoot,'managed'));}
+  await repo.install(pkg.file,buildRoot,{expectedSha256:expectedSha256??pkg.sha256});
+  const appRoot=path.join(buildRoot,id);
+  // The repository classifies the actual contents. A failed local adapter
+  // must never be treated as a request to install a PC-only executor.
+  const pcManaged=pkg.sd?.adapter==='pc-managed';
+  const result=pcManaged
+   ?await require('./managed-package.cjs').build(pkg,await require('../../services/app-catalog.cjs').readApp(appRoot),path.join(buildRoot,'managed'))
+   :await build(appRoot,path.join(buildRoot,'package'));
   if(!storage){attachment=await require('../../filesystem/ouncecake/engine/session.cjs').attachGame(path.join(directory,'fs-rpc'));storage=await require('./storage.cjs').create(attachment);}
-  await ensure(storage,id);const existing=await inventory(storage);assert(existing.some(p=>p.id===id)||existing.length<15,'The SD menu supports 15 applications; remove an existing application first');
-  return {...await installBytes(storage,result.bytes,{progress,assets:result.assets}),name:pkg.name,version:pkg.version,execution:result.execution||'console',...(nativeBuildError?{nativeBuildError}:{})};
+  // An existing visible package already occupies a slot. Only a new slot needs
+  // the capacity scan, which stops as soon as the SD menu is full.
+  const existing=await inspectInstalled(storage,location,id,true,true);
+  if(!existing?.visible){
+   const visible=await inventory(storage,{identities:true,validLimit:15,exclude:id});
+   assert(visible.length<15,'The SD menu supports 15 applications; remove an existing application first');
+  }
+  return {...await installBytes(storage,result.bytes,{progress,assets:result.assets}),name:pkg.name,version:pkg.version,execution:result.execution||'console'};
  }catch(e){retained=!!e.resourcesRetained;throw e;}finally{
   // The package is a temporary transfer source. App launch never reads it.
   await fs.rm(buildRoot,{recursive:true,force:true});if(attachment&&storage&&!storage.uncertain&&!retained)await attachment.close();
  }
 }
-async function inventory(storage,{identities=false}={}){
- let rows;try{rows=await storage.list(BASE);}catch(error){if((error.nativeResult?.canonical??error.nativeResult)===0x202&&!storage.uncertain)return [];throw error;}const apps=[];assert(rows.length<=200000);
- for(const row of rows){if(row.type!=='dir'||! /^[a-z0-9][a-z0-9-]{0,46}$/.test(row.name))continue;const p=paths(row.name),entries=await storage.list(p.virtualPath),entry=entries.find(e=>e.name==='launcher.izapp'&&e.type==='file');if(!entry)continue;
-  // Presence is observed from the card; full CRC validation belongs to the
-  // native supervisor. Do not turn a cached PC receipt into SD inventory.
-  let headerSha256;
-  if(identities&&entry.size>=512){let file;try{file=await storage.openRead(p.packagePath);assert.equal(file.size,entry.size);const header=await storage.read(file,0,512);assert.equal(header.length,512);headerSha256=hash(header);}finally{if(file&&!storage.uncertain)await storage.close(file);}}
-  apps.push({id:row.name,headerSha256,path:p.packagePath,displayPath:'SD:'+p.path+'/launcher.izapp',bytes:entry.size,source:'sd',readbackVerified:false});
+function missing(storage,error){
+ return !storage.uncertain&&!error.resourcesRetained&&(error.nativeResult?.canonical??error.nativeResult)===0x202;
+}
+async function inspectInstalled(storage,p,id,identities,checkVisibility=false,identifyDigest){
+ let file;
+ try{file=await storage.openRead(p.packagePath);}catch(error){
+  if(!missing(storage,error))throw error;
+  if(!checkVisibility)return null;
+  let entries;
+  try{entries=await storage.list(p.virtualPath);}catch(error){if(missing(storage,error))return null;throw error;}
+  if(entries.some(row=>row.name.toLowerCase()==='launcher.iza'))return null;
+  const candidate=interruptedBackup(entries);
+  if(!candidate)return null;
+  try{file=await storage.openRead(p.virtualPath+'/'+candidate);}catch(error){if(missing(storage,error))return null;throw error;}
+ }
+ let headerSha256,headerValid,metadata,sha256,visible=false;
+ try{
+  if(identities)headerValid=false;
+  if(identities&&file.size>=512){
+   const header=await storage.read(file,0,512);assert.equal(header.length,512);
+   headerSha256=hash(header);
+   const info=checkedHeader(header,file.size,id);
+   if(info){
+    headerValid=true;metadata={headerCrc:crc32(header),name:info.name,execution:info.delegated?'pc':'console'};
+    if(identifyDigest?.(id,file.size)){
+     const digest=crypto.createHash('sha256');
+     digest.update(header);
+     for(let offset=header.length;offset<file.size;){
+      const length=Math.min(MAX_CHUNK,file.size-offset),bytes=await storage.read(file,offset,length);
+      assert.equal(bytes.length,length,'Short SD version readback');
+      digest.update(bytes);offset+=length;
+     }
+     sha256=digest.digest('hex');
+    }
+    visible=true;
+    if(checkVisibility&&info.delegated){
+     // Native tiles can regenerate their icon. PC-managed tiles cannot.
+     const {offset,length,crc}=info.ranges.tile;
+     const tile=await storage.read(file,offset,length);
+     assert.equal(tile.length,length,'Short SD tile read');
+     visible=crc32(tile)===crc;
+    }
+   }
+  }
+ }finally{
+  if(!storage.uncertain)try{await storage.close(file);}catch(error){error.resourcesRetained=true;throw error;}
+ }
+ return {id,headerSha256,sha256,...(identities?{headerValid,...metadata}:{}),...(checkVisibility?{visible}:{}),path:p.packagePath,displayPath:'SD:'+p.path+'/launcher.iza',bytes:file.size,source:'sd',readbackVerified:false};
+}
+async function inventory(storage,{identities=false,validLimit,exclude,identifyDigest}={}){
+ let rows;
+ try{rows=await storage.list(BASE);}catch(error){if(missing(storage,error))return [];throw error;}
+ const apps=[],checkVisibility=validLimit!==undefined;assert(rows.length<=200000);
+ for(const row of rows){
+  if(modulePaths.identity(row.name)===exclude||row.type!=='dir'||!/^[a-z0-9][a-z0-9-]{0,46}$/.test(row.name))continue;
+  // Probe the fixed path first. Only the capacity check needs to look for
+  // interrupted installations when that path is absent.
+  const app=await inspectInstalled(storage,paths(row.name),modulePaths.identity(row.name),identities||checkVisibility,checkVisibility,identifyDigest);
+  if(!app||(checkVisibility&&!app.visible))continue;
+  apps.push(app);
+  if(apps.length===validLimit)break;
  }
  return apps;
 }
-module.exports={paths,ensure,installBytes,installModule,inventory};
+module.exports={paths,ensure,installBytes,installModule,inventory,interruptedBackup};

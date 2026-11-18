@@ -1,0 +1,35 @@
+{
+  "engine": "RUN16",
+  "sourceCommit": "c219fd71ba53bcfb109ad0a52474dcb0302e8e9c",
+  "originalSha256": {
+    "lib/block-delta-worker.cjs": "d88e84124e4a89ff63bc81bf87c8a597fb4db988fe659e5ea77a136658086658",
+    "lib/fast-compression.cjs": "26c933c524a99c18f3e3b7c7a60ce872cb8d8bd8074a80e8e4aeb89967348a5b",
+    "lib/platform.cjs": "2dcbb12132c1a5846a860b2abb95e65770a618c09526f9d49e47c36cdd6ddaa2",
+    "lib/block-delta.cjs": "813dbb8379260ae1c87fe17d79bedf91c0bdb2f71419fb078cb6f42575d836b8",
+    "lib/frame-worker.cjs": "9ff086d2ed29bf947be2ea5fd6c8073ceb4abdb97e187683896bce121763ec86",
+    "lib/fast-frame-codec.cjs": "64280eecab5e361fbf87990f88fb091687bcb45004a2c93925ab0ce247d54810",
+    "lib/pc-codec.js": "f27a95396e8846974af89792a69e751a7f48701239b526653dba5097d30ff6a4",
+    "lib/pc-stream-delta.cjs": "63c777d1f6bc49469d2232e39cada26004ae91d023d430492f678989f1deb0aa",
+    "lib/pc-stream-tcp.cjs": "e23b00bab5b99f704a83d37f4fa781ce8760d1a68f06f2a82adf6860a68fe3c5",
+    "lib/ack-wait.cjs": "b2cc65d2aa547224b552c22c0a28c6f2f3ed1a6e70ea109a43fb9d25d2b91504",
+    "lib/pc-screen.cjs": "8142a80fe69506b41556378f2f7ccbbbfe938f30f63ac11fa7fa4f9bb16bb686",
+    "lib/delta-prefetch.cjs": "3589a83741204fd1797760b0b80123e5565c54885e7f3d16648e9493e53dbd00",
+    "lib/inflate-policy.cjs": "4f3724bee408ed40ece13cfc76c6154f2d068b8fb9d7a73ea5964c05656908ab",
+    "lib/delta-wire.cjs": "e264673aab93f28e40cfc3b54fe8ea7e669674974d990291a189b39efa36d3f1",
+    "lib/zlib-sdk.cjs": "5729b64042fe0a40457282dc3b0b970569384c35c92456cdf3262423e78e5182",
+    "lib/delta-compressor.cjs": "021627751cbab55a46ae59a3a5d2762f4554a7d51d4cc1fb7b84df53d3667879",
+    "lib/delta-programs.cjs": "0a43ffebf2d7b2c02e0d1bf0e051b9bcda4c5d4b9198df1ec91bf5534087b1ed",
+    "lib/hl2-stream.cjs": "a289cef5228b3b46f0547f6ef303ae16fa2d93d0a7b65d6d4712bdb42901d398",
+    "lib/frame-pacing.js": "5d5e526d46917769413b93329c71a36d3c5bb36a8af050ef3b39708e3505ea38",
+    "lib/frame-codec.wasm": "29f09a8ae116c198e835e99de9b0d2d6fc58e2e0b114099d2cfec449f2751e41",
+    "native/build.json": "5042716c79919f7d4d3f223c4bb9a3a6fd33e597e5986b4f08f40227c9472641",
+    "native/compression.c": "bbfb1142b3cf450ce3a04d344b2a48e699c7182f685c26703de291b1496bbc9b",
+    "native/bc1/build.json": "2fb2929ad57c89da570e3d94a5bcb7dd63f5ad237a5a7ad48c23e31d81d7a30c",
+    "native/bc1/encoder.c": "73a2020203de54ad392fda119a2bebfbb6c89ac945d11bebc7ba1f0613702f52"
+  },
+  "adaptations": [
+    "Render-only dependency closure; original menus and application launcher excluded.",
+    "pc-screen exports rendering helpers only.",
+    "Default profile resolves module-local render settings."
+  ]
+}

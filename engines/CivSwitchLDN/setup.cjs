@@ -14,7 +14,7 @@ async function setup(root = path.resolve(__dirname, '../..')) {
       child.on('close', (code, signal) => code === 0 ? resolve() : reject(Error('Dependency setup failed: ' + (signal || code))));
     });
   }
-  await run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund']);
+  require(require.resolve('terser',{paths:[p.folder]}));
   await run(require('../../core/platform/python.cjs').command(root), ['-m', 'venv', p.runtime]);
   await run(p.python, ['-m', 'pip', 'install', '-r', path.join(p.folder, 'ldn/requirements.txt')]);
   const source = await fs.realpath(p.python);

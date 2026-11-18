@@ -1,0 +1,32 @@
+{
+  "format": "izlauncher.device",
+  "apiVersion": 1,
+  "version": "1.0.0",
+  "id": "switch1",
+  "name": "Switch 1",
+  "roles": [
+    "input"
+  ],
+  "fields": [
+    {
+      "key": "switchAddress",
+      "label": "Switch 1 Wi-Fi IPv4 address",
+      "type": "text",
+      "default": "",
+      "description": "Use the address shown in IZ2S SB4 Keyboard."
+    }
+  ],
+  "transport": {
+    "adapter": "switch-wifi",
+    "link": "usb-hid"
+  },
+  "hostPlatforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "capabilities": [
+    "network",
+    "usb-keyboard"
+  ],
+  "validator": "settings.cjs"
+}

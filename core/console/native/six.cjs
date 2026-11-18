@@ -20,6 +20,10 @@ function frame(base,sdk,target,args){
  return b;
 }
 async function create(rpc,directory){
+ if(rpc.generationGuarded===true){
+  if(rpc.nativeArgumentLimit<6||typeof rpc.callExtended!=='function')throw Error('Six-argument SDK calls require a verified guarded stack');
+  return Object.freeze({async call(target,args){if(!Array.isArray(args)||args.length>6)throw Error('At most six arguments');return (await rpc.callExtended(target,args)).result;}});
+ }
  const sdk=rpc.a.sdk,original=require('../abi/sdk-checks.cjs');
  for(const name of ['create','join','longjmp','loadTable','call4','saveResult64','exit','tryWait']){
   const f=code[name],expected=Buffer.from(f.bytes,'hex').subarray(0,Math.min(256,f.bytes.length/2));

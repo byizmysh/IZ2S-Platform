@@ -1,0 +1,40 @@
+{
+    "general": {
+        "video_copied": "Videolink naar klembord gekopieerd",
+        "dislikes": "Afkeerknoppen"
+    },
+    "settings": {
+        "adblock": {
+            "title": "Ad-blokker",
+            "description": "Blokkeert naadloos video- en feed-advertenties en is niet onderhevig aan de blokkeermethoden van YouTube"
+        },
+        "dearrow": {
+            "title": "DeArrow",
+            "description": "Vervangt titels en miniaturen door nauwkeurigere, minder sensationele versies uit een openbare, crowdsourcedatabase. Vertraagt het laden, omdat het info moet ophalen van de server"
+        },
+        "dislikes": {
+            "title": "Afkeren teruggeven",
+            "description": "Gebruikt de Return YouTube Dislike API (returnyoutubedislike.com) om afkeerknoppen opnieuw toe te voegen aan YouTube. Vertraagt het laden van video's, omdat het informatie van de server moet ophalen"
+        },
+        "hardware_decoding": {
+            "title": "Hardwaredecodering",
+            "description": "Gebruikt waar mogelijk uw GPU om video's te decoderen. Als u dit uitschakelt, kunnen afspeelproblemen worden opgelost, maar kan er vertraging optreden, afhankelijk van uw CPU. Herstart na het omschakelen."
+        },
+        "low_memory_mode": {
+            "title": "Laaggeheugenmodus",
+            "description": "Vertelt YouTube om de modus met laag geheugen in te schakelen, wat de prestaties op langzamere apparaten kan verbeteren ten koste van sommige visuele effecten. Herstart na het omschakelen."
+        },
+        "fullscreen": {
+            "title": "Vollescherm",
+            "description": "Schakelt volledig scherm in en zorgt ervoor dat VacooTube altijd opstart in volledig scherm."
+        },
+        "keep_on_top": {
+            "title": "Bovenaan houden",
+            "description": "Schakelt \"Bovenaan houden\" in en zorgt ervoor dat VacooTube wordt gestart met het venster boven elk ander venster vastgepind."
+        },
+        "userstyles": {
+            "title": "Aangepaste CSS (gebruikersstijlen)",
+            "description": "Maakt injectie van aangepaste CSS-stijlen mogelijk. Plaats je .css-bestanden in de gebruikersstijlen map."
+        }
+    }
+}

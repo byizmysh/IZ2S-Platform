@@ -5,6 +5,39 @@
 #define BAD_BINDING 0xf330u
 #define PAD_OVERRUN 0xf331u
 _Static_assert(PS1_HID_COUNT==9,"Controller binding table");
+#ifdef IZPSX_SB4_COMPAT
+uint32_t ps1_controllers_bind_sb4(Ps1Controllers*p,const Sb4Compat*api){
+ static const uint32_t services[PS1_HID_COUNT]={
+  [PS1_HID_setIds]=SB4_HID_SET_SUPPORTED_IDS,
+  [PS1_HID_padFullKey]=SB4_HID_READ_FULL_KEY,
+  [PS1_HID_padHandheld]=SB4_HID_READ_HANDHELD,
+  [PS1_HID_padJoyDual]=SB4_HID_READ_JOY_DUAL,
+  [PS1_HID_padJoyLeft]=SB4_HID_READ_JOY_LEFT,
+  [PS1_HID_padJoyRight]=SB4_HID_READ_JOY_RIGHT,
+  [PS1_HID_disconnect]=SB4_HID_DISCONNECT_PAD,
+  [PS1_HID_setStyles]=SB4_HID_SET_SUPPORTED_STYLES,
+  [PS1_HID_getStyles]=SB4_HID_GET_SUPPORTED_STYLES,
+ };
+ uintptr_t functions[PS1_HID_COUNT];
+ memset(p,0,sizeof *p);
+ if(!sb4CompatValid(api))return BAD_BINDING;
+ for(unsigned i=0;i<PS1_HID_COUNT;i++){
+  IzServiceFunction fn=api->resolve_service(5,services[i]);
+  if(!fn)return BAD_BINDING;
+  functions[i]=(uintptr_t)fn;
+ }
+ memcpy(p->functions,functions,sizeof functions);
+ return 0;
+}
+static uint32_t call(Ps1Controllers*p,unsigned index,uintptr_t a,uintptr_t b){
+ return (uint32_t)((IzServiceFunction)p->functions[index])(a,b,0,0,0,0,0,0);
+}
+static uint32_t set_ids(Ps1Controllers*p,const uint32_t*ids,int32_t count){return call(p,PS1_HID_setIds,(uintptr_t)ids,(uint32_t)count);}
+static uint32_t get_styles(Ps1Controllers*p,uint32_t*out){return call(p,PS1_HID_getStyles,(uintptr_t)out,0);}
+static uint32_t set_styles(Ps1Controllers*p,uint32_t styles){return call(p,PS1_HID_setStyles,styles,0);}
+static uint32_t pad_state(Ps1Controllers*p,unsigned index,void*out,const uint32_t*id){return call(p,index,(uintptr_t)out,(uintptr_t)id);}
+static uint32_t disconnect(Ps1Controllers*p,const uint32_t*id){return call(p,PS1_HID_disconnect,(uintptr_t)id,0);}
+#else
 uint32_t ps1_controllers_bind(Ps1Controllers*p,uintptr_t sdk,uint64_t bytes){
  memset(p,0,sizeof *p);
  if(!sdk||sdk>=(1ull<<39)||bytes>(1ull<<39)-sdk)return BAD_BINDING;
@@ -17,19 +50,25 @@ uint32_t ps1_controllers_bind(Ps1Controllers*p,uintptr_t sdk,uint64_t bytes){
  for(unsigned i=0;i<PS1_HID_COUNT;i++)p->functions[i]=sdk+ps1_hid_bindings[i].offset;
  return 0;
 }
+static uint32_t set_ids(Ps1Controllers*p,const uint32_t*ids,int32_t count){return ((uint32_t(*)(const uint32_t*,int32_t))p->functions[PS1_HID_setIds])(ids,count);}
+static uint32_t get_styles(Ps1Controllers*p,uint32_t*out){return ((uint32_t(*)(uint32_t*))p->functions[PS1_HID_getStyles])(out);}
+static uint32_t set_styles(Ps1Controllers*p,uint32_t styles){return ((uint32_t(*)(uint32_t))p->functions[PS1_HID_setStyles])(styles);}
+static uint32_t pad_state(Ps1Controllers*p,unsigned index,void*out,const uint32_t*id){((void(*)(void*,const uint32_t*))p->functions[index])(out,id);return 0;}
+static uint32_t disconnect(Ps1Controllers*p,const uint32_t*id){return ((uint32_t(*)(const uint32_t*))p->functions[PS1_HID_disconnect])(id);}
+#endif
 uint32_t ps1_controllers_enable(Ps1Controllers*p){
  const uint32_t ids[]={0,1,2,3,4,5,6,7,32};
- uint32_t rc=((uint32_t(*)(const uint32_t*,int32_t))p->functions[PS1_HID_setIds])(ids,9);
+ uint32_t rc=set_ids(p,ids,9);
  p->configuration_error=rc;p->configured=!rc;
- uint32_t styles=0,err=((uint32_t(*)(uint32_t*))p->functions[PS1_HID_getStyles])(&styles);
+ uint32_t styles=0,err=get_styles(p,&styles);
  if(!err&&!p->restore_styles)p->original_styles=styles;
- if(!err&&(styles&31u)!=31u){err=((uint32_t(*)(uint32_t))p->functions[PS1_HID_setStyles])(styles|31u);if(!err){p->restore_styles=1;err=((uint32_t(*)(uint32_t*))p->functions[PS1_HID_getStyles])(&styles);if(!err&&(styles&31u)!=31u)err=0xf333;}}
+ if(!err&&(styles&31u)!=31u){err=set_styles(p,styles|31u);if(!err){p->restore_styles=1;err=get_styles(p,&styles);if(!err&&(styles&31u)!=31u)err=0xf333;}}
  p->style_error=err;return rc?rc:err;
 }
 uint32_t ps1_controllers_restore(Ps1Controllers*p){
  if(!p->restore_styles)return 0;
- uint32_t rc=((uint32_t(*)(uint32_t))p->functions[PS1_HID_setStyles])(p->original_styles),value=0;
- if(!rc)rc=((uint32_t(*)(uint32_t*))p->functions[PS1_HID_getStyles])(&value);
+ uint32_t rc=set_styles(p,p->original_styles),value=0;
+ if(!rc)rc=get_styles(p,&value);
  if(!rc&&value!=p->original_styles)rc=0xf333;if(!rc)p->restore_styles=0;return rc;
 }
 const char*ps1_controller_style_name(unsigned style){switch(style){case PS1_PAD_LEFT:return "JOY-CON L / SIDEWAYS";case PS1_PAD_RIGHT:return "JOY-CON R / SIDEWAYS";case PS1_PAD_DUAL:return "JOY-CON PAIR";case PS1_PAD_HANDHELD:return "HANDHELD";case PS1_PAD_FULL:return "FULL CONTROLLER";default:return "NO DEVICE";}}
@@ -62,8 +101,9 @@ static uint32_t read_style(Ps1Controllers*p,unsigned function,uint32_t id,unsign
  uint8_t guarded[96];memset(guarded,0,sizeof guarded);
  for(unsigned i=0;i<16;i++)guarded[i]=guarded[80+i]=0xa5;
  uint8_t*raw=guarded+16;
- ((void(*)(void*,const uint32_t*))p->functions[function])(raw,&id);
+ uint32_t rc=pad_state(p,function,raw,&id);
  for(unsigned i=0;i<16;i++)if(guarded[i]!=0xa5||guarded[80+i]!=0xa5)return PAD_OVERRUN;
+ if(rc)return rc;
  uint32_t attributes;memcpy(&attributes,raw+32,4);if(!(attributes&1))return 0;
  uint64_t buttons,sample;memcpy(&sample,raw,8);memcpy(&buttons,raw+8,8);
  out->connected=1;out->id=id;out->style=style;out->attributes|=attributes;out->buttons|=buttons;if(sample>out->sample)out->sample=sample;
@@ -100,7 +140,7 @@ void ps1_controllers_assign(Ps1Controllers*p,const uint32_t assignment[PS1_PLAYE
 uint32_t ps1_controllers_disconnect(Ps1Controllers*p,unsigned player){
  if(player>=PS1_PLAYER_COUNT||!p->player[player].connected||p->player[player].id>=8)return 0xf332;
  uint32_t id=p->player[player].id;
- return ((uint32_t(*)(const uint32_t*))p->functions[PS1_HID_disconnect])(&id);
+ return disconnect(p,&id);
 }
 uint32_t ps1_controller_buttons(uint64_t raw){
  const uint32_t native[]={2,8,0x10,0x400,0x2000,0x8000,0x1000,0x4000,1,4,0x40,0x80,0x100,0x200};uint32_t out=0;

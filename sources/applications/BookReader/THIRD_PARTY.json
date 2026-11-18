@@ -1,0 +1,6 @@
+{
+  "components": [
+    {"name":"DejaVu fonts","source":"https://dejavu-fonts.github.io/","licenseFile":"licenses/DejaVu.txt","usage":"Generated serif/sans regular/bold glyph atlas"},
+    {"name":"IZ2S Platform GPU SDK","source":"https://github.com/byizmysh/IZ2S-Platform","files":["switch/shaders/abi.glsl","switch/shaders/hb.glsl"],"terms":"Retain platform SDK terms and provenance; see the platform LICENSE-SCOPE.md"}
+  ]
+}

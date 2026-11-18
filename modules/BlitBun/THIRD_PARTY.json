@@ -1,0 +1,17 @@
+{
+  "source": "Extracted from the IZ2S Platform pc-screen module",
+  "integrationLicenseStatus": "inherited-source-review-required",
+  "nativeOptional": {
+    "name": "libdeflate",
+    "repository": "https://github.com/ebiggers/libdeflate",
+    "license": "MIT",
+    "bundled": false
+  },
+  "notice": "Existing copyright notices are retained; this project does not grant a new blanket license over inherited code.",
+  "projectLicense": {
+    "spdx": "GPL-2.0-or-later",
+    "scope": "Independently authored IZMYSH code only; explicit component licenses and prior grants remain applicable",
+    "notice": "COPYRIGHT",
+    "details": "LICENSE-SCOPE.md"
+  }
+}

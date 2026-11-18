@@ -1,0 +1,1 @@
+{"format":"izlauncher.native-build","version":1,"sources":["encoder.c"],"args":["-O3","-pthread","-ffp-contract=off","-std=c11","-fPIC","-shared","-I/usr/include/node"],"output":"frame-encoder.node"}

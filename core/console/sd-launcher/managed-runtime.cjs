@@ -4,15 +4,32 @@
 const fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const P=require('./package.cjs'),archive=require('../../archive.cjs'),{MAX_CHUNK}=require('./storage.cjs');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
-async function read(storage,file,size){
- const parts=[];for(let at=0;at<size;at+=MAX_CHUNK){const n=Math.min(MAX_CHUNK,size-at),bytes=await storage.read(file,at,n);assert(Buffer.isBuffer(bytes)&&bytes.length===n,'Short SD package read');parts.push(Buffer.from(bytes));}return Buffer.concat(parts);
+async function read(storage,file,size,offset=0){
+ const parts=[];for(let at=0;at<size;at+=MAX_CHUNK){const n=Math.min(MAX_CHUNK,size-at),bytes=await storage.read(file,offset+at,n);assert(Buffer.isBuffer(bytes)&&bytes.length===n,'Short SD package read');parts.push(Buffer.from(bytes));}return Buffer.concat(parts);
 }
 async function loadFromStorage({storage,directory,id,lease}){
  assert(lease?.active===true,'An SD application needs a held display boundary');const p=require('./install.cjs').paths(id);let file;
  async function close(){const handle=file;file=null;try{await storage.close(handle);}catch(error){error.resourcesRetained=true;throw error;}}
  try{
-  file=await storage.openRead(p.packagePath);assert(file.size===131584,'Invalid managed SD descriptor size');const descriptor=P.decode(await read(storage,file,file.size));await close();assert(descriptor.delegated&&descriptor.id===id,'The SD application identity changed');
-  const source=descriptor.source,cache=path.join(directory,'sd-executors',id+'-'+source.sha256),sourceFile=path.join(cache,'source.izm');let cached;
+  const expected=lease.request?.application?.headerCrc;
+  const changed=()=>Object.assign(Error('SD file changed. Select the app again.'),{code:'SD_PACKAGE_CHANGED'});
+  try{file=await storage.openRead(p.packagePath);}catch(error){
+   if(Number.isInteger(expected)&&!storage.uncertain&&!error.resourcesRetained&&(error.nativeResult?.canonical??error.nativeResult)===0x202)throw changed();
+   throw error;
+  }
+  if(Number.isInteger(expected)&&file.size!==131584)throw changed();
+  assert(file.size===131584,'Invalid managed SD descriptor size');
+  // The tile may have been replaced after the console captured this action.
+  // Read both parts from the same handle and reject a mismatch before the module archive.
+  let descriptorBytes;
+  if(Number.isInteger(expected)){
+   const header=await read(storage,file,512);
+   if(P.crc32(header)!==expected)throw changed();
+   descriptorBytes=Buffer.concat([header,await read(storage,file,file.size-512,512)]);
+  }else descriptorBytes=await read(storage,file,file.size);
+  const descriptor=P.decode(descriptorBytes);
+  await close();assert(descriptor.delegated&&descriptor.id===id,'The SD application identity changed');
+  const source=descriptor.source,cache=path.join(directory,'sd-executors',id+'-'+source.sha256),sourceFile=path.join(cache,'source.module.zip');let cached;
   try{const bytes=await fs.readFile(sourceFile);if(bytes.length===source.bytes&&sha(bytes)===source.sha256)cached=bytes;}catch(error){if(error.code!=='ENOENT')throw error;}
   file=await storage.openRead(p.virtualPath+'/'+source.path);assert.equal(file.size,source.bytes,'SD application source size differs');let bytes;
   if(cached&&typeof storage.readHash==='function'){

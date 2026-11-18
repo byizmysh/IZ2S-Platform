@@ -1,29 +1,31 @@
 {
   "id": "iz2s-platform",
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
-  "version": "0.22.0",
+  "version": "0.25.0",
   "shells": [
-    "izlauncher",
-    "izpslauncher"
+    "izlauncher"
   ],
   "preinstalledEngines": [
-    "izmysh",
-    "bermthesequel"
+    "iz2s-core",
+    "civswitch",
+    "civswitch-ldn"
   ],
-  "optionalEngines": [
-    "kurumuz"
-  ],
+  "optionalEngines": [],
   "modules": [
-    "iz-exchange",
-    "iz-exchange-fs",
+    "blitbun",
     "book-reader",
+    "iz-file-deck",
+    "iz2s-cheese",
+    "vacootube",
     "izpsx"
   ],
   "moduleDirectories": [
-    "iz-exchange",
-    "iz-exchange-fs",
+    "BlitBun",
     "BookReader",
-    "izpsx"
+    "Foldrift",
+    "iz2s-cheese",
+    "VacooTube",
+    "IZPSX"
   ],
   "hostPlatforms": [
     "linux-x64",
@@ -31,18 +33,19 @@
   ],
   "inputDevices": [
     "ARM PC",
-    "Cardputer ADV"
+    "Cardputer ADV",
+    "Switch 1"
   ],
   "installerPlatforms": [
     "linux-x64",
-    "linux-arm64"
+    "linux-arm64",
+    "win32-x64"
   ],
   "experimentalInstallerPlatforms": [],
   "publicationStatus": "release",
-  "integratedTools": [
-    "super-file-bros"
+  "directComponents": [
+    "iz2s-core"
   ],
-  "sourceComponents": [
-    "sources/izpsx"
-  ]
+  "edition": "0.25",
+  "releaseTarget": "source"
 }

@@ -36,8 +36,8 @@ function createPolicy() {
     'ps2-cpu-lightweight-check',
   ]);
   const hiddenEngines = new Set(['pepsipu', 'izmysh-resume']);
-  const izEngines = new Set(['izmysh', 'bermthesequel']);
-  const izVariants = new Set(['izlauncher', 'izpslauncher']);
+  const izEngines = new Set(['iz2s-core']);
+  const izVariants = new Set(['izlauncher']);
 
   function visible(descriptor) {
     return !hidden.has(descriptor.id) && !/^ps2-(?:cold-r|cpu-accounting-r|sd-admit-r|sd-engine-r)/.test(descriptor.id) && !['test','diagnostic'].includes(descriptor.store?.channel);

@@ -124,7 +124,7 @@ static int decode(const uint8_t*b,size_t bytes,Ps1Preferences*p){
  if(version<3)for(unsigned player=2;player<PS1_PLAYER_COUNT;player++)memcpy(controls(p,player),p->value+PS1_SWAP_AB,PS1_CONTROL_COUNT*4);
  return ps1_preferences_valid(p);
 }
-static uint32_t read(Ps1SdDirectory*sd,uint32_t h,uint8_t*b,uint32_t bytes){Ps1FileIO io={.send=(uintptr_t)sd->send,.buffer=(uintptr_t)sd->buffer,.capacity=sd->capacity};ps1_ifile_reset();return ps1_ifile_read(&io,h,0,b,bytes,bytes);}
+static uint32_t read(Ps1SdDirectory*sd,uint32_t h,uint8_t*b,uint32_t bytes){Ps1FileIO io={.send=(uintptr_t)sd->send,.buffer=(uintptr_t)sd->buffer,.capacity=sd->capacity,.directory=(uintptr_t)sd};ps1_ifile_reset();return ps1_ifile_read(&io,h,0,b,bytes,bytes);}
 static uint32_t close(Ps1SdDirectory*sd,uint32_t h,uint32_t rc){uint32_t c=ps1_sd_closefile(sd,h);ps1_ifile_reset();return rc?rc:c;}
 uint32_t ps1_settings_load(Ps1Settings*s,Ps1SdDirectory*sd){
  memset(s,0,sizeof *s);ps1_preferences_default(&s->prefs);uint8_t b[BYTES];unsigned bad=0;

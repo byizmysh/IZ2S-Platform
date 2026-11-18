@@ -9,6 +9,7 @@ async function build(apps, cacheRoot) {
     defines = new Set();
   let memory = 0;
   for (const entry of apps) {
+    if (entry.previewOnly) continue;
     const app = await catalog.readApp(entry.root),
       c = app.manifest.shellContribution;
     if (!c) continue;
@@ -58,13 +59,13 @@ async function build(apps, cacheRoot) {
   );
   const manifest = JSON.parse(await fs.readFile(path.join(SHELL, 'app.json')));
   manifest.id = id;
-  manifest.name = 'IZlauncher modules';
+  manifest.name = 'IZ2S modules';
   if (memory) {
     manifest.memory = { bytes: memory, initial: 'video-empty.bin' };
     await fs.writeFile(path.join(folder, 'video-empty.bin'), Buffer.alloc(4));
   }
   await fs.writeFile(path.join(folder, 'app.json'), JSON.stringify(manifest));
-  await require('../../../core/packages/build-focus.cjs').build(folder);
+  await require('./shader-assets.cjs').stage(folder);
   const app = await catalog.readApp(folder);
   await fs.writeFile(
     path.join(folder, 'ready.json'),

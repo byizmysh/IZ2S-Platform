@@ -1,30 +1,29 @@
-# Building IZ2S Platform 0.22
+# Working with IZ2S Platform 0.25
 
-## Targets and tools
+## Install
 
-Release archives target Linux x64/ARM64 only. Build on Linux with Node.js 24, Python 3 with Pillow, Clang, LLD, LLVM utilities, a host C compiler, glslangValidator and spirv-val. Keep bundled native engine/toolchain/license notices intact. ADV firmware is supplied as checked images with its corresponding source; rebuilding it separately requires PlatformIO and the pinned dependencies in its platformio.ini.
+Use the Linux or Windows installation archive linked from [README.md](README.md). The source checkout omits the large Electron runtime binaries. The release archives are separate sealed installation trees; copying this checkout is not the same as unpacking either installer.
+
+## Check the source snapshot
+
+Use Node.js 24 and Python 3. Production JavaScript dependencies needed by the verifier are included next to their components.
 
 ```sh
-npm run test:release
-python3 distribution/release.py --rebuild --output dist/github
+npm run check
 ```
 
-The builder stages only allowlisted files outside the checkout, rebuilds both console launchers and the selected console app resources, packs the four console IZM modules and ARM input archive, validates the clean tree, and emits:
+This checks the recorded source/runtime files, six packaged modules, descriptors, native artifact hashes, and installer resources. It does not rebuild the native console runtime or issue commands to a console.
 
-- `iz2s-platform-0.22.0-source.zip`
-- `iz2s-platform-0.22.0-linux.tar.gz`
-- `SHA256SUMS`, `SOURCE-MANIFEST.json`, and an extracted `iz2s-platform/` tree
+## Repackage the prepared installers
 
-The launcher build also rebuilds the SD supervisor, recovery worker, Restore connection tile and local Book Reader controller together. Release validation and the existing pre-launch check verify their binaries and source/ABI fingerprints before any console acquisition or input is started.
+Create a separate folder with `staging/IZ2S-Platform-0.25-linux/` and `staging/IZ2S-Platform-0.25-windows-x64/`, populated by extracting the corresponding full installation assets. Both `data/` and `dist/` must remain empty. Do not copy an installed user's state into staging. Then run from this checkout:
 
-The Linux archive selects the host runtime at installation; it does not embed a Linux desktop binary for every architecture. No Windows or macOS artifact is generated.
+```sh
+python3 tools/release/package-prepared.py --workspace /absolute/path/to/release-workspace
+```
 
-The source manifest records every shipped file's hash, size and execute bit. Regenerate it through the release builder after source/resource changes; do not copy an older manifest over a newer checkout. Developer regression tests in `tests/` are kept in Git; installed copies use `node distribution/verify.cjs` and offline preview validation.
+The command verifies both prepared trees, emits deterministic archives in `archives/`, and writes their SHA-256 checksums. The Linux folder must contain the complete Electron kits from the release, including all licenses and manifests. A modified prepared tree requires an intentional inventory update and new installation verification; this command does not bypass an integrity failure.
 
-## IZPSX corresponding source
+## Native builds
 
-The frozen native module and its source must stay together. `sources/izpsx` contains the exact source, vendor snapshot, licenses and ABI profile used for the included 0.5.1 binary, plus build instructions. Rebuilding native PS1 code is separate from the platform launcher's GPU/resource build. A local standalone repo and matching source/archive assets accompany this release.
-
-## Exclusions
-
-No `data/`, session snapshots, secrets, logs, game/BIOS files, private module libraries, build caches or test application packages may enter the public tree. The five listed user-facing apps/tools are the complete bundle selection. Release creation does not install anything on Switch, start a console session or publish/upload artifacts.
+See [SOURCES.md](SOURCES.md) for the exact scope and remaining gaps. Application sources and their build recipes are under `sources/applications/`; IZPSX has its own `sources/izpsx/BUILDING.md`. No claim is made that the entire native runtime can be rebuilt from this checkout alone. Installer packaging does not run native compilers, install anything on Switch, or publish to GitHub.

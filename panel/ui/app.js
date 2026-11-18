@@ -58,11 +58,16 @@
   if(/fs rpc memory acquisition failed|fs acquisition stopped|overwrite missed.*canary/.test(s)){title='Filesystem access was not acquired in this attempt.';action='Fully close and reopen the game, open a fresh Direct, then start a new session.';}
   else if(/resources retained|uncertain|did not (?:finish|terminate)|restart required|native execution/.test(s)){title='Native execution could not be confirmed.';action='Restart the game before starting a new session.';}
   else if(/9026|loader.*not (?:respond|found)|awaiting payload/.test(s)){title='The game loader is not responding.';action='Open Load Game on Switch, wait for Awaiting payload, then check the connection.';}
+  else if(/dbi (?:copy failed|mtp responder)|switch 1 copy verification failed/.test(s)){title='Could not install IZ2S SB4 Keyboard.';action='Open DBI MTP Responder on Switch 1 and try again, or download the SD package.';}
+  else if(/reopen.*(?:application|launch link)|this window link is no longer valid/.test(s)){title='This window link is no longer valid.';action='Open 0.25 from its shortcut.';}
+  else if(s.includes('iz2s file manager is unavailable')){title='IZ2S file manager is unavailable.';action='Open IZ2S on Switch and connect its PC link, then try again.';}
+  else if(s.includes('iz2s pc link is unavailable')){title='IZ2S PC link is unavailable.';action='Start the PC link, then try again.';}
+  else if(s.includes('browser blocked the new tab')){title='The browser blocked the new tab.';action='Allow pop-ups for 0.25, then try again.';}
   else if(/package changed|selected package|version.*(?:differ|mismatch)/.test(s)){title='The selected package has changed.';action='Refresh App library and select the current version.';}
   else if(/failed to fetch|socket hang up|disconnected|connection.*(?:lost|refused|ended)|server.*unavailable/.test(s)){title='Connection was interrupted.';action='Check the network and restore the connection when the console is ready.';}
   else if(/timeout|timed out|aborted due/.test(s)){title='The operation timed out.';action='Check the device and connection before trying again.';}
   else if(/cancelled|canceled/.test(s)){title='The operation was cancelled.';action='Review the current console screen before continuing.';}
-  else {title=detail.split('\n').find(l=>l.trim())||'The operation failed.';if(title.length>220)title='The operation failed.';action='Open technical details or download the full log.';}
+  else {title=detail.split('\n').find(l=>l.trim())||'The operation failed.';if(title.length>220)title='The operation failed.';action=detail&&detail.trim()!==title?'Open technical details to see the original error.':'';}
   return {title,action,detail};
  }
  const api={canonical,describe,configure};root.IZ2S_ERRORS=api;
@@ -79,7 +84,7 @@
   const offline=civ?.state==='offline'||active?.status==='offline'||!!state?.offline||retained&&!!state?.link&&['waiting-for-dock','waiting-for-network','offline'].includes(state.link.state);
   const stopping=active?.status==='stopping'||civ?.state==='stopping';
   const unconfirmed=stopping&&(active?.nativeParentRetention?.awaitingActualClose||civ?.shutdownUnconfirmed);
-  return {running,offline,stopping,unconfirmed:!!unconfirmed,compact:running||offline||stopping&&active?.kind!=='bootstrap',title:unconfirmed?'Shutdown unconfirmed':stopping?'Disconnecting\u2026':offline?'Connection interrupted':running?'Session is running':'Connection',game:['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?'Civilization VII':'SmileBASIC 4',launcher:(civ?.shell||state?.platform?.variant)==='izpslauncher'?'IZPSlauncher':(civ?.shell||state?.platform?.variant)==='original'?'Core only':'IZlauncher'};
+  return {running,offline,stopping,unconfirmed:!!unconfirmed,compact:running||offline||stopping&&active?.kind!=='bootstrap',title:unconfirmed?'Shutdown unconfirmed':stopping?'Disconnecting\u2026':offline?'Connection interrupted':running?'Session is running':'Connection',game:['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?'Civilization VII':'SmileBASIC 4',launcher:(civ?.shell||state?.platform?.variant)==='izpslauncher'?'IZPSlauncher':(civ?.shell||state?.platform?.variant)==='original'?'Core only':'IZ2S'};
  }
  function directNetwork(state){
   if(!state?.platform||['civswitch','civswitch-ldn'].includes(state.platform.loaderId)||state.active?.kind==='bootstrap')return false;
@@ -101,7 +106,8 @@
  }
  function job(job){
   const complete=['complete','ready'].includes(job.status),removed=job.operation==='remove';
-  return {complete,removed,label:complete?(removed?(job.target==='sd'?'Removed from SD':'Removed from session'):job.target==='sd'?'Installed on SD':'Ready in menu'):job.status,failed:job.status==='failed',active:['queued','loading','publishing'].includes(job.status)};
+  const storedOnly=job.target==='sd'&&job.nativeCatalogAccepted===false;
+  return {complete,removed,label:complete?(removed?(job.target==='sd'?'Removed from SD':'Removed from session'):job.target==='sd'?(storedOnly?'Stored on SD':'Installed on SD'):'Ready in menu'):job.status,failed:job.status==='failed',active:['queued','loading','publishing'].includes(job.status)};
  }
  const phases={verify:'Checking files',prepare:'Preparing on PC',graphics:'Preparing graphics',install:'Installing on PC',transfer:'Sending files to console','sd-prepare':'Preparing SD application','sd-write':'Writing to SD','sd-verify':'Verifying SD','sd-publish':'Waiting for the SD menu'};
  function transfer(state){
@@ -119,9 +125,14 @@
    label:online?'Connection restored':synchronizing?'Synchronizing session…':'Restore connection',
    note:online?'Connected to the existing launcher. Its applications remain loaded.':synchronizing?'Authenticating the console and synchronizing pending commands.':available?'Keep the launcher open on Switch. Select Restore connection here or the Restore connection tile on the console.':active?.status==='stopping'?'Session is stopping. Wait for confirmed cleanup before reconnecting.':active?'This active session has no available recovery service. Stop it before starting a new session.':'Restore is available while this PC server retains a launcher session with automatic recovery enabled.'};
  }
+ function sameSdPackage(sd,pkg){
+  if(!sd?.versionVerified||!pkg)return false;
+  const image=pkg.coreSd?.imageSha256;
+  return image ? sd.sha256===image : !!pkg.sha256&&sd.sourceSha256===pkg.sha256;
+ }
  function versions(state,pkg){
   const has=row=>(typeof row==='string'?row:row?.id)===pkg.id,session=!state.platform?.sdLauncher&&(state.installed||[]).find(has),sd=[...(state.sdInstalled||[]),...(state.platform?.sdLauncher?state.installed||[]:[])].find(has);
-  return {pc:pkg.version,session:session?.version||null,sd:sd?.versionVerified?sd.version:null,onSd:!!sd,onSession:!!session,sdUnknown:!!sd&&!sd.versionVerified,sdUpdate:!!sd?.versionVerified&&sd.sourceSha256!==pkg.sha256};
+  return {pc:pkg.version,session:session?.version||null,sd:sd?.versionVerified?sd.version:null,onSd:!!sd,onSession:!!session,sdUnknown:!!sd&&!sd.versionVerified,sdUpdate:!!sd?.versionVerified&&!sameSdPackage(sd,pkg)};
  }
  function library(state){
   const packages=[...(state.library||[])],known=new Set(packages.map(p=>p.id));
@@ -144,8 +155,12 @@
  }
  // Status is evaluated for the selected destination, so “Not installed + SD”
  // also finds apps which already have a separate RAM copy.
- function libraryFilter(state,{query='',status='all',location='all',focusId=null}={}){
-  state||={};const q=query.trim().toLocaleLowerCase(),rows=library(state).filter(p=>(!focusId||p.id===focusId)&&(!q||[p.name,p.description,p.id].join(' ').toLocaleLowerCase().includes(q)));
+ function appFormat(app){
+  if(app.format==='.nro'||app.format==='.iza')return app.format;
+  return app.module?.switch||app.sd?.compatible||app.coreSd?.compatible||app.sdOnly?'.iza':null;
+ }
+ function libraryFilter(state,{query='',status='all',location='all',format='all',focusId=null}={}){
+  state||={};const q=query.trim().toLocaleLowerCase(),rows=library(state).filter(p=>(!focusId||p.id===focusId)&&(format==='all'||appFormat(p)===format)&&(!q||[p.name,p.description,p.id].join(' ').toLocaleLowerCase().includes(q)));
   const present=p=>{const v=versions(state,p);return location==='ram'?v.onSession:location==='sd'?v.onSd:v.onSession||v.onSd;};
   const installed=rows.filter(present).length;
   return {ids:rows.filter(p=>status==='uninstalled'?!present(p):status==='installed'||location!=='all'?present(p):true).map(p=>p.id),total:rows.length,installed,uninstalled:rows.length-installed};
@@ -161,14 +176,14 @@
   if(/fetch|socket|network|9026|connection|econn|host.*unreachable|game loader|awaiting payload|wi-fi|\u043f\u043e\u0434\u043a\u043b\u044e\u0447|\u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d/.test(text))return 'network';
   if(/hid|keyboard|input|chat|receipt|\u0432\u0432\u043e\u0434|\u043a\u043b\u0430\u0432\u0438\u0430\u0442/.test(text))return 'input';
   if(/vulkan|render|graphics|display|gpu|\u0433\u0440\u0430\u0444\u0438\u043a/.test(text))return 'graphics';
-  if(/package|application|module|launcher stopped|\.izm|\u043f\u0440\u0438\u043b\u043e\u0436|\u043c\u043e\u0434\u0443\u043b/.test(text))return 'application';
+  if(/package|application|module|launcher stopped|\.iza|\u043f\u0440\u0438\u043b\u043e\u0436|\u043c\u043e\u0434\u0443\u043b/.test(text))return 'application';
   return 'other';
  }
  function attempt(row,{activeId}={}){
   const success=['complete','running'].includes(row.status)||!!row.connectedAt&&['running','offline','stopped'].includes(row.status);
   const outcome=success?'successful':terminal.has(row.status)?'unsuccessful':'pending';
   const label={failed:'Failed',cancelled:'Cancelled',complete:'Completed',stopped:success?'Completed':'Stopped',running:'Running',offline:'Connection interrupted',starting:'Starting',typing:'Entering commands',stopping:'Stopping'}[row.status]||'Interrupted';
-  return {success,outcome,label,errorType:outcome==='unsuccessful'?errorType(row):null,tone:outcome==='unsuccessful'?'error':success?'success':'neutral',deletable:terminal.has(row.status)&&row.id!==activeId};
+  return {success,outcome,label,errorType:outcome==='unsuccessful'?errorType(row):null,tone:outcome==='unsuccessful'?'error':success?'success':'neutral',deletable:terminal.has(row.status)&&row.id!==activeId&&!row.active};
  }
  function inPeriod(row,period,now){
   if(period==='all')return true;const created=new Date(row.created),today=new Date(now);if(!Number.isFinite(created.getTime()))return false;
@@ -186,7 +201,7 @@
   }).sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')));
   return {rows:filtered.slice(0,limit),total:filtered.length,more:filtered.length>limit};
  }
- const api={session,connectionMode,directNetwork,deviceLinks,job,transfer,versions,library,consoleApps,libraryFilter,attempt,history,statistics,errorLabels};root.IZ2S_PRESENTATION=api;if(typeof module==='object'&&module.exports)module.exports=api;
+ const api={session,connectionMode,directNetwork,deviceLinks,job,transfer,versions,sameSdPackage,library,consoleApps,appFormat,libraryFilter,attempt,history,statistics,errorLabels};root.IZ2S_PRESENTATION=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);
 // END PRESENTATION
 // BEGIN ARM INSTALLER
@@ -211,6 +226,13 @@
 (function(root){
  const civ=state=>['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId);
  const targets=['session','sd'],label={session:'Session memory',sd:'SD card'},idOf=row=>typeof row==='string'?row:row?.id;
+ function forStore(state){
+  if(!state?.coreSd?.selected)return state;
+  return {...state,connected:state.coreSd.ready,platform:{sdLauncher:true},
+   sdRuntime:null,sdStorage:null,installed:[],jobs:[],sessionCatalog:[],
+   sdInstalled:state.coreSd.apps||[],
+   library:(state.library||[]).map(p=>({...p,sd:p.coreSd,supported:p.coreSd?.compatible===true}))};
+ }
  function installed(state,id){return {session:!state?.platform?.sdLauncher&&(state?.installed||[]).some(row=>idOf(row)===id),sd:[...(state?.sdInstalled||[]),...(state?.platform?.sdLauncher?state?.installed||[]:[])].some(row=>idOf(row)===id)};}
  function compatible(state,pkg,target){
   if(target==='session')return !state?.platform?.sdLauncher&&pkg?.session?.compatible!==false;
@@ -228,6 +250,9 @@
   if(state?.preview)return 'Preview · device commands disabled';
   if(civ(state)&&target==='sd')return 'Civilization VII currently loads applications into session memory.';
   if(!remove&&civ(state)&&pkg?.session?.compatible===false)return pkg.session.reason||'Unavailable for this game';
+  if(state?.coreSd?.selected&&!state.coreSd.ready)return 'Reconnect the IZ2S SD card to this PC or refresh its inventory.';
+  if(state?.coreSd?.selected&&!remove&&pkg?.coreSd?.compatible!==true)return pkg?.coreSd?.reason||'This module needs a standalone IZ2S package.';
+  if(!state?.coreSd?.selected&&!civ(state)&&state?.platform?.variant==='original')return 'Choose a launcher in Connection to load applications.';
   if(!state?.connected)return 'Connect Switch 2 and start the launcher first';
   if(!remove&&pkg?.supported===false)return 'This module is unavailable for this launcher';
   if(target==='session'){
@@ -267,7 +292,7 @@
    const box=el('div','app-storage');box.dataset.appId=pkg.id;const field=el('label','storage-destination'),select=el('select','storage-target');field.append(el('span','','Install to'));
    select.setAttribute('aria-label','Installation destination');for(const target of targets){const option=el('option','',label[target]);option.value=target;select.append(option);}select.onchange=()=>choose(pkg.id,select.value);field.append(select);
    const hint=el('p','storage-hint'),badge=el('p','storage-installed'),identity=el('p','storage-versions'),actions=el('div','storage-actions'),install=el('button','secondary module-install');install.type='button';install.onclick=action(()=>invoke('/api/load',payload(getState(),[pkg.id],preferences)));actions.append(install);
-   const manage=el('details','storage-more'),manageBody=el('div','storage-more-body');manage.append(el('summary','','Manage installation'),manageBody);
+   const manage=el('details','storage-more'),manageBody=el('div','storage-more-body menu-surface');manage.append(el('summary','','Manage installation'),manageBody);
    for(const target of targets){const button=el('button','secondary module-unload storage-remove-'+target,target==='sd'?'Remove from SD':'Remove from session');button.type='button';button.onclick=remove(pkg,target);manageBody.append(button);}
    badge.append(el('span','storage-badge-session','In RAM'),el('span','storage-badge-sd','On SD'));
    box.append(field,identity,hint,badge,actions,manage);update(box,pkg);return box;
@@ -291,11 +316,11 @@
   function selectionError(ids){try{selection(ids);return '';}catch(e){return e.message;}}
   return {mount,update,updateAll,selection,selectionError,preferences};
  }
- const api={installed,compatible,destination,reason,filesystemWarning,payload,create};root.IZ2S_STORAGE=api;if(typeof module==='object'&&module.exports)module.exports=api;
+ const api={installed,compatible,destination,reason,filesystemWarning,payload,create,forStore};root.IZ2S_STORAGE=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);
 // END STORAGE CONTROLS
 // BEGIN WORKSPACE TABS
-globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storageControls}) {
+globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storageControls,retainRecord=()=>false}) {
   const tabs=document.getElementById('workspace-tabs'),home=document.getElementById('workspace-home'),panes=document.getElementById('workspace-tools'),dock=document.getElementById('workspace-dock');
   const rows=new Map(),records=new Map(),seen=new Map(),modules=new Map(),moduleViews=new Set(),closed=new Map();
   let active='home',snapshot,available=true;
@@ -307,28 +332,35 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storage
   const moduleTitle=id=>{const module=modules.get(id);return module?.name+([...modules.values()].filter(item=>item.name===module?.name).length>1?' · '+(module.version||id):'');};
   try{for(const [id,value] of JSON.parse(sessionStorage.getItem('iz2s.closedTools')||'[]'))closed.set(id,value);}catch{}
   const remember=()=>{try{sessionStorage.setItem('iz2s.closedTools',JSON.stringify([...closed]));}catch{}};
-  const mainWrap=el('div',null,'workspace-tab'),mainTab=action('Overview',()=>select('home'),'workspace-tab-label');
+  const mainWrap=el('div',null,'workspace-tab'),mainTab=action('Overview',()=>select('home','push'),'workspace-tab-label');
   mainWrap.dataset.tabId='home';mainTab.setAttribute('role','tab');mainTab.id='workspace-tab-home';mainTab.setAttribute('aria-controls','workspace-home');mainWrap.append(mainTab);tabs.append(mainWrap);
   function selection() {
     mainWrap.classList.toggle('active',active==='home');mainTab.setAttribute('aria-selected',String(active==='home'));mainTab.tabIndex=active==='home'?0:-1;
     for(const [id,row]of rows){const selected=id===active;row.pane.hidden=!selected;row.tab.classList.toggle('active',selected);row.button.setAttribute('aria-selected',String(selected));row.button.tabIndex=selected?0:-1;}
     for(const row of dock.children){const record=records.get(row.dataset.workspaceId),selected=row.dataset.workspaceId===active||(active.startsWith('module-info-')&&record?.kind==='module'&&record.moduleId===active.slice(12));row.classList.toggle('active',selected);const button=row.querySelector('button');if(selected)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');}
-    tabs.hidden=rows.size===0;document.body.classList.toggle('workspace-active',active!=='home');
+    tabs.hidden=rows.size===0;
+    if(tabs.hidden){home.removeAttribute('role');home.removeAttribute('aria-labelledby');}
+    else {home.setAttribute('role','tabpanel');home.setAttribute('aria-labelledby',mainTab.id);}
+    document.body.classList.toggle('workspace-active',active!=='home');
   }
-  function select(id) {
-    if(id!=='home'&&!rows.has(id))return;
+  function select(id, navigation = 'none') {
+    if(id!=='home'&&!rows.has(id))return false;
+    const changed = active !== id;
     active=id;home.hidden=id!=='home';panes.hidden=id==='home';selection();
-    onSelect?.(id==='home'?{id:'home',title:'Overview'}:{id,title:rows.get(id).title});
+    onSelect?.(id==='home'?{id:'home',title:'Overview'}:{id,title:rows.get(id).title}, changed ? navigation : 'none');
+    return true;
   }
   function close(id) {
     const row=rows.get(id);if(!row)return;
-    const order=['home',...rows.keys()],previous=order[Math.max(0,order.indexOf(id)-1)];
+    const hadFocus=row.pane.contains?.(document.activeElement)||row.tab.contains?.(document.activeElement);
     const record=records.get(id);if(record)closed.set(id,record.requestId);
-    remember();row.pane.remove();row.tab.remove();rows.delete(id);if(active===id)select('home');else selection();renderDock();
+    row.onClose?.();
+    remember();row.pane.remove();row.tab.remove();rows.delete(id);if(active===id)select('home','replace');else selection();renderDock();
+    if(hadFocus)(tabs.hidden?document.querySelector('#panel-sidebar [aria-current="page"]'):active==='home'?mainTab:rows.get(active)?.button)?.focus();
   }
   function make(id,title) {
     if(rows.has(id)){const row=rows.get(id);row.title=title;label(row.button,title);row.button.title=title;row.dismiss.setAttribute('aria-label','Close view: '+title);return row;}
-    const tab=el('div',null,'workspace-tab'),button=action(title,()=>select(id),'workspace-tab-label'),dismiss=action('×',()=>close(id),'workspace-close'),pane=el('section',null,'workspace-pane');
+    const tab=el('div',null,'workspace-tab'),button=action(title,()=>select(id,'push'),'workspace-tab-label'),dismiss=action('×',()=>close(id),'workspace-close'),pane=el('section',null,'workspace-pane');
     tab.dataset.tabId=id;button.setAttribute('role','tab');button.id='workspace-tab-'+id;button.setAttribute('aria-controls','workspace-pane-'+id);button.title=title;
     dismiss.setAttribute('aria-label','Close view: '+title);dismiss.title='Close view; the module keeps running';
     pane.id='workspace-pane-'+id;pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby',button.id);pane.hidden=true;tab.append(button,dismiss);tabs.append(tab);panes.append(pane);
@@ -349,11 +381,17 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storage
     }
     label(row.status,statusText(record));row.status.dataset.state=record.state;
     label(row.reload,ready?'Reload view':'Start / open');row.reload.disabled=!!record.pending||!!record.opening||retained||(!available&&!ready)||(!ready&&!!snapshot?.preview);
-    label(row.stop,record.pending?'Stopping…':record.kind==='settings'?'Stop settings':'Stop module');row.stop.disabled=!!record.pending||!!record.opening||retained||record.state==='stopped'||(!record.moduleId&&record.kind!=='files')||!available||!!snapshot?.preview;
-    const signature=record.url+'|'+record.state;
+    label(row.stop,record.pending?'Stopping…':record.kind==='settings'?'Stop settings':'Stop module');row.stop.disabled=!!record.pending||!!record.opening||retained||record.state==='stopped'||(record.coreTool||!record.moduleId&&record.kind!=='files')||!available||!!snapshot?.preview;
+    const signature=JSON.stringify([record.url,record.state,!ready&&!available,!ready&&!!snapshot?.preview]);
     if(row.signature===signature)return row;
     row.signature=signature;row.content.replaceChildren();row.frame=null;
-    if(!ready)row.content.append(el('p',retained?'This module could not confirm native cleanup. Restart the console before starting it again.':'The interface is stopped. Use Start / open to return.','workspace-empty'));
+    if(!ready){
+      const empty=el('div',null,'empty-state');
+      empty.append(el('h2',retained?'Restart console required':record.state==='stopped'?'Tool stopped':'Tool unavailable'),
+        el('p',retained?'Restart the console before starting this module again.':!available?'Reconnect the panel to start this tool.':
+          snapshot?.preview?'Preview · device commands disabled':'Select Start / open to use the tool again.'));
+      row.content.append(empty);
+    }
     else{
       const frame=el('iframe'),target=new URL(record.url);if(record.kind==='files')target.searchParams.set('embedded','1');
       frame.name='iz2s-workspace';frame.title=record.title;frame.src=target.href;frame.referrerPolicy='no-referrer';
@@ -376,12 +414,15 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storage
     try{const result=await api('/api/workspace/stop',{id});if(!records.has(id)||records.get(id).requestId!==record.requestId)return;const current=result.tab||records.get(id);if(!result.tab)current.state='stopped';records.set(id,{...current,title:record.title,pending:true});if(rows.has(id))renderRecord(records.get(id));}
     finally{const current=records.get(id);if(current){current.pending=false;if(rows.has(id))renderRecord(current);}renderDock();}
   }
-  function openRequest(record,force=false) {
+  function validateRecord(record) {
     if(!record||!/^[-a-z0-9]{1,80}$/.test(record.id))throw Error('Invalid module tab');
     const url=new URL(record.url);if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.username||url.password)throw Error('Module interface must be local');
+  }
+  function openRequest(record,force=false) {
+    validateRecord(record);
     const previous=records.get(record.id);record={...record,...(record.kind==='files'?{title:'Super File Bros.'}:{}),pending:previous?.pending,opening:previous?.opening};
     records.set(record.id,record);const fresh=seen.get(record.id)!==record.requestId;seen.set(record.id,record.requestId);
-    if(force||fresh&&!record.opening&&closed.get(record.id)!==record.requestId&&record.state!=='stopped'){closed.delete(record.id);remember();renderRecord(record);if(force||record.kind!=='files'&&!record.automatic)select(record.id);}
+    if(force||fresh&&!record.opening&&closed.get(record.id)!==record.requestId&&record.state!=='stopped'){closed.delete(record.id);remember();renderRecord(record);if(force||record.kind!=='files'&&!record.automatic)select(record.id,force?'push':'none');}
     else if(rows.has(record.id))renderRecord(record);
     renderDock();
   }
@@ -390,17 +431,21 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storage
     row.dataset.workspaceId=id;row.dataset.state=state;open.title=title;text.append(el('span',title,'workspace-dock-name'));open.append(icon(kind==='files'?'i-folder':'i-grid'),text);row.append(open,el('small',status,'workspace-dock-state'));return {row,open};
   }
   function renderDock() {
-    const stamp=JSON.stringify([available,!!snapshot?.preview,[...records.values()].map(r=>[r.id,r.title,r.url,r.requestId,r.state,r.pending,r.opening,r.moduleId]),[...moduleViews].map(id=>[id,moduleTitle(id),snapshot?.installed,snapshot?.moduleStates])]);
+    const localRows=[...rows].filter(([,row])=>row.local);
+    const stamp=JSON.stringify([available,!!snapshot?.preview,localRows.map(([id,row])=>[id,row.title]),[...records.values()].map(r=>[r.id,r.title,r.url,r.requestId,r.state,r.pending,r.opening,r.moduleId]),[...moduleViews].map(id=>[id,moduleTitle(id),snapshot?.installed,snapshot?.moduleStates])]);
     if(dock.dataset.stamp===stamp){selection();return;}dock.dataset.stamp=stamp;dock.replaceChildren();
     for(const record of records.values()){
-      const {row,open}=dockRow(record.id,record.title,statusText(record),()=>['running','retained'].includes(record.state)?openRequest(record,true):startRecord(record.id),record.kind,record.pending?'pending':record.opening?'opening':record.state),stop=action('',()=>stopRecord(record.id),'workspace-dock-stop');
+      const {row,open}=dockRow(record.id,record.title,statusText(record),()=>!available||snapshot?.preview||['running','retained'].includes(record.state)?openRequest(record,true):startRecord(record.id),record.kind,record.pending?'pending':record.opening?'opening':record.state),stop=action('',()=>stopRecord(record.id),'workspace-dock-stop');
       stop.append(icon('i-stop'));
-      stop.setAttribute('aria-label','Stop '+record.title);stop.title='Stop '+record.title;stop.disabled=!!record.pending||!!record.opening||['stopped','retained'].includes(record.state)||(!record.moduleId&&record.kind!=='files')||!available||!!snapshot?.preview;open.disabled=!!record.pending||!!record.opening;row.append(stop);dock.append(row);
+      stop.setAttribute('aria-label','Stop '+record.title);stop.title='Stop '+record.title;stop.disabled=!!record.pending||!!record.opening||['stopped','retained'].includes(record.state)||(record.coreTool||!record.moduleId&&record.kind!=='files')||!available||!!snapshot?.preview;open.disabled=!!record.pending||!!record.opening;row.append(stop);dock.append(row);
     }
     for(const id of moduleViews){
       const module=modules.get(id);if(!module||[...records.values()].some(record=>record.moduleId===id&&record.kind==='module'))continue;
       const loaded=snapshot?.installed?.some(item=>(typeof item==='string'?item:item.id)===id),running=snapshot?.moduleStates?.some(item=>item.id===id&&item.state==='running');
       dock.append(dockRow('module-info-'+id,moduleTitle(id),running?'Running':loaded?'Loaded on console':'Not running',()=>openModule(id),'module',running?'running':loaded?'loaded':'stopped').row);
+    }
+    for(const [id,row] of localRows) {
+      dock.append(dockRow(id,row.title,'PC streaming',()=>select(id,'push'),'settings','ready').row);
     }
     dock.hidden=!dock.childElementCount;document.getElementById('workspace-dock-title').hidden=dock.hidden;document.getElementById('workspace-dock-section')?.toggleAttribute('hidden',dock.hidden);const count=document.getElementById('workspace-dock-count');if(count)label(count,String(dock.childElementCount));selection();
   }
@@ -413,18 +458,29 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storage
     if(module.switch&&storageControls)controls.append(storageControls.mount(snapshot?.library?.find(pkg=>pkg.id===id)||{...module,id}));
     if(module.server&&!module.switch)taskButton(running?'Stop module':'Start module',()=>invoke(running?'/api/module/stop':'/api/module/start',{id}),!available||!!snapshot?.preview);
     if(module.server?.settings)taskButton(module.server.settings.label||'Settings',async()=>{const result=await api('/api/module/settings',{id});openRequest(result.tab,true);},!available||!!snapshot?.preview);
-    const pkg=snapshot?.library?.find(item=>item.id===id),content=el('div',null,'workspace-module-copy'),heading=el('h1',module.name);
-    heading.setAttribute('translate','no');content.append(heading,el('p',module.version||pkg?.version||'','hint'),el('p',pkg?.description||module.description||'','subtitle'));
+    const pkg=snapshot?.library?.find(item=>item.id===id),content=el('div',null,'workspace-module-copy'),heading=el('h1',module.name),intro=el('header',null,'page-title page-intro'),copy=el('div');
+    heading.setAttribute('translate','no');copy.append(el('span','Application','eyebrow'),heading,el('p',module.version||pkg?.version||'','hint'));intro.append(copy);
+    content.append(intro,el('p',pkg?.description||module.description||'','subtitle'));
     if(pkg?.session?.compatible===false)content.append(el('p',pkg.session.reason||'Unavailable for this game','hint'));
     else if(pkg?.session?.requiresFilesystem)content.append(el('p','Requires filesystem access','hint'));
-    content.append(action('App library',()=>{select('home');document.querySelector('[data-view="apps"]')?.click();},'secondary'));
+    content.append(action('App library',()=>document.querySelector('#panel-sidebar [data-view="apps"]')?.click(),'secondary'));
     if(module.switch)content.append(el('p','This module runs on the console. Use this tab to load or remove it.','hint'));
     row.pane.append(toolbar,content);
+  }
+  function openLocal(id, title, createContent, onClose) {
+    const row=make(id,title);
+    if(!row.local) {
+      row.local=true;
+      row.onClose=onClose;
+      row.pane.append(createContent());
+      renderDock();
+    }
+    select(id,'push');
   }
   function openModule(id) {
     if(!modules.has(id))throw Error('Module is no longer installed');
     const record=[...records.values()].find(record=>record.moduleId===id&&record.kind==='module');if(record){openRequest(record,true);return rows.get(record.id);}
-    const row=make('module-info-'+id,moduleTitle(id));moduleViews.add(id);moduleContent(id);select('module-info-'+id);renderDock();return row;
+    const row=make('module-info-'+id,moduleTitle(id));moduleViews.add(id);moduleContent(id);select('module-info-'+id,'push');renderDock();return row;
   }
   function updateModules(state) {
     const stamp=JSON.stringify([state.moduleCatalog,state.moduleStates,state.installed,state.sdInstalled,state.sdStorage,state.jobs?.map(j=>[j.packageId,j.target,j.status]),state.library?.map(p=>[p.id,p.name,p.version,p.description,p.module,p.session,p.sd]),state.connected,state.preview,state.platform?.residentGraphics,state.platform?.sdLauncher]);
@@ -432,18 +488,22 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storage
     snapshot=state;if(updateModules.stamp===stamp&&!ended)return;updateModules.stamp=stamp;
     if(ended)for(const id of [...moduleViews]){moduleViews.delete(id);close('module-info-'+id);}
     modules.clear();for(const module of state.moduleCatalog||[])modules.set(module.id,module);
-    // Imported IZM packages also have a details page, even without a source module.
+    // Imported IZA packages also have a details page, even without a source module.
     for(const pkg of state.library||[]){const id=pkg.module?.id||pkg.id;if(!modules.has(id))modules.set(id,{...pkg.module,id,name:pkg.name,version:pkg.version,switch:pkg.module?.switch||{}});}
     for(const id of moduleViews){if(!modules.has(id)){close('module-info-'+id);moduleViews.delete(id);}else if(rows.has('module-info-'+id)){make('module-info-'+id,moduleTitle(id));moduleContent(id);}}
     for(const [id,record]of records)if(rows.has(id))renderRecord(record);renderDock();
   }
   function setAvailable(value){if(available===value)return;available=value;for(const [id,record]of records)if(rows.has(id))renderRecord(record);for(const id of moduleViews)if(rows.has('module-info-'+id))moduleContent(id);renderDock();}
   function sync(entries){
-    const present=new Set(entries.map(entry=>entry.id));
+    const valid=entries.filter(entry=>{try{validateRecord(entry);return true;}catch{return false;}});
+    // Compatibility with a running panel predating held core-session tabs.
+    for(const record of records.values())if(!valid.some(entry=>entry.id===record.id)&&retainRecord(record))valid.push(record);
+    const present=new Set(valid.map(entry=>entry.id));
     for(const id of [...records.keys()])if(!present.has(id)){
       records.delete(id);seen.delete(id);closed.delete(id);close(id);
     }
-    remember();for(const entry of entries)openRequest(entry);renderDock();
+    remember();for(const entry of valid)openRequest(entry);renderDock();
+    return entries.length-valid.length;
   }
   tabs.addEventListener('keydown',event=>{
     if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
@@ -452,7 +512,7 @@ globalThis.IZ2S_WORKSPACE = {create({document,api,notice,onSelect,invoke,storage
   });
   window.addEventListener('run21:languagechange',()=>{for(const row of rows.values())if(row.frame)shareLanguage(row.frame);});
   window.addEventListener('message',event=>{if(event.data?.type!=='iz2s:workspace-ready')return;for(const row of rows.values())if(row.frame&&event.source===row.frame.contentWindow&&event.origin===new URL(row.frame.src).origin)shareLanguage(row.frame);});
-  select('home');return{select,openRequest,openModule,updateModules,sync,close,setAvailable};
+  select('home');return{select,openRequest,openModule,openLocal,updateModules,sync,close,setAvailable};
 }};
 // END WORKSPACE TABS
 // BEGIN GENERATED RUN21_CATALOG
@@ -492,8 +552,8 @@ const RUN21_CATALOG = (function createPolicy() {
     'ps2-cpu-lightweight-check',
   ]);
   const hiddenEngines = new Set(['pepsipu', 'izmysh-resume']);
-  const izEngines = new Set(['izmysh', 'bermthesequel']);
-  const izVariants = new Set(['izlauncher', 'izpslauncher']);
+  const izEngines = new Set(['iz2s-core']);
+  const izVariants = new Set(['izlauncher']);
 
   function visible(descriptor) {
     return !hidden.has(descriptor.id) && !/^ps2-(?:cold-r|cpu-accounting-r|sd-admit-r|sd-engine-r)/.test(descriptor.id) && !['test','diagnostic'].includes(descriptor.store?.channel);
@@ -505,7 +565,7 @@ const RUN21_CATALOG = (function createPolicy() {
       : Array.isArray(loader.modes) ? loader.modes : null;
     if (variant === 'original') return !declared || declared.includes('original');
     if (!izVariants.has(variant) || !izEngines.has(loader.id)) return false;
-    // Older APIs declared only the common IZLauncher transport mode.
+    // Older APIs declared only the common IZ2S transport mode.
     return !declared || declared.some(mode => izVariants.has(mode));
   }
 
@@ -519,7 +579,7 @@ const RUN21_CATALOG = (function createPolicy() {
         ...snapshot.platform,
         loaders: snapshot.platform.loaders.filter(loader => !hiddenEngines.has(loader.id)).map(loader => ({
           ...loader,
-          availableIn: ['original', 'izlauncher', 'izpslauncher'].filter(variant => engineAvailable(loader, variant)),
+          availableIn: ['original', 'izlauncher'].filter(variant => engineAvailable(loader, variant)),
         })),
       };
     }
@@ -539,6 +599,39 @@ if (new URLSearchParams(location.search).get('ui-preview') === 'files') {
 const $ = (id) => document.getElementById(id),
   key = location.hash.slice(1),
   selection = new Set();
+const viewTitles = Object.freeze({setup:'Connection', apps:'App library', history:'Attempts'});
+let homeView = 'setup', workspaceView = {id:'home'};
+function viewFromUrl() {
+  const view = new URLSearchParams(location.search).get('view');
+  return Object.hasOwn(viewTitles, view) ? view : 'setup';
+}
+function updateNavigation() {
+  const title = workspaceView.id === 'home' ? viewTitles[homeView] : workspaceView.title;
+  for (const button of document.querySelectorAll('#panel-sidebar [data-view]')) {
+    const current = workspaceView.id === 'home' && button.dataset.view === homeView;
+    button.classList.toggle('active', current);
+    if (current) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  }
+  setText($('view-title'), title);
+  document.title = $('view-title').textContent + ' · IZ2S Platform';
+}
+function storeNavigation(method) {
+  const url = new URL(location.href);
+  if (homeView === 'setup') url.searchParams.delete('view');
+  else url.searchParams.set('view', homeView);
+  history[method + 'State'](workspaceView.id === 'home' ? null : {run25Tool: workspaceView.id}, '', url);
+}
+function restoreNavigation(focus = true) {
+  const tool = history.state?.run25Tool, view = viewFromUrl();
+  switchView(view, {record:false, focus:false, focusApp:view==='apps'&&view===homeView});
+  if (tool && workspace.select(tool)) {
+    if (focus) document.getElementById('workspace-tab-' + tool)?.focus({preventScroll:true});
+    return;
+  }
+  if (tool) storeNavigation('replace');
+  if (focus) $('page-' + homeView + '-title').focus({preventScroll:true});
+}
 let hardStopping = false;
 let stopTask = null, pendingStart = false, actionGeneration = 0;
 let cardputerRequest=null;
@@ -546,7 +639,6 @@ let state = null,
   serverUnavailable = false,
   step = 'launch',
   busy = false,
-  timer = null,
   notificationKey = '',
   dismissed = '',
   packageStamp = '',
@@ -564,18 +656,35 @@ const startupSelection=startupChoices.selected;
 let startupStamp = '';
 // The manual-input design is a local UI preview, separate from session settings.
 let inputDesign = 'arm', manualDesignStage = 1;
-const advSetup = globalThis.IZ2S_ADV_SETUP.create({document, changed:()=>{if(state)renderControls();}, confirmUsb:()=>act('/api/cardputer/confirm-usb',{})});
+const advSetup = globalThis.IZ2S_ADV_SETUP.create({document, changed:()=>{if(state)renderControls();},
+  confirmUsb:()=>act('/api/cardputer/confirm-usb',{}),refreshUsb:()=>act('/api/check',{})});
 const civStartup=()=>startupChoices.payload($('preload-enabled').checked);
 const civswitchLdnUI = globalThis.IZ2S_CIVSWITCH_LDN.create({document,act,getStartup:civStartup,isUnavailable:()=>serverUnavailable});
-const civswitchUI = globalThis.IZ2S_CIVSWITCH.create({document, act,getStartup:civStartup,isUnavailable:()=>serverUnavailable,downloadArm:()=>downloadArmInstaller('civ7'),setupInput:()=>openDeviceSettings(state?.platform?.configuration?.inputAdapter==='cardputer-wifi'?{tab:1}:{})});
+const civswitchUI = globalThis.IZ2S_CIVSWITCH.create({document, act,getStartup:civStartup,isUnavailable:()=>serverUnavailable,downloadArm:()=>downloadArmInstaller('civ7'),setupInput:event=>{
+  const adapter = state?.platform?.configuration?.inputAdapter;
+  if (adapter === 'switch-wifi') {
+    const picker = document.querySelector('#device-arm .device-picker');
+    if (picker) {event?.stopPropagation();closeTransientMenus(picker);picker.open = true;picker.querySelector('summary').focus();return;}
+  }
+  openDeviceSettings(adapter === 'cardputer-wifi' ? {tab:1} : {});
+}});
 let workspaceReady = false;
 let installPreferences;try{installPreferences=localStorage;}catch{}
-const storageControls=globalThis.IZ2S_STORAGE.create({document,getState:()=>state,getBusy:()=>busy||serverUnavailable,invoke:act,changed:()=>renderControls(),notice,confirm:(message,name)=>confirmRemoval(message,name),preferences:installPreferences});
-const workspace = globalThis.IZ2S_WORKSPACE.create({document,api,notice,invoke:act,storageControls,onSelect:tab=>{
-  const selected=document.querySelector('.view:not([hidden])')?.id||'setup';
-  const title=tab.id==='home'?({setup:'Connection',apps:'App library',history:'Attempts'}[selected]||'IZ2S'):tab.title;
-  document.querySelectorAll('.sidebar [data-view]').forEach(button=>{const current=tab.id==='home'&&button.dataset.view===selected;button.classList.toggle('active',current);if(current)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
-  $('view-title').textContent=title;document.title=title+' · IZ2S Platform';
+const storageState=()=>{
+ const base=globalThis.IZ2S_STORAGE.forStore(state),core=coreView.current();
+ if(!base||base.coreSd?.selected||!core?.session)return base;
+ return {...base,coreLive:true,connected:!!core.pcLink?.online,platform:{sdLauncher:true},
+  installed:[],sdInstalled:core.pcLink?.apps||[],sdRuntime:null,sdStorage:null};
+};
+const storageControls=globalThis.IZ2S_STORAGE.create({document,getState:storageState,getBusy:()=>busy||serverUnavailable,invoke:act,changed:()=>renderControls(),notice,confirm:(message,name)=>confirmRemoval(message,name),preferences:installPreferences});
+const workspace = globalThis.IZ2S_WORKSPACE.create({document,api,notice,invoke:act,storageControls,retainRecord:record=>{
+ const core=coreView.current();
+ return core?.fsRpc===undefined&&globalThis.IZ2S_CORE.rpcAvailable(core)&&record.kind==='files'&&record.state==='running'&&record.sessionId===core.attempt.id;
+},onSelect:(tab,navigation)=>{
+  workspaceView=tab;
+  updateNavigation();
+  if (navigation !== 'none') storeNavigation(navigation);
+  if (navigation === 'push') window.scrollTo({top:0, left:0, behavior:'instant'});
 }});
 const manualDesignConfirmed = new Set();
 function syncStartupChoices(){
@@ -617,9 +726,13 @@ function folderButton(kind, id, text = 'Open folder') {
   button.onclick = async event => {
     event.preventDefault();
     event.stopPropagation();
+    const meta = state?.platform, target = id || ({
+      configuration:meta?.configurationId, engine:meta?.loaderId, 'engine-source':meta?.loaderId,
+      shell:meta?.variant || 'izlauncher',
+    })[kind];
     button.dataset.pending = 'true';
     button.disabled = true;
-    try { await api('/api/folder/open', { kind, ...(id ? { id } : {}) }); }
+    try { await api('/api/folder/open', { kind, ...(target ? { id:target } : {}) }); }
     catch (error) { notice(error.message); }
     finally { delete button.dataset.pending; renderLocalActionAvailability(); }
   };
@@ -636,49 +749,78 @@ async function api(route, data, options = {}) {
       method: data === undefined ? 'GET' : 'POST',
       headers: {
         'x-iz-key': key,
-        ...(data === undefined ? {} : { 'content-type': 'application/json' }),
+        ...(data === undefined ? {} : { 'content-type': options.upload ? 'application/octet-stream' : 'application/json' }),
       },
-      ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+      ...(data === undefined ? {} : { body: options.upload ? data : JSON.stringify(data) }),
       ...(controller ? { signal: controller.signal } : {}),
     });
-    const result = await res.json();
-    if (!res.ok) throw Object.assign(Error(result.error || 'The server did not respond'), {statusCode: res.status});
+    if (res.ok && options.responseType === 'blob') return await res.blob();
+    if (res.ok && options.responseType === 'response') return res;
+    const result = await res.json().catch(() => null);
+    if (!res.ok) throw Object.assign(Error(result?.error || 'The request failed (HTTP ' + res.status + ').'), {statusCode: res.status});
+    if (result === null) throw Error('The server returned an invalid response.');
     return result;
   } finally {
     if (deadline !== null) clearTimeout(deadline);
   }
 }
-function notice(message, type = 'error', identity = message) {
-  if (identity === dismissed) return;
-  notificationKey = identity;
-  $('toast').hidden = false;
-  $('toast').classList.toggle('success', type === 'success');
-  $('toast-title').textContent =
-    type === 'success' ? 'All set.' : 'Something needs attention.';
-  const problem=globalThis.IZ2S_ERRORS.describe(message);
-  $('toast-text').textContent = type==='success'?message:problem.title;
-  $('toast-action').hidden=type==='success';$('toast-action').textContent=problem.action;
-  $('toast-details').hidden=type==='success';$('toast-diagnostic').textContent=problem.detail;$('toast-text').setAttribute('translate',type==='error'?'no':'yes');
-  $('toast').querySelector('.toast-symbol').textContent =
-    type === 'success' ? '✓' : '!';
+function saveDownload(blob, filename) {
+  const url = URL.createObjectURL(blob), link = element('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-async function act(route, data = {}) {
+function notice(message, type = 'error', identity = '') {
+  if (identity && identity === dismissed) return;
+  const toast = $('toast'), success = type === 'success', warning = type === 'warning';
+  if (identity && !toast.hidden && (notificationKey === identity || !notificationKey)) return;
+  notificationKey = identity;
+  toast.dataset.tone = success ? 'success' : warning ? 'warning' : 'error';
+  $('toast-summary').setAttribute('role', success || warning ? 'status' : 'alert');
+  const problem = globalThis.IZ2S_ERRORS.describe(message);
+  setText($('toast-title'), success ? message : problem.title);
+  $('toast-action').hidden = success || !problem.action;
+  setText($('toast-action'), problem.action);
+  const details = $('toast-details');
+  details.open = false;
+  details.hidden = success || !problem.detail || problem.detail.trim() === problem.title;
+  setText($('toast-diagnostic'), problem.detail);
+  toast.querySelector('.toast-symbol').textContent = success ? '✓' : '!';
+  toast.hidden = false;
+}
+function setFeedback(id, message, tone = 'info') {
+  const box = $(id);
+  box.dataset.tone = tone;
+  setText(box, message);
+}
+function renderIssueList(id, issues) {
+  const box = $(id);
+  box.hidden = !issues?.length;
+  const raw = $(id + '-raw');
+  setText(raw, (issues || []).map(issue =>
+    (issue.id || issue.path || 'Item') + ': ' + globalThis.IZ2S_ERRORS.canonical(issue.error)).join('\n'));
+  if (box.hidden) box.querySelector('details').open = false;
+}
+async function act(route, data = {}, {onError = error => notice(error.message)} = {}) {
   if (route === '/api/stop') return stopSession();
+  if(state?.coreSd?.selected&&['/api/load','/api/unload','/api/sd/refresh'].includes(route))data={...data,store:'core-sd',selection:state.coreSd.selection};
   if (inputDesign === 'own' && !['/api/stop', '/api/hard-stop', '/api/dismiss'].includes(route)) {
     notice('This is a manual input preview. Changes are not sent to the device.');
     return;
   }
-  if (busy) return;
+  if (busy || serverUnavailable) return;
+  if (!notificationKey) $('toast').hidden = true;
   const generation = ++actionGeneration;
   busy = true;
   pendingStart = route === '/api/start';
   renderControls();
   try {
     const result = await api(route, data);
-    if (generation === actionGeneration) await poll();
+    if (generation === actionGeneration) await poll(true);
     return generation === actionGeneration ? result : undefined;
   } catch (e) {
-    if (generation === actionGeneration) notice(e.message);
+    if (generation === actionGeneration) onError(e);
   } finally {
     if (generation === actionGeneration) {
       busy = false;
@@ -701,9 +843,7 @@ function stopSession() {
       const result = await api('/api/stop', {});
       if(result?.retained)notice(result.error||'Shutdown unconfirmed','error');
       // Completion must not wait on catalog, workspace or an older status read.
-      const previousPoll = polling;
-      if (previousPoll) void previousPoll.then(() => poll());
-      else void poll();
+      void poll(true);
       return result;
     } catch (error) {notice(error.message);}
     finally {stopTask = null; busy = false; renderControls();}
@@ -711,23 +851,41 @@ function stopSession() {
   renderControls();
   return stopTask;
 }
-function switchView(id,{focusApp=false}={}) {
-  if (!['setup', 'apps', 'history'].includes(id)) return;
-  if(id==='apps'&&!focusApp&&libraryContext)leaveLibraryContext();
-  workspace.select('home');
-  const previous = document.querySelector('.view:not([hidden])')?.id;
+async function openCorePcTool(view) {
+  if(view==='apps'){
+    switchView('apps');
+    if(state)renderLibrary();
+    $('library-core-add').focus({preventScroll:true});
+    return;
+  }
+  if(view==='files'&&globalThis.IZ2S_CORE.rpcAvailable(coreView.current())&&!coreView.current()?.pcLink?.files)return openDolphin();
+  try {
+    const target=await api('/api/iz2s-core/pc-tool?'+new URLSearchParams({view,open:'1'}),undefined,{timeoutMs:5000});
+    if(!target.available||!target.tab)throw Error(view==='files'?'IZ2S file manager is unavailable.':'IZ2S PC link is unavailable.');
+    workspace.openRequest(target.tab,true);
+  }catch(error){notice(error.message);}
+}
+const coreText = globalThis.IZ2S_CORE.t;
+const coreView=globalThis.IZ2S_CORE.create({api,changed:()=>{renderPlatform();renderControls();renderDevices();},updated:()=>{if(state){renderDevices();renderConnectionStatus();renderSessionPresentation();renderConsoleApps();renderDolphin();if(homeView==='apps')renderLibrary();updateBlitBunTab();showBlitBunWindowRequest();}},
+ openFiles:()=>openCorePcTool('files'),
+ openApps:()=>openCorePcTool('apps')});
+function switchView(id, {focusApp=false, record=true, focus=true} = {}) {
+  if (!Object.hasOwn(viewTitles, id)) return;
+  const changed = homeView !== id || workspaceView.id !== 'home';
+  if (changed) closeTransientMenus();
+  if (!focusApp && libraryContext && leaveLibraryContext()) applyLibrarySearch();
+  homeView = id;
   if (inputDesign === 'own' && id !== 'setup') {
     inputDesign = 'arm';
     if (state) { renderDevices(); renderControls(); }
   }
-  document.querySelectorAll('.view').forEach((e) => (e.hidden = e.id !== id));
-  document
-    .querySelectorAll('.sidebar [data-view]')
-    .forEach((e) => {const current=e.dataset.view===id;e.classList.toggle('active',current);if(current)e.setAttribute('aria-current','page');else e.removeAttribute('aria-current');});
-  const title = { setup: 'Connection', apps: 'App library', history: 'Attempts' }[id] || 'IZ2S Platform';
-  $('view-title').textContent = title;
-  document.title = title + ' · IZ2S Platform';
-  if (previous !== id) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  for (const view of document.querySelectorAll('#workspace-home > .view')) view.hidden = view.id !== id;
+  workspace.select('home');
+  if (record && changed) storeNavigation('push');
+  if (changed) {
+    window.scrollTo({top:0, left:0, behavior:'instant'});
+    if (focus && !focusApp) $('page-' + id + '-title').focus({preventScroll:true});
+  }
 }
 function chooseStep(value) {
   step = value;
@@ -769,21 +927,24 @@ function renderSessionConnectionMode(){
 }
 function renderControls() {
   syncStartupChoices();
+  if($('library-core-add')){
+    $('library-core-add').hidden=!!state?.preview||!(state?.coreSd?.selected||coreView.selected());
+    $('library-core-add').disabled=busy||serverUnavailable;
+    $('library-core-add').textContent=coreText('addApp');
+  }
   document.querySelectorAll('.segmented button,[data-step]').forEach(button=>button.setAttribute('aria-pressed',String(button.classList.contains('selected'))));
-  if(state?.platform)renderArmSetup(state.platform);
   renderPlatformControls();
   const setup = state?.active?.kind === 'bootstrap' ? state.active.setup : null,
     reboot = setup?.stage === 'reboot',
     active = !!state?.active,
     ready = !!state?.checks.ready,
     ack = $('screen-ready').checked,
-    initial = !active || reboot,
-    retryRequired = false;
+    initial = !active || reboot;
   const engineAllowed = !state?.platform || RUN21_CATALOG.engineAvailable(
     state.platform.loaders.find(loader => loader.id === state.platform.loaderId),
     state.platform.variant,
   );
-  const residentLaunch=initial&&(step==='launch'||reboot)&&state?.platform?.residentGraphics===true&&['izlauncher','izpslauncher'].includes(state?.platform?.variant);
+  const residentLaunch=initial&&(step==='launch'||reboot)&&state?.platform?.residentGraphics===true&&['izlauncher'].includes(state?.platform?.variant);
   const startupIds=state?.platform?.sdLauncher?[]:$('preload-enabled').checked?[...startupSelection]:[];
   const residentBad=residentLaunch?startupIds.map(id=>state.library.find(p=>p.id===id)).filter(p=>!residentEligibility(p)?.compatible):[];
   const residentAudioCount=startupIds.map(id=>(state?.library||[]).find(p=>p.id===id)).filter(p=>residentEligibility(p)?.code==='finite-audio-candidate').length;
@@ -824,16 +985,9 @@ function renderControls() {
         ($('recovery-enabled').checked && state?.recoverySetupAvailable
           ? state?.platform?.delivery?.recoveryBootstrapName || 'NS2R'
           : state?.platform?.delivery?.baseBootstrapName || 'NS2');
-  $('start').hidden = !initial || retryRequired;
-  $('retry').hidden = !retryRequired;
-  $('session-confirmation').hidden = retryRequired;
-  $('retry').textContent = state?.lastAttempt?.kind === 'bootstrap'
-    ? 'Restart First Setup' : 'Return to Launch';
-  $('gate-message').textContent = retryRequired
-    ? state.lastAttempt.kind === 'bootstrap'
-      ? 'Return to setup, then confirm the screen before continuing.'
-      : 'Return to the form, then confirm the screen before loading.'
-    : !engineAllowed
+  $('start').hidden = !initial;
+  $('session-confirmation').hidden = false;
+  $('gate-message').textContent = !engineAllowed
     ? 'Choose IZ2S Core or ns2jb by BermTheSequel, or use Core only.'
     : deliveryDirty()
     ? 'Saving session settings…'
@@ -847,6 +1001,8 @@ function renderControls() {
           ? state.active.status==='running'?'The console session is running.':'Leave the console on the indicated screen.'
           : state?.preview
             ? 'Preview · device commands disabled'
+            : state?.checks?.setupRequired
+              ? state.checks.requirements?.[0] || 'Set up the input device before continuing.'
             : !ready
               ? 'Waiting for '+(state?.checks?.items?.length || 0)+' device checks'
               : !ack
@@ -869,8 +1025,9 @@ function renderControls() {
     .forEach((e) => (e.disabled = active || busy));
   $('recheck').disabled = !!state?.active?.inputActive || busy;
   const destinationError=selection.size?storageControls.selectionError([...selection]):'';
-  $('load').disabled = busy || !state?.connected || !selection.size || !!state?.preview || !!destinationError;
+  $('load').disabled = busy || !(state?.coreSd?.selected?state.coreSd.ready:state?.connected) || !selection.size || !!state?.preview || !!destinationError;
   $('load').title=destinationError;
+  if(state?.coreSd?.selected)$('library-sd-refresh').disabled=busy||serverUnavailable;
   storageControls.updateAll();
   document.querySelectorAll('.module-host-actions button').forEach(button => {
     const source = button.closest('.local-module')?.querySelector('.local-source');
@@ -902,14 +1059,14 @@ function renderControls() {
     );
   $('reverify-source').disabled = hidDisabled;
   $('confirm-saved').disabled = busy || !$('saved-ready').checked;
-  $('retry').disabled = busy;
   $('restart-setup').disabled = busy;
   $('edit-readings').disabled = busy;
+  if(state?.platform)renderMenuLayout();
   renderManualInputDesign();
   advSetup.render({state,step,busy,serverUnavailable,manual:inputDesign==='own',preparation:cardputerRequest||state?.hardwareOperation});
+  if(state?.platform)renderArmSetup(state.platform);
   renderSessionConnectionMode();
   renderServerAvailability();
-  if(state?.platform)renderMenuLayout();
 }
 function renderWizard() {
   if (state?.platform && !state.platform.izModules) {
@@ -1246,17 +1403,43 @@ function renderConsoleConnections(card, preference, locked, supported) {
       mode === preference.activeMode && !!path?.ready && !path?.pending,
     );
   }
-  card.querySelector('.console-paths')?.remove();
 }
 function openDeviceSettings({tab,addresses=false,focus}={}) {
   const panel=$('hardware-options');
   panel.open=true;
   if(tab)advSetup.select(tab);
   if(addresses)$('hardware-addresses').open=true;
-  panel.scrollIntoView({block:'start',behavior:'smooth'});
+  panel.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
   (focus ? panel.querySelector(focus) : tab ? $('adv-tab-'+tab) : panel.querySelector('summary'))?.focus({preventScroll:true});
 }
+function renderSwitchKeyboard(meta) {
+  const panel=$('switch-keyboard-setup');if(!panel)return;
+  panel.hidden=meta.configuration.inputAdapter!=='switch-wifi';if(panel.hidden)return;
+  const dbiCopySupported = meta.host?.platform === 'linux';
+  $('switch-keyboard-install').hidden = !dbiCopySupported;
+  $('switch-keyboard-download').classList.toggle('primary', !dbiCopySupported);
+  setText($('switch-keyboard-install-instructions'), dbiCopySupported
+    ? 'Connect Switch 1 to this PC and start DBI MTP Responder.'
+    : 'Download the SD package and extract the ZIP to the root of the Switch 1 SD card.');
+  setText($('switch-keyboard-wifi-instructions'), dbiCopySupported
+    ? 'Exit DBI. Hold R while launching a game, then open IZ2S SB4 Keyboard in the homebrew menu. Keep Switch 1 and this PC on the same Wi-Fi network.'
+    : 'Hold R while launching a game, then open IZ2S SB4 Keyboard in the homebrew menu. Keep Switch 1 and this PC on the same Wi-Fi network.');
+  const profile=meta.profiles?.[meta.configurationId]||{};
+  const field=$('switch-keyboard-address');
+  if(document.activeElement!==field&&!field.dataset.edited)field.value=profile.switchAddress||'';
+  const locked=busy||serverUnavailable||!!meta.locked||!!state.preview;
+  panel.querySelectorAll('input,button').forEach(item=>item.disabled=locked);
+  const input=state.checks?.items?.find(row=>row.id==='arm'),usb=state.checks?.items?.find(row=>row.id==='usb');
+  const ready = !serverUnavailable && input?.ready && usb?.ready;
+  const message = serverUnavailable ? 'Device status is unavailable.'
+    : ready ? 'Switch 1 is ready for SB4 input.'
+    : advSetup.switchConfirmed && usb?.usb?.localHost !== 'this-pc'
+      ? 'Connection confirmed. Waiting for the USB host before typing.'
+    : usb?.detail || 'Waiting for USB connection.';
+  setFeedback('switch-keyboard-status', message, ready ? 'success' : 'info');
+}
 function renderArmSetup(meta) {
+  renderSwitchKeyboard(meta);
   const panel = $('arm-setup');
   panel.hidden = meta.configuration.inputAdapter !== 'ssh-gadget';
   if (panel.hidden) return;
@@ -1285,14 +1468,10 @@ function renderDeviceDetail(container, row) {
     help.setAttribute('aria-label', 'Connection details');
     help.setAttribute('aria-expanded', 'false');
     help.append(tooltip);
-    help.onclick = (event) => {
-      event.stopPropagation();
+    help.onclick = () => {
       const open = help.getAttribute('aria-expanded') !== 'true';
       document.querySelectorAll('.detail-help[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
       help.setAttribute('aria-expanded', String(open));
-    };
-    help.onkeydown = (event) => {
-      if (event.key === 'Escape') { help.setAttribute('aria-expanded', 'false'); help.blur(); }
     };
     container.replaceChildren(text, help);
   }
@@ -1300,72 +1479,64 @@ function renderDeviceDetail(container, row) {
   const first = detail.split(/\.(?:\s|$)|\n/)[0];
   const connectionLost=row.id==='lan'&&globalThis.IZ2S_PRESENTATION.session(state).offline;
   const civPending=row.id==='lan'&&row.pending&&['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)&&!state.connected;
-  setText(container.querySelector('.detail-text'), connectionLost?'Connection lost. Restore the connection to manage applications.':civPending?(state.platform.loaderId==='civswitch-ldn'?'Waiting for the game loader after LDN delivery.':'Wireless lobby may pause LAN. The loader is checked after input.'):row.id === 'lan' && state?.connected ? 'Console connected' : row.id === 'lan' && row.pending ? (state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected' ? 'Console connected · preparing launcher' : state?.active ? 'Waiting for a Switch session.' : 'Start the launcher below to connect Switch.') : extended
+  setText(container.querySelector('.detail-text'), row.coreLabel ? detail : connectionLost?'Connection lost. Restore the connection to manage applications.':civPending?(state.platform.loaderId==='civswitch-ldn'?'Waiting for the game loader after LDN delivery.':'Wireless lobby may pause LAN. The loader is checked after input.'):row.id === 'lan' && state?.connected ? 'Console connected' : row.id === 'lan' && row.pending ? (state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected' ? 'Console connected · preparing launcher' : state?.active ? 'Waiting for a Switch session.' : state?.checks?.ready === false ? 'Console network ready.' : 'Start the launcher below to connect Switch.') : extended
     ? (first.length <= 55 ? first.replace(/[.;]$/, '') + '.' : row.pending ? 'Waiting for connection.' : row.ready ? 'Ready.' : 'Setup required.')
     : detail);
   container.querySelector('.detail-help').hidden = !extended;
   setText(container.querySelector('.detail-tooltip'), detail);
 }
-document.addEventListener('click', (event) => {
-  if (!event.target.closest('.detail-help')) document.querySelectorAll('.detail-help[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
-  document.querySelectorAll('.device-picker[open]').forEach(picker => {
-    if (!picker.contains(event.target)) picker.open = false;
-  });
-  const files = $('connection-files');
-  if (files.open && !files.contains(event.target)) files.open = false;
+document.addEventListener('click', event => {
+  closeTransientMenus(event.target);
+  if (!event.target.closest('.detail-help'))
+    document.querySelectorAll('.detail-help[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
 });
-$('connection-files').addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    $('connection-files').open = false;
-    $('connection-files').querySelector('summary').focus();
-  }
+const transientMenus = 'details:is(.device-picker,.address-editor,#connection-files,.app-more,.storage-more)[open]';
+function closeTransientMenus(except) {
+  for (const menu of document.querySelectorAll(transientMenus))
+    if (!except || !menu.contains(except)) menu.open = false;
+}
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+  const menus = [...document.querySelectorAll(transientMenus)].filter(menu => menu.getClientRects().length);
+  const help = document.querySelector('.detail-help[aria-expanded="true"]:not([hidden])');
+  if (!menus.length && !help) return;
+  const menu = menus.find(item => item.contains(event.target)) || menus.at(-1);
+  closeTransientMenus();
+  if (help) help.setAttribute('aria-expanded', 'false');
+  (menu?.querySelector(':scope > summary') || help)?.focus({preventScroll:true});
+  event.preventDefault();
 });
 function renderDevicePicker(card, row) {
   if (!['server', 'arm'].includes(row.id)) return;
   if(row.id==='server'){
-    card.querySelector('.device-picker')?.remove();
-    card.querySelector('h3').hidden=false;
     setText(card.querySelector('h3'),state.platform.host?.architecture==='arm64'?'Server ARM64PC':'Server x64 PC');
     return;
   }
   const meta = state.platform,
-    architecture = meta.host?.architecture,
-    serverName = architecture === 'arm64' ? 'Server ARM64PC' : architecture === 'x64' ? 'Server x64 PC' : 'Server',
     inputName = inputDesign === 'own' ? 'Your input device' : meta.configuration.inputAdapter === 'ssh-gadget' ? 'ARM PC' : meta.configuration.hardware?.input?.name || 'ARM PC',
-    choices = row.id === 'server'
-      ? [
-          { id: 'x64', name: 'Server x64 PC', note: architecture === 'x64' ? 'Current server' : 'Start IZ2S on an x64 PC', available: architecture === 'x64' },
-          { id: 'arm64', name: 'Server ARM64PC', note: architecture === 'arm64' ? 'Current server' : 'Start IZ2S on an ARM64 PC', available: architecture === 'arm64' },
-        ]
-      : [
-          { id: 'arm', name: 'ARM PC', note: 'USB keyboard input', available: !state.active && !busy },
-          { id: 'cardputer', name: 'Cardputer ADV', note: 'Wi-Fi → USB keyboard', available: !state.active && !busy },
-          ...(state.preview ? [{ id: 'own', name: 'Manual input · preview', note: 'Interface demonstration only', available: !state.active && !busy }] : []),
-        ];
+    canChange = !state.active && !busy && !serverUnavailable && !meta.locked,
+    choices = [
+      {id:'switch1', name:'Switch 1', note:'Wi-Fi → USB keyboard · SB4', available:canChange&&!['civswitch','civswitch-ldn'].includes(meta.loaderId)},
+      {id:'arm', name:'ARM PC', note:'USB keyboard input', available:canChange},
+      {id:'cardputer', name:'Cardputer ADV', note:'Wi-Fi → USB keyboard', available:canChange},
+      ...(state.preview && meta.izModules ? [{id:'own', name:'Manual input · preview', note:'Interface demonstration only', available:canChange}] : []),
+    ];
   let picker = card.querySelector('.device-picker');
   if (!picker) {
     picker = element('details', 'device-picker');
     const summary = element('summary');
-    summary.setAttribute('aria-label', row.id === 'server' ? 'Server device' : 'Choose an input device');
+    summary.setAttribute('aria-label', 'Choose an input device');
     const label = element('span', 'device-picker-label'), chevron = element('span', 'device-picker-chevron', '⌄');
     chevron.setAttribute('aria-hidden', 'true');
     summary.append(label, chevron);
-    const options = element('div', 'device-picker-options');
+    const options = element('div', 'device-picker-options menu-surface');
     options.setAttribute('role', 'group');
-    options.setAttribute('aria-label', row.id === 'server' ? 'Server devices' : 'Input devices');
+    options.setAttribute('aria-label', 'Input devices');
     picker.append(summary, options);
-    picker.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { picker.open = false; summary.focus(); }
-    });
-    picker.addEventListener('toggle', () => {
-      if (picker.open) document.querySelectorAll('.device-picker[open]').forEach(other => {
-        if (other !== picker) other.open = false;
-      });
-    });
     card.querySelector('h3').after(picker);
   }
   card.querySelector('h3').hidden = true;
-  setText(picker.querySelector('.device-picker-label'), row.id === 'server' ? serverName : inputName);
+  setText(picker.querySelector('.device-picker-label'), inputName);
   const stamp = JSON.stringify([choices, inputDesign, meta.configurationId]);
   if (picker.dataset.choices === stamp) return;
   picker.dataset.choices = stamp;
@@ -1376,28 +1547,26 @@ function renderDevicePicker(card, row) {
     button.type = 'button';
     button.disabled = !choice.available;
     button.setAttribute('aria-label', choice.name + ' · ' + choice.note);
-    const selected = row.id === 'server' ? choice.available : choice.id === (inputDesign === 'own' ? 'own' : meta.configurationId === 'pc-cardputer-adv' ? 'cardputer' : 'arm');
+    const selected = choice.id === (inputDesign === 'own' ? 'own' : meta.configurationId === 'pc-cardputer-adv' ? 'cardputer' : meta.configurationId === 'pc-switch1' ? 'switch1' : 'arm');
     button.setAttribute('aria-pressed', String(selected));
     const text = element('span');
     text.append(element('strong', '', choice.name), element('small', '', choice.note));
     button.append(text, element('span', 'device-picker-mark', selected ? '✓' : ''));
     button.onclick = async () => {
-      if (row.id === 'arm') {
-        if (choice.id !== 'own') {
-          inputDesign = 'arm';
-          const configurationId = choice.id === 'cardputer' ? 'pc-cardputer-adv'
-            : meta.configuration.inputAdapter === 'ssh-gadget' ? meta.configurationId : 'pc-arm';
-          if (configurationId !== meta.configurationId) await act('/api/launch-settings', {configurationId});
-        } else inputDesign = choice.id;
-        manualDesignStage = 1;
-        manualDesignConfirmed.clear();
-        $('manual-fs-preview').checked = state.platform.loaderSettings?.fsRpcMode === true;
-        renderDevices();
-        renderControls();
-      }
       picker.open = false;
       picker.querySelector('summary').focus();
-      if(row.id==='arm'&&choice.id!=='own')openDeviceSettings({tab:choice.id==='cardputer'?1:undefined});
+      if (choice.id !== 'own') {
+        inputDesign = 'arm';
+        const configurationId = choice.id === 'switch1' ? 'pc-switch1' : choice.id === 'cardputer' ? 'pc-cardputer-adv'
+          : meta.configuration.inputAdapter === 'ssh-gadget' ? meta.configurationId : 'pc-arm';
+        if (configurationId !== meta.configurationId && !(await act('/api/launch-settings', {configurationId}))?.ok) return;
+      } else inputDesign = choice.id;
+      manualDesignStage = 1;
+      manualDesignConfirmed.clear();
+      $('manual-fs-preview').checked = state.platform.loaderSettings?.fsRpcMode === true;
+      renderDevices();
+      renderControls();
+      if (choice.id !== 'own') openDeviceSettings({tab:choice.id==='cardputer'?1:undefined});
     };
     options.append(button);
   }
@@ -1429,7 +1598,6 @@ function renderManualInputDesign() {
     const row = state.checks.items.find(item => item.id === 'arm');
     if (row) renderDevicePicker(arm, row);
   }
-  document.querySelector('.network-caption').hidden = shown;
   $('hardware-options').hidden = shown || meta.loaderId==='civswitch-ldn';
   if (!shown) return;
   $('arm-setup').hidden = true;
@@ -1508,13 +1676,13 @@ function renderDeviceConnections(){
 // Change the topology only at the handoff from input hardware to networking.
 // Repeated status polls keep the same DOM and never replay this transition.
 function renderDeviceTopology(){
- const devices=$('devices'),direct=globalThis.IZ2S_PRESENTATION.directNetwork(state),mode=direct?'direct':'input';
+ const devices=$('devices'),direct=!!coreView.current()?.session||globalThis.IZ2S_PRESENTATION.directNetwork(state),mode=direct?'direct':'input';
  const changed=devices.dataset.topology!==mode,previous=devices.dataset.topology;
  const animate=changed&&previous&&devices.getBoundingClientRect().height>0&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const before=animate?devices.getBoundingClientRect():null,positions=new Map();
  if(animate)for(const card of devices.children)if(!card.hidden)positions.set(card.id,card.getBoundingClientRect());
  if(changed){devices.getAnimations().forEach(animation=>animation.cancel());for(const card of devices.children)card.getAnimations().forEach(animation=>animation.cancel());}
- devices.classList.toggle('direct-network',direct);devices.classList.toggle('network-interrupted',direct&&globalThis.IZ2S_PRESENTATION.session(state).offline);
+ devices.classList.toggle('direct-network',direct);
  for(const id of ['arm','usb']){const card=$('device-'+id);if(!card)continue;const hidden=direct||id==='usb'&&inputDesign==='own';if(hidden&&card.contains(document.activeElement))$('recheck').focus({preventScroll:true});card.hidden=hidden;}
  devices.style.setProperty('--device-count',[...devices.children].filter(card=>!card.hidden).length);
  devices.dataset.topology=mode;
@@ -1528,7 +1696,10 @@ function renderDeviceTopology(){
  renderDeviceConnections();
 }
 function renderDevices() {
-  const rows=state.platform?.loaderId==='civswitch-ldn'?state.checks.items.filter(row=>['server','lan','ldn'].includes(row.id)):state.checks.items;
+  const core = coreView.current();
+  const rows = (state.platform?.loaderId === 'civswitch-ldn'
+    ? state.checks.items.filter(row => ['server', 'lan', 'ldn'].includes(row.id))
+    : state.checks.items).map(row => globalThis.IZ2S_CORE.deviceRow(row, core));
   retainDeviceControls(rows);
   const config = state.connections;
   $('devices').classList.toggle('ldn-devices',state.platform?.loaderId==='civswitch-ldn');
@@ -1564,21 +1735,21 @@ function renderDevices() {
         );
         for (const mode of ['lan', 'wifi']) {
           const button = element(
-            row.id === 'lan' ? 'label' : 'button',
+            ['lan', 'server'].includes(row.id) ? 'label' : 'button',
             'transport-option',
           );
           button.dataset.transport = mode;
           button.title = networkName(mode);
-          if (row.id === 'lan') {
+          if (['lan', 'server'].includes(row.id)) {
             const input = element('input');
             input.type = 'checkbox';
             input.setAttribute(
               'aria-label',
-              'Enable console ' + networkName(mode),
+              row.id === 'lan' ? 'Enable console ' + networkName(mode) : 'PC · ' + networkName(mode),
             );
             input.addEventListener('change', () => {
-              const current = state.connections.devices.lan.modes || [
-                  state.connections.devices.lan.mode,
+              const current = state.connections.devices[row.id].modes || [
+                  state.connections.devices[row.id].mode,
                 ],
                 modes = input.checked
                   ? [...new Set([...current, mode])]
@@ -1648,7 +1819,8 @@ function renderDevices() {
           event.preventDefault();
           const pref = state.connections?.devices[row.id];
           if (!pref) return;
-          await changeConnection(row.id, pref.mode, input.value.trim());
+          const mode = input.selectedOptions?.[0]?.dataset.mode || pref.mode;
+          await changeConnection(row.id, mode, input.value.trim());
         });
         const suggestions = element('div', 'detected-peers');
         editor.append(summary, suggestions, form);
@@ -1666,28 +1838,34 @@ function renderDevices() {
     setText(card.querySelector('h3'), row.label || deviceInfo[0]);
     renderDevicePicker(card, row);
     const connectionLost=row.id==='lan'&&globalThis.IZ2S_PRESENTATION.session(state).offline;
+    const setupPending = !row.ready && row.status === 'setup';
+    const waiting = !row.ready && (row.pending || row.status === 'waiting' || !state.checks.at && !state.preview);
+    const pending = (setupPending || waiting || row.pending) && !connectionLost && !(row.id === 'lan' && state.connected);
     card.classList.toggle('connection-lost',connectionLost);
     card.classList.toggle('ready', row.ready&&!connectionLost);
-    card.classList.toggle('pending', !!row.pending && !connectionLost && !(row.id === 'lan' && state?.connected));
-    setText(card.querySelector('.state'), connectionLost?'CONNECTION LOST':row.id === 'lan' && state?.connected ? '✓ READY' : row.ready
+    card.classList.toggle('pending', !!pending);
+    setText(card.querySelector('.state'), row.coreLabel|| (connectionLost?'CONNECTION LOST':row.id === 'lan' && state?.connected ? '✓ READY' : row.ready
       ? row.pending
-        ? (row.id === 'lan' && state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected' ? 'INITIALIZING' : row.id === 'lan' && !state?.active ? 'START SESSION' : 'WAITING')
+        ? (row.id === 'lan' && state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected' ? 'INITIALIZING' : row.id === 'lan' && !state?.active ? (state.checks.ready ? 'START SESSION' : 'NETWORK READY') : 'WAITING')
         : '✓ READY'
+      : setupPending
+        ? 'SETUP NEEDED'
       : state.preview
         ? 'PREVIEW'
-        : '○ WAITING');
-    if(row.id==='usb'&&state.platform?.configuration?.inputAdapter==='cardputer-wifi'){
+        : waiting ? '○ WAITING' : 'CHECK FAILED'));
+    if(row.id==='usb'){
+      const confirmable = ['cardputer-wifi','switch-wifi'].includes(state.platform?.configuration?.inputAdapter);
       const connection=card.querySelector('.fixed-transport');
-      connection.classList.add('usb-connection-actions');
-      if($('adv-usb-next').parentElement!==connection)connection.append($('adv-usb-next'));
+      connection.classList.toggle('usb-connection-actions',confirmable);
+      if(confirmable&&$('adv-usb-next').parentElement!==connection)connection.append($('adv-usb-next'));
     }
-    const detailRow = row.id === 'usb' && state.platform?.configuration?.inputAdapter === 'cardputer-wifi'
-      ? {...row, detail: globalThis.IZ2S_ADV_SETUP.usbDescription(state, state.checks.items.find(item => item.id === 'arm'), row)}
+    const detailRow = row.coreLabel ? row : row.id === 'usb' && state.platform?.configuration?.inputAdapter === 'cardputer-wifi'
+      ? {...row, detail: globalThis.IZ2S_ADV_SETUP.usbDescription(state.checks.items.find(item => item.id === 'arm'), row)}
       : row;
     renderDeviceDetail(card.querySelector('.device-detail'), detailRow);
     let settingsButton=card.querySelector('.device-setup-button');
     const adv=state.platform?.configuration?.inputAdapter==='cardputer-wifi';
-    const configurable=row.id==='arm'&&inputDesign!=='own'||row.id==='usb'&&adv;
+    const configurable=row.id==='arm'&&inputDesign!=='own'||row.id==='usb'&&(adv||state.platform.configuration.inputAdapter==='switch-wifi');
     if(configurable&&!settingsButton){
       settingsButton=element('button','device-setup-button quiet');settingsButton.type='button';
       settingsButton.onclick=()=>openDeviceSettings({tab:state.platform.configuration.inputAdapter==='cardputer-wifi'?(row.id==='usb'?3:1):undefined});
@@ -1717,8 +1895,9 @@ function renderDevices() {
       const editor=card.querySelector('.address-editor');if(editor)editor.hidden=true;continue;
     }
     if (preference) {
-      const locked = busy || !!config.locked || !!state.preview;
-      const cardputer = row.id === 'arm' && state.platform.configuration.inputAdapter === 'cardputer-wifi';
+      const locked = busy || !!config.locked || !!state.preview || !!core?.owned;
+      const switchKeyboard=state.platform.configuration.inputAdapter==='switch-wifi';
+      const cardputer = row.id === 'arm' && ['cardputer-wifi','switch-wifi'].includes(state.platform.configuration.inputAdapter);
       const addressEditor = card.querySelector('.address-editor');
       addressEditor.hidden = cardputer;
       let cardputerAddress = card.querySelector('.cardputer-address');
@@ -1726,7 +1905,7 @@ function renderDevices() {
         cardputerAddress = element('button', 'cardputer-address quiet');
         cardputerAddress.type = 'button';
         cardputerAddress.onclick = () => {
-          openDeviceSettings({addresses:true,focus:'[name="cardputerEndpoint"]'});
+          openDeviceSettings(state.platform.configuration.inputAdapter==='switch-wifi'?{focus:'#switch-keyboard-address'}:{addresses:true,focus:'[name="cardputerEndpoint"]'});
         };
         card.append(cardputerAddress);
       }
@@ -1738,7 +1917,10 @@ function renderDevices() {
         wifi.setAttribute('aria-pressed', 'true');
         wifi.disabled = true;
         const settings = state.platform.profiles?.[state.platform.configurationId] || {};
-        setText(cardputerAddress, (settings.cardputerEndpoint || 'http://iz2s-adv.local') + ' · Edit');
+        const detected=state.platform.configuration.inputDiscovery?.address;
+        const configuredAddress=switchKeyboard?(settings.switchAddress||'Switch 1 Wi-Fi'):(settings.cardputerEndpoint || 'http://iz2s-adv.local');
+        const displayed=detected&&!configuredAddress.includes(detected)?configuredAddress+' → '+detected:configuredAddress;
+        setText(cardputerAddress, displayed + ' · Edit');
         cardputerAddress.disabled = locked;
         continue;
       }
@@ -1762,10 +1944,18 @@ function renderDevices() {
         continue;
       }
       card.querySelectorAll('[data-transport]').forEach((button) => {
-        const selected = button.dataset.transport === preference.mode;
+        const enabled = preference.modes || [preference.mode];
+        const selected = enabled.includes(button.dataset.transport);
         button.classList.toggle('selected', selected);
-        button.setAttribute('aria-pressed', String(selected));
-        button.disabled = locked;
+        const input = button.querySelector('input');
+        if (input) {
+          input.checked = selected;
+          input.dataset.unavailable = String(selected && enabled.length === 1);
+          input.disabled = locked || input.dataset.unavailable === 'true';
+        } else {
+          button.setAttribute('aria-pressed', String(selected));
+          button.disabled = locked;
+        }
       });
       const icon =
         row.id === 'lan'
@@ -1776,7 +1966,10 @@ function renderDevices() {
       card.querySelector('use').setAttribute('href', '#' + icon);
       const editor = card.querySelector('.address-editor'),
         input = $('address-' + row.id);
-      setText(editor.querySelector('summary'), preference.address
+      const dualServer = row.id === 'server' && preference.modes?.length === 2;
+      setText(editor.querySelector('summary'), dualServer
+        ? preference.paths.map(({mode, address}) => networkName(mode) + (address ? ' · ' + address : '')).join(' / ')
+        : preference.address
         ? (preference.automatic ? 'Auto · ' : '') +
           preference.address +
           ' · Edit'
@@ -1784,7 +1977,7 @@ function renderDevices() {
       if (document.activeElement !== input) {
         if (row.id === 'server') {
           const options = preference.options.filter(
-              (o) => o.mode === preference.mode,
+              (o) => (preference.modes || [preference.mode]).includes(o.mode),
             ),
             stamp = JSON.stringify([
               options,
@@ -1817,6 +2010,7 @@ function renderDevices() {
                 item.address + ' · ' + item.name,
               );
               option.value = item.address;
+              option.dataset.mode = item.mode;
               input.append(option);
             }
             input.value = preference.automatic ? '' : preference.address;
@@ -1894,12 +2088,13 @@ function renderDevices() {
     for(const node of [...card.children])if(node!==heading&&node!==connection&&node!==controls)controls.append(node);
     const editor=card.querySelector('.address-editor');
     if(editor&&!editor.querySelector('.address-popover')){
-      const content=element('div','address-popover');
+      const content=element('div','address-popover menu-surface');
       for(const node of [...editor.children])if(node.tagName!=='SUMMARY')content.append(node);
       editor.append(content);
     }
 
   }
+  advSetup.renderUsbTile(state);
   const consoleState = state.consoleState,
     known = state.connected && consoleState && !consoleState.stale;
   const modeLine = $('console-mode-state');
@@ -1930,26 +2125,7 @@ function renderDevices() {
       (consoleState.warning ? ' · Ethernet is not connected.' : '');
     modeLine.classList.toggle('warning', !!consoleState.warning);
   }
-  const modes = config?.devices;
-  $('network-summary').textContent = modes
-    ? ['server', 'arm', 'lan'].filter(id=>state.checks.items.some(row=>row.id===id))
-        .map(
-          (id) =>
-            (state.checks.items.find(row=>row.id===id)?.label||words[id][0]) +
-            ' ' +
-            (id === 'arm' && state.platform.configuration.inputAdapter === 'cardputer-wifi' ? ['wifi'] : modes[id].modes || [modes[id].mode]).map(networkName).join(' + '),
-        )
-        .join('  ·  ')
-    : 'Restart Platform to enable connection choices.';
-  $('network-help').textContent = state.platform.loaderId==='civswitch-ldn'
-    ? 'CIV7 LAN uses the PC Wi-Fi radio for LDN. ADV and USB input are not required. Ethernet stays connected.'
-    : config?.locked
-    ? 'Connections are locked for this session. Stop it before changing networks.'
-    : state.platform.configuration.inputAdapter === 'cardputer-wifi'
-      ? 'Cardputer receives commands over Wi-Fi and types on Switch over USB. Use the IP shown on its screen.'
-    : config?.discovery?.ambiguous
-      ? 'Several ARM services found. Choose the required device, or enter its IP.'
-      : 'Automatic discovery uses your local network. Manual addresses take priority.';
+
 }
 
 function residentEligibility(pkg) {
@@ -1957,12 +2133,12 @@ function residentEligibility(pkg) {
 }
 function selectedShellName() {
   const id=['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?state.civLauncher?.shell||'izlauncher':state?.platform?.variant;
-  return id==='original'?'Core only':state?.platform?.shells?.find(shell=>shell.id===id)?.name||(id==='izpslauncher'?'IZPSlauncher':'IZlauncher');
+  return id==='original'?'Core only':state?.platform?.shells?.find(shell=>shell.id===id)?.name||(id==='izpslauncher'?'IZPSlauncher':'IZ2S');
 }
 
 function renderStartupModules() {
   syncStartupChoices();
-  const resident=state.platform?.residentGraphics===true&&['izlauncher','izpslauncher'].includes(state.platform?.variant);
+  const resident=state.platform?.residentGraphics===true&&['izlauncher'].includes(state.platform?.variant);
   const stamp = JSON.stringify(
     [resident,state.moduleErrors,state.platform?.sdLauncher,state.platform?.residentFiniteAudio,state.library.map((p) => [p.id, p.name, p.version, p.icon, p.supported,p.resident,p.residentAudio,p.session])],
   );
@@ -2019,57 +2195,243 @@ $('preload-clear').addEventListener('click', () => {
   renderControls();
 });
 let libraryContext=null;
+let shownBlitBunWindowRequest;
+let blitBunTab;
+
+function mediaPhaseLabel(source) {
+  return {
+    choosing:'Choose a tab in the browser sharing dialog.',
+    starting:'Starting video…',
+    retrying:'Video interrupted. Retrying automatically.',
+    failed:'Video stopped. Start it again on this PC.',
+    running:source?.audio==='muted'?'Video playing without audio.':'Video source running.',
+  }[source?.phase] || '';
+}
+
+function updateBlitBunTab() {
+  const tab=blitBunTab;
+  if (!tab?.panel.isConnected) return;
+  const browser=tab.capture?.status();
+  const source=browser || coreView.current()?.pcLink?.media?.blitbun;
+  const active=['choosing','starting','running','retrying'].includes(source?.phase);
+  const unavailable=serverUnavailable || !!state?.preview;
+  const status=mediaPhaseLabel(source) || 'Waiting for window selection.';
+  tab.status.dataset.state=source?.phase || 'idle';
+  setText(tab.status,status+(source?.error?' '+source.error:''));
+  const link=coreView.current()?.pcLink;
+  const width=link?.blitbunProfile?.width;
+  const confirmed=link?.blitbunVideo;
+  tab.received.hidden=!confirmed;
+  const receivedLabel=confirmed?confirmed.width+' × '+confirmed.height:'';
+  if(tab.receivedSize.textContent!==receivedLabel)tab.receivedSize.textContent=receivedLabel;
+  tab.receivedFps.hidden=!link?.blitbunFps;
+  if(link?.blitbunFps)setText(tab.receivedFps,' · '+link.blitbunFps+' FPS');
+  if(width&&!tab.resolutionPending)tab.resolution.value=String(width);
+  tab.resolution.disabled=tab.resolutionPending || unavailable;
+  tab.choice.disabled=tab.pending || unavailable || tab.choice.options.length < 2;
+  tab.refresh.disabled=tab.pending || unavailable;
+  tab.start.disabled=tab.pending || unavailable || active || !tab.choice.value;
+  tab.shareTab.disabled=tab.pending || unavailable || active || !tab.capture?.available();
+  tab.stop.disabled=tab.pending || (!browser && (unavailable || !active && source?.phase!=='failed'));
+}
+
+function createBlitBunTab() {
+  const panel=element('div','blitbun-tab'),
+    heading=element('header','blitbun-heading'),
+    title=element('h1','','BlitBun'),
+    status=element('p','workspace-status'),
+    body=element('section','blitbun-settings'),
+    label=element('label','blitbun-window'),
+    choice=element('select'),
+    profileLabel=element('label','blitbun-window'),
+    resolution=element('select'),
+    received=element('p','hint blitbun-feedback'),
+    receivedSize=element('span'),
+    receivedFps=element('span'),
+    message=element('p','hint blitbun-feedback'),
+    preview=element('div','blitbun-preview'),
+    buttons=element('div','blitbun-actions'),
+    refresh=element('button','secondary','Refresh'),
+    start=element('button','secondary','Share selected window'),
+    shareTab=element('button','primary','Share a browser tab'),
+    stop=element('button','secondary','Stop PC source');
+  title.setAttribute('translate','no');
+  title.tabIndex=-1;
+  status.setAttribute('role','status');
+  message.setAttribute('role','status');
+  heading.append(title,element('p','hint','Share a window or game with your console.'),status);
+  label.append(element('span','','Window to share'),choice);
+  profileLabel.append(element('span','','Stream resolution'),resolution);
+  for(const [width,height] of [[640,360],[832,468],[960,540],[1280,720],[1600,900],[1920,1080]]) {
+    const option=element('option','',width+' × '+height);
+    option.value=String(width);
+    resolution.append(option);
+  }
+  resolution.value='960';
+  const placeholder=element('option','','Choose PC window');
+  placeholder.value='';
+  choice.append(placeholder);
+  choice.onchange=updateBlitBunTab;
+  refresh.type=start.type=shareTab.type=stop.type='button';
+  buttons.append(refresh,start,shareTab,stop);
+  const browserHint=element('p','hint blitbun-feedback',
+    'Open the page you want to share in another tab of this browser, then choose it in the sharing dialog.');
+  browserHint.id='blitbun-browser-hint';
+  shareTab.setAttribute('aria-describedby',browserHint.id);
+  preview.hidden=true;
+  received.hidden=true;
+  received.append(element('span','','Switch received'),': ',receivedSize,receivedFps);
+  body.append(label,profileLabel,received,buttons,browserHint,message,preview);
+  panel.append(heading,body);
+  const tab=blitBunTab={panel,title,status,choice,resolution,received,receivedSize,receivedFps,refresh,start,shareTab,stop,pending:false};
+  tab.capture=globalThis.IZ2S_BROWSER_CAPTURE?.({key,api,preview,changed:updateBlitBunTab,
+    feedback:text=>setText(message,text)});
+  shareTab.onclick=()=>{
+    setText(message,'');
+    void tab.capture.start();
+  };
+  async function run(action) {
+    if(tab.pending) return;
+    tab.pending=true;
+    setText(message,'');
+    updateBlitBunTab();
+    try { await action(); }
+    catch(error) { setText(message,error.message); }
+    finally { tab.pending=false;updateBlitBunTab(); }
+  }
+  resolution.onchange=async()=>{
+    const width=Number(resolution.value);
+    tab.resolutionPending=true;
+    updateBlitBunTab();
+    try {
+      await api('/api/iz2s-core/media/blitbun-profile',{width});
+      await coreView.refresh(true);
+    } catch(error) {setText(message,error.message);}
+    finally {tab.resolutionPending=false;updateBlitBunTab();}
+  };
+  refresh.onclick=()=>run(async()=>{
+    const selected=choice.value;
+    const {windows}=await api('/api/iz2s-core/media/windows',{});
+    choice.replaceChildren(placeholder);
+    for (const window of windows) {
+      const option=element('option','',window.title);
+      option.setAttribute('translate','no');
+      option.value=window.id;
+      choice.append(option);
+    }
+    choice.value=[...choice.options].some(option=>option.value===selected)?selected:'';
+    if (!windows.length) setText(message,'Open a visible PC window first.');
+  });
+  start.onclick=()=>run(async()=>{
+    await api('/api/iz2s-core/media/start',{id:'blitbun',window:Number(choice.value)});
+    await coreView.refresh(true);
+  });
+  stop.onclick=()=>run(async()=>{
+    if(tab.capture?.status())return tab.capture.stop();
+    await api('/api/iz2s-core/media/stop',{id:'blitbun'});
+    await coreView.refresh(true);
+  });
+  return panel;
+}
+
+function openBlitBunTab() {
+  closeTransientMenus();
+  workspace.openLocal('blitbun-settings','BlitBun',createBlitBunTab,()=>{void blitBunTab?.capture?.stop();});
+  updateBlitBunTab();
+  blitBunTab.title.focus({preventScroll:true});
+  blitBunTab.refresh.click();
+}
+
+function showBlitBunWindowRequest() {
+  const request=coreView.current()?.pcLink?.media?.blitbun?.windowRequest;
+  if (!request || request===shownBlitBunWindowRequest || !state || state.preview ||
+      serverUnavailable || document.hidden ||
+      !state.library?.some(app=>app.id==='blitbun')) return;
+  shownBlitBunWindowRequest=request;
+  openBlitBunTab();
+}
+document.addEventListener('visibilitychange',showBlitBunWindowRequest);
 function leaveLibraryContext(){
   if(!libraryContext)return;const previous=libraryContext;libraryContext=null;
-  $('library-context').hidden=true;$('library-search').value=previous.query;$('library-status').value=previous.status;$('library-location').value=previous.location;
+  $('library-context').hidden=true;$('library-search').value=previous.query;$('library-status').value=previous.status;$('library-location').value=previous.location;$('library-format').value=previous.format;
   return previous;
 }
 function openConsoleApplication(app){
-  libraryContext={id:app.id,name:app.name,query:$('library-search').value,status:$('library-status').value,location:$('library-location').value,scroll:window.scrollY};
-  switchView('apps',{focusApp:true});$('library-search').value='';$('library-status').value='all';$('library-location').value='all';
+  libraryContext={id:app.id,name:app.name,query:$('library-search').value,status:$('library-status').value,location:$('library-location').value,format:$('library-format').value,scroll:window.scrollY};
+  switchView('apps',{focusApp:true});$('library-search').value='';$('library-status').value='all';$('library-location').value='all';$('library-format').value='all';
   $('library-context').hidden=false;$('library-context-name').textContent=app.name;renderLibrary();$('library-back').focus({preventScroll:true});
 }
-$('library-back').onclick=()=>{const previous=leaveLibraryContext();switchView('setup');if(previous){window.scrollTo({top:previous.scroll,left:0,behavior:'auto'});document.querySelector('#console-apps [data-app-id="'+CSS.escape(previous.id)+'"]')?.focus({preventScroll:true});}};
+$('library-back').onclick=()=>{
+  const previous=libraryContext;
+  switchView('setup');
+  if(previous){
+    window.scrollTo({top:previous.scroll,left:0,behavior:'instant'});
+    document.querySelector('#console-apps [data-app-id="'+CSS.escape(previous.id)+'"]')?.focus({preventScroll:true});
+  }
+};
 $('library-context-all').onclick=()=>{leaveLibraryContext();applyLibrarySearch();};
 function renderConsoleApps(){
   const box=$('console-apps'),list=$('console-apps-list');if(!box||!list)return;
-  const apps=globalThis.IZ2S_PRESENTATION.consoleApps(state);box.hidden=!apps.length;
+  const core=coreView.current();
+  // PC Link lists modules with a launcher.iza on SD.
+  const apps=core?.session?(core.pcLink?.apps||[]).map(row=>{
+    const known=state.library?.find(p=>p.id===row.id);
+    return {id:row.id,name:row.name||known?.name||row.id,icon:known?.icon||'/icon.svg',sd:true,format:row.format||'.iza'};
+  }):globalThis.IZ2S_PRESENTATION.consoleApps(state);
+  box.hidden=!apps.length;
   const stamp=JSON.stringify(apps);if(list.dataset.stamp===stamp)return;list.dataset.stamp=stamp;list.replaceChildren();
   for(const app of apps){
     const item=element('button','console-app'),img=element('img'),copy=element('span','console-app-copy'),name=element('strong','',app.name),places=element('span','console-app-places');
     item.type='button';item.dataset.appId=app.id;item.title=app.name;img.src=app.icon;img.alt='';name.setAttribute('translate','no');
     for(const [available,label]of [[app.ram,'RAM'],[app.sd,'SD']])if(available){const badge=element('small',label==='SD'?'source-sd':'source-ram',label);badge.setAttribute('translate','no');places.append(badge);}
+    if(app.format){
+      const badge=element('small','console-app-format',app.format);
+      badge.setAttribute('translate','no');
+      places.append(badge);
+    }
     copy.append(name,places);item.append(img,copy);item.onclick=()=>openConsoleApplication(app);list.append(item);
   }
 }
-$('console-apps-library').onclick=()=>switchView('apps');
+$('console-apps-library').onclick=()=>coreView.current()?.session?openCorePcTool('apps'):switchView('apps');
 function renderLibrary() {
+  const state=storageState();
+  const coreSd=state.coreSd?.selected;
+  const link=coreView.current()?.pcLink;
+  const transfer=$('library-core-transfer');
+  transfer.hidden=!state.coreLive||(!link?.queued&&!link?.imported&&!link?.inventoryError);
+  if(!transfer.hidden) setText(transfer,link.queued?'Queued: '+link.queued+' · Open Add app on Switch if the transfer does not start.':
+    link.inventoryError?'Could not refresh SD apps: '+link.inventoryError:
+    (link.imported.state==='rejected'?'Installation failed: ':link.imported.state==='already-present'?'Already installed: ':'On SD: ')+link.imported.id);
+  const toggle=$('library-core-sd');
+  if(toggle){toggle.hidden=!!state.preview;toggle.setAttribute('aria-pressed',String(!!coreSd));}
   const packages=globalThis.IZ2S_PRESENTATION?.library?.(state)||state.library;
-  const errors = $('module-errors');
-  if (errors) {
-    errors.hidden = !state.moduleErrors?.length;
-    errors.setAttribute('translate','no');errors.textContent = (state.moduleErrors || []).map(row => (row.id || row.path || 'Module') + ': ' + globalThis.IZ2S_ERRORS.canonical(row.error)).join(' · ');
-  }
+  renderIssueList('module-errors', state.moduleErrors);
   const civ=['civswitch','civswitch-ldn'].includes(state.platform?.loaderId);
   const available = new Set(packages.filter(pkg => pkg.supported !== false&&(!civ||pkg.session?.compatible!==false)).map(pkg => pkg.id));
   for (const id of selection) if (!available.has(id)) selection.delete(id);
   const stamp = JSON.stringify(
-    [state.platform?.sdLauncher,packages.map((p) => [p.id, p.version, p.bytes, p.name, p.icon, p.description, p.supported, p.contents, p.sd, p.session])],
+    [state.platform?.sdLauncher,coreSd,state.coreLive,packages.map((p) => [p.id, p.version, p.bytes, p.name, p.icon, p.description, p.supported, p.contents, p.sd, p.session, p.format])],
   );
   if (stamp !== packageStamp) {
     packageStamp = stamp;
     $('library').replaceChildren();
-    if(!packages.length){const empty=element('div','empty');empty.append(element('h2','','No modules installed'),element('p','','Open the Modules folder and add an IZM package.'));$('library').append(empty);}
+    if (!packages.length) {
+      const empty = element('section', 'empty empty-state');
+      empty.append(element('h2', '', 'No modules installed'),
+        element('p', '', 'Open the Modules folder to check which modules are installed.'));
+      $('library').append(empty);
+    }
     $('module-host-actions').dataset.stamp = '';
     for (const pkg of packages) {
       const card = element('article', 'app-card'),
-        label = element('label', 'app-select'),
+        label = element(state.coreLive?'div':'label', 'app-select'),
         input = element('input'),
         img = element('img');
       card.dataset.appId = pkg.id;label.title=pkg.name;
       input.type = 'checkbox';
-      input.disabled = !available.has(pkg.id);
-      if(state.platform?.sdLauncher&&(!pkg.sd?.compatible||pkg.sd?.hostRequired))label.title='Stored on SD; uses the PC executor when launched.';
+      input.disabled = state.coreLive || !available.has(pkg.id);
+      input.hidden = !!state.coreLive;
+      if(!coreSd&&state.platform?.sdLauncher&&(!pkg.sd?.compatible||pkg.sd?.hostRequired))label.title='Stored on SD; uses the PC executor when launched.';
       if (input.disabled) selection.delete(pkg.id);
       input.checked = selection.has(pkg.id);
       input.setAttribute('aria-label', 'Select ' + pkg.name);
@@ -2081,7 +2443,7 @@ function renderLibrary() {
       img.src = pkg.icon;
       img.alt = '';
       label.append(
-        input,
+        ...(state.coreLive?[]:[input]),
         img,
         element('strong', 'app-name', pkg.name),
         element(
@@ -2091,10 +2453,20 @@ function renderLibrary() {
         ),
         element('p', 'app-description', pkg.description),
       );
+      const format = globalThis.IZ2S_PRESENTATION.appFormat(pkg);
+      if(format){
+        const badge=element('small','app-format-badge',format);
+        badge.dataset.format=format;
+        badge.setAttribute('translate','no');
+        label.append(badge);
+      }
+      const installInfo = element('span', 'app-install-info');
+      installInfo.append(element('span', 'app-install-status'), element('small', 'app-sd-version'));
+      label.append(installInfo);
       if(civ&&pkg.session?.compatible===false)label.append(element('small','app-requirement',pkg.session.reason||'Unavailable for this game'));
       else if(pkg.session?.requiresFilesystem)label.append(element('small','app-requirement','Requires filesystem access'));
       card.append(label, element('div', 'module-host-actions'));
-      if(state.platform?.sdLauncher&&(!pkg.sd?.compatible||pkg.sd?.hostRequired))card.append(element('p','hint','Stored on SD; uses the PC executor when launched.'));
+      if(!coreSd&&state.platform?.sdLauncher&&(!pkg.sd?.compatible||pkg.sd?.hostRequired))card.append(element('p','hint','Stored on SD; uses the PC executor when launched.'));
       if (pkg.contents) {
         const details = element('details', 'module-contents');
         details.append(
@@ -2127,7 +2499,55 @@ function renderLibrary() {
         details.onclick = (e) => e.stopPropagation();
         card.append(details);
       }
-      const actions=element('div','module-actions');card.append(actions);
+      const actions = element('div', 'module-actions');
+      if (!pkg.sdOnly && pkg.coreSd?.compatible) {
+        const download = element('button','secondary app-download','Download .iza');
+        download.type = 'button';
+        download.disabled = serverUnavailable;
+        download.onclick = async () => {
+          download.dataset.pending = 'true';
+          download.disabled = true;
+          setText(download,'Preparing download…');
+          try {
+            const response = await api('/api/apps/download?'+new URLSearchParams({id:pkg.id}),undefined,
+              {responseType:'response',timeoutMs:180000});
+            const filename = /^attachment; filename="([a-z0-9-]+\.iza)"$/.exec(
+              response.headers.get('content-disposition') || '')?.[1];
+            if (!filename) throw Error('The application download is invalid.');
+            saveDownload(await response.blob(),filename);
+          } catch(error) { notice(error.message); }
+          finally {
+            delete download.dataset.pending;
+            download.disabled = serverUnavailable;
+            setText(download,'Download .iza');
+          }
+        };
+        actions.append(download);
+      }
+      if (state.coreLive && !pkg.sdOnly && (pkg.coreSd?.compatible || format === '.nro')) {
+        const install = element('button', 'primary module-configure library-install');
+        setText(install, 'Install on SD');
+        install.type = 'button';
+        install.onclick = async () => {
+          if (install.disabled) return;
+          install.dataset.pending = 'true';
+          busy = true;
+          renderLibrary();
+          try {
+            const result = await api('/api/iz2s-core/pc/install-library', {id: pkg.id});
+            notice(result.queued ? coreText('openAddAppToInstall') :
+              result.alreadyInstalled || result.reused ? coreText('sameVersion') : coreText('imported'), 'success');
+            await coreView.refresh(true);
+          } catch (error) {
+            notice(error.message);
+          } finally {
+            delete install.dataset.pending;
+            busy = false;
+            renderLibrary();
+          }
+        };
+        actions.append(install);
+      }
       if(pkg.module?.server?.settings){
         const configure=element('button','secondary module-configure',pkg.module.server.settings.label||'Settings');
         configure.dataset.unavailable=String(pkg.supported===false);
@@ -2142,39 +2562,147 @@ function renderLibrary() {
       }
       const openModule=element('button','secondary','App details');openModule.type='button';openModule.onclick=()=>{try{workspace.openModule(pkg.module?.id||pkg.id);}catch(error){notice(error.message);}};actions.append(openModule);
       const folder=folderButton('module',pkg.module?.id||pkg.id,'Folder');folder.title='Open module folder';folder.setAttribute('aria-label','Open module folder');actions.append(folder);
-      card.append(storageControls.mount(pkg));
-      card.append(element('small','app-memory',''));
-      const technical=element('details','app-more'),summary=element('summary','','More'),detailBody=element('div','app-more-body');technical.append(summary,detailBody);detailBody.append(element('p','app-full-description',pkg.description));if(pkg.sdOnly){const location=element('code');location.textContent=pkg.displayPath||'SD:/IZ2S/Homebrew/Modules/'+pkg.id+'/';detailBody.append(location);}
+      if(!state.coreLive&&format!=='.nro')card.append(storageControls.mount(pkg));
+      card.append(element('small', 'app-memory'), actions);
+      const technical=element('details','app-more'),summary=element('summary','','More'),detailBody=element('div','app-more-body menu-surface');technical.append(summary,detailBody);detailBody.append(element('p','app-full-description',pkg.description));if(pkg.sdOnly){const location=element('code');location.textContent=pkg.displayPath||'SD:/iz2s/modules/'+pkg.id+'/';detailBody.append(location);}
       const detailActions=element('div','app-detail-actions');detailBody.append(detailActions);
-      const cardActions=card.querySelector('.module-actions');if(cardActions){for(const button of [...cardActions.children])if(!button.classList.contains('module-configure'))if(!pkg.sdOnly)detailActions.append(button);else button.remove?.();const contents=card.querySelector('.module-contents');if(contents)detailBody.append(contents);cardActions.append(technical);}
+      if (pkg.id==='blitbun' && !pkg.sdOnly && !state.preview) {
+        const open=element('button','secondary module-configure blitbun-choose-window','BlitBun settings');
+        open.type='button';
+        open.onclick=openBlitBunTab;
+        actions.append(open);
+      }
+      if (pkg.id==='vacootube' && !pkg.sdOnly && !state.preview) {
+        detailBody.append(element('p','hint','Open VacooTube on Switch to start the PC source automatically.'));
+        const media=element('div','app-detail-actions');
+        for (const [action,label] of [['start','Start video on PC'],['stop','Stop PC source']]) {
+          const button=element('button','secondary',label);
+          button.type='button';
+          button.onclick=async()=>{
+            button.disabled=true;
+            try {
+              await api('/api/iz2s-core/media/'+action,{id:pkg.id});
+              if (action==='start') notice('PC source started. Open '+pkg.name+' on Switch.','success');
+            } catch(error) { notice(error.message); }
+            finally { button.disabled=false; }
+          };
+          media.append(button);
+        }
+        const sourceStatus=element('p','hint app-media-status');
+        sourceStatus.setAttribute('role','status');
+        detailBody.append(sourceStatus,media);
+      }
+      const cardActions=card.querySelector('.module-actions');if(cardActions){for(const button of [...cardActions.children])if(!button.classList.contains('module-configure'))if(!pkg.sdOnly)detailActions.append(button);else button.remove?.();const contents=card.querySelector('.module-contents');if(contents)detailBody.append(contents);const primaryActions=element('div','app-primary-actions');for(const control of cardActions.querySelectorAll(':scope > .module-configure'))primaryActions.append(control);cardActions.append(primaryActions,technical);}
       for(const child of [...card.children])if(child.tagName==='P'&&child.classList.contains('hint'))detailBody.append(child);
       card.querySelector('.app-select')?.querySelector('strong')?.setAttribute('translate','no');
       $('library').append(card);
     }
   }
-  const sdRefresh=$('library-sd-refresh');sdRefresh.hidden=civ;const sdError=globalThis.IZ2S_STORAGE?.reason?.(state,{id:'sd-inventory'},'sd',{remove:true})||'';sdRefresh.disabled=busy||serverUnavailable||!!sdError;sdRefresh.title=sdError;
+  const sdRefresh=$('library-sd-refresh');
+  sdRefresh.hidden=civ||!(coreSd||state.platform?.sdLauncher||state.sdStorage?.enabled);
+  const sdError=globalThis.IZ2S_STORAGE?.reason?.(state,{id:'sd-inventory'},'sd',{remove:true})||'';
+  sdRefresh.disabled=busy||serverUnavailable||(state.coreLive?!state.connected:(!coreSd&&!!sdError));sdRefresh.title=state.coreLive?'':sdError;
   const installed = new Set([...(state.installed||[]),...(state.sdInstalled||[])].map(app => typeof app === 'string' ? app : app.id));
   for (const card of $('library').querySelectorAll('.app-card')) {
+    const blitbunControl = card.querySelector('.blitbun-choose-window');
+    if (blitbunControl) blitbunControl.disabled = serverUnavailable;
+    const sourceStatus=card.querySelector('.app-media-status');
+    if(sourceStatus){
+      const source=link?.media?.[card.dataset.appId];
+      const label=mediaPhaseLabel(source);
+      sourceStatus.hidden=!label;
+      setText(sourceStatus,label+(source?.error?' '+source.error:''));
+    }
     const loaded = installed.has(card.dataset.appId);
     card.classList.toggle('installed', loaded);const presence=globalThis.IZ2S_STORAGE?.installed?.(state,card.dataset.appId)||{session:loaded,sd:false};card.classList.toggle('in-ram',presence.session);card.classList.toggle('on-sd',presence.sd);
     card.dataset.installed = String(loaded);
+    const installStatus = card.querySelector('.app-install-status');
+    const canCheckInstallation = !!coreSd || (state.coreLive
+      ? !!link?.online && !!link?.files && !link?.inventoryError
+      : !!state.connected);
+    const status = loaded ? 'installed' : canCheckInstallation ? 'missing' : 'unknown';
+    card.dataset.installStatus = status;
+    setText(installStatus, presence.sd ? 'Installed on SD' : loaded ? 'Installed' :
+      status === 'missing' ? 'Not installed' : 'Installation status unavailable');
+    const sdVersion=card.querySelector('.app-sd-version'),sdRow=state.sdInstalled?.find(row=>row?.id===card.dataset.appId);
+    const install = card.querySelector('.library-install');
+    if (install) {
+      const pkg = packages.find(item => item.id === card.dataset.appId);
+      const samePackage = globalThis.IZ2S_PRESENTATION.sameSdPackage(sdRow,pkg);
+      const update = sdRow?.versionVerified && pkg?.version && sdRow.version !== pkg.version;
+      install.hidden = !!samePackage;
+      install.disabled = busy || serverUnavailable || !state.connected || !link?.files || !!link?.queued;
+      const label = !presence.sd ? 'Install on SD' : update ? 'Update on SD' : 'Reinstall on SD';
+      setText(install, install.dataset.pending ? 'Preparing installation…' : label);
+    }
+    sdVersion.hidden=!presence.sd;
+    setText(sdVersion,presence.sd?'SD · '+(sdRow?.versionVerified?sdRow.version:'Version unknown'):'');
     card.querySelector('img').title = loaded ? 'Loaded on console' : 'Not loaded on console';
     const retained=state.residentMemory?.apps?.find(app=>app.id===card.dataset.appId),memoryLabel=card.querySelector('.app-memory');
     if(memoryLabel){memoryLabel.hidden=!retained;setText(memoryLabel,retained?(state.connected?'Retained in RAM':'Previously retained')+' · '+(retained.bufferBytes/1048576).toFixed(1)+' MiB':'');}
     storageControls.update(card.querySelector('.app-storage'),packages.find(pkg=>pkg.id===card.dataset.appId));
+    if (state.coreLive || (coreSd && sdRow?.format === '.nro')) {
+      let remove = card.querySelector('.core-remove');
+      if (presence.sd && !remove) {
+        remove = element('button', 'quiet core-remove');
+        setText(remove, 'Remove from SD');
+        remove.type = 'button';
+        remove.onclick = async () => {
+          const snapshot = storageState();
+          const app = snapshot.sdInstalled?.find(row => row?.id === card.dataset.appId);
+          if (!app || remove.dataset.pending) return;
+          const pkg = packages.find(p => p.id === app.id);
+          remove.dataset.pending = 'true';
+          remove.disabled = true;
+          try {
+            const question = app.format === '.nro'
+              ? 'Delete the entire folder? This also deletes games, BIOS, settings and saves inside it.'
+              : 'Remove this app from the launcher? Games and saves will stay on SD.';
+            const target = app.format === '.nro' ? app.displayPath?.replace(/launcher\.nro$/, '') : pkg?.name;
+            if (!await confirmRemoval(question, target || pkg?.name)) return;
+            if (snapshot.coreSd?.selection !== storageState().coreSd?.selection)
+              throw Error('The selected IZ2S SD card changed. Refresh the panel and retry.');
+            if (coreSd) await act('/api/unload', {ids: [app.id], target: 'sd'});
+            else {
+              await api('/api/iz2s-core/pc/remove', {id: app.id, format: app.format});
+              await coreView.refresh(true);
+            }
+          } catch (error) {
+            notice(error.message);
+          } finally {
+            delete remove.dataset.pending;
+            renderLibrary();
+          }
+        };
+        card.querySelector('.app-detail-actions').prepend(remove);
+      }
+      if (remove) {
+        remove.hidden = !presence.sd;
+        remove.disabled = !!remove.dataset.pending || busy || serverUnavailable || !state.connected;
+        remove.title = sdRow?.format === '.nro' && !coreSd
+          ? globalThis.RUN21_LANGUAGE?.t('Enable FTP on IZ2S with L3 + R3 to remove an NRO.') || '' : '';
+      }
+    }
   }
-  renderModuleHostActions();
+  if(coreSd)$('module-host-actions').hidden=true;
+  else renderModuleHostActions();
   setText($('app-count'), packages.length);
   const libraryConnection = $('library-connection');
   libraryConnection.classList.toggle('online', !!state.connected);
-  const connectionLabel = state.connected ? 'Switch 2 connected' : 'Switch 2 not connected';
+  libraryConnection.title=coreSd ? state.coreSd.target : '';
+  const cardName=state.coreSd?.target?.split('/').filter(Boolean).at(-1);
+  const connectionLabel = coreSd ? (state.connected ? 'IZ2S SD card: '+cardName : 'IZ2S SD card unavailable') : state.connected ? 'Switch 2 connected' : 'Switch 2 not connected';
   if (libraryConnection.querySelector('span').textContent !== connectionLabel)
     libraryConnection.querySelector('span').textContent = connectionLabel;
+  $('load').hidden=!!state.coreLive;
+  $('library-batch').hidden=!!state.coreLive;
   $('load').textContent=state.platform?.sdLauncher?'Install selected on SD':'Install / load selected';
-  $('library-note').textContent = state.platform?.sdLauncher
-    ? 'Applications are installed in SD:/IZ2S/Homebrew/Modules/. The console discovers and opens them locally. Modules requiring PC services or a separate native entry are unavailable in this mode.'
+  $('library-note').textContent = state.coreLive?'Add a package to install it in SD:/iz2s/modules/.':coreSd ? 'Install or remove applications on the SD card connected to this PC. Games and saves are kept.' : state.platform?.sdLauncher
+    ? 'Applications are installed in SD:/iz2s/modules/. The console discovers and opens them locally. Modules requiring PC services or a separate native entry are unavailable in this mode.'
     : state.platform?.residentGraphics && state.active
     ? 'Compatible apps remain in memory for this session. '+(state.residentMemory?'Session memory: '+(state.residentMemory.usedBytes/1048576).toFixed(1)+' / '+(state.residentMemory.budgetBytes/1048576).toFixed(0)+' MiB. ':'')+'Add apps from the menu while the PC is available. Select the full set before a retained-audio session.'
+    : state.platform?.variant==='original'&&!civ
+    ? 'Choose a launcher in Connection to load applications.'
     : state.connected
     ? 'Choose an installation destination on each card. Selected: ' + selection.size
     : selectedShellName()==='Core only'?'Choose a launcher in Connection to load applications.':'Connect Switch 2 and start ' + selectedShellName() + ' to load apps.';
@@ -2214,7 +2742,7 @@ function renderModuleHostActions() {
       setText(text.querySelector('.hint'), record?.installed ? 'Installed on this PC' : pkg.importSource
         ? 'Choose the local game folder. Saved games stay in the original installation.'
         : record?.missingFiles?.length ? 'Local runtime files are missing. Reinstall this component.'
-        : 'External component is downloaded separately from the IZM package.');
+        : 'This component is downloaded separately.');
       let input = box.querySelector('.local-source');
       if (pkg.importSource) {
         if (!input) {
@@ -2279,9 +2807,14 @@ function renderJobs() {
   $('completed-jobs').hidden=!completed.children.length;
 }
 function appendProblem(container,message){
-  const problem=globalThis.IZ2S_ERRORS.describe(message),box=element('div','operation-problem');box.setAttribute('role','status');
-  const title=element('p','problem-title',problem.title);title.setAttribute('translate','no');box.append(title,element('p','hint',problem.action));
-  const details=element('details','technical-details'),pre=element('pre','',problem.detail);pre.setAttribute('translate','no');details.append(element('summary','','Technical details'),pre);box.append(details);container.append(box);
+  const problem=globalThis.IZ2S_ERRORS.describe(message),box=element('div','operation-problem panel-message');box.dataset.tone='error';box.setAttribute('role','status');
+  box.append(element('strong','problem-title',problem.title));
+  if (problem.action) box.append(element('p','hint',problem.action));
+  if (problem.detail && problem.detail.trim() !== problem.title) {
+    const details=element('details','technical-details'),pre=element('pre','',problem.detail);
+    pre.setAttribute('translate','no');details.append(element('summary','','Technical details'),pre);box.append(details);
+  }
+  container.append(box);
 }
 const sessionActionHomes=new Map();
 function placeSessionActions(view){
@@ -2296,57 +2829,122 @@ function placeSessionActions(view){
 }
 let configurationOpen=false,libraryBatch=false,historyLimit=10;
 function renderSessionPresentation(){
- const view=globalThis.IZ2S_PRESENTATION.session(state),setup=$('setup');
- setup.classList.toggle('session-compact',view.compact);setup.classList.toggle('session-offline',view.offline||view.unconfirmed);setup.classList.toggle('session-configuration-open',configurationOpen);
+ const core=coreView.current(),coreSession=!!core?.session;
+ const view=coreSession
+  ? {compact:true,running:!!core.pcLink?.online,offline:false,stopping:false,unconfirmed:false,
+    title:core.pcLink?.online?'Switch 2 connected':coreText('waitingLauncher'),game:'IZ2S core',launcher:'IZ2S'}
+  : globalThis.IZ2S_PRESENTATION.session(state);
+ const setup=$('setup');
+ setup.classList.toggle('session-compact',view.compact);
+ setup.classList.toggle('session-offline',view.offline||view.unconfirmed);
+ setup.classList.toggle('session-configuration-open',configurationOpen);
  if(view.offline){$('mode').textContent='Connection interrupted';$('mode').dataset.state='offline';}
  const consoleCard=$('device-lan');if(view.offline&&consoleCard){consoleCard.classList.remove('ready','pending');consoleCard.classList.add('connection-lost');setText(consoleCard.querySelector('.state'),'CONNECTION LOST');setText(consoleCard.querySelector('.detail-text')||consoleCard.querySelector('.device-detail'),['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)?'Connection lost. Stop this session, restart Civilization VII and open Load Game.':'Connection lost. Restore the connection to manage applications.');}
  if(consoleCard){consoleCard.classList.toggle('shutdown-unconfirmed',view.unconfirmed);if(view.unconfirmed){consoleCard.classList.remove('ready','pending','connection-lost');setText(consoleCard.querySelector('.state'),'Shutdown unconfirmed');setText(consoleCard.querySelector('.detail-text')||consoleCard.querySelector('.device-detail'),'Restart Civilization VII before starting a new session.');}}
- $('session-summary').hidden=!view.compact;$('session-summary-state').textContent=view.title;$('session-summary-title').textContent=view.launcher;placeSessionActions(view);
- $('session-summary-game').textContent=view.game;
- $('session-summary-copy').textContent=view.stopping?'':(view.offline?'Waiting for connection':state.fsRpc?.state==='ready'?'Filesystem access active':state.connected?'Console connected':'Connection pending');
- $('session-summary-copy').hidden=view.stopping;
- $('session-summary-note').hidden=view.stopping||!view.offline&&!!state.connected;$('session-summary-note').textContent='The console session is retained. Restore the connection to manage applications.';
- if(['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)&&(view.offline||view.unconfirmed)){$('session-summary-note').hidden=false;$('session-summary-note').textContent=view.unconfirmed?'Restart Civilization VII before starting a new session.':'Connection lost. Stop this session, restart Civilization VII and open Load Game.';}
+ const summary=$('session-summary');
+ if(summary.hidden!==!view.compact)summary.hidden=!view.compact;
+ const connected=view.running&&(coreSession||state.connected);
+ const connectionHeading=$('connection-heading');
+ const headingStatus=view.compact?(connected?'connected':'waiting'):'setup';
+ if(connectionHeading.dataset.status!==headingStatus)connectionHeading.dataset.status=headingStatus;
+ if(connectionHeading.hidden===view.compact)connectionHeading.hidden=!view.compact;
+ setText($('page-setup-title'),view.compact?(connected?'Switch 2 connected':view.title):'Connection');
+ setText($('session-summary-title'),view.launcher);
+ setText($('session-summary-game'),view.game);
+ placeSessionActions(coreSession?{compact:false}:view);
+ let copy=view.offline?'Waiting for connection':state.fsRpc?.state==='ready'?'Filesystem access active':state.connected?'':'Connection pending';
+ let note='The console session is retained. Restore the connection to manage applications.';
+ let showNote=!view.stopping&&(view.offline||!state.connected);
+ if(['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)&&(view.offline||view.unconfirmed)){
+  showNote=true;
+  note=view.unconfirmed?'Restart Civilization VII before starting a new session.':'Connection lost. Stop this session, restart Civilization VII and open Load Game.';
+ }
  const savedLoader=state.civswitchLdn?.saveInstallation||state.civswitch?.saveInstallation;
- if(view.running&&state.connected&&['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)&&savedLoader?.state==='installed'){$('session-summary-note').hidden=false;$('session-summary-note').textContent='Save installed. Next time: Civilization VII → Load Game, then Launch in this panel.';}
- $('session-settings-label').textContent=configurationOpen?'Hide connection settings':'Connection settings';$('session-settings-toggle').setAttribute('aria-expanded',String(configurationOpen));
+ if(view.running&&state.connected&&['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)&&savedLoader?.state==='installed'){
+  showNote=true;
+  note='Save installed. Next time: Civilization VII → Load Game, then Launch in this panel.';
+ }
+ const coreActions=['core-add-app','core-restore','core-new-launch'].map($);
+ if(coreSession){
+  copy=connected?coreText('storeHint'):'';
+  showNote=false;
+  note='';
+  const target=$('session-summary-session-actions');
+  if(coreActions.some(button=>button.parentElement!==target))target.append(...coreActions);
+  $('core-settings-toggle').hidden=true;
+ }else{
+  const tools=$('core-session-tools'),actions=$('core-session-actions');
+  if(coreActions.slice(0,2).some(button=>button.parentElement!==tools))tools.prepend(...coreActions.slice(0,2));
+  if(coreActions[2].parentElement!==actions)actions.append(coreActions[2]);
+ }
+ coreActions[1].hidden=coreSession&&!!connected;
+ const nextStep=$('connection-next-step'),showNextStep=coreSession&&!connected;
+ if(nextStep.hidden!==!showNextStep)nextStep.hidden=!showNextStep;
+ setText(nextStep,showNextStep?coreText('openLauncherHint'):'');
+ const rpcWarning=$('connection-rpc-warning');
+ rpcWarning.hidden=!showNextStep;
+ setText(rpcWarning,showNextStep?coreText('rpcWarning'):'');
+ const summaryCopy=$('session-summary-copy'),summaryNote=$('session-summary-note');
+ const hideCopy=view.stopping||!copy;
+ if(summaryCopy.hidden!==hideCopy)summaryCopy.hidden=hideCopy;
+ if(summaryNote.hidden!==!showNote)summaryNote.hidden=!showNote;
+ setText(summaryCopy,view.stopping?'':copy);
+ setText(summaryNote,note);
+ setText($('session-settings-label'),configurationOpen?'Hide connection settings':'Connection settings');
+ $('session-settings-toggle').setAttribute('aria-expanded',String(configurationOpen));
  if((view.running||view.offline)&&state.platform?.izModules)$('progress-note').textContent=state.connected?'Use App library to manage applications.':'The console session is retained. Restore the connection to manage applications.';
  for(const prefix of ['civ','ldn'])if(state.civLauncher?.state==='offline'){$(prefix+'-result-title').textContent='Connection interrupted';$(prefix+'-result-detail').textContent=globalThis.IZ2S_ERRORS.canonical(state.civLauncher.error||'The console session is retained.');$(prefix+'-result-detail').setAttribute('translate','no');}
  for(const prefix of ['civ','ldn'])if(state.civLauncher?.state==='running'){$(prefix+'-result-title').textContent='Launcher is running';$(prefix+'-result-detail').textContent=state.connected?'Console connected':'The console session is retained.';$(prefix+'-launch').hidden=true;}
- $('apps').classList.toggle('batch-selection',libraryBatch);$('library-batch').setAttribute('aria-pressed',String(libraryBatch));$('library-batch').textContent=libraryBatch?'Finish selection':'Select multiple';
+ $('apps').classList.toggle('batch-selection',libraryBatch);$('library-batch').setAttribute('aria-pressed',String(libraryBatch));setText($('library-batch'),libraryBatch?'Finish selection':'Select multiple');
  document.querySelector('.library-bar').hidden=!libraryBatch;
  applyLibrarySearch();
  renderDeviceTopology();
 }
 function applyLibrarySearch(){
-  const status=$('library-status').value,location=$('library-location').value,query=$('library-search').value;
-  const result=globalThis.IZ2S_PRESENTATION.libraryFilter(state,{query,status,location,focusId:libraryContext?.id});const ids=new Set(result.ids);
+  const status=$('library-status').value,location=$('library-location').value,format=$('library-format').value,query=$('library-search').value;
+  const result=globalThis.IZ2S_PRESENTATION.libraryFilter(storageState(),{query,status,location,format,focusId:libraryContext?.id});const ids=new Set(result.ids);
   for(const card of $('library').children)card.hidden=!!card.dataset.appId&&!ids.has(card.dataset.appId);
-  const filtered=!!query.trim()||status!=='all'||location!=='all';$('library-reset').hidden=!filtered;
+  const filtered=!!query.trim()||status!=='all'||location!=='all'||format!=='all';$('library-reset').hidden=!filtered;
   $('library-result-count').textContent=result.ids.length+' / '+result.total;
-  $('library-empty').hidden=result.ids.length>0||!state?.library?.length;
+  $('library-empty').hidden=result.ids.length>0||![...$('library').children].some(card=>card.dataset.appId);
   const hidden=[...selection].filter(id=>!ids.has(id)).length;$('library-hidden-selection').hidden=!libraryBatch||!hidden;
   $('library-hidden-selection').textContent=hidden?'Selected outside this filter: '+hidden:'';
 }
-function resetLibraryFilters(){$('library-search').value='';$('library-status').value='all';$('library-location').value='all';applyLibrarySearch();}
+function resetLibraryFilters(){$('library-search').value='';$('library-status').value='all';$('library-location').value='all';$('library-format').value='all';applyLibrarySearch();}
 $('library-reset').onclick=resetLibraryFilters;$('library-empty-reset').onclick=resetLibraryFilters;
 $('library-status').onchange=()=>{if($('library-status').value==='all')$('library-location').value='all';applyLibrarySearch();};
 $('library-location').onchange=()=>{if($('library-location').value!=='all'&&$('library-status').value==='all')$('library-status').value='installed';applyLibrarySearch();};
-document.addEventListener('click',event=>{for(const details of document.querySelectorAll('#library .app-more[open],#library .storage-more[open]'))if(!details.contains(event.target))details.open=false;});
-document.addEventListener('keydown',event=>{if(event.key==='Escape')for(const details of document.querySelectorAll('#library .app-more[open],#library .storage-more[open]')){details.open=false;details.querySelector('summary')?.focus();}});
 
 $('session-settings-toggle').onclick=()=>{configurationOpen=!configurationOpen;renderSessionPresentation();};
-$('session-summary-library').onclick=()=>switchView('apps');
+$('session-summary-library').onclick=()=>coreView.current()?.session?openCorePcTool('apps'):switchView('apps');
 $('library-search').oninput=applyLibrarySearch;
+$('library-format').onchange=applyLibrarySearch;
 $('library-batch').onclick=()=>{libraryBatch=!libraryBatch;if(!libraryBatch){selection.clear();for(const input of document.querySelectorAll('.app-select input'))input.checked=false;}renderSessionPresentation();renderControls();};
-$('history-search').oninput=()=>{historyLimit=10;historyStamp='';renderHistory();};
-for(const id of ['history-filter','history-period','history-error-type'])$(id).onchange=()=>{if(id==='history-error-type'&&$(id).value!=='all')$('history-filter').value='unsuccessful';historyLimit=10;historyStamp='';renderHistory();};
-for(const [id,kind]of [['history-today-all','all'],['history-today-success','successful'],['history-today-errors','unsuccessful'],['history-today-pending','pending']])$(id).onclick=()=>{$('history-period').value='today';$('history-filter').value=kind;$('history-error-type').value='all';historyLimit=10;historyStamp='';renderHistory();};
+function refreshHistoryFilters(){historyLimit=10;historyStamp='';renderHistory();}
+const historyShortcuts=[['history-today-all','all'],['history-today-success','successful'],['history-today-errors','unsuccessful'],['history-today-pending','pending']];
+$('history-search').oninput=refreshHistoryFilters;
+for(const id of ['history-filter','history-period','history-error-type'])$(id).onchange=()=>{
+  if(id==='history-error-type'&&$(id).value!=='all')$('history-filter').value='unsuccessful';
+  if(id==='history-filter'&&$(id).value!=='unsuccessful')$('history-error-type').value='all';
+  refreshHistoryFilters();
+};
+for(const [id,kind] of historyShortcuts)$(id).onclick=()=>{
+  $('history-period').value='today';$('history-filter').value=kind;$('history-error-type').value='all';refreshHistoryFilters();
+};
+$('history-empty-action').onclick=()=>{
+  $('history-search').value='';
+  $('history-period').value='all';
+  $('history-filter').value='all';
+  $('history-error-type').value='all';
+  refreshHistoryFilters();
+  $('history-search').focus({preventScroll:true});
+};
 $('history-more').onclick=()=>{historyLimit+=10;historyStamp='';renderHistory();};
 
 let historyStamp = '';
 let savedLogAttempt = null;
 let savedLogGeneration = 0;
+let savedLogOrigin = null;
 function logTime(value) {
   return new Date(value).toLocaleTimeString(globalThis.RUN21_LANGUAGE?.locale || 'en-GB', {
     hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -2360,51 +2958,76 @@ function logMessage(event) {
   const pid = event.pid ? ` pid=${event.pid}` : '';
   return (owner ? `[${owner}${pid}${elapsed}] ` : '') + event.message;
 }
-async function downloadSessionLog(id) {
+async function downloadSessionLog(id, onError = error => notice(error.message)) {
   try {
-    const value = await api('/api/log?id=' + encodeURIComponent(id));
+    const value = await api('/api/log?id=' + encodeURIComponent(id), undefined, {timeoutMs:15000});
+    if(value.source==='iz2s-core'){
+      const blob=await api('/api/iz2s-core/log?id='+encodeURIComponent(id),undefined,{responseType:'blob',timeoutMs:30000});
+      saveDownload(blob,'IZ2S-core-'+id+'.log');return;
+    }
     const text = value.events.map((e) => e.at + '  ' + logMessage(e)).join('\n');
-    const url = URL.createObjectURL(new Blob([text + '\n'], { type: 'text/plain;charset=utf-8' }));
-    const link = element('a');
-    link.href = url;
-    link.download = 'IZ2S-session-' + id + '.log';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (e) { notice(e.message); }
+    saveDownload(new Blob([text + '\n'], {type:'text/plain;charset=utf-8'}), 'IZ2S-session-' + id + '.log');
+  } catch (e) { onError(e); }
+}
+function showSavedLogError(error, title, next, retry) {
+  const problem = globalThis.IZ2S_ERRORS.describe(error);
+  setText($('saved-log-error-title'), title);
+  setText($('saved-log-error-note'), error.statusCode === 403 ? problem.action : next);
+  setText($('saved-log-diagnostic'), problem.detail);
+  $('saved-log-details').open = false;
+  $('saved-log-error').hidden = false;
+  $('saved-log-retry').hidden = error.statusCode === 403;
+  $('saved-log-retry').onclick = retry;
 }
 function invalidateSavedLog() {
   savedLogGeneration++;
   savedLogAttempt = null;
   $('download-saved-log').disabled = true;
+  $('saved-log-error').hidden = true;
+  $('saved-log-retry').onclick = null;
   $('log-dialog').setAttribute('aria-busy', 'false');
 }
 $('log-dialog').addEventListener('close', () => {
-  if (!$('log-dialog').open) invalidateSavedLog();
+  if ($('log-dialog').open) return;
+  invalidateSavedLog();
+  if (savedLogOrigin && homeView === 'history' && workspaceView.id === 'home')
+    (document.querySelector('#attempts [data-attempt-id="' + CSS.escape(savedLogOrigin) + '"] .attempt-log') ||
+      $('page-history-title')).focus({preventScroll:true});
+  savedLogOrigin = null;
 });
 $('log-dialog').addEventListener('cancel', invalidateSavedLog);
-async function openSavedLog(attempt) {
+async function openSavedLog(attempt, fromRetry = false) {
   const generation = ++savedLogGeneration,
     dialog = $('log-dialog'),
     download = $('download-saved-log'),
     created = date(attempt.created);
   savedLogAttempt = null;
   download.disabled = true;
+  $('saved-log-error').hidden = true;
+  $('saved-log').hidden = false;
   setText($('saved-log-title'), 'Session log' + (created ? ' · ' + created : ''));
   setText($('saved-log-attempt'),
     (attempt.kind === 'bootstrap' ? 'Bootstrap installation' : 'Launcher session') + ' · ' + attempt.id);
-  setText($('saved-log'), 'Loading saved log…');
+  $('saved-log').textContent = globalThis.RUN21_LANGUAGE?.t('Loading saved log…') || 'Loading saved log…';
   dialog.setAttribute('aria-busy', 'true');
-  if (!dialog.open) dialog.showModal();
+  if (!dialog.open) {
+    savedLogOrigin = attempt.id;
+    dialog.showModal();
+  }
   try {
-    const value = await api('/api/log?id=' + encodeURIComponent(attempt.id));
+    const value = await api('/api/log?id=' + encodeURIComponent(attempt.id), undefined, {timeoutMs:15000});
     if (generation !== savedLogGeneration || !dialog.open) return;
-    setText($('saved-log'), value.events.map((event) => event.at + '  ' + logMessage(event)).join('\n') ||
-      'No further details were recorded.');
+    const prefix=value.truncated?(globalThis.RUN21_LANGUAGE?.t('Earlier log lines are omitted here. Download the full log.')||'Earlier log lines are omitted here. Download the full log.')+'\n\n':'';
+    const text = prefix+value.events.map((event) => event.at + '  ' + logMessage(event)).join('\n');
+    $('saved-log').textContent = text || globalThis.RUN21_LANGUAGE?.t('No further details were recorded.') || 'No further details were recorded.';
     savedLogAttempt = attempt.id;
     download.disabled = false;
+    if (fromRetry) download.focus();
   } catch (error) {
     if (generation !== savedLogGeneration || !dialog.open) return;
-    setText($('saved-log'), 'Could not load this log: ' + error.message);
+    $('saved-log').hidden = true;
+    showSavedLogError(error, 'Could not load this log.', 'Try again or close this window to choose another attempt.', () => openSavedLog(attempt, true));
+    if (fromRetry) $('saved-log-retry').focus();
   } finally {
     if (generation === savedLogGeneration && dialog.open) dialog.setAttribute('aria-busy', 'false');
   }
@@ -2430,9 +3053,64 @@ async function deleteAttemptLogs(ids){
  finally{historyClearing=false;historyStamp='';await poll();}
 }
 $('history-clear').onclick=()=>deleteAttemptLogs(historyRows().filter(row=>globalThis.IZ2S_PRESENTATION.attempt(row,{activeId:state.active?.id}).deletable).map(row=>row.id));
-$('library-sd-refresh').onclick=()=>act('/api/sd/refresh',{});
+if($('library-core-sd')){
+ const region=$('library-core-volumes'),volume=$('library-core-volume'),use=$('library-core-use'),
+   trigger=$('library-core-sd'),scan=$('library-core-scan'),detach=$('library-core-detach');
+ let scanGeneration=0;
+ function toggleVolumes(open){
+  region.hidden=!open;trigger.setAttribute('aria-expanded',String(open));
+  if(open){setText(detach,state?.coreSd?.selected?'Back to console session':'Close');void scanVolumes();}
+  else {scanGeneration++;trigger.focus();}
+ }
+ async function scanVolumes(){
+  const generation=++scanGeneration, current=()=>generation===scanGeneration&&!region.hidden;
+  use.disabled=volume.disabled=scan.disabled=true;
+  setFeedback('library-core-help','Checking mounted SD cards…');
+  try{
+   const volumes=await api('/api/iz2s-core/sd/volumes',undefined,{timeoutMs:6000});
+   if(!current())return;
+   volume.replaceChildren(...volumes.map(row=>{const option=element('option','',row.target);option.value=row.target;return option;}));
+   if(state?.coreSd?.target&&volumes.some(row=>row.target===state.coreSd.target))volume.value=state.coreSd.target;
+   use.disabled=volume.disabled=!volumes.length;
+   setFeedback('library-core-help',volumes.length?'Select the Switch SD card you want to manage.':'Mount the Switch SD card on this PC, then select Refresh SD cards.',volumes.length?'info':'warning');
+  }catch(error){
+   if(current()){
+    setFeedback('library-core-help','Could not check mounted SD cards. Select Refresh SD cards to try again.','error');
+    notice(error.message);
+   }
+  }finally{if(current())scan.disabled=false;}
+ }
+ trigger.onclick=()=>toggleVolumes(region.hidden);
+ scan.onclick=scanVolumes;
+ use.onclick=async()=>{if(await act('/api/iz2s-core/sd/select',{target:volume.value}))toggleVolumes(false);};
+ detach.onclick=async()=>{if(!state?.coreSd?.selected||await act('/api/iz2s-core/sd/select',{target:null}))toggleVolumes(false);};
+ const add=$('library-core-add'),input=$('library-core-file');
+ add.onclick=()=>{
+  if(state?.coreSd?.ready||(!state?.coreSd?.selected&&coreView.current()?.pcLink?.online))input.click();
+  else if(region.hidden)$('library-core-sd').click();
+ };
+ input.onchange=async()=>{
+  const file=input.files[0],selection=state?.coreSd?.selection;
+  input.value='';
+  const live=!state?.coreSd?.selected&&coreView.current()?.pcLink?.online;
+  if(!file||(!selection&&!live)||busy)return;
+  const format=file.name.split('.').at(-1).toLowerCase();
+  if(format!=='iza'){notice(coreText('importFormat'));return;}
+  busy=true;renderControls();
+  try{
+   const route=!live?'/api/iz2s-core/sd/import?'+new URLSearchParams({format,selection,name:file.name}):
+     '/api/iz2s-core/pc/install';
+   const value=await api(route,file,{upload:true,timeoutMs:180000});
+   notice(value.queued?'Queued: '+value.queued:(value.reused||value.alreadyInstalled)?coreText('sameVersion'):coreText('imported'),'success');
+   if(live)await coreView.refresh(true);
+   else await poll();
+  }catch(error){notice(error.message);}
+  finally{busy=false;renderControls();}
+ };
+}
+$('library-sd-refresh').onclick=async()=>{if(!storageState()?.coreLive)return act('/api/sd/refresh',{});try{await api('/api/iz2s-core/pc/refresh',{});await coreView.refresh(true);}catch(error){notice(error.message);}};
 function renderHistory() {
- const rows=historyRows(),options={query:$('history-search').value,kind:$('history-filter').value,category:$('history-error-type').value||'all',period:$('history-period').value||'today',limit:historyLimit},stamp=JSON.stringify([rows.map(row=>[row.id,row.created,row.kind,row.status,row.error,row.connectedAt]),options,historyClearing,state.active?.id,state.historyAll,new Date().toDateString()]);
+ const rows=historyRows(),options={query:$('history-search').value,kind:$('history-filter').value,category:$('history-error-type').value||'all',period:$('history-period').value||'today',limit:historyLimit},stamp=JSON.stringify([rows.map(row=>[row.id,row.created,row.kind,row.status,row.error,row.connectedAt]),options,historyClearing,serverUnavailable,state.active?.id,state.historyAll,new Date().toDateString()]);
  setText($('fail-count'),rows.length);$('history-scope-note').hidden=state.historyAll===true;if(stamp===historyStamp)return;historyStamp=stamp;
  const presentation=globalThis.IZ2S_PRESENTATION,today=presentation.statistics(rows);
  setText($('history-today-total'),today.total);setText($('history-today-success-count'),today.successful);setText($('history-today-error-count'),today.unsuccessful);setText($('history-today-pending-count'),today.pending);
@@ -2440,17 +3118,27 @@ function renderHistory() {
  $('history-error-types').replaceChildren();for(const [key,count]of Object.entries(today.errors).sort((a,b)=>b[1]-a[1])){const button=element('button','quiet');button.append(element('span','',presentation.errorLabels[key]),element('strong','',String(count)));button.setAttribute('aria-pressed',String(options.category===key));button.onclick=()=>{$('history-period').value='today';$('history-filter').value='unsuccessful';$('history-error-type').value=key;historyLimit=10;historyStamp='';renderHistory();};$('history-error-types').append(button);}
  if(!today.unsuccessful)$('history-error-types').append(element('span','hint','No errors today'));
  const selected=presentation.history(rows,options);$('attempts').replaceChildren();setText($('history-count'),historyClearing?'Clearing history…':selected.rows.length+' / '+selected.total);$('history-more').hidden=!selected.more;
- $('history-clear').disabled=historyClearing||!rows.some(row=>globalThis.IZ2S_PRESENTATION.attempt(row,{activeId:state.active?.id}).deletable);
- if(!selected.rows.length)$('attempts').append(element('p','empty','No matching attempts'));
+ $('history-clear').disabled=serverUnavailable||historyClearing||!rows.some(row=>globalThis.IZ2S_PRESENTATION.attempt(row,{activeId:state.active?.id}).deletable);
+ for(const [id,kind] of historyShortcuts) $(id).setAttribute('aria-pressed',String(options.period==='today'&&options.kind===kind&&options.category==='all'));
+ $('history-empty').hidden=!!selected.rows.length;
+ if (!selected.rows.length) {
+   const filtered=!!options.query.trim()||options.category!=='all'||options.kind!=='all';
+   setText($('history-empty-title'),!rows.length?'No attempts yet':filtered?'No matching attempts':'No attempts today');
+   setText($('history-empty-note'),!rows.length?'Connection attempts and their logs will appear here.':filtered?'Change the search or clear the filters.':'You can still review earlier attempts.');
+   setText($('history-empty-action'),filtered?'Clear filters':'Show all attempts');
+   $('history-empty-action').hidden=!rows.length;
+   $('history-empty-connection').hidden=!!rows.length;
+ }
  const groups=new Map();
  for(const key of ['successful','unsuccessful','pending']){const groupRows=selected.rows.filter(row=>presentation.attempt(row).outcome===key);if(!groupRows.length)continue;const group=element('section','attempt-group');group.append(element('h2','attempt-group-title',{successful:'Successful',unsuccessful:'Unsuccessful',pending:'Not finished'}[key]));$('attempts').append(group);groups.set(key,group);}
  for(const row of selected.rows){
   const info=globalThis.IZ2S_PRESENTATION.attempt(row,{activeId:state.active?.id}),card=element('article','attempt attempt-compact'),badge=element('span','attempt-status '+info.tone,info.label),body=element('div','attempt-copy'),heading=element('div','attempt-heading');
+  card.dataset.attemptId=row.id;
   heading.append(element('strong','',row.kind==='bootstrap'?'First Setup':'Launcher session'),element('time','',date(row.created)));body.append(heading);
   if(row.error){const detail=element('p','attempt-detail');detail.setAttribute('translate','no');detail.textContent=globalThis.IZ2S_ERRORS.describe(row.error).title;detail.title=globalThis.IZ2S_ERRORS.canonical(row.error);body.append(detail);}
   else body.append(element('p','attempt-detail hint',info.success?'Launcher started successfully.':info.label));
-  const actions=element('div','attempt-actions'),view=element('button','','View log');view.onclick=()=>openSavedLog(row);actions.append(view);
-  const remove=element('button','quiet','Delete log');remove.disabled=historyClearing||!info.deletable;remove.title=info.deletable?'Delete this attempt and its full log.':'The active attempt cannot be deleted.';remove.onclick=()=>deleteAttemptLogs([row.id]);actions.append(remove);
+  const actions=element('div','attempt-actions'),view=element('button','attempt-log','View log');view.onclick=()=>openSavedLog(row);actions.append(view);
+  const remove=element('button','quiet danger','Delete log');remove.disabled=serverUnavailable||historyClearing||!info.deletable;remove.title=info.deletable?'Delete this attempt and its full log.':'The active attempt cannot be deleted.';remove.onclick=()=>deleteAttemptLogs([row.id]);actions.append(remove);
   card.append(badge,body,actions);groups.get(info.outcome).append(card);
  }
 }
@@ -2501,7 +3189,11 @@ function renderConnectionStatus() {
   const unconfirmed=stopping&&(state?.active?.nativeParentRetention?.awaitingActualClose||state?.civLauncher?.shutdownUnconfirmed);
   const civNetwork=state?.platform?.loaderId==='civswitch'&&state?.civswitch?.networkReachable&&!state?.connected;
   const civUsbWaiting=state?.platform?.loaderId==='civswitch'&&state?.civswitch?.wirelessNetworkPending&&state?.civswitch?.inputStatus?.keyboard;
-  const connectionMode = serverUnavailable
+  const checks = state?.checks;
+  const waitingForInput = checks?.items?.length && checks.items.every(row =>
+    row.ready || row.pending || row.status === 'waiting' || row.status === 'setup');
+  const inputReady = checks?.items?.some(row => row.id === 'arm' && row.ready);
+  let connectionMode = serverUnavailable
     ? ['disconnected', 'Server unavailable']
     : state?.simulated
       ? ['preview', 'Simulated devices']
@@ -2531,15 +3223,20 @@ function renderConnectionStatus() {
                   ? ['connecting', 'Connecting…']
                 : state?.platform?.loaderId==='civswitch-ldn'
                   ? ['idle', 'Game loader not started']
-                  : state?.checks?.ready
+                  : checks?.ready
                     ? ['idle', 'Session not started']
-                    : ['disconnected', 'Not connected'];
+                    : waitingForInput
+                      ? ['waiting', checks.setupRequired ? 'Device setup required' : inputReady ? 'Waiting for USB' : 'Waiting for input device']
+                      : ['disconnected', 'Not connected'];
+  const core = coreView.current();
+  $('connection').setAttribute('translate', core ? 'no' : 'yes');
+  if (core && !serverUnavailable && !state?.preview) connectionMode = globalThis.IZ2S_CORE.connectionState(core);
   setText($('mode'), connectionMode[1]);
   $('mode').dataset.state = connectionMode[0];
   $('connection').classList.toggle('idle', connectionMode[0] === 'idle');
   $('mode').classList.toggle('preview', !serverUnavailable && !!state?.preview);
-  $('connection').classList.toggle('online', !serverUnavailable && !!state?.connected && !stopping && !offline);
-  $('connection').classList.toggle('working', !serverUnavailable && ['checking','connecting'].includes(connectionMode[0]));
+  $('connection').classList.toggle('online', !serverUnavailable && connectionMode[0]==='connected' && !stopping && !offline);
+  $('connection').classList.toggle('working', !serverUnavailable && ['checking','connecting','waiting'].includes(connectionMode[0]));
   const text = connectionMode[1];
   if ($('connection').lastChild.textContent !== text)
     $('connection').lastChild.textContent = text;
@@ -2547,6 +3244,8 @@ function renderConnectionStatus() {
 function renderLocalActionAvailability() {
   for (const control of document.querySelectorAll('.folder-button,[data-folder],.module-configure'))
     control.disabled = serverUnavailable || !!state?.preview || control.dataset.pending === 'true' || control.dataset.unavailable === 'true';
+  for (const control of document.querySelectorAll('.app-download'))
+    control.disabled = serverUnavailable || control.dataset.pending === 'true';
 }
 function renderServerAvailability() {
   workspace.setAvailable(!serverUnavailable);
@@ -2555,6 +3254,8 @@ function renderServerAvailability() {
   $('panel-main').classList.toggle('server-unavailable', serverUnavailable);
   if (!serverUnavailable) return;
   civswitchUI.render(state);civswitchLdnUI.render(state);
+  if (state?.platform) renderArmSetup(state.platform);
+  if (state) renderHistory();
   renderConnectionStatus();
   for (const card of document.querySelectorAll('#devices > .device')) {
     setText(card.querySelector('.state'), 'UNVERIFIED');
@@ -2573,7 +3274,7 @@ function renderServerAvailability() {
   if (state?.active) setText($('progress-title'), 'Session status unavailable');
   $('dolphin-open').disabled = true;
   setText($('dolphin-status'), 'Server unavailable · FS status cannot be checked.');
-  document.querySelectorAll('#start,#load,#retry,#engine-download,#engine-rescan,#arm-install,#hardware-form button,.module-host-actions button,.module-unload,.module-install,.sd-inventory-refresh,.module-configure,.folder-button,[data-folder],[data-variant],[data-loader],.address-form button,.transport-choice button,.transport-choice input,.detected-peer,.up-start,.up-save,.up-confirm')
+  document.querySelectorAll('#start,#load,#recheck,#engine-download,#engine-rescan,#arm-install,#hardware-form button,.module-host-actions button,.module-unload,.module-install,.sd-inventory-refresh,.module-configure,.folder-button,[data-folder],[data-variant],[data-loader],.address-form button,.transport-choice button,.transport-choice input,.detected-peer,.up-start,.up-save,.up-confirm,#library-sd-refresh')
     .forEach(control => { control.disabled = true; });
 }
 function render() {
@@ -2598,8 +3299,6 @@ function render() {
   renderHistory();
   renderActivity();
   renderWizard();
-  renderManualInputDesign();
-  advSetup.render({state,step,busy,serverUnavailable,manual:inputDesign==='own',preparation:cardputerRequest||state?.hardwareOperation});
   renderConnectionStatus();
   const applicationRecovery = state.applicationRecovery;
   $('application-recovery').hidden = !applicationRecovery;
@@ -2671,8 +3370,6 @@ function render() {
     if (notificationKey === backendNotice) $('toast').hidden = true;
     backendNotice = '';
   }
-  renderServerAvailability();
-  renderMenuLayout();
   renderSessionPresentation();
 }
 function renderMenuLayout() {
@@ -2681,16 +3378,15 @@ function renderMenuLayout() {
   $('device-toolbar').hidden=false;
   $('connection-files').hidden=civ;
   $('mode').hidden=civ;
-  $('network-caption').hidden=civ;
   for(const [button,engine]of [['civ-mode-usb','civswitch'],['civ-mode-ldn','civswitch-ldn']]){
     const needsRestart=engine==='civswitch-ldn'&&state.platform.civswitchLdnAvailable!==true;
     $(button).disabled=serverUnavailable||busy||state.platform.locked||needsRestart;
     $(button).title=needsRestart?(state.platform.locked||busy?'Restart the panel after ending the current session to enable CIV7 LAN.':'Restart the panel to enable CIV7 LAN.'):'';
   }
-  document.querySelector('[data-view="apps"]').hidden=!state?.platform?.izModules&&!civ;
+  document.querySelector('#panel-sidebar [data-view="apps"]').hidden=false;
   $('hardware-options').hidden=id==='civswitch-ldn';
   if(id==='civswitch-ldn')$('adv-usb-next').hidden=true;
-  $('civ-input-settings').hidden=true;
+  $('civ-input-settings').hidden=id!=='civswitch';
   if(civ){$('iz-flow').hidden=true;$('installation-options').hidden=true;}
 }
 
@@ -2798,7 +3494,7 @@ function renderPlatform() {
   document.querySelector('.launch-selector').hidden=false;
   $('engine-options').hidden=civ;
   const shellId = civ?(state.civLauncher?.shell||'izlauncher'):meta.izModules?meta.variant||'izlauncher':null;
-  const shellName = meta.shells?.find(item => item.id === shellId)?.name || (meta.izModules ? 'IZlauncher' : 'Core only');
+  const shellName = meta.shells?.find(item => item.id === shellId)?.name || (meta.izModules ? 'IZ2S' : 'Core only');
   for (const button of document.querySelectorAll('[data-folder="shell"]')) {
     button.hidden = !shellId;
     button.querySelector('span').textContent = shellName + ' folder';
@@ -2807,8 +3503,9 @@ function renderPlatform() {
   }
   $('footer-shell').textContent = shellName;
   const locked = busy || meta.locked,
-    selected = meta.loaderId;
-  const engineChoices = meta.loaders.filter(loader => !['civswitch','civswitch-ldn'].includes(loader.id)&&(meta.variant === 'original' || RUN21_CATALOG.engineAvailable(loader, meta.variant)));
+    selected = !civ&&coreView.selected()?'iz2s-core':meta.loaderId;
+  const engineChoices = [];
+  engineChoices.splice(Math.max(0,engineChoices.findIndex(item=>item.id==='izmysh')+1),0,{id:'iz2s-core',name:'IZ2S core',integrationStatus:coreText('engineCaption')});
   const inventoryStamp = JSON.stringify(
     engineChoices.map((l) => [l.id, l.name, l.integrationStatus]),
   );
@@ -2828,7 +3525,7 @@ function renderPlatform() {
         element('strong', '', loader.name),
       );
       b.append(element('small', 'engine-integration-status', loader.integrationStatus || ''));
-      b.onclick = () => act('/api/launch-settings', { loaderId: loader.id });
+      b.onclick = () => {coreView.select(loader.id==='iz2s-core');if(loader.id!=='iz2s-core')return act('/api/launch-settings', { loaderId: loader.id });};
       tabs.append(b);
     });
   }
@@ -2839,7 +3536,7 @@ function renderPlatform() {
     shellSelect.replaceChildren();
     for (const v of [
       ...(meta.shells || []),
-      { id: 'original', name: 'Core only' },
+
     ]) {
       const b = element('button', '', v.name);
       b.type = 'button';
@@ -2850,24 +3547,12 @@ function renderPlatform() {
   }
   document.querySelector('[data-step=bootstrap]').hidden =
     meta.loaders.find((l) => l.id === selected)?.menu?.sourceSetup === false;
-  document.querySelector('[data-view=apps]').disabled = !meta.izModules&&!civ;
-  document.querySelector('[data-view=apps]').title = meta.izModules||civ
-    ? ''
-    : 'Select IZlauncher or IZPSlauncher to use IZM modules';
-  if (!meta.izModules && !civ && !$('apps').hidden) switchView('setup');
   $('iz-flow').hidden = !meta.izModules||['civswitch','civswitch-ldn'].includes(meta.loaderId);
-  const label = meta.loaders.find((l) => l.id === selected)?.name || selected;
+  const label = selected==='iz2s-core'?'IZ2S core':meta.loaders.find((l) => l.id === selected)?.name || selected;
+  coreView.render(!civ&&selected==='iz2s-core',locked,state);
   setText($('engine-folder-name'), label);
   setText($('engine-folder-path'), meta.loaders.find(loader => loader.id === selected)?.folder || 'Folder path is unavailable. Use the Engine button above.');
-  const errors = $('extension-errors');
-  if (errors) {
-    errors.hidden = !meta.extensionErrors?.length;
-    errors.setAttribute('translate','no');errors.textContent = (meta.extensionErrors || [])
-      .map((e) => e.id + ': ' + globalThis.IZ2S_ERRORS.canonical(e.error))
-      .join(' · ');
-  }
-  $('delivery-summary').textContent = label;
-  document.querySelector('[data-variant=original]').textContent = 'Core only';
+  renderIssueList('extension-errors', meta.extensionErrors);
   const deliverySchema = (
     meta.loaders.find((l) => l.id === selected)?.settingsSchema || []
   ).filter(
@@ -2914,13 +3599,13 @@ function renderPlatform() {
   document.querySelectorAll('[data-loader]').forEach((button) => {
     button.classList.toggle('selected', button.dataset.loader === selected);
     const entry = meta.loaders.find(loader => loader.id === button.dataset.loader);
-    const available = RUN21_CATALOG.engineAvailable(entry, meta.variant);
+    const available = button.dataset.loader==='iz2s-core'||RUN21_CATALOG.engineAvailable(entry, meta.variant);
     const integrationStatus = button.querySelector('.engine-integration-status');
     if (integrationStatus) {
       const installing = button.dataset.loader === selected && state.active?.kind === 'bootstrap';
       integrationStatus.textContent = installing && state.active.progress
         ? 'Slot ' + (state.active.setup?.sourceSlot ?? 0) + ' · ' + state.active.progress.line + '/' + state.active.progress.total
-        : available ? entry?.integrationStatus || '' : 'Core only mode';
+        : available ? button.dataset.loader==='iz2s-core'?coreText('engineCaption'):entry?.integrationStatus || '' : 'Core only mode';
     }
     button.setAttribute(
       'aria-selected',
@@ -3047,19 +3732,8 @@ function renderPlatform() {
       source.type = 'button';
       source.onclick = async () => {
         try {
-          const response = await fetch(
-            '/api/loader-source?id=' + encodeURIComponent(id),
-            {
-              headers: { 'x-iz-key': key },
-            },
-          );
-          if (!response.ok) throw Error((await response.json()).error);
-          const url = URL.createObjectURL(await response.blob()),
-            link = element('a');
-          link.href = url;
-          link.download = id + '-bootstrap.bas';
-          link.click();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          const blob = await api('/api/loader-source?id=' + encodeURIComponent(id), undefined, {responseType:'blob',timeoutMs:30000});
+          saveDownload(blob, id + '-bootstrap.bas');
         } catch (e) {
           notice(e.message);
         }
@@ -3156,7 +3830,7 @@ function renderPlatform() {
   const inputName =
     meta.configurationId === 'arm-only'
       ? 'ARM PC · local input'
-      : meta.configurationId === 'pc-cardputer-adv'
+      : meta.configurationId === 'pc-switch1' ? 'Switch 1' : meta.configurationId === 'pc-cardputer-adv'
         ? 'Cardputer ADV'
         : 'ARM PC';
   words.arm[0] = inputName;
@@ -3227,7 +3901,7 @@ function renderPlatformControls() {
     button.setAttribute('aria-pressed', String(button.classList.contains('selected')));
   });
   document.querySelectorAll('[data-loader]').forEach(button => {
-    const available = RUN21_CATALOG.engineAvailable(meta.loaders.find(loader => loader.id === button.dataset.loader), meta.variant);
+    const available = button.dataset.loader==='iz2s-core'||RUN21_CATALOG.engineAvailable(meta.loaders.find(loader => loader.id === button.dataset.loader), meta.variant);
     button.disabled = locked || !available;
     button.setAttribute('aria-disabled', String(locked || !available));
   });
@@ -3349,7 +4023,7 @@ document
 $('game-civ7').onclick=()=>act('/api/launch-settings',{loaderId:state?.platform?.civswitchLdnAvailable===true?'civswitch-ldn':'civswitch',variant:'original'});
 $('civ-mode-usb').onclick=()=>act('/api/launch-settings',{loaderId:'civswitch',variant:'original'});
 $('civ-mode-ldn').onclick=()=>act('/api/launch-settings',{loaderId:'civswitch-ldn',variant:'original'});
-$('game-sm4').onclick=()=>act('/api/launch-settings',{loaderId:['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId)?'izmysh':state.platform.loaderId,variant:state?.platform?.variant==='original'?'izlauncher':state.platform.variant});
+$('game-sm4').onclick=()=>act('/api/launch-settings',{loaderId:'iz2s-core',variant:state?.platform?.variant==='original'?'izlauncher':state.platform.variant});
 document
   .querySelectorAll('[data-variant]')
   .forEach(
@@ -3380,25 +4054,32 @@ function dolphinReady() {
 function renderDolphin() {
   const button = $('dolphin-open'), status = $('dolphin-status'), entry = $('console-files-entry');
   if (!button || !status) return;
-  const ready = dolphinReady(), connecting=state?.fsRpc?.state==='starting';
+  const core=coreView.current();
+  const ready = core?.session?(!!core.pcLink?.files||globalThis.IZ2S_CORE.rpcAvailable(core)):dolphinReady(), connecting=state?.fsRpc?.state==='starting';
   const tone=serverUnavailable?'offline':dolphinOpening?'opening':ready?'ready':connecting?'waiting':'unavailable';
   button.disabled = !ready || dolphinOpening;
   button.title=ready?'Open console files in Super File Bros.':'Requires an active session with Filesystem access';
   button.setAttribute('aria-busy',String(dolphinOpening));
   if(entry){
-    entry.hidden=serverUnavailable||!state?.connected;
+    entry.hidden=serverUnavailable||!state?.connected&&!core?.session;
     entry.dataset.state=tone;
   }
+  setText($('console-files-description'),core?.session
+    ? 'Browse the SD card. Use App library to install app packages.'
+    : 'File manager · Upload games and apps to SD, or browse console folders.');
   setText(status, serverUnavailable ? 'Server unavailable · FS status cannot be checked.' : dolphinOpening ? 'Opening file manager…' : ready
-    ? dolphinMessage || 'Ready to open'
+    ? dolphinMessage || (core?.session&&!core.pcLink?.files?coreText(core.fsRpc?.ready?'rpcReady':'rpcHeld'):'Ready to open')
+    : core?.session ? coreText('waitingLauncher')
     : connecting ? 'Connecting to console files…'
     : state?.active?.status==='running'&&!state?.connected ? 'Restore the console connection to open files.'
     : 'Start a session with Filesystem access to open files.');
 }
 async function openDolphin(automatic = false) {
-  if (!dolphinReady() || dolphinOpening) return;
+  const core=coreView.current(),rpc=globalThis.IZ2S_CORE.rpcAvailable(core);
+  if(core?.session&&core.pcLink?.files)return openCorePcTool('files');
+  if ((!rpc&&!dolphinReady()) || dolphinOpening || state?.preview || serverUnavailable) return;
   if (!workspaceReady) {if(!automatic)notice('Reopen IZ2S to enable module tabs.');return;}
-  const attemptId = state.active.id;
+  const attemptId = rpc?core.attempt.id:state.active.id;
   dolphinOpening = true;
   renderDolphin();
   try {
@@ -3441,82 +4122,113 @@ async function readFsRpcProof(snapshot) {
   }
   if (fsRpcLogProof.state) snapshot.fsRpc = {state: fsRpcLogProof.state, source: 'session-proof-log'};
 }
-function poll() {
-  if (polling) return polling;
+function showStartupMessage(message, {error, tone = 'warning', retry = true} = {}) {
+  $('panel-startup').dataset.tone = tone;
+  setText($('startup-message'), message);
+  $('startup-retry').hidden = !retry;
+  $('startup-retry').disabled = false;
+  $('startup-details').hidden = !error;
+  if (error) setText($('startup-diagnostic'), globalThis.IZ2S_ERRORS.canonical(error));
+}
+function showPanelStatus(title, note, tone = 'error', retry = true) {
+  const box = $('panel-status');
+  box.dataset.tone = tone;
+  setText($('panel-status-title'), title);
+  setText($('panel-status-note'), note);
+  $('panel-status-retry').hidden = !retry;
+  box.hidden = !title;
+}
+function poll(fresh = false) {
+  const generation = actionGeneration;
+  if (!fresh && polling?.generation === generation) return polling;
   if (!initialRenderComplete) {
     $('startup-retry').disabled = true;
-    setText($('startup-message'), 'Preparing the app library. The panel will open automatically.');
+    if (!$('panel-startup').dataset.tone)
+      setText($('startup-message'), 'Preparing the app library. The panel will open automatically.');
   }
-  const generation = actionGeneration;
-  polling = (async () => {
+  const pending = (async () => {
     let readingState = true;
+    const last = state;
+    const current = () => generation === actionGeneration && polling === pending;
     try {
       const snapshot = await api(initialRenderComplete ? '/api/state' : '/api/startup', undefined,
         {timeoutMs: initialRenderComplete ? 15000 : 120000});
-      if (generation !== actionGeneration) return;
+      if (!current()) return;
       readingState = false;
-      state = RUN21_CATALOG.normalizeSnapshot(snapshot);
-      if(['civswitch','civswitch-ldn'].includes(state.platform?.loaderId)){
-        workspaceReady=false;workspace.sync([]);
-      }else{
-        await readFsRpcProof(state);
-        try {const tools=await api('/api/workspace',undefined,{timeoutMs:5000});workspaceReady=true;workspace.sync(tools.tabs||[]);} catch {workspaceReady=false;}
+      const next = RUN21_CATALOG.normalizeSnapshot(snapshot),
+        civ = ['civswitch','civswitch-ldn'].includes(next.platform?.loaderId);
+      let tabs = civ ? [] : null;
+      if (!civ) {
+        await readFsRpcProof(next);
+        if (!current()) return;
+        try {
+          const listing = await api('/api/workspace', undefined, {timeoutMs:5000});
+          if (Array.isArray(listing.tabs)) tabs = listing.tabs;
+        }
+        catch { /* Keep existing tabs available to read while the workspace refreshes. */ }
       }
-      if (generation !== actionGeneration) return;
-      if (serverUnavailable && notificationKey === 'server-unavailable') $('toast').hidden = true;
+      if (!current()) return;
+      state = next;
+      workspaceReady = !civ && !!tabs;
+      const invalidTools = tabs ? workspace.sync(tabs) : 0;
+      if (invalidTools) notice('Some tool tabs could not be restored. Open the tool again from App library.', 'warning', 'workspace-invalid');
+      else if (tabs) {
+        if (notificationKey === 'workspace-invalid') $('toast').hidden = true;
+        if (dismissed === 'workspace-invalid') dismissed = '';
+      }
       serverUnavailable = false;
       render();
       renderDolphin();
+      $('panel-status').hidden = true;
       if (!initialRenderComplete) {
+        restoreNavigation(false);
         initialRenderComplete = true;
         $('panel-sidebar').hidden = false;
         $('panel-main').hidden = false;
         $('panel-startup').hidden = true;
       }
-
     } catch (e) {
-      if (generation !== actionGeneration) return;
+      if (!current()) return;
       if (!readingState) {
+        state = last;
         console.error('IZ2S panel rendering failed', e);
-        const message = 'The panel could not display the server response. Try again or reopen IZ2S.';
-        if (!initialRenderComplete) {
-          setText($('startup-message'), message);
-          $('startup-retry').hidden = false;
-          $('startup-retry').disabled = false;
-        } else notice(message, 'error', 'panel-render-failed');
+        const title = 'The panel could not display the server response.';
+        if (!initialRenderComplete) showStartupMessage(title + ' Try again or reopen IZ2S.', {error:e, tone:'error'});
+        else {
+          serverUnavailable = true;
+          renderServerAvailability();
+          showPanelStatus(title, 'Try again or reopen IZ2S.');
+        }
         return;
       }
-      if (!initialRenderComplete && (e.name === 'AbortError' || e.statusCode === 503)) {
+      const delayed = e.name === 'AbortError' || e.statusCode === 503;
+      const invalidLink = e.statusCode === 403;
+      if (!initialRenderComplete && delayed) {
         serverUnavailable = false;
-        setText($('startup-message'), 'Preparation is taking longer than usual. The panel will retry automatically.');
-        $('startup-retry').hidden = false;
-        $('startup-retry').disabled = false;
+        showStartupMessage('Preparation is taking longer than usual. The panel will retry automatically.');
         return;
       }
       if (!initialRenderComplete && e.statusCode === 400) {
         serverUnavailable = false;
-        setText($('startup-message'), 'The app library could not be prepared. Try again.');
-        $('startup-retry').hidden = false;
-        $('startup-retry').disabled = false;
+        showStartupMessage('The app library could not be prepared. Try again.', {error:e, tone:'error'});
         console.error('IZ2S startup preparation failed', e);
         return;
       }
       serverUnavailable = true;
       if (!initialRenderComplete) {
-        setText($('startup-message'), 'The local server is unavailable. Try again or reopen IZ2S.');
-        $('startup-retry').hidden = false;
-        $('startup-retry').disabled = false;
+        showStartupMessage(invalidLink ? 'This window link is no longer valid. Open 0.25 from its shortcut.' :
+          'The local server is unavailable. Try again or reopen IZ2S.', {tone:'error', retry:!invalidLink});
         return;
       }
       renderServerAvailability();
-      notice(
-        'The local server is unavailable. Displayed device data is outdated; the panel will retry automatically.',
-        'error',
-        'server-unavailable',
-      );
+      if (invalidLink) showPanelStatus('This window link is no longer valid.', 'Open 0.25 from its shortcut.', 'error', false);
+      else showPanelStatus(delayed ? 'Status update delayed' : 'Local server unavailable',
+        'Showing the last known state. The panel will retry automatically.', delayed ? 'warning' : 'error');
     }
-  })().finally(() => { polling = null; });
-  return polling;
+  })().finally(() => { if (polling === pending) polling = null; });
+  pending.generation = generation;
+  polling = pending;
+  return pending;
 }
 document
   .querySelectorAll('[data-view]')
@@ -3535,7 +4247,13 @@ $('recovery-enabled').addEventListener('change', () => {
 for(const value of ['new','restore'])$('session-mode-'+value).addEventListener('click',()=>{const view=globalThis.IZ2S_PRESENTATION.connectionMode(state);if(value==='restore'&&!view.available||value==='new'&&view.retained)return;sessionModeChoice=value;renderWizard();});
 $('screen-ready').addEventListener('change', renderControls);
 $('recheck').addEventListener('click', () => act('/api/check', {}));
-$('startup-retry').addEventListener('click', () => poll());
+$('startup-retry').onclick = () => poll();
+$('panel-status-retry').onclick = async () => {
+  const button = $('panel-status-retry');
+  button.disabled = true;
+  try { await poll(); } finally { button.disabled = false; }
+};
+window.addEventListener('popstate', () => restoreNavigation());
 $('start').addEventListener('click', () => {
   requestId ||= crypto.randomUUID();
   act('/api/start', {
@@ -3573,16 +4291,17 @@ document.querySelectorAll('dialog').forEach((e) =>
   }),
 );
 $('dismiss').addEventListener('click', () => {
-  dismissed = notificationKey;
+  const identity = notificationKey;
+  dismissed = identity;
   $('toast').hidden = true;
-  api('/api/dismiss', {}).catch(() => {});
+  if (identity && identity === backendNotice) api('/api/dismiss', {}).catch(() => {});
 });
 document.querySelector('.brand').addEventListener('click', (e) => {
   e.preventDefault();
   switchView('setup');
 });
 chooseStep('launch');
-poll().finally(() => (timer = setInterval(poll, 2000)));
+poll().finally(() => setInterval(poll, 2000));
 // No unload/visibility handler: closing or hiding Chrome never ends the session.
 
 async function setupAction(action, extra = {}) {
@@ -3592,11 +4311,7 @@ async function setupAction(action, extra = {}) {
   if (result) pendingSetup = null;
   return result;
 }
-async function retrySetup(targetStep) {
-  const previousKind = (state?.active || state?.lastAttempt)?.kind;
-  const nextStep = typeof targetStep === 'string' ? targetStep
-    : previousKind === 'bootstrap' ? 'bootstrap'
-    : previousKind === 'launch' ? 'launch' : step;
+async function restartFirstSetup() {
   const result = await act('/api/retry', {});
   if (result?.ok) {
     requestId = null;
@@ -3611,7 +4326,7 @@ async function retrySetup(targetStep) {
     $('check-lines').checked = false;
     $('saved-ready').checked = false;
     for (let i = 0; i < 6; i++) $('metric-' + i).value = '';
-    chooseStep(nextStep);
+    chooseStep('bootstrap');
   }
 }
 $('verify-source').addEventListener('click', () =>
@@ -3634,8 +4349,7 @@ $('save-source').addEventListener('click', () => setupAction('save'));
 $('confirm-saved').addEventListener('click', () =>
   setupAction('saved', { savedConfirmed: $('saved-ready').checked }),
 );
-$('retry').addEventListener('click', () => retrySetup());
-$('restart-setup').addEventListener('click', () => retrySetup('bootstrap'));
+$('restart-setup').addEventListener('click', restartFirstSetup);
 for (const id of [
   'review-ready',
   'check-lines',
@@ -3646,15 +4360,8 @@ for (const id of [
 $('export-source').addEventListener('click', async () => {
   try {
     const row = state.active || state.lastAttempt,
-      data = await api('/api/setup-report?id=' + encodeURIComponent(row.id)),
-      url = URL.createObjectURL(
-        new Blob([data.text], { type: 'text/plain;charset=utf-8' }),
-      ),
-      a = element('a');
-    a.href = url;
-    a.download = 'IZlauncher-source-check-' + row.id + '.txt';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+      data = await api('/api/setup-report?id=' + encodeURIComponent(row.id), undefined, {timeoutMs:15000});
+    saveDownload(new Blob([data.text], {type:'text/plain;charset=utf-8'}), 'IZ2S-source-check-' + row.id + '.txt');
   } catch (e) {
     notice(e.message);
   }
@@ -3670,7 +4377,20 @@ $('download-session-log').addEventListener('click', () => {
   if (id) downloadSessionLog(id);
 });
 $('download-saved-log').addEventListener('click', () => {
-  if (savedLogAttempt) downloadSessionLog(savedLogAttempt);
+  if (!savedLogAttempt) return;
+  const id = savedLogAttempt, generation = savedLogGeneration;
+  async function download() {
+    const button = $('download-saved-log');
+    button.disabled = true;
+    $('saved-log-error').hidden = true;
+    await downloadSessionLog(id, error => {
+      if (generation !== savedLogGeneration) return;
+      showSavedLogError(error, 'Could not download the log.', 'Try the download again. You can still read the log here.', download);
+      $('saved-log-retry').focus();
+    });
+    if (generation === savedLogGeneration) button.disabled = false;
+  }
+  void download();
 });
 document.querySelector('.activity').addEventListener('toggle', (event) => {
   if (event.target.open && logFollow)
@@ -3728,16 +4448,26 @@ $('arm-install-confirm').onchange=()=>{if(state?.platform)renderArmSetup(state.p
 for(const mode of ['ssh','manual']) $('arm-method-'+mode).onclick=()=>{for(const item of ['ssh','manual']){$('arm-method-'+item).classList.toggle('selected',mode===item);$('arm-method-'+item).setAttribute('aria-pressed',String(mode===item));$('arm-'+item+'-pane').hidden=mode!==item;}};
 $('arm-install-form').onsubmit=async(event)=>{
   event.preventDefault();
-  $('arm-install-result').textContent='Installing the verified package over SSH…';
+  setFeedback('arm-install-result', 'Installing the verified package over SSH…');
   const result=await act('/api/input/install',{address:$('arm-setup-address').value.trim(),user:$('arm-setup-user').value.trim(),identity:$('arm-setup-key').value.trim(),confirm:$('arm-install-confirm').checked});
-  if(result?.ok){$('arm-install-result').textContent=result.keyboard?'Installed. Check the console USB connection before launch.':'Installed. Connect the USB data port to Switch and check again.';for(const id of ['arm-setup-address','arm-setup-user','arm-setup-key'])delete $(id).dataset.edited;}else $('arm-install-result').textContent='Installation was not confirmed. Check the error above, or use the manual package.';
+  if(result?.ok){setFeedback('arm-install-result', result.keyboard?'Installed. Check the console USB connection before launch.':'Installed. Connect the USB data port to Switch and check again.', 'success');for(const id of ['arm-setup-address','arm-setup-user','arm-setup-key'])delete $(id).dataset.edited;}
+  else setFeedback('arm-install-result', 'Installation was not confirmed. Check the SSH connection or use the manual package.', 'error');
 };
 $('arm-check').onclick=()=>act('/api/check', {});
-async function downloadArmInstaller(profile){try{const response=await fetch('/api/input-package?format=installer&profile='+profile,{headers:{'x-iz-key':key}});if(!response.ok)throw Error((await response.json()).error);const body=await response.arrayBuffer(),standalone=(response.headers.get('content-disposition')||'').includes('.run'),installer=standalone?new Blob([body],{type:'application/octet-stream'}):new Blob([await IZ2S_ARM_INSTALLER.create(body)],{type:'application/octet-stream'});const url=URL.createObjectURL(installer),link=element('a');link.href=url;link.download=profile==='civ7'?'iz2s-civ7-arm-input.run':'iz2s-arm-input.run';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){notice(error.message);}}
+async function downloadArmInstaller(profile) {
+  try {
+    const response = await api('/api/input-package?' + new URLSearchParams({format:'installer',profile}), undefined, {responseType:'response',timeoutMs:30000});
+    const bytes = await response.arrayBuffer();
+    const installer = (response.headers.get('content-disposition') || '').includes('.run')
+      ? bytes : await IZ2S_ARM_INSTALLER.create(bytes);
+    saveDownload(new Blob([installer], {type:'application/octet-stream'}), profile === 'civ7' ? 'iz2s-civ7-arm-input.run' : 'iz2s-arm-input.run');
+  } catch (error) { notice(error.message); }
+}
 $('arm-package-download').onclick=()=>downloadArmInstaller(state?.platform?.loaderId==='civswitch'?'civ7':'sb4');
 
 
 window.addEventListener('run21:languagechange', () => {
+  updateNavigation();
   if (!state) return;
   historyStamp = '';
   $('log').dataset.stamp = '';
@@ -3747,40 +4477,28 @@ window.addEventListener('run21:languagechange', () => {
 
 for (const placeholder of document.querySelectorAll('[data-folder]')) {
   const button = folderButton(placeholder.dataset.folder, null, globalThis.RUN21_LANGUAGE?.source(placeholder.textContent.trim())||placeholder.textContent.trim());
-  button.id = placeholder.id;
+  if (placeholder.id) button.id = placeholder.id;
   button.dataset.folder = placeholder.dataset.folder;
   button.className += ' ' + placeholder.className;
-  button.onclick = async event => {
-    event.preventDefault();
-    event.stopPropagation();
-    const kind = placeholder.dataset.folder;
-    const id = kind === 'configuration' ? state?.platform?.configurationId
-      : ['engine', 'engine-source'].includes(kind) ? state?.platform?.loaderId
-      : kind === 'shell' ? state?.platform?.variant || 'izlauncher' : undefined;
-    button.dataset.pending = 'true';
-    button.disabled = true;
-    try { await api('/api/folder/open', { kind, ...(id ? { id } : {}) }); }
-    catch (error) { notice(error.message); }
-    finally { delete button.dataset.pending; renderLocalActionAvailability(); }
-  };
   placeholder.replaceWith(button);
 }
 
 async function downloadCardputerPackage() {
-  const response=await fetch('/api/cardputer/package',{headers:{'x-iz-key':key}});
-  if(!response.ok)throw Error((await response.json()).error);
-  const url=URL.createObjectURL(await response.blob()),link=element('a');link.href=url;link.download='iz2s-cardputer-adv-sd.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const blob = await api('/api/cardputer/package', undefined, {responseType:'blob',timeoutMs:30000});
+  saveDownload(blob, 'iz2s-cardputer-adv-sd.zip');
 }
 async function prepareCardputer(action){
   if(busy||cardputerRequest)return;
   cardputerRequest={id:crypto.randomUUID(),kind:action==='install'?'firmware':'package',stopping:false};
-  $('cardputer-setup-result').textContent=action==='install'?'Copying to the ADV SD card…':'Preparing the SD package…';
+  const id='cardputer-setup-result';
+  setFeedback(id,action==='install'?'Copying to the ADV SD card…':'Preparing the SD package…');
   try{
     const result=await act('/api/cardputer/'+action,{requestId:cardputerRequest.id});
-    if(result?.cancelled){$('cardputer-setup-result').textContent='Cancelled. Incomplete SD files were removed. Existing firmware and Wi-Fi settings are preserved.';return;}
-    if(action==='install')$('cardputer-setup-result').textContent=result?.verified?'Copied. Start '+result.filename.replace(/^Utilities\//,'')+' from M5Launcher.':'Copy failed. Open M5Launcher USB storage and mount its SD card.';
-    else if(result?.ok){await downloadCardputerPackage();$('cardputer-setup-result').textContent='Extract the ZIP to the SD card, then start IZ2S-ADV.bin in M5Launcher.';}
-  }catch(error){notice(error.message);}
+    if(result?.cancelled){setFeedback(id,'Cancelled. Incomplete SD files were removed. Existing firmware and Wi-Fi settings are preserved.','warning');return;}
+    if(action==='install')setFeedback(id,result?.verified?'Copied. Start '+result.filename.replace(/^Utilities\//,'')+' from M5Launcher.':'Copy failed. Open M5Launcher USB storage and mount its SD card.',result?.verified?'success':'error');
+    else if(result?.ok){await downloadCardputerPackage();setFeedback(id,'Extract the ZIP to the SD card, then start IZ2S-ADV.bin in M5Launcher.','success');}
+    else setFeedback(id,'Could not prepare the SD package.','error');
+  }catch(error){setFeedback(id,'Could not download the SD package.','error');notice(error.message);}
   finally{cardputerRequest=null;renderControls();}
 }
 $('cardputer-install').onclick=()=>prepareCardputer('install');
@@ -3788,7 +4506,7 @@ $('cardputer-file').onclick=()=>prepareCardputer('prepare');
 $('cardputer-cancel').onclick=async()=>{
   const operation=cardputerRequest||state?.hardwareOperation;if(!operation||operation.stopping)return;
   operation.stopping=true;renderControls();
-  $('cardputer-setup-result').textContent='Cancelling… Waiting for the current SD write to close safely. Keep ADV connected.';
+  setFeedback('cardputer-setup-result','Cancelling… Waiting for the current SD write to close safely. Keep ADV connected.','warning');
   try{await api('/api/cardputer/cancel',{requestId:operation.id});await poll();}
   catch(error){operation.stopping=false;notice(error.message);}
   finally{renderControls();}
@@ -3801,14 +4519,59 @@ $('library-source').addEventListener('change',()=>act('/api/launch-settings',{sd
 $('native-recovery-enabled').addEventListener('change',()=>act('/api/launch-settings',{nativeRecovery:$('native-recovery-enabled').checked}));
 $('restore-connection').addEventListener('click',()=>act('/api/connection/restore',{}));
 
-// Address editors are small non-modal popovers; only one is open at a time.
-document.addEventListener('click',event=>{
- const selected=event.target.closest?.('.address-editor');
- for(const editor of document.querySelectorAll('.address-editor[open]'))if(editor!==selected)editor.open=false;
-});
-document.addEventListener('keydown',event=>{
- if(event.key!=='Escape')return;
- for(const editor of document.querySelectorAll('.address-editor[open]')){editor.open=false;editor.querySelector('summary')?.focus();}
-});
+const switchAddressField = $('switch-keyboard-address'), switchAddressError = $('switch-keyboard-address-error');
+function showSwitchAddressError(message = '') {
+  setText(switchAddressError, message);
+  switchAddressError.hidden = !message;
+  if (message) switchAddressField.setAttribute('aria-invalid', 'true');
+  else switchAddressField.removeAttribute('aria-invalid');
+}
+switchAddressField.oninput = () => {
+  switchAddressField.dataset.edited = 'true';
+  showSwitchAddressError();
+};
+$('switch-keyboard-form').onsubmit = async event => {
+  event.preventDefault();
+  if (busy || serverUnavailable || state?.platform?.configurationId !== 'pc-switch1') return;
+  const switchAddress = switchAddressField.value.trim();
+  const parts = switchAddress.split('.');
+  if (switchAddress && (parts.length !== 4 || parts.some(part => !/^(0|[1-9][0-9]{0,2})$/.test(part) || Number(part) > 255))) {
+    showSwitchAddressError('Enter a valid IPv4 address, for example 192.168.1.50.');
+    switchAddressField.focus();
+    return;
+  }
+  showSwitchAddressError();
+  const result = await act('/api/launch-settings', {configurationId:'pc-switch1',
+    profile:{...state.platform.profiles?.['pc-switch1'], switchAddress}},
+    {onError:error => showSwitchAddressError(globalThis.IZ2S_ERRORS.describe(error).title)});
+  if (result?.ok) {
+    switchAddressField.value = switchAddress;
+    delete switchAddressField.dataset.edited;
+    await act('/api/check', {});
+  }
+};
+$('switch-keyboard-check').onclick = () => act('/api/check', {});
+$('switch-keyboard-install').onclick = async () => {
+  const id = 'switch-keyboard-install-status';
+  setFeedback(id, 'Copying homebrew to Switch 1…');
+  const result = await act('/api/switch-keyboard/install', {});
+  setFeedback(id, result?.verified
+    ? 'Copy verified. Automatic pairing saved. Exit DBI and open IZ2S SB4 Keyboard.'
+    : 'Copy not confirmed. Keep DBI MTP Responder open, or download the SD package.', result?.verified?'success':'error');
+};
+$('switch-keyboard-download').onclick = async () => {
+  const id = 'switch-keyboard-install-status';
+  setFeedback(id, 'Preparing the SD package…');
+  try {
+    const prepared = await act('/api/switch-keyboard/prepare', {});
+    if (!prepared?.ok) {setFeedback(id, 'Could not prepare the SD package.', 'error');return;}
+    const blob = await api('/api/switch-keyboard/package', undefined, {responseType:'blob', timeoutMs:15000});
+    saveDownload(blob, prepared.filename || 'IZ2S-SB4-Keyboard-0.24.zip');
+    setFeedback(id, 'Extract the ZIP to the root of the Switch 1 SD card.', 'success');
+  } catch (error) {
+    setFeedback(id, 'Could not download the Switch 1 SD package.', 'error');
+    notice(error.message);
+  }
+};
 
 } // Ordinary panel; the standalone files preview above never starts polling.

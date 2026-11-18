@@ -13,6 +13,7 @@ function invoke(
     const child = spawn(file, args, {
       cwd,
       env,
+      windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '',
@@ -174,7 +175,8 @@ function createDeviceChecks({
   ownsListener = () => false,
   requiresArmAddress = true,
   inputName = 'ARM PC',
-  inputAddress = settings.armAddress || '10.42.0.2',
+  inputAddress = settings.armAddress || '',
+  inputSetup = '',
   run = invoke,
   interfaces = () => os.networkInterfaces(),
   portAvailable = availablePort,
@@ -244,7 +246,7 @@ function createDeviceChecks({
           hostInterface
         );
       })(),
-      (async () => {
+      inputSetup ? null : (async () => {
         if (requiresArmAddress && !settings.armAddress && connections)
           throw Error(
             connections.snapshot().discovery?.ambiguous
@@ -268,16 +270,24 @@ function createDeviceChecks({
               .find((s) => s.startsWith('NEED ')) || host.reason.message
           ).replace(/^NEED\s+/, '');
     const peer = tasks[1];
-    if (peer.status === 'fulfilled') {
+    if (inputSetup) {
+      rows[1].status = 'setup';
+      rows[1].detail = inputSetup;
+      rows[2].status = 'waiting';
+      rows[2].detail = 'Waiting for ' + inputName + ' Wi-Fi.';
+    } else if (peer.status === 'fulfilled') {
       const h = peer.value,
         observed = h.connectionMode || connections?.observed('arm'),
-        mismatch = observed && observed !== mode('arm');
+        mismatch = observed && observed !== mode('arm'),
+        switchKeyboard = h.service === 'switch-wifi';
+      rows[1].error = h.error;
       rows[1].bootId = h.bootId;
       rows[1].firmwareVersion = h.firmwareVersion;
       if (h.usb) rows[2].usb = h.usb;
+      if (h.pending) rows[1].status = 'waiting';
       rows[1].ready = !!(h.reachable && h.moduleReady && !mismatch);
       rows[1].detail = !h.reachable
-        ? inputName + ' connection failed: ' + (h.error || 'Input service did not respond')
+        ? switchKeyboard ? 'Switch 1 is unavailable. Keep IZ2S SB4 Keyboard open on the same local network; its address is detected automatically.' : inputName + ' connection failed: ' + (h.error || 'Input service did not respond')
         : !h.moduleReady
           ? (h.error || 'Install or update the ' + inputName + ' input package')
           : mismatch
@@ -286,19 +296,23 @@ function createDeviceChecks({
           ' · ' +
           modeName(mode('arm')) +
           ' · ' +
-          inputAddress;
+          (h.address || inputAddress);
       rows[2].ready = !!h.reachable && !!h.keyboard && !h.keyboardBusy;
-      rows[2].detail = !h.reachable ? 'USB state unavailable until ' + inputName + ' reconnects' : h.keyboardBusy
+      if (!h.reachable || h.keyboardBusy || (switchKeyboard && !rows[2].ready)) rows[2].status = 'waiting';
+      rows[2].detail = !h.reachable
+        ? switchKeyboard ? 'Waiting for Switch 1 Wi-Fi.' : 'USB state unavailable until ' + inputName + ' reconnects'
+        : h.keyboardBusy
         ? 'Input device is busy'
         : h.usb ? h.usb.detail
         : h.keyboard
           ? 'USB host configured'
-          : h.usbState || 'Connect the USB data cable';
+          : switchKeyboard ? 'Connect the USB data cable to the Switch 2 dock.' : h.usbState || 'Connect the USB data cable';
     } else {
       rows[1].detail = peer.reason.message.startsWith('Set the ARM')
         ? peer.reason.message
-        : inputName + ' is not reachable · ' + inputAddress;
+        : inputName + ' is not reachable' + (inputAddress ? ' · ' + inputAddress : '');
       rows[2].detail = 'Waiting for ' + inputName;
+      rows[2].status = 'waiting';
     }
     const link = tasks[2];
     rows[3].ready = link.status === 'fulfilled';

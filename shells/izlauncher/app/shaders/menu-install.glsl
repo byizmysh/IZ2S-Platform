@@ -32,18 +32,35 @@ bool menuInstallInput(uint pressed){
  c.library.w=touching?1u:0u;c.bag[7]=1u;hbEndFrame();return true;
 }
 #else
+vec3 menuSourceHint(vec2 p,vec3 col,vec2 origin,float scale){
+ uint source=c.atlas[(0x700d7cu-1024u)/4u];
+ vec2 local=(p-origin)/scale;
+ if(source<3u||source>4u||c.piece.x!=0||any(lessThan(local,vec2(0)))||local.x>=216.0||local.y>=32.0)return col;
+ // ZR  MIXED / ZR  SD CARD
+ const uint sd[11]=uint[11](90u,82u,32u,83u,68u,32u,67u,65u,82u,68u,32u);
+ const uint mixed[11]=uint[11](90u,82u,32u,77u,73u,88u,69u,68u,32u,32u,32u);
+ uint index=uint(local.x/19.0);
+ if(index>=11u)return col;
+ float ink=focusAscii(local,vec2(float(index)*19.0,0),source==3u?mixed[index]:sd[index]);
+ return mix(col,MUTED,ink);
+}
 // Reuse the existing proportional glyphs and their measured advances.
 vec3 menuStorageDraw(vec2 p,vec3 col,vec2 origin,uint base){
- bool sd=c.atlas[base+25628u]==0x44534453u;if(!sd&&c.atlas[(0x700d7cu-1024u)/4u]!=2u)return col;
- uvec3 chars=sd?uvec3(83u,68u,0u):uvec3(82u,65u,77u);uint count=sd?2u:3u;float width=0.0;
- for(uint i=0u;i<count;i++)width+=LOAD_ADVANCE[chars[i]-32u]*.65;
+ bool sd=c.atlas[base+25628u]==0x44534453u;
+ uint source=c.atlas[(0x700d7cu-1024u)/4u];
+ if(!sd&&source!=0u&&source!=2u&&source!=4u)return col;
+ bool needsPc=sd&&c.atlas[base+25629u]==2u;
+ const uint card[5]=uint[5](83u,68u,32u,80u,67u);
+ const uint ram[5]=uint[5](82u,65u,77u,32u,32u);
+ uint count=needsPc?5u:sd?2u:3u;float width=0.0;
+ for(uint i=0u;i<count;i++)width+=LOAD_ADVANCE[(sd?card[i]:ram[i])-32u]*.65;
  float edge=box(p,origin+vec2((width+12.0)*.5,12),vec2((width+12.0)*.5,12),5);if(edge>1.0)return col;
  col=mix(col,vec3(.025,.04,.065),fill(edge)*.94);vec2 q=(p-origin-vec2(6,1))/.65;float cursor=0.0,mask=0.0;
- for(uint i=0u;i<count;i++){uint glyph=chars[i]-32u;mask=max(mask,loadProgressGlyph(q-vec2(cursor,0),glyph,0u));cursor+=LOAD_ADVANCE[glyph];}
+ for(uint i=0u;i<count;i++){uint glyph=(sd?card[i]:ram[i])-32u;mask=max(mask,loadProgressGlyph(q-vec2(cursor,0),glyph,0u));cursor+=LOAD_ADVANCE[glyph];}
  return mix(col,sd?BLUE:INK,mask);
 }
-const uint INSTALL_CHARS[165]=uint[165](73u,110u,115u,116u,97u,108u,108u,32u,97u,112u,112u,108u,105u,99u,97u,116u,105u,111u,110u,83u,68u,32u,99u,97u,114u,100u,79u,102u,102u,108u,105u,110u,101u,83u,101u,115u,115u,105u,111u,110u,32u,109u,101u,109u,111u,114u,121u,80u,67u,32u,115u,101u,114u,118u,101u,114u,85u,110u,97u,118u,97u,105u,108u,97u,98u,108u,101u,65u,32u,73u,110u,115u,116u,97u,108u,108u,66u,32u,67u,97u,110u,99u,101u,108u,85u,110u,97u,98u,108u,101u,32u,116u,111u,32u,115u,116u,97u,114u,116u,80u,67u,32u,99u,111u,110u,110u,101u,99u,116u,105u,111u,110u,32u,114u,101u,113u,117u,105u,114u,101u,100u,65u,112u,112u,108u,105u,99u,97u,116u,105u,111u,110u,32u,99u,111u,117u,108u,100u,32u,110u,111u,116u,32u,98u,101u,32u,115u,116u,97u,114u,116u,101u,100u,46u,65u,32u,47u,32u,66u,32u,32u,66u,97u,99u,107u);
-const uvec2 INSTALL_LABELS[12]=uvec2[12](uvec2(0u,19u),uvec2(19u,7u),uvec2(26u,7u),uvec2(33u,14u),uvec2(47u,9u),uvec2(56u,11u),uvec2(67u,9u),uvec2(76u,8u),uvec2(84u,15u),uvec2(99u,22u),uvec2(121u,33u),uvec2(154u,11u));
+const uint INSTALL_CHARS[245]=uint[245](73u,110u,115u,116u,97u,108u,108u,32u,97u,112u,112u,108u,105u,99u,97u,116u,105u,111u,110u,83u,68u,32u,99u,97u,114u,100u,79u,102u,102u,108u,105u,110u,101u,83u,101u,115u,115u,105u,111u,110u,32u,109u,101u,109u,111u,114u,121u,80u,67u,32u,115u,101u,114u,118u,101u,114u,85u,110u,97u,118u,97u,105u,108u,97u,98u,108u,101u,65u,32u,73u,110u,115u,116u,97u,108u,108u,66u,32u,67u,97u,110u,99u,101u,108u,85u,110u,97u,98u,108u,101u,32u,116u,111u,32u,115u,116u,97u,114u,116u,80u,67u,32u,99u,111u,110u,110u,101u,99u,116u,105u,111u,110u,32u,114u,101u,113u,117u,105u,114u,101u,100u,65u,112u,112u,108u,105u,99u,97u,116u,105u,111u,110u,32u,99u,111u,117u,108u,100u,32u,110u,111u,116u,32u,98u,101u,32u,115u,116u,97u,114u,116u,101u,100u,46u,65u,32u,47u,32u,66u,32u,32u,66u,97u,99u,107u,83u,68u,32u,102u,105u,108u,101u,32u,99u,104u,97u,110u,103u,101u,100u,46u,32u,83u,101u,108u,101u,99u,116u,32u,116u,104u,101u,32u,97u,112u,112u,32u,97u,103u,97u,105u,110u,46u,83u,68u,32u,97u,112u,112u,32u,100u,97u,116u,97u,32u,105u,115u,32u,117u,110u,114u,101u,97u,100u,97u,98u,108u,101u,46u,32u,67u,104u,101u,99u,107u,32u,116u,104u,101u,32u,99u,111u,112u,121u,46u);
+const uvec2 INSTALL_LABELS[14]=uvec2[14](uvec2(0u,19u),uvec2(19u,7u),uvec2(26u,7u),uvec2(33u,14u),uvec2(47u,9u),uvec2(56u,11u),uvec2(67u,9u),uvec2(76u,8u),uvec2(84u,15u),uvec2(99u,22u),uvec2(121u,33u),uvec2(154u,11u),uvec2(165u,38u),uvec2(203u,42u));
 uint installWeight(uint which){return which==0u||which==1u||which==3u?0u:1u;}
 float installTextWidth(uint which){uvec2 t=INSTALL_LABELS[which];uint weight=installWeight(which);float width=0.0;for(uint i=0u;i<t.y;i++)width+=LOAD_ADVANCE[weight*96u+INSTALL_CHARS[t.x+i]-32u];return width;}
 float installText(vec2 p,vec2 origin,uint which,float scale){
@@ -67,7 +84,7 @@ vec3 menuInstallDraw(vec2 p,vec3 col){
 vec3 menuLaunchErrorDraw(vec2 p,vec3 col){
  if(c.state.w==0u)return col;
  col*=.2;float pane=box(p,vec2(960,540),vec2(420,170),24);col=mix(col,PANEL,fill(pane));col=mix(col,BLUE,line(pane,.8));
- col=mix(col,INK,installText(p,vec2(600,405),8u,1.2));uint message=c.state.w==2u?9u:10u;float scale=min(1.0,700.0/max(1.0,installTextWidth(message)));col=mix(col,MUTED,installText(p,vec2(600,505),message,scale));
+ col=mix(col,INK,installText(p,vec2(600,405),8u,1.2));uint message=c.state.w==2u?9u:c.state.w==3u?12u:c.state.w==4u?13u:10u;float scale=min(1.0,700.0/max(1.0,installTextWidth(message)));col=mix(col,MUTED,installText(p,vec2(600,505),message,scale));
  col=mix(col,BLUE,installText(p,vec2(960.0-installTextWidth(11u)*.5,625),11u,1));return col;
 }
 #endif

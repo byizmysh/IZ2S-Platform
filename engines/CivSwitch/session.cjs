@@ -38,7 +38,7 @@ function create({root, settings, arm, connections, configuration, preview = fals
       saved.phase=saved.index===87?'entered':saved.id?'chat':'idle';saved.error=probeError(saved.error);
     }
     restoredAttempt=!!(saved.error||saved.pending||saved.index);
-    if(!['izlauncher','izpslauncher'].includes(saved.launcher))saved.launcher='izlauncher';
+    if(!['izlauncher'].includes(saved.launcher))saved.launcher='izlauncher';
   });
   function log(message) { const entry={at:new Date().toISOString(),type:'civswitch',message:redact(message).slice(-1600)};events.push(entry);if(events.length>250)events.shift();const owner=attempt;if(owner)logQueue=logQueue.then(()=>ledger.append(owner.id,entry.type,entry.message)).catch(()=>{}); }
   const persist = () => saveJson(file, saved);
@@ -131,7 +131,7 @@ function create({root, settings, arm, connections, configuration, preview = fals
       ready=false;verifiedHost=null;networkReachable=false;checkedAt=0;await persist();return {ok:true};
     }
     if(command==='select-launcher') {
-      if(!['izlauncher','izpslauncher'].includes(body.launcher))throw Error('Choose IZlauncher or IZPSlauncher');
+      if(!['izlauncher'].includes(body.launcher))throw Error('Choose IZ2S');
       saved.launcher=body.launcher;await persist();return {ok:true};
     }
     if(command==='check-recovery'){

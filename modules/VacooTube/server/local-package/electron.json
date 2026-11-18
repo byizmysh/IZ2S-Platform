@@ -1,0 +1,12 @@
+{
+  "version": "44.5.1",
+  "source": "https://github.com/electron/electron/releases",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "sha256": {
+    "linux-x64": "5bcd217611d6843ececd6c9e9c1fcd1da3ab066c43d8b1a9e4b44689a1fba6f5",
+    "linux-arm64": "ee1790d743af1abd6a7e3971589dcd8635b58dab51ca1359123ba5216ce3a453"
+  }
+}

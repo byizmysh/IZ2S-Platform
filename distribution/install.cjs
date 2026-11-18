@@ -16,64 +16,7 @@ function defaultDestination(version, {platform = process.platform, home = os.hom
     platform === 'darwin' ? join(home, 'Library/Application Support/IZ2S Platform') : join(env.XDG_DATA_HOME || join(home, '.local/share'), 'iz2s-platform');
   return join(base, 'releases', version + '-' + new Date().toISOString().replace(/[^0-9]/g, ''));
 }
-async function copySource(source, destination) {
-  const profile = JSON.parse(await fs.readFile(path.join(source, 'distribution/profile.json')));
-  const top = new Set(['core','panel','engines','shells','hardware','profiles','sdk','tools','language','distribution','.github','docs','sources']);
-  const docImages = new Set(['connection','app-library','izlauncher','izpslauncher'].map(name => 'docs/images/' + name + '.png'));
-  const rootFiles = new Set(['start.cjs','start.sh','install.sh','install-desktop.sh','Install-Linux.desktop','package.json','LICENSE','COPYRIGHT','LICENSE-SCOPE.md','THIRD_PARTY.json','README.md','BUILDING.md','FAQ.md','COMPATIBILITY.md','RELEASE-NOTES.md','SUPPORT.md','.gitignore','preview.sh']);
-  const privateDirs = new Set(['.git','node_modules','__pycache__','.versions','data','runs','downloads','test-data','tests']);
-  const privateFiles = new Set(['secret','capsule.key','installed.json','.engine-install.json']);
-  let manifest;
-  try {const document=JSON.parse(await fs.readFile(path.join(source, 'SOURCE-MANIFEST.json')));manifest=document?.files;
-    if(!manifest||typeof manifest!=='object'||Array.isArray(manifest))throw Error('Invalid source manifest');}
-  catch (error) {if (error.code !== 'ENOENT') throw error;}
-  if(manifest&&(typeof manifest!=='object'||Array.isArray(manifest)))throw Error('Invalid source manifest');
-  function allowed(relative) {
-    if (['packages/iz2s-arm-input.tar.gz','packages/iz2s-arm-input.run','packages/iz2s-civ7-arm-input.run'].includes(relative)) return true;
-    const parts = relative.split('/'), name = parts.at(-1);
-    if (parts.length === 1) return rootFiles.has(name);
-    if (parts.some(p => (privateDirs.has(p) && !(p === 'tests' && parts[0] === 'sources')) || /^\.(?:download|publish|placeholder)-/.test(p)) || privateFiles.has(name) || /\.(?:log|pyc|tmp|izm|pem|key)$/.test(name)) return false;
-    if (parts[0] === 'desktop') return ['desktop/install.cjs','desktop/izlauncher.svg'].includes(relative);
-    if (parts[0] === 'docs') return docImages.has(relative) || /\.(?:md|txt)$/.test(name);
-    if (parts[0] === 'modules') return relative === 'modules/README.md' || parts.length > 2 && profile.moduleDirectories.includes(parts[1]) && !parts.slice(2).some(p => p === 'runtime' || p === 'docs');
-    if (!top.has(parts[0])) return false;
-    if (parts.slice(0,3).join('/') === 'engines/kurumuz/upstream') return name === 'README.md';
-    return !(parts.slice(0,2).join('/') === 'core/session' && /\.(?:png|jpg|webp)$/.test(name));
-  }
-  if(manifest)for(const [relative,entry]of Object.entries(manifest)){
-    if(!relative||relative.includes('\\')||relative.includes(':')||relative.includes('\0')||relative.split('/').some(part=>!part||part==='.'||part==='..')||
-      !entry||typeof entry!=='object'||Array.isArray(entry)||!/^[a-f0-9]{64}$/.test(entry.sha256)||('executable'in entry&&typeof entry.executable!=='boolean'))throw Error('Invalid source manifest entry');
-    if(!allowed(relative))continue;
-    const file=path.join(source,...relative.split('/'));
-    let stat;try{stat=await fs.lstat(file);}catch(error){if(error.code==='ENOENT')throw Error('Release source is incomplete: '+relative);throw error;}
-    if(!stat.isFile()||stat.isSymbolicLink())throw Error('Invalid source file: '+relative);
-    const bytes=await fs.readFile(file);
-    if(crypto.createHash('sha256').update(bytes).digest('hex')!==entry.sha256||('bytes'in entry&&entry.bytes!==bytes.length))throw Error('Source checksum mismatch: '+relative);
-  }
-  let count = 0;
-  async function walk(folder, prefix = '') {
-    for (const entry of await fs.readdir(folder, {withFileTypes: true})) {
-      const relative = prefix + entry.name;
-      if (entry.isDirectory()) {
-        if (privateDirs.has(entry.name) || entry.name === 'dist' || (!prefix && !top.has(entry.name) && !['desktop','modules','packages'].includes(entry.name))) continue;
-        if (relative.startsWith('modules/') && !profile.moduleDirectories.includes(entry.name) && prefix === 'modules/') continue;
-        await walk(path.join(folder, entry.name), relative + '/');
-      } else if (allowed(relative)) {
-        if (!entry.isFile()) throw Error('Unexpected source symlink: ' + relative);
-        const bytes = await fs.readFile(path.join(source, ...relative.split('/')));
-        if (manifest && (!manifest[relative] || crypto.createHash('sha256').update(bytes).digest('hex') !== manifest[relative].sha256)) throw Error('Source checksum mismatch: ' + relative);
-        const target = path.join(destination, ...relative.split('/'));
-        await fs.mkdir(path.dirname(target), {recursive: true});
-        const mode=manifest?.[relative]?.executable===true?0o755:(await fs.stat(path.join(source, ...relative.split('/')))).mode&0o777;
-        await fs.writeFile(target, bytes, {mode});
-        if(manifest?.[relative]?.executable===true)await fs.chmod(target,mode);
-        count++;
-      }
-    }
-  }
-  await walk(source);
-  return count;
-}
+async function copySource(source,destination){return require('./runtime-files.cjs').copySource(source,destination);}
 async function extract(archive, destination, {platform = process.platform, execute = run} = {}) {
   await fs.mkdir(destination, {recursive: true});
   if (archive.endsWith('.zip')) await execute('powershell.exe', ['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(SOURCE,'distribution/extract-zip.ps1'),'-Archive',archive,'-Destination',destination]);
@@ -102,7 +45,8 @@ async function install({source = SOURCE, destination, nodeHome, platform = proce
   uvProgram, execute = run, download = require('./download-runtime.cjs').download,
   createShortcut = true, launch = true} = {}) {
   const version = JSON.parse(await fs.readFile(path.join(source,'package.json'))).version;
-  if (platform !== 'linux' || !['x64','arm64'].includes(arch)) throw Error('This release supports Linux x64 and ARM64 only');
+  if (!['linux','darwin','win32'].includes(platform) || !['x64','arm64'].includes(arch)) throw Error('A 64-bit Windows, macOS or Linux host is required');
+  if (platform === 'win32' && arch !== 'x64') throw Error('Windows x64 is required. Windows ARM64 and 32-bit Windows are not supported.');
   destination ||= defaultDestination(version, {platform});
   if (!path.isAbsolute(destination)) throw Error('Installation folder must be absolute');
   const relative=path.relative(path.resolve(source),path.resolve(destination));
@@ -160,11 +104,11 @@ async function install({source = SOURCE, destination, nodeHome, platform = proce
     if (createShortcut) await shortcut(destination,{platform,execute});
     await fs.rm(downloads,{recursive:true,force:true});
     completed = true;
-    console.log('Installed. Open ' + (platform === 'win32' ? 'Start.cmd' : platform === 'darwin' ? 'Start.command' : 'start.sh') + ' in: ' + destination);
-    if (platform !== 'linux') console.log('Experimental host: installation, networking and a full console session still require testing on this OS. See COMPATIBILITY.md.');
+    console.log('Installed. Open ' + (platform === 'win32' ? 'Start.vbs' : platform === 'darwin' ? 'Start.command' : 'start.sh') + ' in: ' + destination);
+    if (platform !== 'linux') console.log('Experimental host: installation, networking and a full console session still require testing on this OS. See README-0.25.txt.');
     if (launch) {
       await require('./start-local.cjs').launch(destination,{node,env});
-      console.log('Panel startup requested. If no window appears, open data/state/startup.log or run the Start file again.');
+      console.log('Panel is ready.');
     }
     return {destination,version,platform,arch};
   } catch (error) {

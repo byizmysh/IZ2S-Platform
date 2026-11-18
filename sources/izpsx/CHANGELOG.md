@@ -1,3 +1,23 @@
+# 0.5.2 BIOS filename update
+
+- Use only `bios/bios.bin` as the external BIOS file, exactly 512 KiB.
+- Rebuild the native executable/engine and update the complete SD bundle.
+- Enforce the new filename in the PC uploader and document it throughout installation instructions.
+
+# 0.5.2 distribution clarification
+
+- Explicit BIOS and game destinations on SD; no BIOS or game images are bundled.
+- Reject BIOS/game files during module and source-release packaging.
+- Align the PC Games and BIOS interface with `/iz2s/modules/izpsx/`.
+
+# IZPSX emulator 0.5.2 — current IZ2S / IZA distribution
+
+- Include the current native 0.5.2 module, verified by a byte-identical local rebuild of its engine and shim.
+- Use `.iza` for platform installation and `launcher.iza` in the complete SD bundle.
+- Canonical SD installation directory: `/iz2s/modules/izpsx/`.
+- Include SDK headers and build sources with their licenses.
+- This variant uses the interpreter. No dynarec performance or new hardware qualification is claimed.
+
 # IZPSX emulator 0.5.1 — controller handoff update
 
 - AUTO Player 1 prefers attached handheld Joy-Con even while a wireless Pro Controller remains connected, and returns to the first external controller when handheld input disconnects.

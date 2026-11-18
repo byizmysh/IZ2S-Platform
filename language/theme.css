@@ -1,0 +1,96 @@
+/* Shared by the 0.25 panel and its built-in tools. */
+:root {
+  --bg: #101312;
+  --panel: #191e1c;
+  --line: #303732;
+  --ink: #f4f3e9;
+  --muted: #929c95;
+  --lime: #d3ff38;
+  --blue: #88caff;
+  --red: #f39395;
+  --warning: #e9c568;
+  --surface-inset: #141a16;
+  --surface-raised: #202820;
+  --surface-selected: #29371f;
+  --border-strong: #4c5b43;
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-dialog: 18px;
+  --control-height: 36px;
+  --control-height-compact: 30px;
+  --text-meta: 11px;
+  --text-small: 12px;
+  --text-body: 13px;
+  --text-title: 14px;
+  --text-heading: 18px;
+  --text-section: 20px;
+  --text-page: 28px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --menu-shadow: 0 16px 40px #0006;
+  --font-ui: Inter, "DejaVu Sans", system-ui, sans-serif;
+  --font-mono: "DejaVu Sans Mono", monospace;
+  --tone-info: var(--blue);
+  --tone-success: var(--lime);
+  --tone-warning: var(--warning);
+  --tone-error: var(--red);
+  color-scheme: dark;
+}
+
+:where(.panel-message,.feedback-line) {
+  --feedback-color: var(--tone-info);
+}
+:where(.panel-message,.feedback-line)[data-tone="success"] { --feedback-color: var(--tone-success); }
+:where(.panel-message,.feedback-line)[data-tone="warning"] { --feedback-color: var(--tone-warning); }
+:where(.panel-message,.feedback-line)[data-tone="error"] { --feedback-color: var(--tone-error); }
+
+.panel-message {
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-inline-start: 3px solid var(--feedback-color);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.panel-message strong { color: var(--feedback-color); font-size: var(--text-title); }
+.panel-message p { margin: var(--space-1) 0 0; color: var(--muted); }
+.panel-message .technical-details { margin-top: var(--space-2); }
+.feedback-line { color: var(--feedback-color); overflow-wrap: anywhere; }
+.feedback-line:empty { display: none; }
+
+.technical-details summary { width: fit-content; cursor: pointer; color: var(--blue); }
+.technical-details pre {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: min(260px, 38dvh);
+  overflow: auto;
+  font: var(--text-small)/1.55 var(--font-mono);
+}
+
+
+/* Transient menus share padding, wrapping and a scrollable surface. */
+.menu-surface {
+  box-sizing: border-box;
+  min-inline-size: 0;
+  max-block-size: min(420px, 60dvh);
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  box-shadow: var(--menu-shadow);
+  overflow: auto;
+  overflow-wrap: anywhere;
+}

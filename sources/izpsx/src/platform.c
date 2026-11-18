@@ -56,7 +56,9 @@ static Ps1File *find(const char*path){
   for(unsigned i=0;i<dynamic_count;i++)if(!strcmp(path,dynamic_names[i]))return dynamic_files+i;
   if(dynamic_count==64){own_errno=EMFILE;return NULL;}
   char physical[PS1_SD_PATH_MAX];
-  if(!strcmp(path,"/ps1/scph101.bin"))strcpy(physical,IZPSX_SD_BIOS);
+  /* The libretro core probes its internal BIOS alias; both virtual names
+   * read the single external file bios/bios.bin. */
+  if(!strcmp(path,"/ps1/bios.bin")||!strcmp(path,"/ps1/scph101.bin"))strcpy(physical,IZPSX_SD_BIOS);
   else{strcpy(physical,IZPSX_SD_GAMES);strcat(physical,path+4);}
   if(!ps1_sd_path_valid(IZPSX_SD_ROOT,physical)){own_errno=EINVAL;return NULL;}
   uint64_t size=0;Ps1SdDirectory*sd=(void*)(uintptr_t)io->directory;

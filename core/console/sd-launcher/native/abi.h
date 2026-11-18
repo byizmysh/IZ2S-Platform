@@ -13,17 +13,20 @@ typedef uint64_t u64;
 #define IZ_TILE_BYTES 131072
 #define IZ_ATLAS_BYTES 2097152
 #define IZ_SHARED_BYTES 8388608
-#define IZ_SD_ROOT "/IZ2S/Homebrew/Modules"
+#define IZ_SD_ROOT "/iz2s/modules"
 #define IZ_LIBRARY_MAX 16
+#define IZ_SD_RETURN_HISTORY 4
 #define IZ_LIBRARY_CAPACITY (2u*1024*1024+4096)
 typedef struct {char id[48];u8 sha256[32];u32 tile_crc,reserved[3];} IzLibraryEntry;
 typedef struct {char magic[8];u32 version,bytes,count,table_crc;u8 padding[488];} IzLibraryHeader;
 typedef struct {u32 sequence,reserved;char id[48];u8 sha256[32];} IzInstallRequest;
+typedef struct {u32 sequence,error;char id[48];u32 committed,reserved;} IzSdReturn;
+_Static_assert(sizeof(IzSdReturn)==64,"SD return record ABI");
 typedef struct {char path[192];u64 address,bytes;} IzRamFile;
 _Static_assert(sizeof(IzRamFile)==208,"RAM file descriptor ABI");
 _Static_assert(sizeof(IzLibraryHeader)==512&&sizeof(IzLibraryEntry)==96&&sizeof(IzInstallRequest)==88,"SD picker ABI");
 enum { SEC_STATE,SEC_DATA,SEC_VERTEX,SEC_FRAGMENT,SEC_COMPUTE,SEC_BEGIN,SEC_AFTER,SEC_PRIVATE,SEC_TILE,SEC_PAD,SEC_NATIVE_CODE,SEC_NATIVE_DATA,SEC_COUNT };
-enum { IZ_APP_NATIVE=1,IZ_APP_PRIVATE_128=2,IZ_APP_AUDIO_OUT=4,IZ_APP_ASSETS=8,IZ_APP_ENGINE_IMAGE=16,IZ_APP_COOPERATIVE=32,IZ_APP_MANAGED=64,IZ_APP_WORKER=128,IZ_APP_PRESENTATION=256 };
+enum { IZ_APP_NATIVE=1,IZ_APP_PRIVATE_128=2,IZ_APP_AUDIO_OUT=4,IZ_APP_ASSETS=8,IZ_APP_ENGINE_IMAGE=16,IZ_APP_COOPERATIVE=32,IZ_APP_MANAGED=64,IZ_APP_WORKER=128,IZ_APP_PRESENTATION=256,IZ_APP_SDK=512 };
 typedef struct { u32 offset,bytes,crc32,reserved; } IzSection;
 typedef struct {
  char magic[8]; u32 version,header_bytes,total_bytes,flags;
@@ -63,7 +66,22 @@ typedef struct {
  u32 presentation_owned;
 } IzNative;
 /* These owners outlive iz_run when a child/result is still uncertain. */
-typedef struct {IzFs fs;IzNative native;} IzOwner;
+typedef struct {u32 milliseconds,value[4];} IzSdkHapticStep;
+_Static_assert(sizeof(IzSdkHapticStep)==20,"SDK haptic request ABI");
+typedef struct {
+ u64 thread;
+ u32 cancel,done,error,stop_error,handles[2],handle_count,step_count,actual[4];
+ IzSdkHapticStep steps[32];
+} IzSdkHaptic;
+typedef struct {
+ u32 epoch,enabled,sequence,pending,verified,retained,error,close_error;
+ int32_t socket;u32 count,polls,budget;
+ u64 start,next_poll,start_frame,last_tick,sdk;
+ struct {u32 ip,port;} endpoints[8];
+ u32 capabilities,operation,ending,haptic_verified,pad_id,pad_style,pad_connected;
+ IzSdkHaptic haptic;
+} IzSdkOwner;
+typedef struct {IzFs fs;IzNative native;IzSdkOwner sdk;} IzOwner;
 /* Private frame-plan ABI is also packed by the shared host bridge. */
 typedef struct {
  u32 version,bytes;u64 controls,controls_bytes,commands[IZ_MAX_IMAGES];
@@ -127,9 +145,28 @@ struct IzContext {
  u32 host_frames_offer,host_frames_ack,host_frames_active,host_frames_paused;
  u32 host_frames_returned,host_frames_reason,host_frames_error,host_frames_cancel;
  IzHostFramesPlan host_frames_plan;
+ /* Console-owned RPC completion/fencing. Only a trusted loader may offer
+  * bindings; absent offers keep the legacy borrowed display policy. */
+ u64 host_rpc_owner,host_rpc_staging,host_rpc_bindings;
+ u32 host_rpc_offer,host_rpc_ack,host_rpc_error,host_rpc_count;
+ u32 host_rpc_revoked,host_rpc_returned,host_rpc_epoch,host_rpc_inflight,host_rpc_opaque;
+ u64 host_rpc_scratch;
+ u64 host_rpc_code_base,host_rpc_code_bytes;
+ u32 host_rpc_map_offer,host_rpc_map_ack,host_rpc_map_error,host_rpc_map_state;
+ u32 host_rpc_map_index,host_rpc_map_reserved;
+ u64 host_rpc_map_rx,host_rpc_map_source;
+ u32 host_rpc_claim,host_rpc_claim_ack;
+ u32 sd_launch_failure_sequence,sd_launch_failure_stage,sd_launch_failure_error;
+ char sd_launch_failure_id[48];
+ u32 sd_launch_failure_committed;
+ u32 catalog_header_crc[IZ_MAX_APPS];
+ u32 catalog_identity_reserved;
+ u32 sd_return_sequence,sd_return_next;
+ IzSdReturn sd_returns[IZ_SD_RETURN_HISTORY];
  IzOwner owner;
 };
 _Static_assert(sizeof(IzContext)<=12288,"Context overlaps bootstrap temporary space");
+_Static_assert(offsetof(IzContext,host_frames_error)%8==0&&offsetof(IzContext,host_frames_cancel)==offsetof(IzContext,host_frames_error)+4,"Guarded error cancellation publication ABI");
 typedef u64 (*IzFunction)(u64,u64,u64,u64,u64,u64,u64,u64);
 #define FN(c,n) ((IzFunction)(uintptr_t)(c)->functions[n])
 #define CALL(c,n,a,b,d,e,f,g,h,i) FN(c,n)((u64)(uintptr_t)(a),(u64)(uintptr_t)(b),(u64)(uintptr_t)(d),(u64)(uintptr_t)(e),(u64)(uintptr_t)(f),(u64)(uintptr_t)(g),(u64)(uintptr_t)(h),(u64)(uintptr_t)(i))
@@ -153,6 +190,7 @@ u32 iz_fs_checkpoint_write(IzFs*,u32,u64,const void*,u32);
 u32 iz_fs_checkpoint_finish(IzFs*,u32);
 u32 iz_fs_remove_app(IzFs*,const char*);
 u32 iz_validate_header(const IzAppHeader*,u64);
+u32 iz_validate_sdk_config(const IzAppHeader*);
 void iz_library_tick(IzContext*);
 void iz_library_menu(IzContext*);
 void iz_menu_changed(IzContext*);

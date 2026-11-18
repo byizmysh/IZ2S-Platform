@@ -1,0 +1,184 @@
+//onscreen touch controls + native scrollbars
+
+const configOverrides = require('../util/configOverrides')
+const css = require('../util/css')
+const configManager = require('../config')
+const config = configManager.get()
+
+module.exports = () => {
+    configOverrides.environmentOverrides.push({
+        flags: {
+            enable_touch_support: true //native scrollbars
+        }
+    })
+
+    css.inject('touch-support', `
+        html:not(.vt-touch-input) yt-virtual-list,
+        html:not(.vt-touch-input) .ogHbMc {
+            overflow: hidden !important;
+        }
+    `)
+
+    window.addEventListener('pointerdown', (e) => {
+        document.documentElement.classList.toggle('vt-touch-input', e.pointerType === 'touch')
+    }, true)
+
+    window.addEventListener('keydown', (e) => {
+        if (e.isTrusted) { //simulated keys can't scroll anything
+            document.documentElement.classList.remove('vt-touch-input')
+        }
+    }, true)
+
+    //fix native scrollbars causing space to jump the page down and break everything
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault()
+        }
+    })
+
+    window.addEventListener('load', () => {
+        const touchKeyCodeMap = { //maps to gamepad keycodes
+            'back':   32769, //escape
+            'select': 32768, //enter
+            'up':     32785,
+            'down':   32786,
+            'left':   32787,
+            'right':  32788
+        }
+
+        function simulateKeyDown(keyCode) {
+            let event = new Event('keydown')
+            event.keyCode = keyCode;
+            document.dispatchEvent(event)
+        }
+
+        function simulateKeyUp(keyCode) {
+            let event = new Event('keyup')
+            event.keyCode = keyCode;
+            document.dispatchEvent(event)
+        }
+
+        let zIndex = 999;
+        let controls = document.createElement('div')
+
+        let bottomLeft = document.createElement('div')
+        bottomLeft.style.position = 'absolute'
+        bottomLeft.style.bottom = '5vh'
+        bottomLeft.style.left = '5vh'
+        bottomLeft.style.zIndex = zIndex.toString()
+        controls.appendChild(bottomLeft)
+
+        let bottomRight = document.createElement('div')
+        bottomRight.style.position = 'absolute'
+        bottomRight.style.bottom = '5vh'
+        bottomRight.style.right = '5vh'
+        bottomRight.style.zIndex = zIndex.toString()
+        controls.appendChild(bottomRight)
+
+        function createCircularButton(text, keyCode, margin, ytIcon) {
+            let button = document.createElement('div')
+            button.style.display = 'inline-flex'
+            button.style.justifyContent = 'center'
+            button.style.alignItems = 'center'
+            button.style.width = '10vw'
+            button.style.height = '10vw'
+            button.style.backgroundColor = '#272727'
+            button.style.opacity = '0.9'
+            button.style.borderRadius = '50%'
+            button.style.color = 'white'
+            button.style.fontWeight = 'bold'
+            button.style.userSelect = 'none'
+            button.style.verticalAlign = 'middle'
+            button.style.zIndex = (zIndex + 1).toString()
+            button.textContent = text;
+
+            button.addEventListener('touchstart', () => simulateKeyDown(keyCode))
+            button.addEventListener('touchend', () => simulateKeyUp(keyCode))
+
+            if (margin) {
+                button.style.marginLeft = '1vw'
+            }
+
+            if (ytIcon) {
+                button.style.fontFamily = 'YouTube Icons Outlined'
+                button.style.fontSize = '5vw'
+            }
+
+            return button;
+        }
+
+        let left = createCircularButton('\ue5de', touchKeyCodeMap.left, true, true)
+        bottomLeft.appendChild(left)
+
+        let right = createCircularButton('\ue5df', touchKeyCodeMap.right, true, true)
+        bottomLeft.appendChild(right)
+
+        let up = createCircularButton('\ue5de', touchKeyCodeMap.up, true, true)
+        up.style.transform = 'rotate(90deg)' //up arrow, youtube icons dont have one
+        bottomLeft.appendChild(up)
+
+        let down = createCircularButton('\ue5de', touchKeyCodeMap.down, true, true)
+        down.style.transform = 'rotate(-90deg)' //down arrow, youtube icons dont have one
+        bottomLeft.appendChild(down)
+
+        let back = createCircularButton('◦', touchKeyCodeMap.back, true)
+        back.style.fontSize = '7vw'
+        bottomRight.appendChild(back)
+
+        let select = createCircularButton('·', touchKeyCodeMap.select, true)
+        select.style.fontSize = '12vw'
+        bottomRight.appendChild(select)
+
+        document.body.appendChild(controls)
+
+        let visible = true;
+        let lastTouch = 0;
+        let revealingTouch = false;
+
+        function hide() {
+            controls.style.display = 'none'
+            visible = false;
+        }
+
+        function show() {
+            controls.style.display = ''
+            visible = true;
+        }
+
+        hide()
+
+        setInterval(() => {
+            if (!visible) return;
+            if ((Date.now() - lastTouch) >= 3000 || !config.touch_overlay) {
+                hide()
+            }
+        }, 20)
+
+        window.addEventListener('pointerdown', (e) => {
+            if (e.pointerType !== 'touch' || !config.touch_overlay) return;
+
+            lastTouch = Date.now()
+
+            if (!visible) {
+                revealingTouch = true;
+                show()
+            }
+        }, true)
+
+        //leanback turns every pointer press into an enter press
+        for (let type of [ 'pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'mousedown', 'mouseup', 'click' ]) {
+            window.addEventListener(type, (e) => {
+                if (revealingTouch || controls.contains(e.target)) e.stopPropagation()
+            }, true)
+        }
+
+        for (let type of [ 'touchend', 'touchcancel' ]) {
+            window.addEventListener(type, (e) => {
+                if (!revealingTouch || e.touches.length) return;
+
+                e.preventDefault()
+                revealingTouch = false;
+            })
+        }
+    })
+}
