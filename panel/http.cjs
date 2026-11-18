@@ -145,7 +145,7 @@ async function createWindowServer({
         return reply(res, 200, {
           version: 22,
           edition: '0.25',
-          release: '0.25.0',
+          release: '0.25.1',
           coreApi: '/api/iz2s-core',
           pid: process.pid,
           preview: manager.preview === true,

@@ -28,10 +28,11 @@ setup|First Setup|Первичная настройка|Configuración inicial|�
 launch|Launch|Запуск|Inicio|启动
 setupProgress|First setup progress|Этапы первичной настройки|Progreso de la configuración inicial|初始设置进度
 setupStepPrepare|Preparation|Подготовка|Preparación|准备
+restartSetup|Restart|Начать заново|Reiniciar|重新开始
 setupStepInput|Source entry|Ввод исходника|Introducción del código|输入源代码
 setupStepReview|Review|Проверка|Revisión|校验
 setupStepSave|Save|Сохранение|Guardado|保存
-setupIntro|Set up NS2IZA once. If it is already saved, open Launch.|Настройте NS2IZA один раз. Если он уже сохранён, откройте «Запуск».|Configura NS2IZA una sola vez. Si ya está guardado, abre Inicio.|NS2IZA 只需设置一次。如果已保存，请打开“启动”。
+setupIntro|In SmileBASIC 4, open Make a Program. Set up NS2IZA once. If it is already saved, open Launch.|В SmileBASIC 4 выберите «Создание программы» (Make a Program). Настройте NS2IZA один раз. Если он уже сохранён, откройте «Запуск».|En SmileBASIC 4, selecciona Make a Program. Configura NS2IZA una sola vez. Si ya está guardado, abre Inicio.|在 SmileBASIC 4 中选择 Make a Program。NS2IZA 只需设置一次。如果已保存，请打开“启动”。
 slot|Program slot {n}|Слот программы {n}|Ranura de programa {n}|程序槽 {n}
 slotLabel|Empty program slot|Пустой слот программы|Ranura de programa vacía|空程序槽
 setupReady|Direct is open, the selected slot is empty and the keyboard is set to English (US).|Открыт Direct, выбранный слот пуст, клавиатура настроена на English (US).|Direct está abierto, la ranura seleccionada está vacía y el teclado está en inglés (EE. UU.).|已打开 Direct，所选程序槽为空，键盘已设为英语（美国）。
@@ -114,6 +115,10 @@ noTimestamp|No timestamp was recorded for this line.|Время этой стр�
 quiet|No new entries for {seconds} s|Нет новых записей {seconds} с|Sin entradas nuevas desde hace {seconds} s|已有 {seconds} 秒没有新记录
 tail|Showing the end of the log. Download the full file for earlier entries.|Показан конец журнала. Ранние записи в полном файле.|Se muestra el final del registro. Descarga el archivo completo para ver las entradas anteriores.|当前显示日志末尾。下载完整文件可查看更早的记录。
 noEvents|Waiting for the first log entry.|Ожидаем первую запись журнала.|Esperando la primera entrada del registro.|正在等待第一条日志。
+inputNotStarted|Input did not start.|Ввод не начался.|No se inició la entrada de texto.|输入未开始。
+usbKeyboardPending|Waiting for the input device to report that its USB keyboard is ready.|Ожидаем, пока устройство ввода сообщит о готовности USB-клавиатуры.|Esperando a que el dispositivo de entrada indique que su teclado USB está listo.|正在等待输入设备报告 USB 键盘已就绪。
+usbKeyboardNotReady|The input device reports that its USB keyboard is not ready.|Устройство ввода сообщает, что USB-клавиатура не готова.|El dispositivo de entrada indica que su teclado USB no está listo.|输入设备报告 USB 键盘尚未就绪。
+localSocketDenied|The PC could not open its local IPC socket (EACCES).|На ПК не удалось открыть локальный IPC-сокет (EACCES).|El PC no pudo abrir su socket IPC local (EACCES).|电脑无法打开本地 IPC 套接字（EACCES）。
 inputUpdates|Cardputer reported typing progress ({n} updates).|Cardputer сообщает о ходе ввода ({n} обновлений).|Cardputer informó del progreso de escritura ({n} actualizaciones).|Cardputer 报告输入进度（{n} 条更新）。
 phase1|Check console|Проверка консоли|Comprobar consola|检查主机
 phase2|Prepare filesystem access|Подготовка доступа к SD|Preparar acceso al sistema de archivos|准备文件系统访问

@@ -1,7 +1,7 @@
 {
   "id": "iz2s-platform",
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "shells": [
     "izlauncher"
   ],

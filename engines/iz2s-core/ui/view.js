@@ -5,7 +5,11 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.IZ2S_CORE_DIAGNOSTICS = factory();
 })(globalThis, () => {
+  const localSocketDenied = /\blisten\s+EACCES\b[^\r\n]*\.sock\b/i;
+  const keyboardNotReady = /^(?:Error:\s*)?(?:(?:Switch 1|Cardputer(?: ADV)?|ARM PC) )?USB[- ](?:keyboard (?:is )?not ready|клавиатура не готова|input cable is not configured|keyboard is not configured by a host(?:: [^\r\n]*)?)\.?$/iu;
+
   function errorKey(message = '', fallback = 'requestError') {
+    if (localSocketDenied.test(message)) return 'localSocketDenied';
     if (/FS acquisition/i.test(message)) return 'fsError';
     if (/No console connected before the pairing deadline/i.test(message)) return 'consoleConnectTimeout';
     if (/path.*Received null|Неожиданный каталог|до создания каталога/i.test(message)) return 'pathError';
@@ -15,6 +19,7 @@
     if (/ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|fetch failed|did not answer on Wi-Fi/i.test(message)) return 'inputNetworkError';
     if (/input device|устройство ввода/i.test(message)) return 'chooseInput';
     if (/Выберите.*Cardputer|select Cardputer/i.test(message)) return 'chooseCardputer';
+    if (keyboardNotReady.test(String(message).trim())) return 'usbKeyboardNotReady';
     if (/^[Вв]вод:|input job/i.test(message)) return 'inputError';
     if (/Cardputer|keyboard|USB/i.test(message)) return 'deviceError';
     if (/панели|panel session/i.test(message) && /сеанс|session/i.test(message)) return 'panelBusy';
@@ -55,7 +60,8 @@
     }
     const errors = [...(evidence.errors || [])];
     if (attempt?.error && !errors.includes(attempt.error)) errors.push(attempt.error);
-    const primary = errors.find(line => /^(?:Error:|Ввод:)/.test(line)) || attempt?.error || '';
+    const primary = errors.find(line => localSocketDenied.test(line))
+      || errors.find(line => /^(?:Error:|Ввод:)/.test(line)) || attempt?.error || '';
     const phase = Number(attempt?.phase) || evidence.phase || 0;
     return {
       ...evidence,
@@ -73,6 +79,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
   const { t } = globalThis.IZ2S_CORE_MESSAGES;
 
   const { errorKey, describe } = globalThis.IZ2S_CORE_DIAGNOSTICS;
+  const usbKeyboardAdapters = new Set(['switch-wifi', 'cardputer-wifi', 'ssh-gadget']);
   const setupProgress = {
     typing: 1, review: 2, checking: 2, values: 2, checked: 2,
     saving: 3, save_confirmation: 3, saved: 4,
@@ -102,6 +109,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
     let enabled = false;
     let locked = false;
     let preview = false;
+    let waitingForUsbKeyboard = false;
     let networkHost = '';
     let last = null;
     let reading = null;
@@ -129,20 +137,21 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       }
     }
 
-    function paintJournal(state, attempt) {
+    function paintJournal(state, attempt, keyboardRefused) {
       el('core-journal-details').hidden = el('core-log-section').hidden = !attempt && !refreshError;
       el('core-refresh').setAttribute('aria-busy', String(!!reading));
       el('core-refresh').disabled = !!reading || actionPending;
       el('core-log-section').dataset.stale = String(!!refreshError);
       el('core-download').disabled = downloadPending || !state.logBytes;
       el('core-log-meta').textContent = attempt ? t('attempt', { id: attempt.id.slice(0, 8) }) : '';
+      const emptyLog = t(keyboardRefused ? 'inputNotStarted' : 'noEvents');
       const stale = state.logUpdatedAt ? Math.floor((Date.now() - Date.parse(state.logUpdatedAt)) / 1000) : 0;
       el('core-log-updated').textContent = state.logUpdatedAt ? [
         t('lastLine', { date: date(state.logUpdatedAt) }),
         state.busy && stale >= 10 ? t('quiet', { seconds: stale }) : '',
-      ].filter(Boolean).join(' · ') : t('noEvents');
+      ].filter(Boolean).join(' · ') : emptyLog;
       const log = el('core-log');
-      const nextLog = state.log || t('noEvents');
+      const nextLog = state.log || emptyLog;
       const timings = state.logTimings || [];
       const locale = globalThis.RUN21_LANGUAGE?.locale || 'en-GB';
       const timingStamp = locale + '/' + (timings.at(-1)?.join('/') || '');
@@ -243,7 +252,8 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       }
       el('core-start').disabled = disabled || state.owned || !networkHost || !el('core-fresh').checked;
       el('core-network').textContent = networkHost ? t('host', { host: networkHost }) : t('noHost');
-      el('core-enter-source').disabled = disabled || state.owned || !el('core-setup-ready').checked;
+      el('core-enter-source').disabled = disabled || state.owned || waitingForUsbKeyboard || !el('core-setup-ready').checked;
+      el('core-usb-keyboard-note').hidden = !waitingForUsbKeyboard || state.owned || preview;
       el('core-slot').disabled = disabled || (setup && state.owned);
       el('core-source-progress').hidden = !setup || !state.busy;
       el('core-source-progress').value = attempt?.progress?.line || 0;
@@ -258,6 +268,8 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       el('core-stop').textContent = t(step === 'stopping' ? 'stopping' : 'stop');
 
       const failure = refreshError || actionError;
+      const keyboardRefused = !!actionError && errorKey(actionError.message, actionError.key) === 'usbKeyboardNotReady';
+      const inputNeverStarted = keyboardRefused && !state.busy && !state.logBytes && !state.log?.trim();
       const showStatus = !session;
       const showAction = !!failure;
       el('core-attempt-card').hidden = !showStatus && !showAction;
@@ -267,11 +279,14 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       el('core-action-error').textContent = failure ? t(refreshError ? 'pcError' : errorKey(failure.message, failure.key)) : '';
       el('core-stale-note').hidden = !refreshError;
       el('core-stale-note').textContent = refreshError ? t(refreshedAt ? 'staleSnapshot' : 'noSnapshot', { date: date(refreshedAt) }) : '';
-      el('core-action-details').hidden = !failure?.message;
+      el('core-action-details').hidden = !failure?.message || (keyboardRefused && !refreshError);
       el('core-action-raw').textContent = failure?.message || '';
       el('core-status-retry').hidden = !refreshError;
       el('core-status-retry').disabled = !!reading || actionPending;
-      const status = step === 'connected' && phase
+      el('core-restart-row').hidden = selectedMode !== 'setup' || session
+        || !(['failed', 'interrupted', 'stopped'].includes(step) || actionError);
+      el('core-restart-setup').disabled = disabled || !!state.owned;
+      const status = inputNeverStarted ? t('inputNotStarted') : step === 'connected' && phase
         ? t('phaseStatus', { n: phase, name: t('phase' + phase) })
         : t(!last ? refreshError ? 'unavailable' : 'loading' : pastSuccess ? 'lastConfirmed' : step === 'ready' && !confirmed ? 'unconfirmed' : step === 'failed' && attempt.finishedAt ? 'lastFailed' : step || 'idle', {device:attempt?.inputName||'Cardputer ADV'});
       if (el('core-status').textContent !== status) el('core-status').textContent = status;
@@ -320,7 +335,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       el('core-session-tools').hidden = session;
       el('core-add-app').disabled = preview;
       el('core-files').disabled = preview;
-      paintJournal(state, attempt);
+      paintJournal(state, attempt, inputNeverStarted);
     }
 
     function refresh(force = false) {
@@ -366,6 +381,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
           for (const id of confirmationIds.slice(1)) el(id).checked = false;
           for (let i = 0; i < 6; i++) el('core-metric-' + i).value = '';
         }
+        return result;
       } catch (error) {
         actionError = { key: 'requestError', message: error.message, attemptId };
       } finally {
@@ -392,6 +408,16 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
     };
     el('core-menu-apply').onclick = () => action('/api/iz2s-core/pc/menu-update',{retry:!!last?.pcLink?.menu?.canRetry});
     el('core-status-retry').onclick = () => refresh();
+    el('core-restart-setup').onclick = async () => {
+      if (el('core-restart-row').hidden || el('core-restart-setup').disabled) return;
+      const result = await action('/api/iz2s-core/pc/reset', {});
+      if (!result?.ok) return;
+      for (const id of confirmationIds) el(id).checked = false;
+      for (let i = 0; i < 6; i++) el('core-metric-' + i).value = '';
+      chooseMode('setup');
+      el('core-setup-panel').scrollIntoView({ block: 'nearest' });
+      el('core-setup-ready').focus({ preventScroll: true });
+    };
     el('core-add-app').onclick = openApps;
     el('core-files').onclick = openFiles;
     el('core-restore').onclick = () => refresh(true);
@@ -464,6 +490,8 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
         enabled = value;
         locked = busy;
         preview = !!panel?.preview;
+        waitingForUsbKeyboard = usbKeyboardAdapters.has(panel?.platform?.configuration?.inputAdapter)
+          && panel.checks?.items?.find(row => row.id === 'usb')?.ready !== true;
         recovery = globalThis.IZ2S_PRESENTATION?.connectionMode(panel);
         networkHost = panel?.settings?.consoleHost || panel?.connections?.devices?.server?.address || '';
         el('setup').dataset.core = String(value);

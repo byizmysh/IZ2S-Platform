@@ -4280,8 +4280,6 @@ dialog {
 .device .usb-connection-actions { height: auto; min-height: 42px; display: flex; align-items: center; gap: 10px; width: 100%; border: 0; padding: 0; background: transparent; flex-wrap: wrap; }
 .device .usb-connection-actions > svg { box-sizing: content-box; padding: 9px; border: 1px dashed var(--line); border-radius: 10px; flex-shrink: 0; }
 .device .usb-confirm { font-size: var(--text-small); white-space: normal; }
-.device.manual-confirmed { border-color: #8baf4c; background: linear-gradient(135deg, #283021, var(--panel)); }
-.device.manual-confirmed .state { color: var(--lime); }
 
 
 /* New setup content uses the existing First Setup components. */

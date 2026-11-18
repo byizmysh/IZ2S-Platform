@@ -9,9 +9,14 @@ globalThis.IZ2S_ADV_SETUP = (() => {
     return usb?.detail || 'Connect the ADV USB data cable to Switch 2.';
   }
   function usbPresentation(wifi,usb,confirmed=false) {
-    const manual=usb?.usb?.localHost!=='this-pc'&&(confirmed||!!wifi?.ready&&(usb?.usb?.confirmed===true||usb?.usb?.confirmation>0));
-    return {manual,label:manual?'Connected (manual)':null,
-      detail:manual?'USB connection confirmed manually.':null};
+    const telemetry = usb?.usb;
+    const acknowledged = confirmed || telemetry?.confirmed === true || telemetry?.confirmation > 0;
+    const waiting = acknowledged && wifi?.ready && !usb?.ready && telemetry?.localHost !== 'this-pc'
+      && !telemetry?.suspended && !telemetry?.recovering;
+    return {
+      label: waiting ? '○ WAITING' : null,
+      detail: waiting ? 'Connection confirmed. Waiting for the USB host before typing.' : null,
+    };
   }
   function create({document,changed,confirmUsb=async()=>({ok:true}),refreshUsb=async()=>{}}) {
     const $=id=>document.getElementById(id);
@@ -24,17 +29,16 @@ globalThis.IZ2S_ADV_SETUP = (() => {
       const card = $('device-usb');
       if (!card) return;
       const rows = state?.checks?.items || [];
-      // A new snapshot is reconciled in render before it can show a manual badge.
+      // Manual cable acknowledgement can only supply a waiting hint.
       const presentation = context && context.state === state
         ? usbPresentation(rows.find(row=>row.id==='arm'),rows.find(row=>row.id==='usb'),
-          context.adapter==='switch-wifi' ? switchConfirmed : usbConfirmed)
+          context.adapter === 'switch-wifi' ? switchConfirmed : usbConfirmed)
         : null;
-      card.classList.toggle('manual-confirmed',!!presentation?.manual);
-      if (presentation?.manual) {
-        card.querySelector('.state').textContent=presentation.label;
-        card.querySelector('.detail-text').textContent=presentation.detail;
-        card.querySelector('.detail-help').hidden=true;
-      }
+      if (!presentation?.label) return;
+      const t = text => globalThis.RUN21_LANGUAGE?.t(text) || text;
+      card.querySelector('.state').textContent = t(presentation.label);
+      card.querySelector('.detail-text').textContent = t(presentation.detail);
+      card.querySelector('.detail-help').hidden = true;
     }
     for(const tab of document.querySelectorAll('[data-adv-phase]'))tab.onclick=()=>select(Number(tab.dataset.advPhase));
     $('adv-steps').addEventListener('keydown',event=>{

@@ -9,7 +9,7 @@
   <li data-core-text="setupStepReview">Review</li>
   <li data-core-text="setupStepSave">Save</li>
 </ol>
-<p class="hint core-flow-intro" data-core-text="setupIntro">Установите bootstrap один раз. Уже сохранённый NS2IZM от IZ2S Core подходит — можно перейти к Launch.</p>
+<p class="hint core-flow-intro" data-core-text="setupIntro">В SmileBASIC 4 выберите «Создание программы» (Make a Program). Настройте NS2IZA один раз. Если он уже сохранён, откройте «Запуск».</p>
 <div class="slot-options">
   <div class="hardware-row">
     <label for="core-slot" data-core-text="slotLabel">Пустой слот программы</label>
@@ -25,9 +25,10 @@
   <label class="ack"><input id="core-setup-ready" class="panel-switch" type="checkbox" role="switch"><span data-core-text="setupReady">Открыт Direct, выбранный слот пуст, клавиатура English (US); содержимое этого слота можно заменить.</span></label>
 </div>
 <div class="launch-row">
-  <button id="core-enter-source" class="primary" type="button" disabled>
+  <button id="core-enter-source" class="primary" type="button" aria-describedby="core-usb-keyboard-note" disabled>
     <span data-core-text="enterSource">Ввести 229 строк</span><svg aria-hidden="true"><use href="#i-arrow"></use></svg>
   </button>
+  <p id="core-usb-keyboard-note" class="hint" role="status" data-core-text="usbKeyboardPending" hidden></p>
 </div>
 <progress id="core-source-progress" max="229" value="0" hidden></progress>
 <div id="core-source-review" class="wizard-panel" hidden><label class="ack"><input id="core-reviewed" class="panel-switch" type="checkbox" role="switch"><span data-core-text="reviewed">В редакторе есть все 229 строк, последняя строка END.</span></label>
@@ -78,6 +79,9 @@
       <summary data-core-text="technical"></summary><pre id="core-action-raw" translate="no"></pre>
     </details>
     <button id="core-status-retry" type="button" class="secondary" data-core-text="refresh" hidden></button>
+  </div>
+  <div id="core-restart-row" class="core-actions" hidden>
+    <button id="core-restart-setup" type="button" class="connect" data-core-text="restartSetup">Restart</button>
   </div>
 </section>
 <details id="core-journal-details" class="core-journal-details" open><summary data-core-text="journal">IZ2S activity</summary>

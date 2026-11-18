@@ -2284,22 +2284,22 @@
     },
     "distribution/profile.json": {
       "bytes": 896,
-      "sha256": "f2c9b794d9aa8b6b3641017a2abfab80205f99654dfe8a82ca5abad3e2a68cb0",
+      "sha256": "0b3318beff95bff405dd9e9fef426bb1f444dcc6221b9b1542e5eb4eb21407fa",
       "executable": false
     },
     "distribution/published-assets.json": {
-      "bytes": 470,
-      "sha256": "de9b6c175073ce1ea32d3df280b794a3daf1a34e12b3def3eefec9e985eddc2e",
+      "bytes": 474,
+      "sha256": "7acc5a191ec7c9c9c9913740d6cfb08a1d064331b4a494a0ddb821d23ac98579",
       "executable": false
     },
     "distribution/release-inventories/linux.json": {
       "bytes": 553295,
-      "sha256": "9350fe5a1369ccdb28d9127b830774ca735b8a660ea3827ff483de733e12af87",
+      "sha256": "dd6789d6673e9f44d96cbeffe5d4d9bc511882a0f9523d6a661e6deb3200258f",
       "executable": false
     },
     "distribution/release-inventories/windows-x64.json": {
       "bytes": 392533,
-      "sha256": "0feb7cc3caeb3ed667ed7abce4b72eec38f40c6778f19b79895b3a574c28ff37",
+      "sha256": "e5eb8e1274f8ce2d995c381b568011ff130dcb33dc746ac59726a7e22820c240",
       "executable": false
     },
     "distribution/release.py": {
@@ -6183,18 +6183,18 @@
       "executable": false
     },
     "engines/iz2s-core/ui/connection.html": {
-      "bytes": 10538,
-      "sha256": "186edc0c270396279228e342e4c822e003cba85584f19797a95898e42782124a",
+      "bytes": 10918,
+      "sha256": "b10a2fdcc259e665c67eadc9004c71cd03946e44f1145eef02a9ae7c54c9d43d",
       "executable": false
     },
     "engines/iz2s-core/ui/messages.js": {
-      "bytes": 33451,
-      "sha256": "f58ef56cf926c20683aa8876f53d38a15c3b609a92c9eee703adaa58ba38f84e",
+      "bytes": 34766,
+      "sha256": "1a6a39637d5a44e0191765ce4eaa5c9d92c3eaf03b81a6bf813521998b06be5f",
       "executable": false
     },
     "engines/iz2s-core/ui/view.js": {
-      "bytes": 27615,
-      "sha256": "f0959319efba13d29c71c16bb3e2f1926c6c560656c96afd3b919c74cdfe6c9a",
+      "bytes": 29768,
+      "sha256": "e63b73b7387df36dd04108f7e127c0132aaca1c8925a4dfcee2e0181e7c1d124",
       "executable": false
     },
     "hardware/agents/arm-input/CivSwitch-MIT.txt": {
@@ -11274,7 +11274,7 @@
     },
     "package.json": {
       "bytes": 448,
-      "sha256": "56c3f7ba19982bcaaaf259d4504d321caa600d5efcd87cca857b4194ea284bfb",
+      "sha256": "8abf417cf7ea82f96308655d3f919c33af6f8642e47e9adcff1d3809bd23361a",
       "executable": false
     },
     "panel/blitbun-browser.cjs": {
@@ -11289,7 +11289,7 @@
     },
     "panel/http.cjs": {
       "bytes": 30213,
-      "sha256": "e49962826c519b1b0d7f42b1fe75fc1263a6678fa915917af6326feadbee1771",
+      "sha256": "2ff51d9b84c4fe484c2bd67a96c0e0985e7d8cf2c615a687c0041f244d9ab771",
       "executable": false
     },
     "panel/iz2s-core.cjs": {
@@ -11304,7 +11304,7 @@
     },
     "panel/profile.json": {
       "bytes": 231,
-      "sha256": "f5d2a6d7d54188a3bf5970e1e8e40fc0ff8e6d13695683f8e381b4ab45c9fa3e",
+      "sha256": "83804a6beaaa17a844bc603268a1110c07576ba1cb97dede0307e28296b2c12e",
       "executable": false
     },
     "panel/ui/app.js": {
@@ -11323,8 +11323,8 @@
       "executable": false
     },
     "panel/ui/cardputer-setup.js": {
-      "bytes": 8698,
-      "sha256": "83e02739e4db37a2fe97ea30efbda5d2df31f8053ce766846b6e38d6408b9798",
+      "bytes": 8882,
+      "sha256": "95ab49f050d110e554d478538a31b90c86effb0111aab23fae3244f7e7ed684a",
       "executable": false
     },
     "panel/ui/civswitch.js": {
@@ -11368,8 +11368,8 @@
       "executable": false
     },
     "panel/ui/style.css": {
-      "bytes": 178939,
-      "sha256": "0c0e3e79619086ace5747c88b7962b2af0eee77ae286a6aba20fd212e17cac3a",
+      "bytes": 178771,
+      "sha256": "0aa3d6be7a3a2813e6bd48c8d25138b9f54b32330760528d6bcdbd9e3d27fc3f",
       "executable": false
     },
     "panel/upstream-session.cjs": {
