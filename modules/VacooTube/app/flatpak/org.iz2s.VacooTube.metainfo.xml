@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<component type="desktop-application">
+  <!--Created with jdAppStreamEdit 9.2-->
+  <id>org.iz2s.VacooTube</id>
+  <name>VacooTube</name>
+  <summary>YouTube for TV, on your PC</summary>
+  <developer id="rocks.shy">
+    <name>shy</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <update_contact>shy@shy.rocks</update_contact>
+  <description>
+    <p>VacooTube is an unofficial open source wrapper of YouTube Leanback (the console and Smart TV version of YouTube) for PCs, with a built-in adblocker and other enhancements. It is the best way to experience YouTube on your media center or handheld PC!</p>
+  </description>
+  <releases>
+    <release version="2.0.1" date="2026-10-17" type="stable">
+      <description>
+        <p>v2.0.1</p>
+        <ul>
+          <li>Added complete Persian translation</li>
+          <li>Added complete Russian translation</li>
+          <li>Fixed controller working out of focus sometimes</li>
+          <li>Fixed touch support</li>
+          <li>Fixed mouse navigation</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+  <url type="homepage">https://github.com/byizmysh/IZlauncher</url>
+  <url type="bugtracker">https://github.com/byizmysh/IZlauncher/issues</url>
+  <url type="vcs-browser">https://github.com/byizmysh/IZlauncher</url>
+  <url type="contribute">https://github.com/byizmysh/IZlauncher</url>
+  <requires>
+    <internet>always</internet>
+  </requires>
+  <recommends>
+    <control>gamepad</control>
+    <control>tv-remote</control>
+  </recommends>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>tablet</control>
+    <control>touch</control>
+  </supports>
+  <content_rating type="oars-1.1"/>
+  <launchable type="desktop-id">org.iz2s.VacooTube.desktop</launchable>
+  <keywords>
+    <keyword>youtube</keyword>
+    <keyword>yt</keyword>
+    <keyword>leanback</keyword>
+  </keywords>
+</component>

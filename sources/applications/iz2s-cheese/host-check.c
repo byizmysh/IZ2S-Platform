@@ -31,8 +31,10 @@ int main(int argc, char **argv) {
     }
     View view = {0};
     store_settings_read(store.root, &view.settings);
-    if (!strcmp(command, "refresh")) {
-        bool ok = store_refresh_catalog(&store, argv[1], &view.settings, message);
+    if (!strcmp(command, "refresh") || !strcmp(command, "load-catalog")) {
+        if (!strcmp(command, "refresh") && view_input(&view, &store, BTN_Y) != REFRESH) return 3;
+        bool ok = store_refresh_catalog(&store, argv[1], &view.settings,
+                                         !strcmp(command, "refresh"), message);
         puts(message);
         return ok ? 0 : 1;
     }

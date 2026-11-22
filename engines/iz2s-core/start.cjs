@@ -23,7 +23,7 @@ async function main() {
     probe.once('error', error => reject(Error('Port 39380 is unavailable: ' + error.code)));
     probe.listen(39380, host, () => probe.close(resolve));
   });
-  console.log('IZ2S core · 0.25 · SD root /iz2s/core');
+  console.log('IZ2S core · 0.3.0 · SD root /iz2s/core');
   console.log('Use a fresh SmileBASIC Direct session. Existing compatible saved bootstrap: LOAD "TXT:NS2IZM".');
   console.log('Do not close SmileBASIC before IZ2S launch completed and the IZ2S PID are printed.');
   const child = spawn(process.execPath, [path.join(runtime.directory, 'installer/core.cjs'), '--dir',

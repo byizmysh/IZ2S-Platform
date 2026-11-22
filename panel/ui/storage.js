@@ -2,7 +2,7 @@
 // Shared destination policy and controls for the library and module tabs.
 // Rendering reads the existing snapshot only; it never polls the console.
 (function(root){
- const civ=state=>['civswitch','civswitch-ldn'].includes(state?.platform?.loaderId);
+ const civ=state=>['civswitch','civswitch-ldn','iz2sciv-core'].includes(state?.platform?.loaderId);
  const targets=['session','sd'],label={session:'Session memory',sd:'SD card'},idOf=row=>typeof row==='string'?row:row?.id;
  function forStore(state){
   if(!state?.coreSd?.selected)return state;

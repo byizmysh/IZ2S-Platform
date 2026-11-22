@@ -302,7 +302,7 @@ function create({root, settings, arm, connections, configuration, preview = fals
     civswitch:{...saved,restoredAttempt,total:info.lines.length,busy:!!task,loaderReady:ready,inputStatus,networkReachable,networkHost,port:PORT,routeError,wirelessNetworkPending,
       automaticInputAvailable:inputStatus?.gamepadInput===true&&inputStatus?.boundedLineInput===true&&inputStatus?.keyboard===true,
       suggestedHost:saved.host||connections.snapshot().devices.lan.address||settings.consoleAddress||'',
-      line:info.lines[saved.index]||'',saveName:'IZ2S.Civ7Save',saveInstallation:await require('./save-installation.cjs').read(root,saved),
+      line:info.lines[saved.index]||'',saveName:'IZ2SCIV.Civ7Save',saveInstallation:await require('./save-installation.cjs').read(root,saved),
       launcherStatus:{state:'unavailable',requires:['CivSwitch native-rpc','CivSwitch gpu-app/1'],
         detail:'CivSwitch launcher support is not implemented yet. Both launchers currently require the SmileBASIC runtime.'}}};
   }

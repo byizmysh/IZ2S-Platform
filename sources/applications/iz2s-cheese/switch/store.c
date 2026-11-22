@@ -1,5 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "store.h"
+
+#define LEGACY_STORE_DIR "/iz2s/iz2s-cheese"
 #include "installed-artwork.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -280,10 +282,20 @@ static bool load_local_list(Store *store, const char *source, char out[STORE_MES
 }
 
 static const char *local_catalog_dir(const Store *store) {
+    static const char *const candidates[] = {
+        STORE_CATALOG_DIR,
+        STORE_DIR,
+#ifdef IZ_STORE_STANDALONE
+        "/switch/iz2s-cheese/catalog",
+#endif
+        LEGACY_STORE_DIR
+    };
     char name[STORE_PATH];
-    if (path(name, "%s" STORE_CATALOG_DIR "/catalog.tsv", store->root) && file_state(name) != ABSENT)
-        return STORE_CATALOG_DIR;
-    return STORE_DIR;
+    for (size_t i = 0; i < sizeof candidates / sizeof candidates[0]; ++i) {
+        if (path(name, "%s%s/catalog.tsv", store->root, candidates[i]) && file_state(name) != ABSENT)
+            return candidates[i];
+    }
+    return STORE_CATALOG_DIR;
 }
 
 bool store_load(Store *store, const char *root, char out[STORE_MESSAGE]) {
@@ -588,6 +600,14 @@ static FILE *control_read(const char *name) {
     return NULL;
 }
 
+static FILE *store_data_read(const char *root, const char *filename) {
+    char name[STORE_PATH];
+    if (!path(name, "%s" STORE_DIR "/%s", root, filename)) return NULL;
+    FILE *file = control_read(name);
+    if (file || file_state(name) != ABSENT) return file;
+    return path(name, "%s" LEGACY_STORE_DIR "/%s", root, filename) ? control_read(name) : NULL;
+}
+
 static bool read_program_icon(const char *active, bool iza, uint32_t *pixels) {
     if (file_state(active) != REGULAR) return false;
     FILE *file = fopen(active, "rb");
@@ -686,9 +706,8 @@ void store_sync_icon(const Store *store, const App *app, const char *artwork) {
 
 void store_settings_read(const char *root, StoreSettings *settings) {
     *settings = (StoreSettings){0};
-    char name[STORE_PATH], line[768];
-    if (!path(name, "%s" STORE_DIR "/settings.txt", root)) return;
-    FILE *file = control_read(name);
+    char line[768];
+    FILE *file = store_data_read(root, "settings.txt");
     if (!file) return;
     if (fgets(line, sizeof line, file) && trim_line(line) && (!*line || catalog_url(line))) {
         strcpy(settings->url, line);
@@ -704,6 +723,7 @@ void store_settings_read(const char *root, StoreSettings *settings) {
 static bool settings_folder(const char *root, const char *directory) {
     char parent[STORE_PATH];
     if (!path(parent, "%s/iz2s", root) || !folder(parent)) return false;
+    if (!path(parent, "%s" MODULE_DIR, root) || !folder(parent)) return false;
     return folder(directory);
 }
 
@@ -740,9 +760,7 @@ static bool read_remote(FILE *file, const char *url, Store *store) {
 
 static bool load_cached_list(Store *store, const StoreSettings *settings) {
     if (!settings->url[0]) return false;
-    char name[STORE_PATH];
-    if (!path(name, "%s" STORE_DIR "/remote.tsv", store->root)) return false;
-    FILE *file = control_read(name);
+    FILE *file = store_data_read(store->root, "remote.tsv");
     if (!file) return false;
     bool ok = read_remote(file, settings->url, store);
     fclose(file);
@@ -793,11 +811,16 @@ static unsigned read_artwork(FILE *file, const Store *store, const char *url,
 
 static unsigned artwork_file(const Store *store, const StoreSettings *settings,
                               unsigned wanted, uint32_t *pixels) {
-    char name[STORE_PATH];
-    if (settings->online && (!store->remote_count || !settings->url[0] ||
-        !path(name, "%s" STORE_DIR "/remote-artwork.bin", store->root))) return 0;
-    if (!settings->online && !path(name, "%s%s/artwork.bin", store->root, local_catalog_dir(store))) return 0;
-    FILE *file = control_read(name); if (!file) return 0;
+    FILE *file;
+    if (settings->online) {
+        if (!store->remote_count || !settings->url[0]) return 0;
+        file = store_data_read(store->root, "remote-artwork.bin");
+    } else {
+        char name[STORE_PATH];
+        if (!path(name, "%s%s/artwork.bin", store->root, local_catalog_dir(store))) return 0;
+        file = control_read(name);
+    }
+    if (!file) return 0;
     unsigned count = read_artwork(file, store, settings->online ? settings->url : NULL, wanted, pixels);
     fclose(file); return count;
 }
@@ -881,7 +904,7 @@ bool store_fetch_list(Store *store, const StoreSettings *settings, char out[STOR
 }
 
 bool store_refresh_catalog(Store *store, const char *root, const StoreSettings *settings,
-                           char out[STORE_MESSAGE]) {
+                           bool fetch_updates, char out[STORE_MESSAGE]) {
     if (!store_load(store, root, out)) return false;
     if (!settings->online) {
         if (!store->count) snprintf(out, STORE_MESSAGE, "Copy catalog.tsv and artwork.bin to IZ2S Cheese catalog folder.");
@@ -891,10 +914,15 @@ bool store_refresh_catalog(Store *store, const char *root, const StoreSettings *
         snprintf(out, STORE_MESSAGE, "Set Catalog URL in Settings.");
         return true;
     }
-    if (!store->remote_count) {
+    if (fetch_updates || !store->remote_count) {
         if (store_fetch_list(store, settings, out)) return true;
-        char recovery[STORE_MESSAGE];
-        return store_load(store, root, recovery) && store->count > 0;
+        char error[STORE_MESSAGE], recovery[STORE_MESSAGE];
+        snprintf(error, sizeof error, "%s", out[0] ? out : "Could not download catalog.");
+        bool cached = store_load(store, root, recovery) && store->count > 0;
+        if (cached)
+            snprintf(out, STORE_MESSAGE, "Update failed; showing cached catalog. %.119s", error);
+        else snprintf(out, STORE_MESSAGE, "%s", error);
+        return !fetch_updates && cached;
     }
     if (!store_read_artwork(store, settings, NULL) && !store_fetch_artwork(store, settings))
         snprintf(out, STORE_MESSAGE, "No thumbnails received. Check artwork.bin next to catalog.tsv.");
@@ -1090,12 +1118,19 @@ bool store_install(const Store *store, const App *app, Progress progress, char o
     if (file_state(stage) == REGULAR && unlink(stage))
         return message(out, "Could not clear an interrupted transfer.");
     char payload[STORE_PATH], source[STORE_PATH], target[STORE_PATH], copy[STORE_PATH];
-    path(payload, "%s" STORE_DIR "/payloads/%s/%s", store->root, package.id, package.files[0].digest);
-    path(source, "%s/%s", payload, package.files[0].name);
     if (package.release_url[0]) {
         if (!stage_github(&package, 0, stage, progress, 0, total, out)) return false;
-    } else if (!stage_file(source, stage, &package.files[0], progress, 0, total))
-        return message(out, "The local package is missing, damaged, or SD is full.");
+    } else {
+        if (!path(payload, "%s" STORE_DIR "/payloads/%s/%s", store->root, package.id, package.files[0].digest) ||
+            !path(source, "%s/%s", payload, package.files[0].name))
+            return message(out, "The SD path is too long.");
+        if (file_state(source) == ABSENT &&
+            (!path(payload, "%s" LEGACY_STORE_DIR "/payloads/%s/%s", store->root, package.id, package.files[0].digest) ||
+             !path(source, "%s/%s", payload, package.files[0].name)))
+            return message(out, "The SD path is too long.");
+        if (!stage_file(source, stage, &package.files[0], progress, 0, total))
+            return message(out, "The local package is missing, damaged, or SD is full.");
+    }
     if (cancelled(progress)) { unlink(stage); return message(out, "Download cancelled."); }
     if (!valid_image(stage, &package)) {
         unlink(stage);
@@ -1123,8 +1158,8 @@ bool store_install(const Store *store, const App *app, Progress progress, char o
                     break;
                 }
             } else {
-                path(source, "%s/%s", payload, file->name);
-                if (!stage_file(source, copy, file, progress, done, total)) {
+                if (!path(source, "%s/%s", payload, file->name) ||
+                    !stage_file(source, copy, file, progress, done, total)) {
                     failure = "A local resource is missing, damaged, or SD is full.";
                     break;
                 }

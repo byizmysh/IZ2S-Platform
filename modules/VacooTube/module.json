@@ -57,6 +57,7 @@
     },
     "runtime": "node",
     "assets": [
+      "server/local-package/test-fixture.html",
       "server/local-package/electron.json",
       "server/standalone.cjs",
       "server/streaming/lib/stream-monitor.cjs"

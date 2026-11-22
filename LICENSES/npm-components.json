@@ -2,11 +2,7 @@
   {
     "path": "core/filesystem/ouncecake/package.json",
     "name": "OunceCake",
-    "version": "1.0.0",
-    "license": null,
-    "author": null,
-    "contributors": null,
-    "repository": null
+    "version": "1.0.0"
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/gen-mapping/package.json",
@@ -14,12 +10,12 @@
     "version": "0.3.13",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/jridgewell/sourcemaps.git",
       "directory": "packages/gen-mapping"
-    }
+    },
+    "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping"
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/resolve-uri/package.json",
@@ -27,7 +23,6 @@
     "version": "3.1.2",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": "https://github.com/jridgewell/resolve-uri"
   },
   {
@@ -36,12 +31,12 @@
     "version": "0.3.11",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/jridgewell/sourcemaps.git",
       "directory": "packages/source-map"
-    }
+    },
+    "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/source-map"
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/sourcemap-codec/package.json",
@@ -49,12 +44,12 @@
     "version": "1.6.0",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/jridgewell/sourcemaps.git",
       "directory": "packages/sourcemap-codec"
-    }
+    },
+    "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec"
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/trace-mapping/package.json",
@@ -62,32 +57,29 @@
     "version": "0.3.31",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/jridgewell/sourcemaps.git",
       "directory": "packages/trace-mapping"
-    }
+    },
+    "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping"
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/acorn/package.json",
     "name": "acorn",
     "version": "8.19.0",
     "license": "MIT",
-    "author": null,
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/acornjs/acorn.git"
-    }
+    },
+    "homepage": "https://github.com/acornjs/acorn"
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/buffer-from/package.json",
     "name": "buffer-from",
     "version": "1.1.2",
     "license": "MIT",
-    "author": null,
-    "contributors": null,
     "repository": "LinusU/buffer-from"
   },
   {
@@ -96,7 +88,6 @@
     "version": "2.20.3",
     "license": "MIT",
     "author": "TJ Holowaychuk <tj@vision-media.ca>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "https://github.com/tj/commander.js.git"
@@ -149,15 +140,14 @@
     "repository": {
       "type": "git",
       "url": "http://github.com/mozilla/source-map.git"
-    }
+    },
+    "homepage": "https://github.com/mozilla/source-map"
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/source-map-support/package.json",
     "name": "source-map-support",
     "version": "0.5.21",
     "license": "MIT",
-    "author": null,
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "https://github.com/evanw/node-source-map-support"
@@ -168,18 +158,14 @@
     "name": "bin",
     "version": "1.0.0",
     "license": "BSD-2-Clause",
-    "author": "",
-    "contributors": null,
-    "repository": null
+    "author": ""
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/package.json",
     "name": "dist",
     "version": "1.0.0",
     "license": "BSD-2-Clause",
-    "author": "",
-    "contributors": null,
-    "repository": null
+    "author": ""
   },
   {
     "path": "engines/CivSwitch/installer-creator/node_modules/terser/package.json",
@@ -187,17 +173,8 @@
     "version": "5.51.2",
     "license": "BSD-2-Clause",
     "author": "Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)",
-    "contributors": null,
-    "repository": "https://github.com/terser/terser"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/package.json",
-    "name": null,
-    "version": null,
-    "license": null,
-    "author": null,
-    "contributors": null,
-    "repository": null
+    "repository": "https://github.com/terser/terser",
+    "homepage": "https://terser.org"
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/@jridgewell/gen-mapping/package.json",
@@ -205,12 +182,12 @@
     "version": "0.3.13",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/jridgewell/sourcemaps.git",
       "directory": "packages/gen-mapping"
-    }
+    },
+    "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping"
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/@jridgewell/resolve-uri/package.json",
@@ -218,7 +195,6 @@
     "version": "3.1.2",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": "https://github.com/jridgewell/resolve-uri"
   },
   {
@@ -227,12 +203,12 @@
     "version": "0.3.11",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/jridgewell/sourcemaps.git",
       "directory": "packages/source-map"
-    }
+    },
+    "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/source-map"
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/@jridgewell/sourcemap-codec/package.json",
@@ -240,12 +216,12 @@
     "version": "1.6.0",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/jridgewell/sourcemaps.git",
       "directory": "packages/sourcemap-codec"
-    }
+    },
+    "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec"
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/@jridgewell/trace-mapping/package.json",
@@ -253,32 +229,29 @@
     "version": "0.3.31",
     "license": "MIT",
     "author": "Justin Ridgewell <justin@ridgewell.name>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/jridgewell/sourcemaps.git",
       "directory": "packages/trace-mapping"
-    }
+    },
+    "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping"
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/acorn/package.json",
     "name": "acorn",
     "version": "8.19.0",
     "license": "MIT",
-    "author": null,
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/acornjs/acorn.git"
-    }
+    },
+    "homepage": "https://github.com/acornjs/acorn"
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/buffer-from/package.json",
     "name": "buffer-from",
     "version": "1.1.2",
     "license": "MIT",
-    "author": null,
-    "contributors": null,
     "repository": "LinusU/buffer-from"
   },
   {
@@ -287,7 +260,6 @@
     "version": "2.20.3",
     "license": "MIT",
     "author": "TJ Holowaychuk <tj@vision-media.ca>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "https://github.com/tj/commander.js.git"
@@ -340,15 +312,14 @@
     "repository": {
       "type": "git",
       "url": "http://github.com/mozilla/source-map.git"
-    }
+    },
+    "homepage": "https://github.com/mozilla/source-map"
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/source-map-support/package.json",
     "name": "source-map-support",
     "version": "0.5.21",
     "license": "MIT",
-    "author": null,
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "https://github.com/evanw/node-source-map-support"
@@ -359,18 +330,14 @@
     "name": "bin",
     "version": "1.0.0",
     "license": "BSD-2-Clause",
-    "author": "",
-    "contributors": null,
-    "repository": null
+    "author": ""
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/terser/dist/package.json",
     "name": "dist",
     "version": "1.0.0",
     "license": "BSD-2-Clause",
-    "author": "",
-    "contributors": null,
-    "repository": null
+    "author": ""
   },
   {
     "path": "engines/CivSwitchLDN/node_modules/terser/package.json",
@@ -378,26 +345,65 @@
     "version": "5.51.2",
     "license": "BSD-2-Clause",
     "author": "Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)",
-    "contributors": null,
-    "repository": "https://github.com/terser/terser"
+    "repository": "https://github.com/terser/terser",
+    "homepage": "https://terser.org"
   },
   {
     "path": "engines/CivSwitchLDN/package.json",
     "name": "civswitchldn",
     "version": "1.0.0",
-    "license": "GPL-3.0-only",
-    "author": null,
-    "contributors": null,
-    "repository": null
+    "license": "GPL-3.0-only"
+  },
+  {
+    "path": "engines/IzCivSwitchFS/node_modules/@esbuild/linux-arm64/package.json",
+    "name": "@esbuild/linux-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/evanw/esbuild.git"
+    }
+  },
+  {
+    "path": "engines/IzCivSwitchFS/node_modules/@esbuild/linux-x64/package.json",
+    "name": "@esbuild/linux-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/evanw/esbuild.git"
+    }
+  },
+  {
+    "path": "engines/IzCivSwitchFS/node_modules/@esbuild/win32-x64/package.json",
+    "name": "@esbuild/win32-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/evanw/esbuild.git"
+    }
+  },
+  {
+    "path": "engines/IzCivSwitchFS/node_modules/esbuild/package.json",
+    "name": "esbuild",
+    "version": "0.28.2",
+    "license": "MIT",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/evanw/esbuild.git"
+    }
+  },
+  {
+    "path": "engines/IzCivSwitchFS/package.json",
+    "name": "iz2sciv-core",
+    "version": "0.3.0",
+    "license": "MIT"
   },
   {
     "path": "hardware/agents/arm-input/package.json",
     "name": "IZ2S ARM Input",
-    "version": "1.1.1",
-    "license": null,
-    "author": null,
-    "contributors": null,
-    "repository": null
+    "version": "1.1.1"
   },
   {
     "path": "modules/VacooTube/app/package.json",
@@ -407,63 +413,42 @@
     "author": "shy (shy@shy.rocks)",
     "contributors": [
       "IZMYSH"
-    ],
-    "repository": null
+    ]
   },
   {
-    "path": "modules/VacooTube/runtime/VacooTube-arm64/resources/app/package.json",
-    "name": "vacootube",
-    "version": "2.0.1-vacoo.1",
-    "license": null,
-    "author": null,
-    "contributors": null,
-    "repository": null
-  },
-  {
-    "path": "modules/VacooTube/runtime/VacooTube-x64/resources/app/package.json",
-    "name": "vacootube",
-    "version": "2.0.1-vacoo.1",
-    "license": null,
-    "author": null,
-    "contributors": null,
-    "repository": null
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/package.json",
     "name": "argparse",
     "version": "2.0.1",
     "license": "Python-2.0",
-    "author": null,
-    "contributors": null,
     "repository": "nodeca/argparse"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/builder-util-runtime/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/builder-util-runtime/package.json",
     "name": "builder-util-runtime",
     "version": "9.7.0",
     "license": "MIT",
     "author": "Vladimir Krivosheev",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/electron-userland/electron-builder.git",
       "directory": "packages/builder-util-runtime"
-    }
+    },
+    "homepage": "https://github.com/electron-userland/electron-builder"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/chokidar/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/chokidar/package.json",
     "name": "chokidar",
     "version": "5.0.0",
     "license": "MIT",
     "author": "Paul Miller (https://paulmillr.com)",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/paulmillr/chokidar.git"
-    }
+    },
+    "homepage": "https://github.com/paulmillr/chokidar"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/debug/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/debug/package.json",
     "name": "debug",
     "version": "4.4.3",
     "license": "MIT",
@@ -479,56 +464,53 @@
     }
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/electron-updater/node_modules/semver/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/electron-updater/node_modules/semver/package.json",
     "name": "semver",
     "version": "7.7.3",
     "license": "ISC",
     "author": "GitHub Inc.",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/npm/node-semver.git"
     }
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/electron-updater/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/electron-updater/package.json",
     "name": "electron-updater",
     "version": "6.8.10",
     "license": "MIT",
     "author": "Vladimir Krivosheev",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/electron-userland/electron-builder.git",
       "directory": "packages/electron-updater"
-    }
+    },
+    "homepage": "https://github.com/electron-userland/electron-builder"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/fs-extra/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/fs-extra/package.json",
     "name": "fs-extra",
     "version": "10.1.0",
     "license": "MIT",
     "author": "JP Richardson <jprichardson@gmail.com>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "https://github.com/jprichardson/node-fs-extra"
-    }
+    },
+    "homepage": "https://github.com/jprichardson/node-fs-extra"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/graceful-fs/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/graceful-fs/package.json",
     "name": "graceful-fs",
     "version": "4.2.11",
     "license": "ISC",
-    "author": null,
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "https://github.com/isaacs/node-graceful-fs"
     }
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/js-yaml/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/js-yaml/package.json",
     "name": "js-yaml",
     "version": "4.3.2",
     "license": "MIT",
@@ -541,28 +523,27 @@
     "repository": "nodeca/js-yaml"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/jsonfile/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/jsonfile/package.json",
     "name": "jsonfile",
     "version": "6.2.1",
     "license": "MIT",
     "author": "JP Richardson <jprichardson@gmail.com>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git@github.com:jprichardson/node-jsonfile.git"
     }
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/lazy-val/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/lazy-val/package.json",
     "name": "lazy-val",
     "version": "1.0.5",
     "license": "MIT",
     "author": "Vladimir Krivosheev",
-    "contributors": null,
-    "repository": "develar/lazy-val"
+    "repository": "develar/lazy-val",
+    "homepage": "https://github.com/develar/lazy-val"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/lodash.escaperegexp/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/lodash.escaperegexp/package.json",
     "name": "lodash.escaperegexp",
     "version": "4.1.2",
     "license": "MIT",
@@ -572,10 +553,11 @@
       "Blaine Bublitz <blaine.bublitz@gmail.com> (https://github.com/phated)",
       "Mathias Bynens <mathias@qiwi.be> (https://mathiasbynens.be/)"
     ],
-    "repository": "lodash/lodash"
+    "repository": "lodash/lodash",
+    "homepage": "https://lodash.com/"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/lodash.isequal/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/lodash.isequal/package.json",
     "name": "lodash.isequal",
     "version": "4.5.0",
     "license": "MIT",
@@ -584,19 +566,18 @@
       "John-David Dalton <john.david.dalton@gmail.com> (http://allyoucanleet.com/)",
       "Mathias Bynens <mathias@qiwi.be> (https://mathiasbynens.be/)"
     ],
-    "repository": "lodash/lodash"
+    "repository": "lodash/lodash",
+    "homepage": "https://lodash.com/"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/ms/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/ms/package.json",
     "name": "ms",
     "version": "2.1.3",
     "license": "MIT",
-    "author": null,
-    "contributors": null,
     "repository": "vercel/ms"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/readdirp/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/readdirp/package.json",
     "name": "readdirp",
     "version": "5.0.0",
     "license": "MIT",
@@ -608,31 +589,22 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/paulmillr/readdirp.git"
-    }
+    },
+    "homepage": "https://github.com/paulmillr/readdirp"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/sax/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/sax/package.json",
     "name": "sax",
     "version": "1.6.1",
     "license": "BlueOak-1.0.0",
     "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+ssh://git@github.com/isaacs/sax-js.git"
     }
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/string-argv/commonjs/package.json",
-    "name": null,
-    "version": null,
-    "license": null,
-    "author": null,
-    "contributors": null,
-    "repository": null
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/string-argv/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/string-argv/package.json",
     "name": "string-argv",
     "version": "0.3.2",
     "license": "MIT",
@@ -649,59 +621,80 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/mccormicka/string-argv"
-    }
+    },
+    "homepage": "https://github.com/mccormicka/string-argv"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/tiny-typed-emitter/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/tiny-typed-emitter/package.json",
     "name": "tiny-typed-emitter",
     "version": "2.1.0",
     "license": "MIT",
     "author": "Zurab Benashvili <zura.benashvili@gmail.com>",
-    "contributors": null,
     "repository": "https://github.com/binier/tiny-typed-emitter.git"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/universalify/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/universalify/package.json",
     "name": "universalify",
     "version": "2.0.1",
     "license": "MIT",
     "author": "Ryan Zimmerman <opensrc@ryanzim.com>",
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "git+https://github.com/RyanZim/universalify.git"
-    }
+    },
+    "homepage": "https://github.com/RyanZim/universalify#readme"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/package.json",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/package.json",
     "name": "vacootube",
     "version": "2.0.1-vacoo.1",
     "license": "MIT",
     "author": "shy (shy@shy.rocks)",
     "contributors": [
       "IZMYSH"
-    ],
-    "repository": null
+    ]
   },
   {
     "path": "modules/VacooTube/server/local-package/package.json",
     "name": "vacootube-host",
     "version": "1.3.0",
-    "license": "SEE LICENSE IN ../../LICENSE",
-    "author": null,
-    "contributors": null,
-    "repository": null
+    "license": "SEE LICENSE IN ../../LICENSE"
   },
   {
     "path": "package.json",
     "name": "iz2s-platform",
-    "version": "0.25.2",
+    "version": "0.3.0",
     "license": "GPL-2.0-or-later",
-    "author": null,
-    "contributors": null,
     "repository": {
       "type": "git",
       "url": "https://github.com/byizmysh/IZ2S-Platform.git"
     }
+  },
+  {
+    "path": "sources/applications/VacooTube/app/package.json",
+    "name": "vacootube",
+    "version": "2.0.1-vacoo.1",
+    "license": "MIT",
+    "author": "shy (shy@shy.rocks)",
+    "contributors": [
+      "IZMYSH"
+    ]
+  },
+  {
+    "path": "sources/applications/VacooTube/server/local-package/package.json",
+    "name": "vacootube-host",
+    "version": "1.3.0",
+    "license": "SEE LICENSE IN ../../LICENSE"
+  },
+  {
+    "path": "sources/izpsx/package.json",
+    "name": "izpsx-emulator",
+    "version": "0.5.2",
+    "license": "GPL-2.0-only",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/byizmysh/IZPSX-emulator.git"
+    },
+    "homepage": "https://github.com/byizmysh/IZPSX-emulator#readme"
   }
 ]

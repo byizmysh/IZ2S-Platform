@@ -1,4 +1,4 @@
-# Working with IZ2S Platform 0.25
+# Working with IZ2S Platform 0.3.0
 
 ## Install
 
@@ -16,7 +16,7 @@ This checks the recorded source/runtime files, six packaged modules, descriptors
 
 ## Repackage the prepared installers
 
-Create a separate folder with `staging/IZ2S-Platform-0.25-linux/` and `staging/IZ2S-Platform-0.25-windows-x64/`, populated by extracting the corresponding full installation assets. Both `data/` and `dist/` must remain empty. Do not copy an installed user's state into staging. Then run from this checkout:
+Create a separate folder with `staging/IZ2S-Platform-0.3.0-linux/` and `staging/IZ2S-Platform-0.3.0-windows-x64/`, populated by extracting the corresponding full installation assets. Both `data/` and `dist/` must remain empty. Do not copy an installed user's state into staging. Then run from this checkout:
 
 ```sh
 python3 tools/release/package-prepared.py --workspace /absolute/path/to/release-workspace

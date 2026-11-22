@@ -1,5 +1,5 @@
 {
-  "release": "0.25.2",
+  "release": "0.3.0",
   "target": "source",
   "projectLicense": {
     "spdx": "GPL-2.0-or-later",
@@ -9,6 +9,13 @@
   },
   "modules": [
     {
+      "id": "book-reader",
+      "name": "Book Reader",
+      "version": "0.1.0",
+      "author": "IZMYSH",
+      "license": "GPL-2.0-or-later"
+    },
+    {
       "id": "blitbun",
       "name": "BlitBun",
       "version": "1.15.8",
@@ -16,10 +23,10 @@
       "license": "GPL-2.0-or-later"
     },
     {
-      "id": "book-reader",
-      "name": "Book Reader",
-      "version": "0.1.0",
-      "author": "IZMYSH",
+      "id": "vacootube",
+      "name": "VacooTube",
+      "version": "1.5.7",
+      "author": "IZMYSH and upstream contributors",
       "license": "GPL-2.0-or-later"
     },
     {
@@ -32,16 +39,9 @@
     {
       "id": "iz2s-cheese",
       "name": "IZ2S Cheese",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "author": "IZMYSH",
       "license": "MIT"
-    },
-    {
-      "id": "vacootube",
-      "name": "VacooTube",
-      "version": "1.5.7",
-      "author": "IZMYSH and upstream contributors",
-      "license": "GPL-2.0-or-later"
     },
     {
       "id": "izpsx",
@@ -62,9 +62,117 @@
   "inheritedProvenance": "LICENSES/inherited-provenance.json",
   "publicReleaseReady": false,
   "outstanding": [
-    "Exact corresponding-source bundle for the modified native runtime and firmware is not complete.",
-    "Historical native menu build manifest does not match current runtime outputs.",
-    "Windows hardware qualification pending."
+    "The full native runtime and firmware still have external build inputs; see SOURCES.md.",
+    "A full Switch session from the current Windows build has not been qualified; host and real input-device checks passed."
   ],
-  "sourceInformation": "SOURCES.md"
+  "sourceInformation": "SOURCES.md",
+  "civilization7": [
+    {
+      "project": "CivSwitch",
+      "authors": [
+        "Gezine"
+      ],
+      "source": "https://github.com/Gezine/CivSwitch",
+      "notices": [
+        "engines/CivSwitch/LICENSE",
+        "engines/IzCivSwitchFS/persist/LICENSE"
+      ]
+    },
+    {
+      "project": "CivSwitchLDN",
+      "authors": [
+        "ItsNerisma"
+      ],
+      "source": "https://github.com/ItsNerisma/CivSwitchLDN",
+      "notices": [
+        "engines/CivSwitchLDN/LICENSE",
+        "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md"
+      ]
+    },
+    {
+      "project": "CivSwitchFS",
+      "authors": [
+        "ItsNerisma / Nerisma"
+      ],
+      "source": "https://github.com/ItsNerisma/CivSwitchFS",
+      "notices": [
+        "engines/IzCivSwitchFS/LICENSE-CivSwitchFS",
+        "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md"
+      ]
+    },
+    {
+      "project": "CivSwitchFS kaiHEN port",
+      "authors": [
+        "ave"
+      ],
+      "source": "https://github.com/s8n/CivSwitchFS-kaiHEN",
+      "notices": [
+        "engines/IzCivSwitchFS/README.md",
+        "engines/IzCivSwitchFS/LICENSE"
+      ]
+    },
+    {
+      "project": "LDN",
+      "authors": [
+        "Kinnay / Yannik Marchand"
+      ],
+      "source": "https://github.com/kinnay/LDN",
+      "notices": [
+        "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt"
+      ]
+    },
+    {
+      "project": "CivSwitch filesystem research and related work",
+      "authors": [
+        "Slapah / Hokage",
+        "pepsipu",
+        "kurumuz",
+        "Alula",
+        "civswitch-kit contributors",
+        "civ7-fs contributors",
+        "epiccsolar (independent work, acknowledgement only)"
+      ],
+      "notices": [
+        "engines/IzCivSwitchFS/README.md",
+        "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md"
+      ]
+    }
+  ],
+  "installerDownloads": [
+    {
+      "name": "Node.js",
+      "version": "24.22.3 bundled on Windows; Linux resolves Node.js 24 if needed",
+      "source": "https://nodejs.org/dist/latest-v24.x/",
+      "license": "Node.js MIT and bundled component notices",
+      "distribution": "Official Windows node.exe and LICENSE bundled in bootstrap/node; Linux setup verifies official SHA256 list"
+    },
+    {
+      "name": "uv",
+      "version": "0.13.7",
+      "source": "https://github.com/astral-sh/uv/releases/tag/0.13.7",
+      "license": "MIT OR Apache-2.0; preserve upstream notices",
+      "distribution": "downloaded privately during Windows/macOS setup; pinned asset SHA256 checked"
+    },
+    {
+      "name": "CPython",
+      "version": "3.12 via uv-managed python-build-standalone",
+      "source": "https://github.com/astral-sh/python-build-standalone",
+      "license": "Python license and bundled runtime component notices",
+      "distribution": "downloaded privately; managed by uv"
+    },
+    {
+      "name": "Pillow",
+      "version": "12.0.0",
+      "source": "https://pypi.org/project/Pillow/12.0.0/",
+      "license": "MIT-CMU and bundled library notices",
+      "distribution": "binary wheel installed in private Python environment"
+    },
+    {
+      "name": "Microsoft Win32-OpenSSH portable client",
+      "version": "10.4.0.0p1-Preview",
+      "source": "https://github.com/PowerShell/Win32-OpenSSH/releases/tag/10.4.0.0p1-Preview",
+      "license": "OpenSSH/OpenBSD and Microsoft component notices",
+      "distribution": "Windows fallback download only if ssh client is absent; pinned asset SHA256; no server service installed"
+    }
+  ]
 }

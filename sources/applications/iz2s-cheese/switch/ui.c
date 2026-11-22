@@ -484,6 +484,10 @@ void view_draw(uint32_t *pixels, unsigned stride, const Artwork *art, const Stor
     }
     if (!view->compact) label(&canvas,29,605,176,SMALL,dim,"by IZMYSH");
     const App *app = view->count ? &store->apps[view->visible[view->cursor]] : NULL;
+    bool modal = view->screen == ABOUT || view->screen == REPOSITORY ||
+        view->screen == CATALOG_INFO || view->screen == SETTINGS_RESULT ||
+        (view->busy && !view->minimized) ||
+        (app && (view->screen == CONFIRM_REMOVE || view->screen == CONFIRM_COMPATIBILITY));
     if (settings_screen(view->screen)) settings(&canvas,store,view);
     else if (app && view->screen != CATALOG) detail(&canvas,app,view);
     else {
@@ -541,6 +545,10 @@ void view_draw(uint32_t *pixels, unsigned stride, const Artwork *art, const Stor
         label(&canvas,CARD_X,619,952,SMALL,view->failure?warning:success,view->message);
     rectangle(&canvas,0,654,SCREEN_WIDTH,66,bar);
     rectangle(&canvas,0,654,SCREEN_WIDTH,1,edge);
+    if (modal) {
+        dialog(&canvas,app,view);
+        return;
+    }
     if (view->screen == CATALOG) {
         footer_key(&canvas,27,"L / R","Categories",false);
         footer_key(&canvas,264,"ZL","Sidebar",false);
@@ -562,9 +570,6 @@ void view_draw(uint32_t *pixels, unsigned stride, const Artwork *art, const Stor
         }
         footer_key(&canvas,1071,"B","Back",false);
     }
-    if (view->screen == ABOUT || view->screen == REPOSITORY || view->screen == CATALOG_INFO || view->screen == SETTINGS_RESULT ||
-        (view->busy && !view->minimized) || (app && (view->screen == CONFIRM_REMOVE || view->screen == CONFIRM_COMPATIBILITY)))
-        dialog(&canvas,app,view);
 }
 
 static bool selected_filter(unsigned filter, const App *app) {

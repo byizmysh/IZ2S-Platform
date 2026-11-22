@@ -4,6 +4,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('n
 const {spawn}=require('node:child_process');
 const runtime=require('./runtime.cjs');
 const journal=require('./journal.cjs');
+const stopProcess=require('../../core/platform/stop-process.cjs').stop;
 const DEFAULT_OUT=runtime.output();
 const inputTransports={'pc-cardputer-adv':'cardputer-wifi','pc-switch1':'switch-wifi','pc-arm':'ssh-gadget'};
 const inputNames={'pc-cardputer-adv':'Cardputer ADV','pc-switch1':'Switch 1','pc-arm':'ARM PC'};
@@ -60,7 +61,7 @@ function create({root,manager,out=DEFAULT_OUT,launch=spawn,inputFactory,checkPor
    await checkKeyboard(input);
    const id=crypto.randomUUID();inputId=crypto.randomUUID();
    job={id,kind:'launch',state:'starting',inputDevice:config.selected,inputName:inputNames[config.selected],startedAt:new Date().toISOString(),host,inputId,inputSent:false,needsReboot:false,core:null,error:null,run:null};await save();
-   const output=journal.writer(path.join(directory,id+'.log'));await output.append('IZ2S core · 0.25\n');
+   const output=journal.writer(path.join(directory,id+'.log'));await output.append('IZ2S core · 0.3.0\n');
    let tail='',launched=false,lines=Promise.resolve();
    const append=output.append;
    child=launch(process.execPath,[runtime.start,host],{cwd:__dirname,env:{...process.env,IZ2S_CORE_OUT:out,NS2_BASIC_ARITY:'5',TMPDIR:path.join(out,'tmp'),
@@ -76,7 +77,7 @@ function create({root,manager,out=DEFAULT_OUT,launch=spawn,inputFactory,checkPor
      const plan={id:inputId,steps:require('../common.cjs').connectSteps({bootstrapName:'NS2IZM',command:'V=START(39380,'+host.replaceAll('.',',')+')'})};
      await fs.writeFile(path.join(directory,id+'-input.json'),JSON.stringify(plan,null,2));
      if(child!==owned||job.cancelled)return;
-     inputTask=input.performPlan(plan,e=>void append('[input] '+e.detail+'\n')).then(async()=>{job.inputComplete=true;if(job.state==='typing')job.state='waiting';await save();},async e=>{job.error='Input: '+e.message;job.needsReboot=true;await append(job.error+'\n');await save();owned.kill('SIGINT');}).finally(()=>{inputTask=null;});
+     inputTask=input.performPlan(plan,e=>void append('[input] '+e.detail+'\n')).then(async()=>{job.inputComplete=true;if(job.state==='typing')job.state='waiting';await save();},async e=>{job.error='Input: '+e.message;job.needsReboot=true;await append(job.error+'\n');await save();await stopProcess(owned).catch(error=>append('Stop failed: '+error.message+'\n'));}).finally(()=>{inputTask=null;});
     }
     if(text.includes('Connected.')){job.state='connected';await save();}
     if(/^IZ2S launch completed!(?:\s|$)/.test(text)){
@@ -90,7 +91,7 @@ function create({root,manager,out=DEFAULT_OUT,launch=spawn,inputFactory,checkPor
     const phase=text.match(/^([1-4])\/4 (.+)$/);if(phase){job.phase=Number(phase[1]);await save();}
     if(/^Error:/.test(text)){job.error??=text.slice(0,1600);await save();}
    }
-   const consume=chunk=>{const text=chunk.toString();void append(chunk);tail+=text;let at;while((at=tail.indexOf('\n'))>=0){const row=tail.slice(0,at).replace(/\r$/,'');tail=tail.slice(at+1);lines=lines.then(()=>line(row)).catch(async e=>{job.error=e.message;job.needsReboot=true;await append('Error: '+e.message+'\n');await save();owned.kill('SIGINT');});}};
+   const consume=chunk=>{const text=chunk.toString();void append(chunk);tail+=text;let at;while((at=tail.indexOf('\n'))>=0){const row=tail.slice(0,at).replace(/\r$/,'');tail=tail.slice(at+1);lines=lines.then(()=>line(row)).catch(async e=>{job.error=e.message;job.needsReboot=true;await append('Error: '+e.message+'\n');await save();await stopProcess(owned).catch(error=>append('Stop failed: '+error.message+'\n'));});}};
    child.stdout.on('data',consume);child.stderr.on('data',consume);
    child.once('error',e=>{job.error=e.message;void append('Error: '+e.message+'\n');});
    child.once('close',async(code,signal)=>{
@@ -151,7 +152,7 @@ function create({root,manager,out=DEFAULT_OUT,launch=spawn,inputFactory,checkPor
  }
  async function stop(){
   if(!child&&!inputTask&&!setupOwned())return {ok:true};job.cancelled=true;job.needsReboot=job.inputSent;job.state='stopping';await save();
-  try{if(input&&inputId&&!job.inputComplete)await input.halt(inputId);}finally{if(child)child.kill('SIGINT');else if(job?.kind==='setup'){job.state='stopped';await save();}}return {ok:true};
+  try{if(input&&inputId&&!job.inputComplete)await input.halt(inputId);}finally{if(child)await stopProcess(child);else if(job?.kind==='setup'){job.state='stopped';await save();}}return {ok:true};
  }
  async function reset(){
   if(manager.preview)throw Error('Session reset is unavailable in Preview.');

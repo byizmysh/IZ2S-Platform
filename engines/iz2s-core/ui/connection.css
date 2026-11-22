@@ -1,9 +1,10 @@
-#setup[data-core="true"] :is(#iz-flow, #engine-install, #installation-options, #manual-input-design, .upstream-flow, #library-source-options, #mode),
+#setup[data-core="true"] :is(#iz-flow, #engine-install, #installation-options, .upstream-flow, #library-source-options, #mode),
 #setup[data-core="true"] > .activity {
   display: none !important;
 }
 
 #iz2s-core[hidden], #iz2s-core [hidden] { display: none !important; }
+#setup:has(#manual-input-design:not([hidden])) #iz2s-core { display: none; }
 .core-connection {
   display: grid;
   gap: var(--section-gap);

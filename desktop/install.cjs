@@ -5,7 +5,7 @@ const os = require("node:os");
 const ID = 'izlauncher-run25';
 function desktopEntry({ root, icon }) {
   const quote = value => '"' + value.replace(/[\\"`$]/g, "\\$&").replace(/%/g, "%%") + '"';
-  return `[Desktop Entry]\nVersion=1.0\nType=Application\nName=IZ2S Platform 0.25\nGenericName=Switch 2 control panel\nComment=Open IZ2S Platform in a browser window\nExec=${quote(path.join(root, "start.sh"))}\nPath=${root}\nIcon=${icon}\nTerminal=false\nStartupNotify=false\nCategories=Game;\nKeywords=IZ2S;IZLauncher;IZPSlauncher;Switch;0.25;\n`;
+  return `[Desktop Entry]\nVersion=1.0\nType=Application\nName=IZ2S Platform 0.3.0\nGenericName=Switch 2 control panel\nComment=Open IZ2S Platform in a browser window\nExec=${quote(path.join(root, "start.sh"))}\nPath=${root}\nIcon=${icon}\nTerminal=false\nStartupNotify=false\nCategories=Game;\nKeywords=IZ2S;IZ2s;IZPSlauncher;Switch;0.3.0;\n`;
 }
 async function install({
   home = os.homedir(),

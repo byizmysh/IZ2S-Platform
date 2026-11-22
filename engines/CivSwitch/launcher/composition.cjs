@@ -58,7 +58,7 @@ async function build(apps, cacheRoot) {
   );
   const manifest = JSON.parse(await fs.readFile(path.join(SHELL, 'app.json')));
   manifest.id = id;
-  manifest.name = 'IZlauncher modules';
+  manifest.name = 'IZ2s modules';
   if (memory) {
     manifest.memory = { bytes: memory, initial: 'video-empty.bin' };
     await fs.writeFile(path.join(folder, 'video-empty.bin'), Buffer.alloc(4));

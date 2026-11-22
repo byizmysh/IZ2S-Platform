@@ -397,11 +397,11 @@ bool iz_ounce_add_ftp_tick(IzLocalAdd *message,bool requested,bool can_open){
     static uint32_t displayed_address;
     bool capability_changed=message->ftp_toggle!=1u;
     message->ftp_toggle=1u;
-    bool was_running=iz_ftp_listening();
-    bool toggle=requested&&(was_running||can_open);
+    bool was_enabled=iz_ftp_enabled();
+    bool toggle=requested&&(was_enabled||can_open);
     uint32_t result=0;
     if(toggle){
-        if(was_running){
+        if(was_enabled){
             iz_ftp_close();
             iz_ounce_activity_record("FTP","Stopped");
         }else{
@@ -500,7 +500,7 @@ static int poll_connection(IzLocalAdd *message){
         describe_add(message,!online&&local?local:error);
         return 1;
     }
-    if(result==IZ_PC_UPDATE_REQUIRED){describe_add(message,"App queued. Update IZlauncher to install it.");return 1;}
+    if(result==IZ_PC_UPDATE_REQUIRED){describe_add(message,"App queued. Update IZ2s to install it.");return 1;}
     if(result==IZ_PC_EMPTY||result==IZ_PC_IMPORT_REPORTED||result==IZ_PC_TRANSFER_REPORTED){
         if(result==IZ_PC_EMPTY&&!local){
             if(store_busy)return 0;

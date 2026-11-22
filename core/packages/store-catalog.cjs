@@ -35,7 +35,7 @@ function createPolicy() {
     'ps2-cpu-interpreter-check',
     'ps2-cpu-lightweight-check',
   ]);
-  const hiddenEngines = new Set(['pepsipu', 'izmysh-resume']);
+  const hiddenEngines = new Set(['pepsipu', 'izmysh-resume', 'civswitch', 'civswitch-ldn']);
   const izEngines = new Set(['iz2s-core']);
   const izVariants = new Set(['izlauncher']);
 
@@ -49,7 +49,7 @@ function createPolicy() {
       : Array.isArray(loader.modes) ? loader.modes : null;
     if (variant === 'original') return !declared || declared.includes('original');
     if (!izVariants.has(variant) || !izEngines.has(loader.id)) return false;
-    // Older APIs declared only the common IZLauncher transport mode.
+    // Older APIs declared only the common IZ2s transport mode.
     return !declared || declared.some(mode => izVariants.has(mode));
   }
 

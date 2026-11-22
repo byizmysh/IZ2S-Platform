@@ -7,9 +7,14 @@
       "sha256": "5a2b86da8787318652365b2e4cf710f67ce618d6c21087dfc78716533a510d32"
     },
     {
+      "path": "installer/.gitignore",
+      "bytes": 28,
+      "sha256": "0e1a161ceaef81ebbdbf727dbdfb574b3b9429faba1b647e40f34f1ae59bb9ee"
+    },
+    {
       "path": "installer/README.md",
-      "bytes": 10443,
-      "sha256": "1effc97a26d679cf2772a3c620f0805eaae6e83c3bd145283db62333672e3f1b"
+      "bytes": 10438,
+      "sha256": "14b2ea3a1220f05312b36b7c206bc02cbcef96b334043740391b3bbb24da73ba"
     },
     {
       "path": "installer/bootstrap.bas",
@@ -563,13 +568,13 @@
     },
     {
       "path": "menu-build.json",
-      "bytes": 10606,
-      "sha256": "dbe9e041d56b22cab3b2952e2d5407824a09072e751e7de7b13f12c0808226d1"
+      "bytes": 10826,
+      "sha256": "954507528cfe158dcdc54e919b094a747ac101857eeef870df044f4f5e5fef64"
     },
     {
       "path": "package-manifest.json",
       "bytes": 6910,
-      "sha256": "93eac7943a70873b1579579c19c191c14c2083d769430f27a42aebd8d4070c69"
+      "sha256": "e05cdf5bb350463d163a4321bdafc00ff3e317a5af41523e7156e77b37f4c69f"
     },
     {
       "path": "package/bootstrap.bin",
@@ -598,13 +603,13 @@
     },
     {
       "path": "package/iz2s/modules/foldrift/launcher.iza",
-      "bytes": 278164,
-      "sha256": "49c13fc49cd0f9b4cc4b045b544de073d4c67a842f188d73fbf76b09ad2f5cec"
+      "bytes": 278156,
+      "sha256": "27a71ee6ef7e3004eb152d732fba73a8814b21e036a7aeb50dc25871fd8c3b5d"
     },
     {
       "path": "package/iz2s/modules/foldrift/launcher.iza.sig",
       "bytes": 64,
-      "sha256": "6e1ea49fe5182353b51857deb63855b2a27fcda3b5952604681841b13d0bf0b1"
+      "sha256": "8362eb08a0104a44af5519555058b132cccdcbf24f8bfa30779a65f244087369"
     },
     {
       "path": "package/licenses/bzip2/LICENSE",

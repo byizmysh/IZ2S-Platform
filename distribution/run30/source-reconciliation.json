@@ -1,0 +1,15 @@
+{
+  "note": "Unchanged native binaries retain their exact historical build inputs under sources/runtime-build. Current development sources remain in their original locations. No binary checksum was replaced.",
+  "relocatedInputs": [
+    "engines/iz2s-core/source/izlauncher/ounce/import.c",
+    "engines/iz2s-core/source/izlauncher/ounce/ftp-connect.h",
+    "modules/iz2s-cheese/switch/main.c",
+    "modules/iz2s-cheese/switch/store.c",
+    "modules/iz2s-cheese/switch/store.h",
+    "modules/iz2s-cheese/switch/ui.h",
+    "engines/iz2s-core/source/izlauncher/ounce/main.c",
+    "engines/iz2s-core/source/izlauncher/ounce/ftp-connect.c",
+    "engines/iz2s-core/source/izlauncher/ounce/pc-link.c",
+    "modules/iz2s-cheese/switch/ui.c"
+  ]
+}

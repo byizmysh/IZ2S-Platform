@@ -30,10 +30,10 @@
     ],
     "assets": [
       {
-        "file": "native/asset-b87343c59604a1ffc497ec852e7fc80beb65cf92b6e208124528a4a39b6fb8db.izdata",
-        "path": "asset-b87343c59604a1ffc497ec852e7fc80beb65cf92b6e208124528a4a39b6fb8db.izdata",
+        "file": "native/asset-83efd383378977184133b5d8b01e60c64e864adbb2c6c0a43c1b5f5eb32fa0b6.izdata",
+        "path": "asset-83efd383378977184133b5d8b01e60c64e864adbb2c6c0a43c1b5f5eb32fa0b6.izdata",
         "bytes": 1746048,
-        "sha256": "b87343c59604a1ffc497ec852e7fc80beb65cf92b6e208124528a4a39b6fb8db"
+        "sha256": "83efd383378977184133b5d8b01e60c64e864adbb2c6c0a43c1b5f5eb32fa0b6"
       }
     ]
   }

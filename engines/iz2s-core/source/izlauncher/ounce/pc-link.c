@@ -25,7 +25,7 @@
 #define LINK_LEGACY_LIMIT (32u*1024u*1024u)
 #define LINK_ARCHIVE_LIMIT UINT32_MAX
 #define IMPORT_PENDING UINT64_MAX
-#define LINK_MISSED_POLLS 3u
+#define LINK_RECONNECT_NS UINT64_C(90000000000)
 
 static Thread worker;
 static bool started, request_pending, sockets_ready;
@@ -597,7 +597,8 @@ bool iz_pc_store_result(IzPcStoreApp *apps,unsigned *count,unsigned *status,bool
 
 static void run(void *unused){
     (void)unused;
-    unsigned delay=0,retry=0,menu_tick=0,missed=0,generation=0;
+    unsigned delay=0,retry=0,menu_tick=0,generation=0;
+    uint64_t offline_since=0;
     while(!atomic_load(&ending)){
         if(!begin_channel_job()){
             svcSleepThread(100000000);
@@ -606,7 +607,8 @@ static void run(void *unused){
         const unsigned current_generation=atomic_load(&channel_generation);
         if(generation!=current_generation){
             generation=current_generation;
-            delay=retry=menu_tick=missed=0;
+            delay=retry=menu_tick=0;
+            offline_since=armGetSystemTick();
         }
         if(atomic_load(&store_state)==STORE_REQUEST){
             store_exchange();
@@ -623,8 +625,13 @@ static void run(void *unused){
             if(fetch&&result==IZ_PC_ERROR&&!atomic_load(&online))result=exchange('F');
             if(fetch&&result!=IZ_PC_PACKAGE)atomic_store(&delivery,result);
             if(automatic&&result!=IZ_PC_PACKAGE)retry=150;
-            if(atomic_load(&online))missed=0;
-            else if(iz_pc_enabled()&&++missed>=LINK_MISSED_POLLS)iz_pc_pause();
+            if(atomic_load(&online))offline_since=0;
+            else {
+                const uint64_t now=armGetSystemTick();
+                if(!offline_since)offline_since=now;
+                // Switching from dock Ethernet to Wi-Fi can take several seconds.
+                if(armTicksToNs(now-offline_since)>=LINK_RECONNECT_NS)iz_pc_pause();
+            }
             delay=result==IZ_PC_FILES?1:6;
         }
         if(iz_pc_enabled()&&!menu_tick&&atomic_load(&online)&&!fetch&&atomic_load(&store_state)==STORE_IDLE){

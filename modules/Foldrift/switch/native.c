@@ -88,7 +88,7 @@ static bool name_allowed(const char *name) {
 
 static bool visible(const Deck *deck,const char *folder,const char *name) {
     if(!name_allowed(name))return false;
-    bool app_root=deck->whole_sd?compare(folder,"iz2s/modules/iz-file-deck")==0:!*folder;
+    bool app_root=deck->whole_sd?compare(folder,"iz2s/modules/foldrift")==0:!*folder;
     return !app_root||!(compare(name,"launcher.iza")==0||compare(name,"launcher.nro")==0||
         prefix(name,"asset-")||prefix(name,"sd-bundle")||prefix(name,".launcher-")||
         prefix(name,".removed-")||prefix(name,".iz2s-version"));
@@ -551,8 +551,8 @@ static void publish(Deck *deck,Mailbox *view) {
     {
         const Pane *pane=&deck->pane;
         PaneView *panel=&view->pane;
-        deck->format(panel->path,sizeof panel->path,"%s",deck->whole_sd?"SD:/":"SD:/iz2s/modules/iz-file-deck/");
-        size_t at=deck->whole_sd?4u:sizeof("SD:/iz2s/modules/iz-file-deck/")-1u;
+        deck->format(panel->path,sizeof panel->path,"%s",deck->whole_sd?"SD:/":"SD:/iz2s/modules/foldrift/");
+        size_t at=deck->whole_sd?4u:sizeof("SD:/iz2s/modules/foldrift/")-1u;
         display(panel->path+at,sizeof panel->path-at,pane->path);
         panel->count=pane->count;
         panel->selected=pane->selected;

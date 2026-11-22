@@ -2,12 +2,13 @@
   "format": "izlauncher.shell",
   "apiVersion": 1,
   "id": "izlauncher",
-  "name": "IZ2S",
-  "version": "0.25.2",
+  "name": "IZ2s",
+  "version": "0.3.0",
   "entry": "adapter.cjs",
   "platforms": [
     "linux-x64",
-    "linux-arm64"
+    "linux-arm64",
+    "win32-x64"
   ],
   "consoleAbi": 1,
   "moduleShells": [

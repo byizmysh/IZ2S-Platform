@@ -20,7 +20,7 @@ async function create({rpc,menu,directory,runtime,root=path.resolve(__dirname,'.
   const shell=await local('composition').build(runtime.report.catalog?.apps||[],require('../session/preload.cjs').cacheRoot(root));
   if(report.shell?.fingerprint===shell.fingerprint)return;
   let gpu=pipelines.get(shell.fingerprint);
-  if(!gpu){await files.event(stateRoot,'graphics','Preparing '+shell.name+' after the original menu checks');gpu=await prepareShell(rpc,menu,shell,directory);if(!gpu.ready||!gpu.scratchRestored)throw Error('IZlauncher shell failed qualification');if(gpu.privateStorage){await require('../services/owned-buffer.cjs').initialize(rpc,gpu.privateStorage.mapped,gpu.privateStorage.bytes);await rpc.write(menu.controls.mapped+require('../services/pc-screen.cjs').HEADER,Buffer.alloc(96));}pipelines.set(shell.fingerprint,gpu);}
+  if(!gpu){await files.event(stateRoot,'graphics','Preparing '+shell.name+' after the original menu checks');gpu=await prepareShell(rpc,menu,shell,directory);if(!gpu.ready||!gpu.scratchRestored)throw Error('IZ2s shell failed qualification');if(gpu.privateStorage){await require('../services/owned-buffer.cjs').initialize(rpc,gpu.privateStorage.mapped,gpu.privateStorage.bytes);await rpc.write(menu.controls.mapped+require('../services/pc-screen.cjs').HEADER,Buffer.alloc(96));}pipelines.set(shell.fingerprint,gpu);}
   menu.commands=gpu.commands;if(gpu.layout)menu.layout=gpu.layout;if(gpu.descriptor)menu.controls.descriptor=gpu.descriptor;menu.streamStorage=gpu.privateStorage||null;report.shell={id:shell.id,fingerprint:shell.fingerprint,privateStorage:gpu.privateStorage||null,ready:true};
  }
  await applyShell();

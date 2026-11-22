@@ -11,13 +11,9 @@
 #define STORE_PATH 512
 #define STORE_MESSAGE 160
 #define STORE_ICON_SIZE 96
-#define STORE_DIR "/iz2s/iz2s-cheese"
 #define MODULE_DIR "/iz2s/modules"
-#ifdef IZ_STORE_STANDALONE
-#define STORE_CATALOG_DIR "/switch/iz2s-cheese/catalog"
-#else
-#define STORE_CATALOG_DIR MODULE_DIR "/iz2s-cheese/catalog"
-#endif
+#define STORE_DIR MODULE_DIR "/iz2s-cheese"
+#define STORE_CATALOG_DIR STORE_DIR "/catalog"
 
 
 typedef enum { PACKAGE_IZM, PACKAGE_NRO, PACKAGE_IZM_NRO } PackageKind;
@@ -62,7 +58,7 @@ void store_clear(Store *store);
 bool store_clone(Store *target, const Store *source);
 bool store_load(Store *store, const char *root, char message[STORE_MESSAGE]);
 bool store_refresh_catalog(Store *store, const char *root, const StoreSettings *settings,
-                           char message[STORE_MESSAGE]);
+                           bool fetch_updates, char message[STORE_MESSAGE]);
 void store_settings_read(const char *root, StoreSettings *settings);
 bool store_settings_write(const char *root, const StoreSettings *settings, char message[STORE_MESSAGE]);
 bool store_fetch_list(Store *store, const StoreSettings *settings, char message[STORE_MESSAGE]);

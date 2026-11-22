@@ -22,7 +22,7 @@ async function create({
       devices = require(path.join(root, relative));
       break;
     }
-  if (!devices) throw Error('IZlauncher common device checks are missing');
+  if (!devices) throw Error('IZ2s common device checks are missing');
   const inputNames = {'cardputer-wifi': 'Cardputer ADV', 'switch-wifi': 'Switch 1'};
   const inputName = inputNames[configuration.inputAdapter];
   const inputSetup = inputName && configuration.setupRequired

@@ -1,8 +1,8 @@
 [
   {
     "path": "AUTHORS.md",
-    "bytes": 724,
-    "sha256": "54ff59a89bff1cc1bd1b21a49a68cec01811cbab0d7c40f5afc56aadebe15c38"
+    "bytes": 3084,
+    "sha256": "adc0dfd5005a93f76161af55b790811946b65d9f3941f0a091ca98e7319cd6f5"
   },
   {
     "path": "COPYRIGHT",
@@ -20,9 +20,9 @@
     "sha256": "7b6240fbfb8455a4797eb63316f99263fc2c0a6c8bf68cab7cd8e84a8e4cf187"
   },
   {
-    "path": "LICENSES/copyrights.json",
-    "bytes": 58857,
-    "sha256": "f097ce12653a7a398c45841f449f567bc0d028451c018e3662a81fe4f3435ae1"
+    "path": "LICENSES/inherited-provenance.json",
+    "bytes": 6783,
+    "sha256": "034562c18278dfa9f4c8159d65334dccac6257afdba45172ffdbfc7405b7be6b"
   },
   {
     "path": "LICENSES/native-linked/3rdparty/cpuinfo/LICENSE",
@@ -125,11 +125,6 @@
     "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
   },
   {
-    "path": "LICENSES/notices.json",
-    "bytes": 26600,
-    "sha256": "12421ab0cc2b6ea0b29d28761e7206cf68869be6492bef8c5c5aa5a9aa64b0ab"
-  },
-  {
     "path": "core/filesystem/ouncecake/LICENSE",
     "bytes": 18091,
     "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
@@ -200,6 +195,16 @@
     "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
   },
   {
+    "path": "engines/CivSwitchLDN/LICENSES/Gezine-MIT.txt",
+    "bytes": 1063,
+    "sha256": "c0675240c74693e44d256a070ddf59f3d99ce7a87c82f8dfa0dbda53f3647053"
+  },
+  {
+    "path": "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt",
+    "bytes": 35149,
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
     "path": "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md",
     "bytes": 3066,
     "sha256": "45867a66216fa1dddffaa8cf0b092468a67d6a0c9187593469171ac57db622e9"
@@ -258,6 +263,31 @@
     "path": "engines/CivSwitchLDN/node_modules/terser/LICENSE",
     "bytes": 1303,
     "sha256": "901d0a7fcaccaae9917d165039c0473c354e5da2e0e94140dde67aad9ffb19da"
+  },
+  {
+    "path": "engines/IzCivSwitchFS/LICENSE",
+    "bytes": 18092,
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  },
+  {
+    "path": "engines/IzCivSwitchFS/LICENSE-CivSwitchFS",
+    "bytes": 1067,
+    "sha256": "91089b0830ac0a4be129ec2c209caf631ccdeb87c18c88e33e56583a21eae24c"
+  },
+  {
+    "path": "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md",
+    "bytes": 3632,
+    "sha256": "5cd021c235a8bd5a21da17bf9e2518d5acb37f1d08a1e3d7a2fd5ae7d4c712ff"
+  },
+  {
+    "path": "engines/IzCivSwitchFS/node_modules/esbuild/LICENSE.md",
+    "bytes": 1069,
+    "sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681"
+  },
+  {
+    "path": "engines/IzCivSwitchFS/persist/LICENSE",
+    "bytes": 1063,
+    "sha256": "c0675240c74693e44d256a070ddf59f3d99ce7a87c82f8dfa0dbda53f3647053"
   },
   {
     "path": "engines/iz2s-core/runtime/package/licenses/bzip2/LICENSE",
@@ -570,97 +600,97 @@
     "sha256": "a62dabd1c6ef1327365b2a3fdffb806222684a746dcb8f4afd1c1f690eba5535"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/LICENSE",
     "bytes": 1065,
     "sha256": "298749dc21f7c3747cef0f15ce93e7d2c275a47af6f860377c310858f15e315a"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/argparse/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/LICENSE",
     "bytes": 12775,
     "sha256": "de4d1f2d2ad5ad0cfd1657a106476b31cb5db5ef9d1ff842b237c0c81f0c8a23"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/builder-util-runtime/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/builder-util-runtime/LICENSE",
     "bytes": 1084,
     "sha256": "bed8d0ab3e6031817f775a641ff37313b0f5591bc8ba0ed79b978dafbd4231ce"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/chokidar/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/chokidar/LICENSE",
     "bytes": 1124,
     "sha256": "bdfd5e0edb6089e6586c8f15e6a86fab83ffbeeda3b3b7b33734ccb8c5906965"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/debug/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/debug/LICENSE",
     "bytes": 1139,
     "sha256": "3a61c6c96caf5c1d9b623fb9b04c822b783dfcb78aa7e49c76a3f643e6ed7f95"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/electron-updater/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/electron-updater/LICENSE",
     "bytes": 1084,
     "sha256": "bed8d0ab3e6031817f775a641ff37313b0f5591bc8ba0ed79b978dafbd4231ce"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/electron-updater/node_modules/semver/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/electron-updater/node_modules/semver/LICENSE",
     "bytes": 765,
     "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/fs-extra/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/fs-extra/LICENSE",
     "bytes": 1084,
     "sha256": "1e76029602ae9b21cc4e612db2496d92febed882ba13ba745f8b3309e85f9d39"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/graceful-fs/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/graceful-fs/LICENSE",
     "bytes": 791,
     "sha256": "f65c5d9f22a317b2a10803bd1868461ce6499c2ed7217bc80c0cc772a748789c"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/js-yaml/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/js-yaml/LICENSE",
     "bytes": 1084,
     "sha256": "a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/jsonfile/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/jsonfile/LICENSE",
     "bytes": 1110,
     "sha256": "a9801fb52ba22ef808682a094da8a7a480584b7ed0dfd0d888ab543616335031"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/lodash.escaperegexp/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/lodash.escaperegexp/LICENSE",
     "bytes": 1951,
     "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/lodash.isequal/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/lodash.isequal/LICENSE",
     "bytes": 1950,
     "sha256": "e159c6d48c989185448658f276375bfb2300362ec6d4ae5525a2d49c4bcb947d"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/ms/license.md",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/ms/license.md",
     "bytes": 1079,
     "sha256": "1662fae9b5314d11cf51284e2dcd1f006a354f7343f08712a730fcff9a359801"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/readdirp/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/readdirp/LICENSE",
     "bytes": 1114,
     "sha256": "dffec71d93f273d2af7b54c6c7e7e70b3289c632ec0d7253210ec21ac336d5ac"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/sax/LICENSE.md",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/sax/LICENSE.md",
     "bytes": 1552,
     "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/string-argv/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/string-argv/LICENSE",
     "bytes": 1101,
     "sha256": "2aca619a9845c352d678fb94a7f1dc2a7f9824db7cced3a320d215107847dc72"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/tiny-typed-emitter/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/tiny-typed-emitter/LICENSE",
     "bytes": 1104,
     "sha256": "4b3faf884ee71eec3df920b66c98fc6618af28e824cf3a32ef3d8774048cc76d"
   },
   {
-    "path": "modules/VacooTube/runtime/source/9b4075403cabccd7af51ba7dab6371befefbeafd5363e880707d0628f868d3a3/node_modules/universalify/LICENSE",
+    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/universalify/LICENSE",
     "bytes": 1100,
     "sha256": "3fda5977c0904e226190b4e21d64340c1731e2142d6fe5f3dee0090a216b8b63"
   },
@@ -690,11 +720,6 @@
     "sha256": "da259c8bd0de62713ccdcf88910aebca810644f98c2c912bad814fc79ea778df"
   },
   {
-    "path": "modules/iz2s-cheese/licenses/stb_image.txt",
-    "bytes": 2538,
-    "sha256": "f33b83c6b554f7b31ad63dcda01205db2d2151c5ba9016a9747d03739c2e2857"
-  },
-  {
     "path": "sdk/LICENSE",
     "bytes": 1076,
     "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
@@ -708,6 +733,131 @@
     "path": "shells/izlauncher/native/monocypher/LICENCE.md",
     "bytes": 9085,
     "sha256": "5f8360e4c06ddcc584bdb4b210c6af824c4bb301e6a9a521869b6d90795ca4b3"
+  },
+  {
+    "path": "sources/applications/BlitBun/COPYRIGHT",
+    "bytes": 851,
+    "sha256": "5831f979f36c92ed3dc0a0f436f3c3fb717113d16a34a16d0e764d4261fdc877"
+  },
+  {
+    "path": "sources/applications/BlitBun/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "sources/applications/BlitBun/LICENSE-SCOPE.md",
+    "bytes": 1261,
+    "sha256": "7b6240fbfb8455a4797eb63316f99263fc2c0a6c8bf68cab7cd8e84a8e4cf187"
+  },
+  {
+    "path": "sources/applications/BookReader/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "sources/applications/Foldrift/LICENSE",
+    "bytes": 1076,
+    "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
+  },
+  {
+    "path": "sources/applications/VacooTube/COPYRIGHT",
+    "bytes": 851,
+    "sha256": "5831f979f36c92ed3dc0a0f436f3c3fb717113d16a34a16d0e764d4261fdc877"
+  },
+  {
+    "path": "sources/applications/VacooTube/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "sources/applications/VacooTube/LICENSE-SCOPE.md",
+    "bytes": 1261,
+    "sha256": "7b6240fbfb8455a4797eb63316f99263fc2c0a6c8bf68cab7cd8e84a8e4cf187"
+  },
+  {
+    "path": "sources/applications/VacooTube/app/LICENSE",
+    "bytes": 1065,
+    "sha256": "298749dc21f7c3747cef0f15ce93e7d2c275a47af6f860377c310858f15e315a"
+  },
+  {
+    "path": "sources/applications/VacooTube/server/streaming/COPYRIGHT",
+    "bytes": 863,
+    "sha256": "5bf9fac2228f9bac0ea551ec38dc9a2f6938a4b9299a437c51c9a1c2fc9ed1c5"
+  },
+  {
+    "path": "sources/applications/VacooTube/server/streaming/LICENSE",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "sources/applications/iz2s-cheese/LICENSE",
+    "bytes": 1076,
+    "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
+  },
+  {
+    "path": "sources/izpsx/LICENSE",
+    "bytes": 18730,
+    "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
+  },
+  {
+    "path": "sources/izpsx/THIRD_PARTY.md",
+    "bytes": 931,
+    "sha256": "494454c8ef9cd7b4bafa12b346a94ed8b1c9c6227a54a16fa685d4c3a2a701a2"
+  },
+  {
+    "path": "sources/izpsx/module/LICENSE",
+    "bytes": 18730,
+    "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
+  },
+  {
+    "path": "sources/izpsx/sdk/LICENSE",
+    "bytes": 1076,
+    "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/AUTHORS",
+    "bytes": 1680,
+    "sha256": "48d866645e4083ca01e935aca899c01f988ba0aaead81a98db3e8ba22a62cb3e"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/COPYING",
+    "bytes": 18730,
+    "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/deps/libchdr/LICENSE.txt",
+    "bytes": 1493,
+    "sha256": "e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/deps/libchdr/deps/lzma-26.02/LICENSE",
+    "bytes": 261,
+    "sha256": "06721414a6decad6d6677feb470f01f47126e154d895d85bc1e17628697715e5"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/deps/lightning/AUTHORS",
+    "bytes": 415,
+    "sha256": "f2261cf1d4549c0a97b1e5ef3a170379279163a747d650920c070e9759fcec9c"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/deps/lightning/COPYING",
+    "bytes": 35068,
+    "sha256": "fc82ca8b6fdb18d4e3e85cfd8ab58d1bcd3f1b29abe782895abd91d64763f8e7"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/deps/lightning/COPYING.DOC",
+    "bytes": 18114,
+    "sha256": "5ae033045108dac293940c2292d311ce8b58de976dff2269c22280b8df6cfd27"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/deps/lightning/COPYING.LESSER",
+    "bytes": 7639,
+    "sha256": "a853c2ffec17057872340eee242ae4d96cbf2b520ae27d903e1b2fef1a5f9d1c"
+  },
+  {
+    "path": "sources/izpsx/vendor/pcsx_rearmed/deps/lightrec/COPYING",
+    "bytes": 26419,
+    "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95"
   },
   {
     "path": "tools/fs-rpc-browser/THIRD_PARTY_NOTICES.md",

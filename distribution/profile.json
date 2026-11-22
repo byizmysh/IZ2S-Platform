@@ -1,35 +1,35 @@
 {
   "id": "iz2s-platform",
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
-  "version": "0.25.2",
+  "version": "0.3.0",
   "shells": [
     "izlauncher"
   ],
   "preinstalledEngines": [
     "iz2s-core",
-    "civswitch",
-    "civswitch-ldn"
+    "iz2sciv-core"
   ],
   "optionalEngines": [],
   "modules": [
-    "blitbun",
     "book-reader",
+    "blitbun",
+    "vacootube",
     "iz-file-deck",
     "iz2s-cheese",
-    "vacootube",
     "izpsx"
   ],
   "moduleDirectories": [
-    "BlitBun",
     "BookReader",
+    "BlitBun",
+    "VacooTube",
     "Foldrift",
     "iz2s-cheese",
-    "VacooTube",
     "IZPSX"
   ],
   "hostPlatforms": [
     "linux-x64",
-    "linux-arm64"
+    "linux-arm64",
+    "win32-x64"
   ],
   "inputDevices": [
     "ARM PC",
@@ -42,10 +42,20 @@
     "win32-x64"
   ],
   "experimentalInstallerPlatforms": [],
-  "publicationStatus": "release",
+  "publicationStatus": "local-candidate",
   "directComponents": [
     "iz2s-core"
   ],
-  "edition": "0.25",
-  "releaseTarget": "source"
+  "edition": "0.3.0",
+  "gameSupport": {
+    "smilebasic4": [
+      "linux-x64",
+      "linux-arm64",
+      "win32-x64"
+    ],
+    "civilization7": [
+      "linux-x64",
+      "linux-arm64"
+    ]
+  }
 }

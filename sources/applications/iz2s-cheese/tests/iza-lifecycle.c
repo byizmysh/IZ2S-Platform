@@ -131,12 +131,13 @@ int main(int argc,char **argv) {
     missing="sslConnectionDoHandshake";
     assert(entry(app,IZ_NATIVE_INIT)==0xe872);assert(reports==1&&!strcmp(report,missing));
     assert(!entry(app,IZ_NATIVE_STOP)&&loads==unloads&&!creates);
-    missing=NULL;
+    missing="__assert_func";
     for(service_revision=0;service_revision<3;++service_revision) {
         memset(app->data,0,4096);assert(!entry(app,IZ_NATIVE_INIT));
         assert(entry(app,IZ_NATIVE_STOP)==IZ_NATIVE_STOP_PENDING);assert(loads==unloads+1);
         worker(worker_arg);completed=1;
         assert(!entry(app,IZ_NATIVE_STOP));assert(loads==unloads&&creates==joins&&joins==closes);
+        missing=NULL;
     }
     memset(app->data,0,4096);assert(!entry(app,IZ_NATIVE_INIT));
     worker(worker_arg);completed=1;assert(!entry(app,IZ_NATIVE_FRAME));

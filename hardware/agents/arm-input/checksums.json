@@ -2,7 +2,7 @@
   "algorithm": "sha256",
   "files": {
     "agent.py": "adba70e068313f2d25d42cf7247a5b07b82de277b1d765275b54c08ae574e41d",
-    "discovery.py": "6c94d5fb4d36ac8f10f3886b85c24bd3500de1952c6c7d58e6953bf98b32d499",
+    "discovery.py": "bd1b85eba3db0e5072220e5125112442e7bdb6b2d42e97191e6a4c8c612fe3bf",
     "type-bootstrap.py": "b2d8614f74baee9a171e972fe52746c75169768b69656a665bcbebee400f6a31",
     "install.py": "d1d346c9125a8979cdd24e6cf280e73946d87705f6e9c2f8c8fcaca051308d2d",
     "package.json": "e13e1c32f49b2fcff3ffcb8bbfe6f7294b2d7c18ce651def574911d4fc84f5fc",

@@ -1,2 +1,0 @@
-3b6af3f8564e6933fc6879c71ab6e1fc14f0f33b166d3b41269b4a457f6e0c3a  IZ2S-Platform-0.25-linux.tar.gz
-a1d1a79456c7930cdc1999d202dc228777feb32c736d477423a21c3504d7ffec  IZ2S-Platform-0.25-windows-x64.zip

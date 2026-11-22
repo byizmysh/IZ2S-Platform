@@ -1,4 +1,4 @@
-// A bounded batch runs controller sampling and the original IZlauncher command
+// A bounded batch runs controller sampling and the original IZ2s command
 // buffers on the console. No SB4 thread gadgets or filesystem service.
 if(window.__iz2sCivRuntime.native&&window.__iz2sCivRuntime.frameRevision!==8){
   window.__iz2sCivRuntime.frame=(plan,count)=>{

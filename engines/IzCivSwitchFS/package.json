@@ -1,0 +1,29 @@
+{
+  "name": "iz2sciv-core",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "IZ2SCiv core — Civilization VII entry for the RUN25 IZ2s",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "persist:build": "node tools/persist-build.mjs",
+    "persist:install": "node tools/persist-install.mjs",
+    "persist:chain": "node tools/persist-install.mjs --chain",
+    "persist:split": "node tools/persist-install.mjs --split",
+    "send": "node tools/send.mjs",
+    "send:chain": "node tools/send.mjs --entry src/chain.mjs",
+    "check": "node tools/check.mjs",
+    "example:user-storage": "node tools/send.mjs --entry examples/user-storage.mjs",
+    "start": "node tools/launch.mjs",
+    "setup": "node tools/launch.mjs setup",
+    "install:iz2s": "node tools/launch.mjs install",
+    "send:fs": "node tools/send.mjs --entry src/core.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

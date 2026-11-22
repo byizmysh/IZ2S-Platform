@@ -39,9 +39,9 @@ delivery needs an explicitly confirmed fresh lobby before another send.
 
 Save installation is optional and requires a live verified loader at the same
 IP plus explicit consent to delete ALL single-player saves. The upstream
-installer has one local adaptation: its trigger is named **IZ2S.Civ7Save**.
+installer has one local adaptation: its trigger is named **IZ2SCIV.Civ7Save**.
 After INSTALL DONE, restart the game and choose Load Game. The panel does not
-claim IZlauncher/IZPSlauncher support; those currently require SmileBASIC 4.
+claim IZ2s/IZPSlauncher support; those currently require SmileBASIC 4.
 
 The original GPL-3.0-only license, MIT notices for Gezine's files and GPLv3 LDN
 dependency notices are retained. See LICENSE, LICENSES and THIRD_PARTY_NOTICES.md.

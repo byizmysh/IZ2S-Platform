@@ -47,9 +47,9 @@ Extract [`iz2s-cheese-nro-sd.zip`](https://github.com/byizmysh/iz2s-cheese/relea
 
 The list is empty on first launch. Press **−**, select **Catalog URL**, and paste the raw URL of `catalog.tsv`.
 
-IZ2S Cheese looks for `artwork.bin` alongside `catalog.tsv`. It saves the list and thumbnails to the card for offline browsing. Use **Settings → Download catalog** to refresh both files. IZ2S can download IZA and NRO apps from the same catalog. On kaiHEN, IZA entries are marked as requiring IZ2S.
+IZ2S Cheese looks for `artwork.bin` alongside `catalog.tsv`. It saves the list and thumbnails to the card for offline browsing. Press **Y → Refresh** to download the latest catalog and thumbnails without opening Settings. Startup uses the cached list when available; if an update fails, the cached list stays available and an error is shown. **Settings → Download catalog** also refreshes both files. With the SD card source selected, Refresh reloads the local files instead. IZ2S can download IZA and NRO apps from the same catalog. On kaiHEN, IZA entries are marked as requiring IZ2S.
 
-For a local catalog, place `catalog.tsv` and `artwork.bin` in `/iz2s/modules/iz2s-cheese/catalog/` for IZA or `/switch/iz2s-cheese/catalog/` for NRO. Select **Settings → Catalog source → SD card**, then **Reload SD catalog**.
+For a local catalog, place `catalog.tsv` and `artwork.bin` in `/iz2s/modules/iz2s-cheese/catalog/`. Select **Settings → Catalog source → SD card**, then **Reload SD catalog**. Cheese saves its settings, downloaded catalog, and thumbnails in `/iz2s/modules/iz2s-cheese/` in both editions.
 
 ## Publish your own catalog
 

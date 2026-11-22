@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=VacooTube
+Exec=startvacootube %U
+Terminal=false
+Type=Application
+Icon=org.iz2s.VacooTube
+StartupWMClass=VacooTube
+Categories=AudioVideo;
+Keywords=YouTube;YT;
+Comment=Watch and explore videos on YouTube
+X-KDE-FormFactors=mediacenter,desktop,handset,tablet

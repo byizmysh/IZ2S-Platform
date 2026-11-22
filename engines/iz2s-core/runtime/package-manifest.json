@@ -26,13 +26,13 @@
   },
   {
     "path": "iz2s/modules/foldrift/launcher.iza",
-    "bytes": 278164,
-    "sha256": "49c13fc49cd0f9b4cc4b045b544de073d4c67a842f188d73fbf76b09ad2f5cec"
+    "bytes": 278156,
+    "sha256": "27a71ee6ef7e3004eb152d732fba73a8814b21e036a7aeb50dc25871fd8c3b5d"
   },
   {
     "path": "iz2s/modules/foldrift/launcher.iza.sig",
     "bytes": 64,
-    "sha256": "6e1ea49fe5182353b51857deb63855b2a27fcda3b5952604681841b13d0bf0b1"
+    "sha256": "8362eb08a0104a44af5519555058b132cccdcbf24f8bfa30779a65f244087369"
   },
   {
     "path": "licenses/bzip2/LICENSE",

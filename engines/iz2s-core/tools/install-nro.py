@@ -1,4 +1,4 @@
-"""Install one validated NRO through the existing paired IZlauncher FTP service."""
+"""Install one validated NRO through the existing paired IZ2s FTP service."""
 import re
 import sys
 from deployment import main

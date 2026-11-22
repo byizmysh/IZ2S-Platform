@@ -1,4 +1,4 @@
-param([string]$Destination, [switch]$NoShortcut, [switch]$NoLaunch)
+param([string]$Destination, [switch]$NoShortcut, [switch]$NoLaunch, [switch]$Portable)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -53,6 +53,12 @@ if (-not (Test-Path -LiteralPath $Node)) {
 & $Node -e 'if(Number(process.versions.node.split(String.fromCharCode(46))[0])<24)process.exit(1)'
 if ($LASTEXITCODE -ne 0) { throw 'The private Node.js runtime is damaged. Remove its bootstrap folder and retry.' }
 $Arguments = @((Join-Path $Root 'distribution\install.cjs'), '--node-home', $Bootstrap)
+if ($Portable) {
+  $Arguments = @((Join-Path $Root 'distribution\start-windows.cjs'))
+  if ($NoLaunch) { $Arguments += '--setup-only' }
+  & $Node @Arguments
+  exit $LASTEXITCODE
+}
 if ($Destination) { $Arguments += @('--destination', $Destination) }
 if ($NoShortcut) { $Arguments += '--no-shortcut' }
 if ($NoLaunch) { $Arguments += '--no-launch' }

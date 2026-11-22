@@ -3,11 +3,12 @@
   "apiVersion": 1,
   "id": "iz2s-core",
   "name": "IZ2S core",
-  "version": "0.25.2",
+  "version": "0.3.0",
   "entry": "controller.cjs",
   "platforms": [
     "linux-x64",
-    "linux-arm64"
+    "linux-arm64",
+    "win32-x64"
   ],
   "modes": [
     "izlauncher"

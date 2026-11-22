@@ -7,7 +7,7 @@ language and USB keyboard. Keep PC and Switch on the isolated local network.
 The PC connects to the console loader on TCP 9026.
 
 One four-step setup wizard serves ADV and ARM:
-1. Choose optional IZ2S.Civ7Save installation. It DELETES ALL single-player
+1. Choose optional IZ2SCIV.Civ7Save installation. It DELETES ALL single-player
    files in save:/saves/Single/. Back up needed saves and acknowledge deletion.
 2. Connect ADV CIV firmware 0.22.4 (IZ2S-ADV-CIV.bin) over Wi-Fi, or install ARM input package 1.1.0
    over trusted root SSH/LAN. Both expose a keyboard and controller over USB.
@@ -51,11 +51,11 @@ update step 2 and retry verification. Empty port probes are avoided because
 upstream counts invalid connections. A network error preserves the 87-line
 cursor. Actual network restoration must be verified on the physical console.
 
-The installed trigger is IZ2S.Civ7Save. Upload acknowledgements and template
+The installed trigger is IZ2SCIV.Civ7Save. Upload acknowledgements and template
 structure are checked before upstream save deletion. No deletion starts before
 a verified loader and explicit consent in the current run.
 
-IZlauncher and IZPSlauncher have independent Civ7 renderers in launcher/ and
+IZ2s and IZPSlauncher have independent Civ7 renderers in launcher/ and
 pslauncher/. They use the named Civ7 SDK bridge in runtime/, not SmileBASIC
 native offsets. After Load Game exposes TCP 9026, select the shell and launch.
 App Store packages are retained on the PC and loaded into session memory.

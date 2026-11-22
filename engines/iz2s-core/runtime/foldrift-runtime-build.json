@@ -9,21 +9,6 @@
     "legacy/native/filesystem.c"
   ],
   "sha256": "5ae768326d1fb3f23d765a95dc2bf439c8e095463bf32e9956007f3ecbb4cfd9",
-  "deployment": {
-    "tag": "foldrift-255f68b8",
-    "runtime": "5ae768326d1fb3f23d765a95dc2bf439c8e095463bf32e9956007f3ecbb4cfd9",
-    "verified": {
-      "/iz2s/core/bin/game/main": "5ae768326d1fb3f23d765a95dc2bf439c8e095463bf32e9956007f3ecbb4cfd9",
-      "/iz2s/core/bin/game/exefs.nsp": "f0d8aff5946daae435fbaf3ff3a897ff56961747043011428abb2df56db278d0"
-    },
-    "folder": "/iz2s/modules/foldrift",
-    "oldFolder": "/iz2s/modules/iz-file-deck",
-    "activated": false,
-    "backups": [
-      "/iz2s/core/bin/game/main.foldrift-255f68b8.bak",
-      "/iz2s/core/bin/game/exefs.nsp.foldrift-255f68b8.bak"
-    ]
-  },
   "sources": {
     "Makefile": "eee382fa9655a093738bd891f60957adf50884fbd17d030ef9e0a7a9e8b084e8",
     "catalog-map.json": "1fbde725ff1560b015a2296d5a1553cfcd279520e2fb7838acca03fe045f1323",

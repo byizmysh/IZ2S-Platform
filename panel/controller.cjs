@@ -46,6 +46,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
   const panelLoaders = () => panelCatalog.normalizeSnapshot({platform:{loaders:loaders.list()}}).platform.loaders;
   const available = (id, variant) => panelCatalog.engineAvailable(loaders.list().find(loader => loader.id === id), variant);
   const availableLoaders = new Set(panelLoaders().map(loader => loader.id));
+  if (['civswitch','civswitch-ldn'].includes(choice.loaderId)) { choice.loaderId='iz2sciv-core'; choice.variant='original'; }
   choice.residentGraphics = false;
   choice.residentFiniteAudio = false;
   if (!availableLoaders.has(choice.loaderId)) choice.loaderId='iz2s-core';
@@ -136,7 +137,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
     });
     delivery = null;
     iz = null;
-    const sessionFactory = ['civswitch', 'civswitch-ldn'].includes(choice.loaderId)
+    const sessionFactory = ['civswitch', 'civswitch-ldn', 'iz2sciv-core'].includes(choice.loaderId)
       ? require(path.join(selectedLoader().folder, 'adapter.cjs')).createSession
       : require('./upstream-session.cjs').create;
     upstream = sessionFactory({
@@ -158,13 +159,13 @@ async function create({ root, settings: defaults, node, preview = false }) {
   await saveJson(file, choice);
   async function assertIdle() {
     const state = await engine().snapshot({statusOnly:true});
-    if (changing || state.changing || state.active || state.emergencyInputPending)
+    if (changing || engine().ownsListener() || state.changing || state.active || state.emergencyInputPending)
       throw Error('Stop the current session before changing launch settings');
   }
   async function reconcileInstallation() {
     if (changing || initializedInstalled === (selectedLoader().manifest.installed !== false)) return;
     const current = await engine().snapshot();
-    if (changing || current.active || current.emergencyInputPending) return;
+    if (changing || engine().ownsListener() || current.active || current.emergencyInputPending) return;
     changing = true;
     try { await initialize(); }
     finally { changing = false; }
@@ -203,11 +204,13 @@ async function create({ root, settings: defaults, node, preview = false }) {
       if(changing)return;
       // Recovery used to reinitialize an unpaired device on every UI poll.
       // Its temporary lock then made the picker permanently unavailable.
-      if(!preview&&(configuration.setupRequired||configuration.inputDiscovery?.paired===false||
+      // Civ7 uses its own wireless transport, not the SB4 USB keyboard. Replacing
+      // its session to recover an unrelated input device loses live operations.
+      if(!preview&&choice.loaderId!=='iz2sciv-core'&&(configuration.setupRequired||configuration.inputDiscovery?.paired===false||
           (configuration.inputAdapter==='cardputer-wifi'&&args[0]===true))&&['cardputer-wifi','switch-wifi'].includes(configuration.inputAdapter)&&
           (args[0]===true||Date.now()-lastInputDiscoveryAt>=30000)){
         const idle = await assertIdle().then(()=>true,()=>false);
-        if (idle && !changing) { changing=true;try{await initialize();}finally{changing=false;} }
+        if (idle && !changing && !engine().ownsListener()) { changing=true;try{await initialize();}finally{changing=false;} }
       }
       return engine().refresh(...args);
     },
@@ -228,11 +231,10 @@ async function create({ root, settings: defaults, node, preview = false }) {
     async snapshot() {
       await reconcileInstallation();
       const state = await engine().snapshot(),
-        // CivSwitch has no IZA runtime. Do not verify the SmileBASIC app library
-        // just to open its game setup or refresh progress.
-        moduleInventory = isIZ() || state.civLauncher?.state==='running' ? await require('../core/modules.cjs').metadata(root) : {modules: [], errors: []},
+        // IZ2s shares the same local module library after either game.
+        moduleInventory = isIZ() || choice.loaderId==='iz2sciv-core' || state.civLauncher?.state==='running' ? await require('../core/modules.cjs').metadata(root) : {modules: [], errors: []},
         extensions = require('../core/extensions.cjs').catalog(root);
-      const library = isIZ() ? await readCoreLibrary() : null;
+      const library = isIZ() || choice.loaderId==='iz2sciv-core' ? await readCoreLibrary() : null;
       let base, current, baseSource;
       if (delivery) {
         const profile = await delivery.profile();
@@ -261,7 +263,7 @@ async function create({ root, settings: defaults, node, preview = false }) {
         fsRpc: state.active?.runDirectory
           ? await readJson(path.join(state.active.runDirectory, 'fs-rpc-state.json'), null)
           : null,
-        checks:choice.loaderId==='civswitch-ldn'?state.checks:require('../hardware/index.cjs').present(configuration,state.checks),
+        checks:['civswitch-ldn','iz2sciv-core'].includes(choice.loaderId)?state.checks:require('../hardware/index.cjs').present(configuration,state.checks),
         moduleCatalog: moduleInventory.modules.map((m) => m.descriptor).filter(panelCatalog.visible),
         moduleErrors: [...moduleInventory.errors, ...(library?.errors || [])],
         moduleStates: require('../core/host-modules.cjs').status(),
@@ -274,8 +276,8 @@ async function create({ root, settings: defaults, node, preview = false }) {
           loaderId: choice.loaderId,
           variant: choice.variant,
           consoleEndpoint: {port:settings.consolePort,
-            host:choice.loaderId==='civswitch-ldn' ? state.civswitchLdn?.suggestedHost||settings.consoleAddress : choice.loaderId==='civswitch' ? state.civswitch?.networkHost||settings.consoleAddress : settings.consoleHost,
-            listener:['civswitch','civswitch-ldn'].includes(choice.loaderId)?'console':'pc'},
+            host:choice.loaderId==='iz2sciv-core' ? state.iz2sciv?.host||'' : choice.loaderId==='civswitch-ldn' ? state.civswitchLdn?.suggestedHost||settings.consoleAddress : choice.loaderId==='civswitch' ? state.civswitch?.networkHost||settings.consoleAddress : settings.consoleHost,
+            listener:['civswitch','civswitch-ldn','iz2sciv-core'].includes(choice.loaderId)?'console':'pc'},
           sdLauncher: choice.sdLauncher===true,
           nativeRecovery: selectedLoader().settings.fsRpcMode===true,
           residentGraphics: choice.residentGraphics===true,
@@ -531,6 +533,11 @@ async function create({ root, settings: defaults, node, preview = false }) {
     },
     configureConnection: (...args) => engine().configureConnection(...args),
     setupAction: (body) => engine().setupAction(body),
+    async iz2scivAction(body) {
+      if (changing) throw Error('Wait for the current operation to finish');
+      if (choice.loaderId !== 'iz2sciv-core') throw Error('Select IZ2SCiv core first.');
+      return upstream.action(body);
+    },
     async civswitchAction(body) {
       if (choice.loaderId !== 'civswitch' || isIZ()) throw Error('Select CivSwitch in Core only first');
       return upstream.action(body);

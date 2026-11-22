@@ -18,3 +18,4 @@ title.keys
 !/modules/VacooTube/runtime/VacooTube-*/LICENSE*
 !/modules/VacooTube/runtime/VacooTube-*/COPYRIGHT*
 !/modules/VacooTube/runtime/VacooTube-*/NOTICE*
+/bootstrap/node/node.exe

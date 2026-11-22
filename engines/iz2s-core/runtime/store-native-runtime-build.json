@@ -5,43 +5,6 @@
   "nativeServices": 1,
   "sourceSha256": "57771f89742893e70d5902eb62faf9b5d885874431d15f5809f6e3694c2d7985",
   "sdkCompatSha256": "47fd24455874f151fc25390b5483b8b09ce8e7dc26280d0e0dc42462a88727e9",
-  "deployment": {
-    "tag": "store-native-dc2f760b",
-    "host": "10.42.0.20",
-    "port": 1337,
-    "activated": false,
-    "verified": {
-      "/iz2s/modules/iz2s-store/asset-e418a365ea0c78089654a12b3f57434c809e9e6dcaf0673e576a259997dd4314.izdata": {
-        "bytes": 93944,
-        "sha256": "e418a365ea0c78089654a12b3f57434c809e9e6dcaf0673e576a259997dd4314"
-      },
-      "/iz2s/modules/iz2s-store/sd-bundle.json": {
-        "bytes": 520,
-        "sha256": "5238531209d2f93592e1db31edf0526433f6b53adc3a13fe4a11165531fd335b"
-      },
-      "/iz2s/modules/iz2s-store/sd-bundle-2c4afa474cf44df222fcfbf0bc507d847e26334358a1dfed35bc7968dfb24fd6.json": {
-        "bytes": 520,
-        "sha256": "5238531209d2f93592e1db31edf0526433f6b53adc3a13fe4a11165531fd335b"
-      },
-      "/iz2s/core/bin/game/main": {
-        "bytes": 19309151,
-        "sha256": "707250429767a6e00a057e0c9daa3df50e870e916fd5fc376e25106509d17eaa"
-      },
-      "/iz2s/core/bin/game/exefs.nsp": {
-        "bytes": 19311059,
-        "sha256": "62858446b8202ad4991ac3ad1526e0b4b01921e236dff13c15a3dae176920014"
-      },
-      "/iz2s/modules/iz2s-store/launcher.iza": {
-        "bytes": 822084,
-        "sha256": "2c4afa474cf44df222fcfbf0bc507d847e26334358a1dfed35bc7968dfb24fd6"
-      }
-    },
-    "backups": [
-      "/iz2s/modules/iz2s-store/sd-bundle.json.store-native-dc2f760b.bak",
-      "/iz2s/core/bin/game/main.store-native-dc2f760b.bak",
-      "/iz2s/core/bin/game/exefs.nsp.store-native-dc2f760b.bak"
-    ]
-  },
   "validation": [
     "Store package/catalog/install tests passed",
     "IZA and NRO same-version self-update tests passed",

@@ -57,7 +57,7 @@ def main(program, destination, argv=None, ftp_factory=ftplib.FTP, *, source_defa
     parser.add_argument('--source', type=Path, default=source_default or ROOT / 'runtime/package/programs' / program)
     parser.add_argument('--out', type=Path, default=Path(os.environ.get('IZ2S_CORE_OUT', DEFAULT_OUT)))
     parser.add_argument('--dry-run', action='store_true')
-    parser.add_argument('--paired', action='store_true', help='Use the existing IZlauncher FTP pairing')
+    parser.add_argument('--paired', action='store_true', help='Use the existing IZ2s FTP pairing')
     args = parser.parse_args(argv)
     if not args.dry_run and not (args.host or args.paired):
         parser.error('--host is required for OunceShell FTP')

@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><title>YouTube bridge test</title>
+<style>body{background:#123;color:white;font:40px sans-serif;margin:0}button{position:absolute;left:100px;top:100px;width:400px;height:250px;background:#f20;color:white;font:40px sans-serif}</style>
+<button>Touch test</button>
+<script>
+const state={starts:0,moves:0,ends:0,keys:[],trusted:true};let tone;let cycles=0;function startTone(){tone=new AudioContext();const oscillator=tone.createOscillator(),gain=tone.createGain();gain.gain.value=.02;oscillator.connect(gain).connect(tone.destination);oscillator.start();cycles++;}
+function report(){console.log('IZSELFTEST '+JSON.stringify(state));}
+for(const [type,name]of [['touchstart','starts'],['touchmove','moves'],['touchend','ends']])document.addEventListener(type,event=>{event.preventDefault();state[name]++;state.trusted&&=event.isTrusted;if(!tone){startTone();}document.body.style.background=state.starts%2?'#164':'#416';report();},{passive:false});
+document.addEventListener('keydown',event=>{state.keys.push(event.key);if(event.key===' '&&tone){tone.close();tone=null;setTimeout(()=>{startTone();state.audioCycles=cycles;report();},100);}state.trusted&&=event.isTrusted;report();});
+report();
+</script>

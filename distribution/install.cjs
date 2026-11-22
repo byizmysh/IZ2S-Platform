@@ -43,30 +43,42 @@ async function shortcut(root, {platform = process.platform, execute = run} = {})
 }
 async function install({source = SOURCE, destination, nodeHome, platform = process.platform, arch = process.arch,
   uvProgram, execute = run, download = require('./download-runtime.cjs').download,
-  createShortcut = true, launch = true} = {}) {
+  createShortcut = true, launch = true, portable = false} = {}) {
   const version = JSON.parse(await fs.readFile(path.join(source,'package.json'))).version;
   if (!['linux','darwin','win32'].includes(platform) || !['x64','arm64'].includes(arch)) throw Error('A 64-bit Windows, macOS or Linux host is required');
   if (platform === 'win32' && arch !== 'x64') throw Error('Windows x64 is required. Windows ARM64 and 32-bit Windows are not supported.');
-  destination ||= defaultDestination(version, {platform});
+  if (portable && platform !== 'win32') throw Error('Portable setup is only supported on Windows x64');
+  if (portable && destination && path.resolve(destination) !== path.resolve(source)) throw Error('Portable setup uses the extracted folder');
+  destination = portable ? source : destination || defaultDestination(version, {platform});
   if (!path.isAbsolute(destination)) throw Error('Installation folder must be absolute');
   const relative=path.relative(path.resolve(source),path.resolve(destination));
-  if(!relative||(!relative.startsWith('..'+path.sep)&&relative!=='..'&&!path.isAbsolute(relative)))throw Error('Choose an installation folder outside the extracted source folder');
+  if(!portable&&(!relative||(!relative.startsWith('..'+path.sep)&&relative!=='..'&&!path.isAbsolute(relative))))throw Error('Choose an installation folder outside the extracted source folder');
   await fs.mkdir(path.dirname(destination), {recursive: true});
-  await fs.mkdir(destination); // Never merge with or replace an existing installation.
+  if (!portable) await fs.mkdir(destination); // Never merge with another installation.
   let completed = false;
   try {
-    console.log('Preparing a new installation: ' + destination);
-    const files = await copySource(source, destination);
+    console.log((portable ? 'Preparing this folder: ' : 'Preparing a new installation: ') + destination);
+    const files = portable ? (await require('./runtime-files.cjs').verify(source)).files + 1 : await copySource(source, destination);
     const runtime = path.join(destination, 'data/runtime');
     await fs.mkdir(runtime, {recursive: true});
     if (!nodeHome || !sync.existsSync(path.join(nodeHome, platform === 'win32' ? 'node.exe' : 'bin/node'))) throw Error('A complete private Node.js runtime is required');
-    await fs.cp(nodeHome, path.join(runtime,'node'), {recursive: true, verbatimSymlinks: true});
-    const downloads = path.join(runtime, 'downloads'); await fs.mkdir(downloads);
+    if (path.resolve(nodeHome) !== path.resolve(runtime,'node'))
+      await fs.cp(nodeHome, path.join(runtime,'node'), {recursive: true, verbatimSymlinks: true});
+    const downloads = path.join(runtime, 'downloads'); await fs.mkdir(downloads,{recursive:true});
+    async function cachedDownload(url, asset) {
+      const file = path.join(downloads,asset.file);
+      try {
+        const bytes = await fs.readFile(file);
+        if (crypto.createHash('sha256').update(bytes).digest('hex') === asset.sha256) return file;
+        await fs.rm(file);
+      } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      return download(url,file,asset.sha256);
+    }
     let uv = uvProgram;
     if (!uv) {
       const asset = defaults.uv[platform+'-'+arch]; if (!asset) throw Error('No managed Python bootstrap for this host');
       console.log('Downloading and checking Python installer (uv ' + defaults.uvVersion + ')…');
-      const archive = await download('https://github.com/astral-sh/uv/releases/download/'+defaults.uvVersion+'/'+asset.file, path.join(downloads,asset.file),asset.sha256);
+      const archive = await cachedDownload('https://github.com/astral-sh/uv/releases/download/'+defaults.uvVersion+'/'+asset.file,asset);
       await extract(archive,path.join(runtime,'uv'),{platform,execute});
       uv = await findProgram(path.join(runtime,'uv'),platform === 'win32' ? 'uv.exe' : 'uv');
       if (!uv) throw Error('Python installer executable is missing');
@@ -77,7 +89,7 @@ async function install({source = SOURCE, destination, nodeHome, platform = proce
     const options = {cwd:destination,env};
     console.log('Preparing private Python ' + defaults.python + ' and Pillow ' + defaults.pillow + '…');
     await execute(uv, ['python','install',defaults.python,'--no-bin'], options);
-    await execute(uv, ['venv','--managed-python','--python',defaults.python,path.join(runtime,'venv')], options);
+    await execute(uv, ['venv','--clear','--managed-python','--python',defaults.python,path.join(runtime,'venv')], options);
     const python = path.join(runtime,'venv',platform === 'win32' ? 'Scripts/python.exe' : 'bin/python3');
     env.IZ2S_PYTHON = python;
     await execute(uv, ['pip','install','--python',python,'--only-binary',':all:','--index-url','https://pypi.org/simple','Pillow=='+defaults.pillow], options);
@@ -86,7 +98,7 @@ async function install({source = SOURCE, destination, nodeHome, platform = proce
       catch {
         console.log('Preparing the portable OpenSSH client for ARM input…');
         const asset = defaults.openssh[platform+'-'+arch];
-        const archive = await download('https://github.com/PowerShell/Win32-OpenSSH/releases/download/'+defaults.opensshVersion+'/'+asset.file,path.join(downloads,asset.file),asset.sha256);
+        const archive = await cachedDownload('https://github.com/PowerShell/Win32-OpenSSH/releases/download/'+defaults.opensshVersion+'/'+asset.file,asset);
         await extract(archive,path.join(runtime,'openssh'),{platform,execute});
         if (!await findProgram(path.join(runtime,'openssh'),'ssh.exe')) throw Error('OpenSSH client executable is missing');
       }
@@ -99,20 +111,20 @@ async function install({source = SOURCE, destination, nodeHome, platform = proce
     await execute(node, [path.join(destination,'hardware/dependencies.cjs'),'--host-only','--ssh'],options);
     const state = path.join(destination,'data/state'); await fs.mkdir(state,{recursive:true});
     const profile=JSON.parse(await fs.readFile(path.join(destination,'distribution/profile.json')));
-    await fs.writeFile(path.join(state,'installation.json'),JSON.stringify({status:'complete',version,platform,arch,files,installedAt:new Date().toISOString(),
+    await fs.writeFile(path.join(state,'installation.json'),JSON.stringify({status:'complete',version,platform,arch,files,portable,installedAt:new Date().toISOString(),
       nativeHostDeclared:profile.hostPlatforms?.includes(platform+'-'+arch)===true,nativeHostQualified:false},null,2)+'\n');
     if (createShortcut) await shortcut(destination,{platform,execute});
     await fs.rm(downloads,{recursive:true,force:true});
     completed = true;
     console.log('Installed. Open ' + (platform === 'win32' ? 'Start.vbs' : platform === 'darwin' ? 'Start.command' : 'start.sh') + ' in: ' + destination);
-    if (platform !== 'linux') console.log('Experimental host: installation, networking and a full console session still require testing on this OS. See README-0.25.txt.');
+    if (platform !== 'linux') console.log('Experimental host: installation, networking and a full console session still require testing on this OS. See README-0.3.0.txt.');
     if (launch) {
       await require('./start-local.cjs').launch(destination,{node,env});
       console.log('Panel is ready.');
     }
     return {destination,version,platform,arch};
   } catch (error) {
-    if (!completed) console.error('Setup did not complete. The new folder was kept for diagnosis; existing installations were not modified. Remove this incomplete folder before retrying with the same destination.');
+    if (!completed) console.error(portable ? 'Setup did not complete. Check the message above and open Start.cmd again to retry.' : 'Setup did not complete. The new folder was kept for diagnosis; existing installations were not modified. Remove this incomplete folder before retrying with the same destination.');
     throw error;
   }
 }
@@ -123,6 +135,7 @@ async function main(args = process.argv.slice(2)) {
     if (['--destination','--node-home','--uv'].includes(flag)) {if(!args[i+1])throw Error('Missing value for '+flag);options[{'--destination':'destination','--node-home':'nodeHome','--uv':'uvProgram'}[flag]]=args[++i];}
     else if(flag==='--no-shortcut')options.createShortcut=false;
     else if(flag==='--no-launch')options.launch=false;
+    else if(flag==='--portable')options.portable=true;
     else throw Error('Unknown option: '+flag);
   }
   return install(options);

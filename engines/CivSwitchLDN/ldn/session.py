@@ -42,14 +42,20 @@ async def run(args):
 
     print(f"Connecting via LDN to {args.host} (channel {info.channel})...", flush=True)
 
+    connected = False
     try:
         with trio.fail_after(CONNECT_TIMEOUT) as timeout:
             async with ldn.connect(param) as network_obj:
                 # The deadline covers association, not the chat session.
+                connected = True
                 timeout.deadline = math.inf
                 print("LDN connected. Joining the Civilization VII lobby...", flush=True)
                 return await lobby.run(args, network_obj)
-    except trio.TooSlowError as e:
+    except* trio.TooSlowError as e:
+        # Trio nurseries can wrap association timeouts in ExceptionGroup.
+        # A timeout after joining belongs to delivery, not association.
+        if connected:
+            raise
         raise RuntimeError("LDN connection timed out. Check that the wireless lobby is still open.") from e
 
 

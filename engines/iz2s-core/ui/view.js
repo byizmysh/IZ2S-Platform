@@ -113,7 +113,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
     const labelNodes = [...section.querySelectorAll('[data-core-label]')];
     let selected = true;
     let mode = localStorage.getItem('iz2s-run25-core-mode') === 'setup' ? 'setup' : 'launch';
-    let enabled = false;
+    let enabled = false, monitorOnly = false;
     let locked = false;
     let preview = false;
     let waitingForUsbKeyboard = false;
@@ -203,6 +203,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
     }
 
     function paint() {
+      if(monitorOnly)return;
       const state = last || {};
       const attempt = state.attempt;
       const setup = attempt?.kind === 'setup';
@@ -350,7 +351,8 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       if (!enabled || (actionPending && !force)) return;
       if (reading) return reading;
       const requestedGeneration = generation;
-      reading = Promise.resolve().then(() => api('/api/iz2s-core', undefined, { timeoutMs: 5000 }))
+      // The PC Link snapshot may spend up to six seconds reading the SD inventory.
+      reading = Promise.resolve().then(() => api('/api/iz2s-core', undefined, { timeoutMs: 9000 }))
         .then(async value => {
           if (requestedGeneration !== generation) return;
           if (!value || typeof value.busy !== 'boolean' || typeof value.owned !== 'boolean' ||
@@ -486,7 +488,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
 
     return {
       refresh,
-      current: () => enabled ? { ...last, session:!newLaunch&&launchConfirmed(last?.attempt,last?.diagnostic||describe(last||{})), loading: !last, refreshError } : null,
+      current: () => enabled ? { ...last, session:monitorOnly?!!last?.pcLink?.online&&!refreshError:!!last?.pcLink?.online||!newLaunch&&launchConfirmed(last?.attempt,last?.diagnostic||describe(last||{})), loading: !last, refreshError } : null,
       selected: () => selected,
       select(value) {
         selected = value;
@@ -495,6 +497,7 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
       },
       render(value, busy, panel) {
         const was = enabled;
+        monitorOnly=panel?.platform?.loaderId==='iz2sciv-core';
         enabled = value;
         locked = busy;
         preview = !!panel?.preview;
@@ -502,8 +505,9 @@ if (!(typeof module === 'object' && module.exports)) globalThis.IZ2S_CORE = (() 
           && panel.checks?.items?.find(row => row.id === 'usb')?.ready !== true;
         recovery = globalThis.IZ2S_PRESENTATION?.connectionMode(panel);
         networkHost = panel?.settings?.consoleHost || panel?.connections?.devices?.server?.address || '';
-        el('setup').dataset.core = String(value);
-        section.hidden = !value;
+        el('setup').dataset.core = String(value&&!monitorOnly);
+        if(monitorOnly)el('setup').dataset.coreSession='false';
+        section.hidden = !value||monitorOnly;
         paint();
         if (value && !was) void refresh();
       },

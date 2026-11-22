@@ -35,7 +35,7 @@ async function status(){
 }
 function verifyOwner(value){
  if(value&&value.service?.root!==path.resolve(__dirname,'../../..'))
-  throw Error('PC Link belongs to another installation. Start the 0.25 PC Link service.');
+  throw Error('PC Link belongs to another installation. Start the 0.3.0 PC Link service.');
  return value;
 }
 async function ensure(out){
@@ -55,7 +55,7 @@ async function ensure(out){
    if(failed)throw failed;
    await new Promise(r=>setTimeout(r,100));const value=await status();if(value)return verifyOwner(value);
   }
-  throw Error('Служба Add app не запустилась. Подробности: /data/log/pc-link/service.log');
+  throw Error('The Add App service did not start. See /data/log/pc-link/service.log for details.');
  })();
  pending.set(directory,task);
  try{return await task;}finally{pending.delete(directory);}
@@ -96,6 +96,26 @@ async function snapshot(out){
  }
 }
 const origin='http://127.0.0.1:39525';
+async function setEnabled(out,enabled){
+ const service=await ensure(out);
+ if(!service)throw Error('Configure PC Link on this PC first.');
+ if(typeof service.enabled!=='boolean')throw Error('Restart the PC Link service to use connection controls.');
+ const response=await fetch(origin+'/connection',{
+  method:'POST',headers:{origin,'content-type':'application/json'},
+  body:JSON.stringify({enabled}),signal:AbortSignal.timeout(10000),
+ });
+ const result=await response.json();
+ if(!response.ok)throw Error(result.error||'Could not change PC Link.');
+ invalidateInventory();
+ return result;
+}
+async function consoleAddresses(out){
+ const service=verifyOwner(await status());
+ const file=path.join(folder(out),'connection.json');
+ const config=await fs.readFile(file,'utf8').then(JSON.parse).catch(()=>null);
+ const known=Array.isArray(config?.consoleAddresses)?config.consoleAddresses:[config?.consoleIp];
+ return [service?.consoleAddress,...known];
+}
 async function install(out,req){
  const service=await ensure(out);
  if(!service?.online||!service.files)throw Error('Open IZ2S on Switch 2 before adding an app.');
@@ -155,7 +175,7 @@ async function installNro(out,req,fileName){
    if(/ConnectionRefusedError|ConnectionResetError|timed out/i.test(error.stderr||'')){
     throw Error('Enable FTP on IZ2S with L + R3 and retry the NRO installation.');
    }
-   throw Error('Не удалось записать NRO по FTP. Подробности сохранены в журнале установки.');
+   throw Error('Could not transfer the NRO over FTP. Details were saved in the installation log.');
   }
   invalidateInventory();
   return {id,format:'.nro',reused:report.state==='already-installed',displayPath:'SD:/iz2s/modules/'+id+'/launcher.nro'};
@@ -222,4 +242,4 @@ async function remove(out,id,format='.iza'){
  invalidateInventory();
  return result;
 }
-module.exports={prepare,ensure,folder,status,snapshot,install,installNro,invalidateInventory,remove,reset,menuUpdate};
+module.exports={setEnabled,consoleAddresses,prepare,ensure,folder,status,snapshot,install,installNro,invalidateInventory,remove,reset,menuUpdate};

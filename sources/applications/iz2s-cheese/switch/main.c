@@ -100,10 +100,11 @@ static void progress(void *context, uint64_t done, uint64_t total) {
 static void run_task(void *context) {
     Task *task = context;
     task->result_ready = false;
-    if (task->command == REFRESH) {
-        task->ok = store_refresh_catalog(task->result, SD_ROOT, &task->settings, task->message);
-        task->result_ready = true;
-        if (task->ok) refresh_apps(task->result);
+    if (task->command == REFRESH || task->command == LOAD_CATALOG) {
+        task->ok = store_refresh_catalog(task->result, SD_ROOT, &task->settings,
+                                         task->command == REFRESH, task->message);
+        task->result_ready = task->ok || task->result->count > 0;
+        if (task->result_ready) refresh_apps(task->result);
         network_status(task);
     } else if (task->command == FETCH_LIST || task->command == STARTUP_CHECK || task->command == CHECK_NETWORK) {
         network_status(task);
@@ -166,7 +167,8 @@ static bool start_task(Task *task, Thread *thread, View *view, const Store *stor
     view->percent = 0;
     if (view->failure) snprintf(view->message, sizeof view->message, "Could not start SD operation (0x%08x).", result);
     else snprintf(view->message, sizeof view->message, "%s",
-        command == REFRESH ? "Loading catalog..." :
+        command == REFRESH && view->settings.online ? "Updating catalog and thumbnails..." :
+        command == REFRESH || command == LOAD_CATALOG ? "Loading catalog..." :
         command == REMOVE ? "Removing the application..." :
         command == FETCH_LIST ? "Fetching catalog and thumbnails..." :
         command == CHECK_NETWORK || command == STARTUP_CHECK ? "Checking the network..." :
@@ -279,7 +281,7 @@ static void open_session(Session *session, bool hosted) {
     session->check_on_start = access(CHECK_REQUEST, F_OK) == 0;
     session->dirty = true;
     store_settings_read(SD_ROOT, &session->view.settings);
-    start_task(&session->task, &session->thread, &session->view, &catalogs[0], &catalogs[1], REFRESH);
+    start_task(&session->task, &session->thread, &session->view, &catalogs[0], &catalogs[1], LOAD_CATALOG);
 }
 
 static bool tick_session(Session *session, unsigned pressed, bool touching, int x, int y) {
@@ -291,7 +293,8 @@ static bool tick_session(Session *session, unsigned pressed, bool touching, int 
         threadClose(&session->thread);
         unsigned selected = view->count ? view->visible[view->cursor] : UINT_MAX;
         bool app_action = task->command == INSTALL || task->command == UPDATE_STORE || task->command == REMOVE;
-        bool changed = task->result_ready && (app_action || task->command == REFRESH || (task->ok && task->command != CHECK_NETWORK));
+        bool changed = task->result_ready && (app_action || task->command == REFRESH ||
+            task->command == LOAD_CATALOG || (task->ok && task->command != CHECK_NETWORK));
         if (changed) session->active ^= 1u;
         store = &catalogs[session->active];
         if (changed && !app_action) reset_artwork(session, store);
@@ -307,7 +310,7 @@ static bool tick_session(Session *session, unsigned pressed, bool touching, int 
         snprintf(view->network, sizeof view->network, "%s", task->network);
         snprintf(view->addresses, sizeof view->addresses, "%s", task->addresses);
         snprintf(view->github, sizeof view->github, "%s", task->github);
-        if (task->command == REFRESH) view->cursor = 0;
+        if (task->command == REFRESH || task->command == LOAD_CATALOG) view->cursor = 0;
         view_filter(view, store);
         if (app_action && (view->screen == DETAILS || view->screen == REPOSITORY)) {
             unsigned cursor = 0;
@@ -322,7 +325,7 @@ static bool tick_session(Session *session, unsigned pressed, bool touching, int 
                 task->command == CHECK_NETWORK ? "GitHub connection test" :
                 task->command == UPDATE_STORE ? "Cheese update" : "Catalog download");
         }
-        if (session->check_on_start && task->command == REFRESH) {
+        if (session->check_on_start && task->command == LOAD_CATALOG) {
             session->check_on_start = false;
             view->screen = SETTINGS;
             start_task(task, &session->thread, view, store, &catalogs[session->active ^ 1u], STARTUP_CHECK);

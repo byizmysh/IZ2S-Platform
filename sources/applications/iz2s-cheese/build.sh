@@ -34,7 +34,7 @@ if [ "$build_nro" = 1 ]; then
     cp "$DEVKITPRO"/libounce/licenses/*.txt "$work/romfs/"
     cp "$module_dir/licenses/Octicons.txt" "$work/romfs/"
     "${cross}gcc" -std=gnu11 -O2 -Wall -Wextra -Werror -mcpu=cortex-a78c+crypto -mtp=soft \
-        -fPIE -ffunction-sections -fdata-sections -D__SWITCH__ -D__SWITCH2__ -DIZ_STORE_STANDALONE -DIZ_STORE_VERSION=\"0.8.0\" \
+        -fPIE -ffunction-sections -fdata-sections -D__SWITCH__ -D__SWITCH2__ -DIZ_STORE_STANDALONE -DIZ_STORE_VERSION=\"0.8.1\" \
         -isystem "$DEVKITPRO/libounce/include" -specs="$DEVKITPRO/libounce/switch.specs" \
         -L"$DEVKITPRO/libounce/lib" "$module_dir/switch/main.c" "$module_dir/switch/store.c" \
         "$module_dir/switch/ui.c" "$module_dir/switch/download.c" "$module_dir/switch/installed-artwork.c" \

@@ -84,6 +84,7 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
   let queued=null, delivered=null, imported=null, lastSeen=0, filesSeen=0, uploading=false, filesPage=null;
   let consoleAddress=null, pcAddress=null, listenerTimer, refreshingListeners=false, stopping=false;
   const listeners=new Map();
+  let enabled=true;
   let requiresUpdatedLauncher=false,resetEpoch=0,preparingApp=false,storageBusy=()=>false;
   let stateChanges=Promise.resolve();
   let menuLocal=null,menuOffer=null,menuOffering=false,menuPeer=null,menuOutcome=null;
@@ -232,6 +233,7 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
   const video=streams.create();
   const waiting = [];
   const data = () => ({
+    enabled,
     online: menuTransfers.size>0 || packageTransfers.size>0 || Date.now()-lastSeen<6500,
     consoleAddress:Date.now()-lastSeen<6500?consoleAddress:null,
     pcAddress:Date.now()-lastSeen<6500?pcAddress:null,
@@ -281,6 +283,7 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
     await Promise.all([...resetListeners].map(listener=>listener()));
   }
   const acceptConsole=socket=>{
+    if(!enabled){socket.destroy();return;}
     sockets.add(socket);
     let fileJob=null;
     socket.on('close',()=>{
@@ -288,7 +291,7 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
       packageTransfers.delete(socket);
       menuTransfers.delete(socket);
       if(fileJob)fileJob.finish(Error(fileJob.request[0]===DELETE_REQUEST?
-        'Подтверждение удаления потеряно. Обновите список приложений.':'Switch closed the file connection.'));
+        'Deletion confirmation was lost. Refresh the app list.':'Switch closed the file connection.'));
     });
     socket.on('error',()=>socket.destroy());
     socket.setTimeout(3000,()=>socket.destroy());
@@ -480,7 +483,7 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
         const index=waiting.indexOf(job);
         if(index>=0)waiting.splice(index,1);
         const mayHaveRun=request[0]===DELETE_REQUEST&&index<0;
-        job.finish(Error(mayHaveRun?'Подтверждение удаления потеряно. Обновите список приложений.':
+        job.finish(Error(mayHaveRun?'Deletion confirmation was lost. Refresh the app list.':
           'Switch did not answer the file request.'));
       },request[0]===DELETE_REQUEST?DELETE_TIMEOUT:5000);
       waiting.push(job);
@@ -548,15 +551,15 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
 
   async function removeApp(req) {
     const size=Number(req.headers['content-length']);
-    assert(Number.isInteger(size)&&size>0&&size<=47,'Выберите установленный модуль.');
+    assert(Number.isInteger(size)&&size>0&&size<=47,'Select an installed module.');
     let id='';
     for await(const chunk of req){
       id+=chunk.toString('latin1');
-      assert(id.length<=size,'Неверный ID модуля.');
+      assert(id.length<=size,'Invalid module ID.');
     }
-    assert(id.length===size&&/^[a-z0-9][a-z0-9-]{0,46}$/.test(id),'Неверный ID модуля.');
+    assert(id.length===size&&/^[a-z0-9][a-z0-9-]{0,46}$/.test(id),'Invalid module ID.');
     const receipt=await fileRequest('D',id);
-    assert(!receipt.length,'Неверное подтверждение удаления.');
+    assert(!receipt.length,'Invalid deletion confirmation.');
     invalidateDigests();
     return {removed:id};
   }
@@ -661,6 +664,23 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
       try{return json(200,await offerMenu((await commandBody(req)).retry===true));}
       catch(error){return json(409,{error:error.message});}
     }
+    if(req.method==='POST'&&req.url==='/connection'){
+      if(req.headers.origin!=='http://'+host||req.headers['content-type']!=='application/json')
+        return json(403,{error:'Use the local platform to control PC Link.'});
+      try {
+        const {enabled:next}=await commandBody(req);
+        assert(typeof next==='boolean','Invalid PC Link setting.');
+        if(next!==enabled){
+          assert(!queued&&!uploading&&!preparingApp&&!storageBusy()&&!waiting.length&&
+            !packageTransfers.size&&!menuOffering&&
+            !['transferring','staged','applying','verifying'].includes(menuStatus().state),
+            'Wait for PC Link operations to finish.');
+          enabled=next;
+          if(!enabled)await resetPeer();
+        }
+        return json(200,{enabled});
+      }catch(error){return json(409,{error:error.message});}
+    }
     if(req.method==='POST'&&req.url==='/reset'){
       if(req.headers.origin!=='http://'+host||req.headers['content-type']!=='application/json')
         return json(403,{error:'Use the local platform to reset the session.'});
@@ -677,16 +697,16 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
       try {return json(200,{apps:await installedApps()});}
       catch(error) {
         return json(400,{error:error.sdResult===errno.EINVAL?
-          'Обновите IZ2S, чтобы управлять установленными приложениями.':error.message});
+          'Update IZ2S to manage installed apps.':error.message});
       }
     }
     if(req.method==='POST'&&req.url==='/installed/remove'){
       if(req.headers.origin!=='http://'+host||!/^text\/plain(?:;\s*charset=UTF-8)?$/i.test(req.headers['content-type']||''))
-        return json(403,{error:'Откройте управление приложениями на этой странице.'});
+        return json(403,{error:'Open app management on this page.'});
       try {return json(200,await removeApp(req));}
       catch(error) {
         return json(error.sdResult===errno.EBUSY?409:400,{error:error.sdResult===errno.EBUSY?
-          'Вернитесь в главное меню IZ2S и повторите удаление.':error.message});
+          'Return to the IZ2S main menu and retry the deletion.':error.message});
       }
     }
     if(req.url?.startsWith('/stream/'))return video.upload(req,host,json);

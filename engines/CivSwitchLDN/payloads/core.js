@@ -1381,7 +1381,7 @@
                 await log("listener dead - rebuilding on port " + PORT);
             }
         }
-        await log("IZCIV 0.1 by IZMYSH");
+        await log("IZ2s 0.3.0 by IZMYSH");
         remote_js_loader();        
         
     } catch (e) {                

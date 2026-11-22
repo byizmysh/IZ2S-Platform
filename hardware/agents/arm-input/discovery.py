@@ -1,4 +1,4 @@
-"""IZlauncher LAN discovery: public metadata only; no keyboard or command API."""
+"""IZ2s LAN discovery: public metadata only; no keyboard or command API."""
 import argparse
 import fcntl
 import hashlib

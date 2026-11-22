@@ -10,6 +10,48 @@ function localUrl(value) {
   return url;
 }
 const folder = root => path.join(root, 'data/state/workspace-tabs');
+const launcherFileIds = new Set(['ftp-files', 'core-files']);
+const launcherFileProbes = new Map();
+
+async function readLauncherFileConnection(value) {
+  const url = localUrl(value);
+  if (!/^#[a-f0-9]{64}$/.test(url.hash)) return 'unverified';
+  const response = await fetch(url.origin + '/api/status', {
+    headers: {'x-fs-key': url.hash.slice(1)}, redirect: 'error',
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) return 'unverified';
+  const status = await response.json();
+  if (status.sessionAvailable === false) return 'disconnected';
+  if (status.sessionAvailable !== true) return 'unverified';
+  if (Array.isArray(status.mounts))
+    return status.mounts.includes('sd') ? 'connected' : 'disconnected';
+  return status.status === 'ready' && status.url ? 'connected' : 'unverified';
+}
+
+function launcherFileConnection(root, row) {
+  const key = path.resolve(root) + '\0' + row.id;
+  let probe = launcherFileProbes.get(key);
+  if (!probe || probe.url !== row.url) {
+    probe = {url: row.url, state: 'checking', nextAt: 0, pending: false};
+    launcherFileProbes.set(key, probe);
+  }
+  // The FTP health check must not delay the whole panel's status refresh.
+  if (!probe.pending && Date.now() >= probe.nextAt) {
+    probe.pending = true;
+    void readLauncherFileConnection(row.url)
+      .then(state => { probe.state = state; }, () => { probe.state = 'unverified'; })
+      .finally(() => { probe.pending = false; probe.nextAt = Date.now() + 5000; });
+  }
+  return probe.state;
+}
+
+async function clearLauncherFiles(root) {
+  await Promise.all([...launcherFileIds].map(async id => {
+    await fs.rm(path.join(folder(root), id + '.json'), {force: true});
+    launcherFileProbes.delete(path.resolve(root) + '\0' + id);
+  }));
+}
 async function register(root, {id, title, url, moduleId, kind = 'module', automatic = false, requestId, ownerPid, sessionId, controlUrl, panelInstance, coreTool = false}) {
   if (!validId(id) || !['files','module','settings'].includes(kind) || typeof title !== 'string' || !title.trim())
     throw Error('Invalid workspace tab');
@@ -61,7 +103,8 @@ async function visible(root,{active,connected=false,panelInstance=process.env.IZ
     }
     if(row.panelInstance&&panelInstance&&row.panelInstance!==panelInstance)return null;
     if(row.id==='core-apps')return null;
-    if(row.id==='ftp-files'||row.coreTool&&row.id==='core-files'){
+    const launcherFiles = row.id === 'ftp-files' || (row.coreTool && row.id === 'core-files');
+    if(launcherFiles){
       if(!owner)return null;
     }else if(row.kind==='settings'){
       if(!settingsOpen(row.moduleId)||!owner)return null;
@@ -80,7 +123,9 @@ async function visible(root,{active,connected=false,panelInstance=process.env.IZ
     }
     if(row.state!=='running')return row;
     const reachable=await probe(row.url);
-    return reachable===false?null:reachable===null?{...row,state:'unavailable'}:row;
+    if (reachable === false) return null;
+    if (reachable === null) return {...row, state:'unavailable'};
+    return launcherFiles ? {...row, connection: launcherFileConnection(root, row)} : row;
   }));
   return checked.filter(Boolean);
 }
@@ -144,4 +189,4 @@ function stop(root,id) {
   if(!stopTasks.has(key))stopTasks.set(key,Promise.resolve().then(()=>stopEntry(root,id)).finally(()=>stopTasks.delete(key)));
   return stopTasks.get(key);
 }
-module.exports = {register, list, visible, stop, localUrl};
+module.exports = {register, list, visible, stop, localUrl, clearLauncherFiles};

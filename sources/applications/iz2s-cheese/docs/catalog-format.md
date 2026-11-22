@@ -41,7 +41,7 @@ any required `asset-<sha256>.izdata` companions as additional `file` rows.
 The IZA package ID must match the catalog ID.
 
 Place the files named by the `file` rows under
-`/iz2s/iz2s-cheese/payloads/<id>/<launcher-sha256>/` on microSD.
+`/iz2s/modules/iz2s-cheese/payloads/<id>/<launcher-sha256>/` on microSD.
 Use the launcher's SHA-256 as the directory name. IZA packages are
 supported by the IZ2S edition of IZ2S Cheese.
 

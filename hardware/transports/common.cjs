@@ -104,7 +104,7 @@ async function plan(root, value) {
   if (value.sourceFile) {
     const absolute = await fs.realpath(path.resolve(root, value.sourceFile));
     if (!absolute.startsWith(path.resolve(root) + path.sep))
-      throw Error('Input source must belong to this IZlauncher directory');
+      throw Error('Input source must belong to this IZ2s directory');
     source = (await fs.readFile(absolute)).toString('utf8');
     if (
       Buffer.byteLength(source) > 131072 ||

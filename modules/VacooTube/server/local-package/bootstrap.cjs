@@ -85,7 +85,9 @@ fs.mkdirSync(profileDirectory,{recursive:true});const configFile=path.join(profi
 fs.writeFileSync(configFile,JSON.stringify({...config,pause_on_blur:false,fullscreen:false,no_window_decorations:true,touch_overlay:false,hardware_decoding:true,auto_update:false,device_discoverability:false}),{mode:0o600});
 // One narrow source adaptation sets construction-time Electron rendering options.
 // The verified fork source keeps its relative imports; construction options are scoped.
-{
+if(process.env.IZ_YOUTUBE_SELF_TEST==='1'){
+ app.whenReady().then(()=>{const fixture=new electron.BrowserWindow({width:WIDTH,height:HEIGHT,show:false,webPreferences:{offscreen:true,backgroundThrottling:false}});fixture.loadFile(path.join(__dirname,'test-fixture.html'));});
+}else{
 const Module=require('node:module'),entry=path.join(runtime.app,'src/index.js');let source=fs.readFileSync(entry,'utf8');
 for(const [needle,replacement]of [['win = new electron.BrowserWindow({','win = new electron.BrowserWindow({\n        show: false, skipTaskbar: true,'],['webPreferences: {','webPreferences: {\n            offscreen: true, backgroundThrottling: false,']]){if(source.split(needle).length!==2)throw Error('Unsupported VacooTube window construction');source=source.replace(needle,replacement);}
 const upstream=new Module(entry,module);upstream.filename=entry;upstream.paths=Module._nodeModulePaths(path.dirname(entry));upstream._compile(source,entry);

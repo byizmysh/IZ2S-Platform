@@ -91,7 +91,10 @@ async function createConnections({
       const matching = candidates.filter(h => network.sameSubnet(h.address, target, h.netmask));
       if (matching.length === 1) return matching[0];
     }
-    return candidates.length === 1 ? candidates[0] : undefined;
+    // A fresh installation has no console address yet. Keep a usable local
+    // address while listening on every enabled adapter for the incoming link.
+    return candidates.find(h => h.address === defaultAddress) ||
+      [...candidates].sort((a,b) => a.name.localeCompare(b.name) || a.address.localeCompare(b.address))[0];
   }
   function consoleTarget(includePreviousPairing = true) {
     const mode = selectedMode('lan');
@@ -108,7 +111,7 @@ async function createConnections({
         : pref.mode;
     if (id === 'server' && pref.modes.length === 1) return pref.modes[0];
     if (!pref.automaticMode || pref.addresses[pref.mode]) return pref.mode;
-    const choices = (id === 'server' ? hosts : peers.filter(p => p.kind === 'input'))
+    const choices = (id === 'server' ? hosts.filter(h => pref.modes.includes(h.mode)) : peers.filter(p => p.kind === 'input'))
       .filter(row => modes.includes(row.mode));
     if (id === 'server') {
       // The input keyboard can be on Wi-Fi while Switch 2 uses LAN.
@@ -117,10 +120,10 @@ async function createConnections({
       const matching = choices.filter(h => target && network.sameSubnet(h.address, target, h.netmask));
       const routed = choices.find(h => target && h.address === consoleRouteAddress);
       if (routed || matching.length === 1) return (routed || matching[0]).mode;
-      const consoleMode = selectedMode('lan');
-      if (choices.some((h) => h.mode === consoleMode)) return consoleMode;
       const defaultHost = choices.find(h => h.address === defaultAddress);
       if (defaultHost) return defaultHost.mode;
+      const consoleMode = selectedMode('lan');
+      if (choices.some((h) => h.mode === consoleMode)) return consoleMode;
     }
     return (
       choices.find((p) => p.mode === pref.mode)?.mode ||
@@ -151,26 +154,19 @@ async function createConnections({
   function needsPrimaryServerChoice(mode) {
     const pref = preferences.server;
     if (pref.addresses[mode]) return false;
-    const candidates = hosts.filter(host => host.mode === 'unknown' || pref.modes.includes(host.mode));
-    const target = consoleTarget();
-    if (target) {
-      const routed = candidates.find(host => host.address === consoleRouteAddress);
-      if (routed) return routed.mode === 'unknown';
-      const matching = candidates.filter(host => network.sameSubnet(host.address,target,host.netmask));
-      if (matching.length > 1) return true;
-      if (matching.length === 1 && matching[0].mode === 'unknown') return true;
-    }
-    return !target && preferences.lan.modes.length > 1 && pref.modes.length > 1 && candidates.length > 1;
+    return !automaticHost(mode) && hosts.some(host => host.mode === 'unknown');
   }
   const effective = (id) => {
     const mode = selectedMode(id);
     return id === 'server' && needsPrimaryServerChoice(mode) ? '' : modeAddress(id, mode);
   };
   function serverPaths() {
-    return preferences.server.modes.map(mode => {
-      const ip = modeAddress('server', mode);
-      return {mode, address: hosts.some(host => host.address === ip &&
-        (host.mode === mode || (host.mode === 'unknown' && preferences.server.addresses[mode] === ip))) ? ip : ''};
+    return preferences.server.modes.flatMap(mode => {
+      const pinned = preferences.server.addresses[mode];
+      const available = hosts.filter(host => pinned
+        ? host.address === pinned && (host.mode === mode || host.mode === 'unknown')
+        : host.mode === mode);
+      return available.length ? available.map(host => ({mode, address: host.address})) : [{mode, address: ''}];
     });
   }
   function sync() {

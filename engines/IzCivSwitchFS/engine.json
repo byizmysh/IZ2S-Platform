@@ -1,0 +1,22 @@
+{
+  "format": "izlauncher.engine",
+  "apiVersion": 1,
+  "id": "iz2sciv-core",
+  "directory": "IzCivSwitchFS",
+  "name": "IZ2SCiv core",
+  "version": "0.3.0",
+  "entry": "adapter.cjs",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64",
+    "win32-x64",
+    "win32-arm64"
+  ],
+  "modes": [
+    "original"
+  ],
+  "consolePort": 9026,
+  "order": 30,
+  "settingsSchema": [],
+  "defaultSettings": {}
+}

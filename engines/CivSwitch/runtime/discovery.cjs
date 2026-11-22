@@ -2,7 +2,7 @@
 // Only private, directly attached networks are searched. A protocol marker
 // identifies the game loader; an open TCP port alone is not a match.
 const net=require('node:net'),os=require('node:os'),crypto=require('node:crypto');
-const {isWireless,isTunnel}=require('../../../core/platform/network.cjs');
+const {isWireless,isTunnel,windowsAdapterModes}=require('../../../core/platform/network.cjs');
 const privateIP=ip=>net.isIPv4(ip)&&(/^(10\.|192\.168\.)/.test(ip)||/^172\.(1[6-9]|2\d|3[01])\./.test(ip));
 const number=ip=>ip.split('.').reduce((n,b)=>(n*256+Number(b))>>>0,0);
 const address=n=>[24,16,8,0].map(shift=>(n>>>shift)&255).join('.');
@@ -21,14 +21,17 @@ function probe(host,{timeout=1200,signal,connect=net.createConnection}={}){
   }catch{finish(false);}
  });
 }
-async function candidates({mode='auto',known=[],interfaces=os.networkInterfaces,wireless=isWireless,tunnel=isTunnel}={}){
+async function candidates({mode='auto',known=[],interfaces=os.networkInterfaces,wireless=isWireless,tunnel=isTunnel,platform=process.platform,adapterModes=windowsAdapterModes}={}){
  const networks=[],own=new Set();
+ const windowsModes=platform==='win32'?await adapterModes():null;
  for(const [name,values]of Object.entries(interfaces())){
   if(await tunnel(name))continue;
   const wifi=await wireless(name);
-  if(mode==='wifi'&&!wifi||mode==='lan'&&wifi)continue;
+  if(!windowsModes&&(mode==='wifi'&&!wifi||mode==='lan'&&wifi))continue;
   for(const row of values||[]){
    if(row.internal||!['IPv4',4].includes(row.family)||!privateIP(row.address)||!net.isIPv4(row.netmask))continue;
+   const kind=windowsModes?.get(row.address);
+   if(kind==='excluded'||windowsModes&&mode==='wifi'&&kind!=='wifi'||windowsModes&&mode==='lan'&&kind!=='lan')continue;
    const mask=number(row.netmask),ip=number(row.address);
    own.add(row.address);networks.push({ip,mask});
   }

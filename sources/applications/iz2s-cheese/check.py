@@ -66,10 +66,17 @@ with TemporaryDirectory(prefix='iz-store-check-') as directory:
 
 bool __wrap_catalog_download(const char *url, uint64_t limit, DownloadSink sink,
                              void *context, char out[DOWNLOAD_MESSAGE]) {
+    FILE *requests = fopen(getenv("IZ_STORE_TEST_REQUESTS"), "a");
+    if (!requests) return false;
+    fprintf(requests, "%s\n", url);
+    fclose(requests);
     const char *name = strrchr(url, '/');
     FILE *file = fopen(getenv(name && !strcmp(name, "/artwork.bin") ?
                              "IZ_STORE_TEST_ARTWORK_PACK" : "IZ_STORE_TEST_CATALOG"), "rb");
-    if (!file) return false;
+    if (!file) {
+        snprintf(out, DOWNLOAD_MESSAGE, "Test source is offline.");
+        return false;
+    }
     unsigned char data[1024];
     size_t count;
     bool ok = true;
@@ -112,6 +119,7 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
     url = 'https://raw.githubusercontent.com/example/store-feed/main/catalog.tsv'
     source = work / 'feed.tsv'
     artwork = work / 'artwork.bin'
+    requests = work / 'requests.txt'
     external = os.environ.get('IZ_STORE_CHECK_CATALOG')
     initial = Path(external).read_text() if external else (
         'IZSTORE2\napp\tsample\tnro\t1.0\tSample app\tExample\tTools\tSample application.\n'
@@ -168,6 +176,7 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
             result = subprocess.run([binary, sd, *args], capture_output=True, text=True,
                                     env={**os.environ, 'IZ_STORE_TEST_CATALOG': str(source),
                                          'IZ_STORE_TEST_ARTWORK_PACK': str(artwork),
+                                         'IZ_STORE_TEST_REQUESTS': str(requests),
                                          'IZ_STORE_TEST_RELEASE': str(release)})
             assert result.returncode == code, (args, result.stdout, result.stderr)
             return result.stdout
@@ -176,9 +185,18 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         artwork.write_bytes(image_pack)
         assert not run('list')
         assert not (sd / 'iz2s').exists()
+        legacy = sd / 'iz2s/iz2s-cheese'
+        legacy.mkdir(parents=True)
+        (legacy / 'settings.txt').write_text(url + '\nonline\n')
+        (legacy / 'remote.tsv').write_text(url + '\n' + initial)
+        assert [line.split('\t')[0] for line in run('list').splitlines()] == app_ids
         assert f'{len(app_ids)} online entries, 1 thumbnail.' in run('fetch-list', url)
-        cache = sd / 'iz2s/iz2s-cheese/remote.tsv'
+        cache = sd / 'iz2s/modules/iz2s-cheese/remote.tsv'
         assert cache.read_text() == url + '\n' + initial
+        assert (cache.parent / 'settings.txt').read_text() == url + '\nonline\n'
+        for file in legacy.iterdir():
+            file.unlink()
+        legacy.rmdir()
         assert [line.split('\t')[0] for line in run('list').splitlines()] == app_ids
         assert run('artwork').strip() == '1'
         artwork_cache = cache.with_name('remote-artwork.bin')
@@ -204,13 +222,50 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         assert '1 thumbnail.' in run('refresh')
         assert run('artwork').strip() == '1'
         artwork_cache.unlink()
-        assert not run('refresh').strip()
+        assert not run('load-catalog').strip()
         assert run('artwork').strip() == '1'
+
+        # A normal startup must keep using cache. Y/Refresh must fetch both files,
+        # even when a valid catalog and artwork are already cached.
+        first_id = app_ids[0]
+        updated_ids = [first_id, 'refresh-added']
+        updated_feed = 'IZSTORE2\n' + ''.join(
+            f'app\t{id}\tnro\t99.0\tUpdated app\tExample\tTools\tUpdated details.\n'
+            'file\t123\t' + '0' * 64 + '\tlauncher.nro\n'
+            'github\thttps://github.com/example/sample/releases/download/v99.0/sample.nro\n'
+            for id in updated_ids)
+        updated_art = b'IZART1\n\x02' + b''.join(
+            id.encode().ljust(48, b'\0') + bytes([101 + i]) * (96 * 96 * 4)
+            for i, id in enumerate(updated_ids))
+        source.write_text(updated_feed)
+        artwork.write_bytes(updated_art)
+        requests.write_text('')
+        assert not run('load-catalog').strip()
+        assert requests.read_text() == ''
+        assert cache.read_text() == url + '\n' + initial
+        assert '2 online entries, 2 thumbnails.' in run('refresh')
+        assert requests.read_text().splitlines() == [url, url.rsplit('/', 1)[0] + '/artwork.bin']
+        assert cache.read_text() == url + '\n' + updated_feed
+        assert artwork_cache.read_bytes() == url.encode() + b'\n' + updated_art
+        refreshed = [line.split('\t') for line in run('list').splitlines()]
+        assert [line[0] for line in refreshed] == updated_ids
+        assert all(line[-1] == '99.0' for line in refreshed)
+
+        source.write_text('IZSTORE2\ninvalid\n')
+        assert 'showing cached catalog' in run('refresh', code=1)
+        assert cache.read_text() == url + '\n' + updated_feed
+        assert artwork_cache.read_bytes() == url.encode() + b'\n' + updated_art
+        assert [line.split('\t')[0] for line in run('list').splitlines()] == updated_ids
         source.unlink()
         artwork.unlink()
-        assert not run('refresh').strip()
-        assert run('artwork').strip() == '1'
-        active = sd / ('switch/iz2s-cheese/catalog' if standalone else 'iz2s/modules/iz2s-cheese/catalog')
+        requests.write_text('')
+        assert not run('load-catalog').strip()
+        assert requests.read_text() == ''
+        assert 'showing cached catalog' in run('refresh', code=1)
+        assert 'Test source is offline' in run('refresh', code=1)
+        assert [line.split('\t')[0] for line in run('list').splitlines()] == updated_ids
+        assert run('artwork').strip() == '2'
+        active = sd / 'iz2s/modules/iz2s-cheese/catalog'
         active.mkdir(parents=True)
         local_id = 'sd-fixture'
         local = ('IZSTORE2\napp\tsd-fixture\tnro\t1.0\tSD App\tExample\tTools\tTest.\n'
@@ -220,8 +275,14 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         assert local_id not in run('list')
         (cache.parent / 'settings.txt').write_text(url + '\nsd\n')
         assert [line.split('\t')[0] for line in run('list').splitlines()] == [local_id]
+        assert not legacy.exists()
         assert run('artwork').strip() == '1'
+        requests.write_text('')
+        assert not run('refresh').strip()
+        assert requests.read_text() == ''
+        assert [line.split('\t')[0] for line in run('list').splitlines()] == [local_id]
         install_root = sd / ('switch' if standalone else 'iz2s/modules')
+        install_root.mkdir(exist_ok=True)
         jpeg = BytesIO()
         Image.new('RGB', (32, 32), (255, 0, 0)).save(jpeg, format='JPEG')
         image = jpeg.getvalue()
@@ -281,4 +342,4 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         assert not launcher.exists() and not list(app_dir.glob('*.izdata'))
 
 
-print('Verified catalog caching, artwork, mixed feeds and online IZA install, update and rollback.')
+print('Verified startup caching, Y/Refresh downloads, fresh artwork, offline/invalid-feed recovery, SD-only refresh, mixed feeds and online IZA install, update and rollback.')

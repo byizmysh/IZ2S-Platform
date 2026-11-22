@@ -1,0 +1,9 @@
+.build/
+*.izm
+__pycache__/
+.versions/
+/switch/iza/*.spv
+/switch/iza/native.bin
+/switch/iza/assets/
+/switch/iza/asset-*.izdata
+/iz2s-cheese.module.zip

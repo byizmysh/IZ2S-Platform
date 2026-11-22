@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory(prefix='store-nro-icons-') as folder:
         '-lssl', '-lcrypto', '-o', binary,
     ], check=True)
     sd = work / 'sd'
-    config = sd / 'iz2s/iz2s-cheese'
+    config = sd / 'iz2s/modules/iz2s-cheese'
     payload = config / 'payloads/sample' / digest / 'launcher.nro'
     payload.parent.mkdir(parents=True)
     payload.write_bytes(program)

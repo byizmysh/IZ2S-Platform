@@ -104,9 +104,11 @@ function create({root, settings, connections, configuration, preview = false, la
           log(line);
           const total = /CIV7_LDN_PAYLOAD_LINES=(\d+)/.exec(line), progress = /Sending payload: \d+% \((\d+)\/(\d+) messages\)/.exec(line);
           if (total) saved.total = Number(total[1]);
-          if (progress) {saved.index = Number(progress[1]); saved.total = Number(progress[2]);}
-          if(line==='CIV7_LDN_NETWORK_RESTORED')saved.networkRestored=true;
-          if (line.startsWith('[net] Restoring')) saved.phase = 'restoring';
+          if (progress) {saved.networkStage='sending';saved.index = Number(progress[1]); saved.total = Number(progress[2]);}
+          if(line==='CIV7_LDN_NETWORK_RESTORED'){saved.networkRestored=true;saved.networkStage='restored';}
+          if(line.startsWith('[net] Selected Wi-Fi radio released')){saved.networkRestored=false;saved.networkStage='searching';}
+          if(line==='Lobby joined.')saved.networkStage='sending';
+          if (line.startsWith('[net] Restoring')) {saved.phase='restoring';saved.networkStage='restoring';}
         }
       });
       handle.on('close', (code, signal) => {
@@ -117,14 +119,14 @@ function create({root, settings, connections, configuration, preview = false, la
     });
   }
   async function verifyLoader(host) {
-    saved.phase = 'checking'; ready = false; await persist();
+    saved.phase = 'checking'; saved.networkStage='checking'; ready = false; await persist();
     const result = platform==='linux'&&setup.dependenciesReady ? await run(p.python, ['-u', path.join(root, 'engines/CivSwitch/probe.py'), host, String(PORT)]) :
       await protocolProbe(host,{signal:search?.signal,timeout:6000}) ? 'CIVSWITCH_LOADER_VERIFIED' : 'CIVSWITCH_LOADER_TIMEOUT';
     if (!result.includes('CIVSWITCH_LOADER_VERIFIED')) throw Error('The game loader did not confirm TCP 9026');
-    ready = true; verifiedHost = host; saved.phase = 'ready'; log('Remote JS Loader verified on TCP 9026.');
+    ready = true; verifiedHost = host; saved.phase = 'ready'; saved.networkStage='ready'; log('Remote JS Loader verified on TCP 9026.');
   }
   async function waitForLoader(host, {once=false,automatic=false}={}) {
-    saved.phase = 'checking'; await persist();
+    saved.phase = 'checking'; saved.networkStage='checking'; await persist();
     const deadline = now() + (once?6000:loaderWaitMs);
     for (let attempt = 0;; attempt++) {
       if (interrupted) throw Error('CIV7 LAN stopped');
@@ -186,7 +188,7 @@ function create({root, settings, connections, configuration, preview = false, la
       saved.id = crypto.randomUUID(); saved.host = host || saved.host;
       saved.phase = command === 'prepare' ? 'preparing' : command === 'start' ? 'sending' : command === 'install' ? 'installing' : 'checking';
       delete saved.error; delete saved.retryStep; restoredAttempt=false; interrupted = false; search=new AbortController();
-      if (command === 'start') {saved.index = 0; saved.networkRestored=false; ready = false; verifiedHost = '';}
+      if (command === 'start') {saved.index = 0; saved.networkRestored=false;saved.networkStage='preparing'; ready = false; verifiedHost = '';}
       await persist();
       const attempt = {id: saved.id, upstream: true, loaderId: 'civswitch-ldn', kind: 'civswitch-ldn', status: 'starting', created: new Date().toISOString()};
       await ledger.write(attempt);
@@ -253,7 +255,7 @@ function create({root, settings, connections, configuration, preview = false, la
       lastAttempt, history: await ledger.listAttempts(), historyAll:true, log: events, library: [], jobs: [], installed: [], hostModules: {}, connected: ready,
       settings: {consoleHost: settings.consoleHost, consoleAddress: saved.host, consolePort: PORT},
       connections: {...network, locked: !!task}, sourcePreparation: {ready: true, preloaded: true, lines: 0}, setupWizard: false, hardStopAvailable: false,
-      civswitchLdn: {...saved, restoredAttempt, busy: !!task, loaderReady: ready, setup, prepared, port: PORT, saveName: 'IZ2S.Civ7Save',
+      civswitchLdn: {...saved, restoredAttempt, busy: !!task, loaderReady: ready, setup, prepared, port: PORT, saveName: 'IZ2SCIV.Civ7Save',
         suggestedHost: saved.host || '',saveInstallation:await require('../CivSwitch/save-installation.cjs').read(root,saved)}};
   }
   return {action, snapshot, refresh, stop, waitForOperation:()=>task||Promise.resolve(), hardStop: stop, ownsListener: () => !!task,

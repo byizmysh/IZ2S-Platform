@@ -6,7 +6,7 @@ Note: You need an SD card plugged in for IZ2S core, either formatted FAT32 or EX
 
 You are not required to move any files to your SD card.
 
-1. Use 0.25's bundled `runtime/package` directory. It contains
+1. Use 0.3.0's bundled `runtime/package` directory. It contains
    `ro/main`, `core/main`, `game/main`, `bootstrap.bin`,
    `iz2s/izlauncher.iza`, `iz2s/izlauncher.romfs`, and `programs/`.
    The IZ2S runtime is embedded in `game/main`; no launcher NRO is needed.
@@ -26,7 +26,7 @@ You are not required to move any files to your SD card.
 5. Hold **R** while opening a native Switch 2 game. On a fresh setup, the
    first launch captures the game's policy and opens the game normally.
    Close the game from HOME, then hold **R** and launch it a second time to
-   open `/iz2s/izlauncher.iza`. If a game policy was already saved, IZlauncher may open on the
+   open `/iz2s/izlauncher.iza`. If a game policy was already saved, IZ2s may open on the
    first R-held launch.
 
 You need **SmileBASIC 4.4.9 (and now the demo version works as well!)**, **system software 23.0.1**, **Node.js 22+** on

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# IZ2S adaptation 2026-11-08: persistent trigger name is IZ2S.Civ7Save.
+# IZ2S adaptation 2026-11-08: persistent trigger name is IZ2SCIV.Civ7Save.
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt.
 # Source: https://github.com/Gezine/CivSwitch/blob/3238a3e3340fd19a9dbd5cde56f3b50f9bc5d97f/installer-creator/install.py
@@ -8,7 +8,7 @@
 Builds the installer in a temp directory and sends it to the console's
 Remote JS Loader automatically: compresses the payload, splices it into
 the bundled save template, uploads the template as chunked connections,
-then writes the persistent IZ2S.Civ7Save trigger (cleaning up any
+then writes the persistent IZ2SCIV.Civ7Save trigger (cleaning up any
 previously installed trigger files first).
 
 Usage:
@@ -167,10 +167,10 @@ for (let k = TAIL_OFF; k < tpl.length; k++) write8(out + BigInt(k + (newSize - t
 sfx_writePath(text_encode("save:/saves/Single"));
 call_rop(F_CreateDir, sfx_pb);
 
-sfx_writePath(text_encode("save:/saves/Single/IZ2S.Civ7Save"));
+sfx_writePath(text_encode("save:/saves/Single/IZ2SCIV.Civ7Save"));
 call_rop(F_CreateFile, sfx_pb, BigInt(newSize));
 const r2 = call_rop(F_OpenFile, sfx_h, sfx_pb, 6n);
-if (r2 !== 0n) { await log("E: open XSTRIG " + toHex(r2)); return; }
+if (r2 !== 0n) { await log("E: open IZ2SCIV " + toHex(r2)); return; }
 call_rop(F_SetFileSize, read64(sfx_h), BigInt(newSize));
 const r4 = call_rop(F_WriteFile, read64(sfx_h), 0n, out, BigInt(newSize), sfx_wo);
 call_rop(F_CloseFile, read64(sfx_h));

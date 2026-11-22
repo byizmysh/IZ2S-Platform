@@ -192,7 +192,7 @@ function create(bridge,ftp,{games=require('./pc-link-games.cjs').create(bridge),
   function download(token){const item=downloads.get(token);assert(item,'The download has expired.');return item;}
   function inside(root, target){return target===root||target.startsWith((root==='/'?'':root)+'/');}
   return {
-    busy:()=>!!(upload||downloads.size||writes.size||resetting||gameStarting),
+    busy:()=>!!(upload||downloads.size||writes.size||resetting||cleaning||gameStarting),
     discover:async()=>{
       if(directFtp&&!await available())throw Error(ftp.problem()||'The FTP session has ended. Enable it again on Switch 2.');
       return {...session(),run:ID};
@@ -398,23 +398,54 @@ function start(bridge,folder,addresses){
 }
 
 let directSession;
+async function closeDirectFtp() {
+  assert(!connectingDirect&&!directSession?.backend.busy(),'Wait for the current FTP operation to finish.');
+  if (!directSession) return false;
+  const session = directSession;
+  connectingDirect = true;
+  try {
+    await session.backend.request('stop');
+    await session.app.close();
+    return true;
+  } finally { connectingDirect = false; }
+}
 let connectingDirect=false;
-async function openFtp(root,{host},{panelUrl}={}){
+async function ftpStatus(){
+  const session=directSession;
+  if(!session)return {enabled:false,online:false};
+  let online=session.backend.busy() ? session.online : await session.ftp.online();
+  if(!online && !session.backend.busy() && !connectingDirect && session.alternates){
+    const alternate=await session.alternates.online();
+    if(alternate && directSession===session && !connectingDirect && !session.backend.busy()){
+      session.changeHost(session.alternates.address());
+      online=true;
+    }
+  }
+  if(directSession!==session)return {enabled:false,online:false};
+  session.online=online;
+  return {enabled:true,online,host:online?session.ftp.address():null,busy:session.backend.busy(),tab:session.tab};
+}
+async function openFtp(root,{host,hosts},{panelUrl}={}){
   const {privateIP}=require('../../../core/session/network-discovery.cjs');
-  assert(typeof host==='string'&&privateIP(host),'Enter the local IPv4 address shown by IZ2S.');
+  assert(typeof host==='string'&&(!host||privateIP(host)),'Enter the local IPv4 address shown by IZ2S.');
+  const known=host?[host]:[...new Set((await hosts?.()||[]).filter(privateIP))].slice(0,3);
+  assert(known.length,'Enter the local IPv4 address shown by IZ2S.');
   assert(!connectingDirect&&!directSession?.backend.busy(),'Wait for the current FTP operation to finish.');
   connectingDirect=true;
   let opened;
   try{
-    const ftp=require('./paired-sd.cjs').create(null,host);
-    assert(await ftp.online(),ftp.problem()||'Enable FTP with L + R3 in IZ2S and check the address.');
+    const probe=require('./paired-sd.cjs').create(null,known);
+    assert(await probe.online(),probe.problem()||'Enable FTP with L + R3 in IZ2S and check the address.');
+    let target=probe.address(), resetEpoch=0;
+    const ftp=require('./paired-sd.cjs').create(null,()=>target);
+    const alternates=known.length>1?require('./paired-sd.cjs').create(null,()=>known.filter(ip=>ip!==target)):null;
     // A failed login leaves the previous local window intact.
     if(directSession){
       assert(!directSession.backend.busy(),'Wait for the current FTP operation to finish.');
       await directSession.backend.request('stop');
       await directSession.app.close();
     }
-    const bridge={data:()=>({consoleAddress:host,resetEpoch:0}),files:()=>{
+    const bridge={data:()=>({consoleAddress:target,resetEpoch}),files:()=>{
       throw Error(ftp.problem()||'The FTP session has ended. Enable it again on Switch 2.');
     }};
     const backend=create(bridge,ftp,{directFtp:true,games:{
@@ -429,7 +460,10 @@ async function openFtp(root,{host},{panelUrl}={}){
     const tab=await require('../../../core/workspace.cjs').register(root,{
       id:'ftp-files',kind:'files',title:'Super File Bros.',url:app.url,ownerPid:process.pid,
     });
-    directSession={app,backend};
+    directSession={app,backend,ftp,tab,online:true,alternates,changeHost(host){
+      target=host;
+      resetEpoch++;
+    }};
     return {tab};
   }catch(error){
     await opened?.close();
@@ -437,4 +471,4 @@ async function openFtp(root,{host},{panelUrl}={}){
   }finally{connectingDirect=false;}
 }
 
-module.exports={create,start,rows,openFtp};
+module.exports={create,start,rows,openFtp,closeDirectFtp,ftpStatus};

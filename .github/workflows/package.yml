@@ -1,4 +1,4 @@
-name: Verify IZ2S Platform 0.25
+name: Verify IZ2S Platform 0.3.0
 on:
   push:
     branches: [main]

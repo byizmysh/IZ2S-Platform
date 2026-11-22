@@ -17,6 +17,13 @@ async function createWindowServer({
   if (!Number.isFinite(stateReadTimeoutMs) || stateReadTimeoutMs <= 0)
     throw Error('Status read timeout must be positive');
   let exportingApp = false, closing = false, shutdownHook;
+  let launcherFilesBusy = false;
+  async function changeLauncherFiles(action) {
+    if (launcherFilesBusy) throw Error('Wait for the current file connection action to finish.');
+    launcherFilesBusy = true;
+    try { return await action(); }
+    finally { launcherFilesBusy = false; }
+  }
   let actualPort,
     mutation = Promise.resolve(),
     mutationEpoch = 0,
@@ -80,6 +87,7 @@ async function createWindowServer({
     '/storage.js': ['storage.js', 'text/javascript; charset=utf-8'],
     '/startup.js': ['startup.js', 'text/javascript; charset=utf-8'],
     '/cardputer-setup.js': ['cardputer-setup.js', 'text/javascript; charset=utf-8'],
+    '/iz2sciv.js': ['iz2sciv.js', 'text/javascript; charset=utf-8'],
     '/civswitch.js': ['civswitch.js', 'text/javascript; charset=utf-8'],
     '/style.css': ['style.css', 'text/css; charset=utf-8'],
     '/icon.svg': ['icon.svg', 'image/svg+xml'],
@@ -144,8 +152,8 @@ async function createWindowServer({
       if (req.method === 'GET' && url.pathname === '/health')
         return reply(res, 200, {
           version: 22,
-          edition: '0.25',
-          release: require('../package.json').version,
+          edition: '0.3.0',
+          release: '0.3.0',
           coreApi: '/api/iz2s-core',
           pid: process.pid,
           preview: manager.preview === true,
@@ -178,6 +186,14 @@ async function createWindowServer({
         return reply(res, 403, {
           error: 'Reopen the application using its launch link',
         });
+      if (req.method === 'GET' && url.pathname === '/api/iz2sciv/sd-package') {
+        // Local download is also available in preview; it never contacts a console.
+        const {buildSdPackage} = await import('../engines/IzCivSwitchFS/tools/sd-package.mjs');
+        const archive = await buildSdPackage();
+        return send(res,200,{'content-type':'application/zip',
+          'content-disposition':'attachment; filename="'+archive.filename+'"',
+          'content-length':archive.bytes.length},archive.bytes);
+      }
       if (req.method === 'GET' && url.pathname === '/api/apps/download') {
         if (closing) return reply(res,503,{error:'The panel is shutting down.'});
         const id = url.searchParams.get('id') || '';
@@ -210,8 +226,16 @@ async function createWindowServer({
       }
       if (req.method === 'GET' && url.pathname === '/api/iz2s-core/sd/volumes')
         return reply(res, 200, await coreController.sdStore.volumes());
-      if (req.method === 'GET' && url.pathname === '/api/iz2s-core/pc-tool')
-        return reply(res, 200, await corePanel.pcTool(url.searchParams.get('view'), fetch, {preview:manager.preview,root,out:coreOut,open:url.searchParams.get('open')==='1'}));
+      if (req.method === 'GET' && url.pathname === '/api/iz2s-core/pc-tool') {
+        const view = url.searchParams.get('view'), open = url.searchParams.get('open') === '1';
+        const readTool = () => corePanel.pcTool(view, fetch, {preview:manager.preview,root,out:coreOut,open});
+        const tool = view === 'files' && open && !manager.preview ? await changeLauncherFiles(readTool) : await readTool();
+        return reply(res, 200, tool);
+      }
+      if(req.method==='GET'&&url.pathname==='/api/iz2s-core/ftp/status'){
+        const files=require('../engines/iz2s-core/tools/pc-link-files.cjs');
+        return reply(res,200,manager.preview?{enabled:false,online:false}:await files.ftpStatus());
+      }
       if(req.method==='GET'&&url.pathname==='/api/iz2s-core')return reply(res,200,await coreController.state());
       if (req.method === 'GET' && url.pathname === '/api/iz2s-core/log')
         return await coreController.downloadLog(url.searchParams.get('id'), res);
@@ -313,10 +337,25 @@ async function createWindowServer({
         if(browserMedia==='stop')return reply(res,200,await blitBrowser.stop((await readBody(req)).id));
         return reply(res,200,await blitBrowser.relay(req,browserMedia));
       }
-      const body = await readBody(req, url.pathname === '/api/civswitch-ldn' ? 131072 : 16384);
+      const body = await readBody(req, ['/api/civswitch-ldn','/api/iz2sciv'].includes(url.pathname) ? 131072 : 16384);
+      if(url.pathname==='/api/iz2s-core/pc/connection'){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot connect to the console.'});
+        const link=require('../engines/iz2s-core/tools/pc-link-service.cjs');
+        return reply(res,200,await link.setEnabled(coreOut,body.enabled));
+      }
+      if(url.pathname==='/api/iz2s-core/ftp/close'){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot connect to the console.'});
+        const files=require('../engines/iz2s-core/tools/pc-link-files.cjs');
+        const result=await changeLauncherFiles(async()=>{
+          if(await files.closeDirectFtp())return workspace.stop(root,'ftp-files');
+          return {ok:true};
+        });
+        return reply(res,200,result);
+      }
       if(url.pathname==='/api/iz2s-core/ftp/open'){
         if(manager.preview)return reply(res,403,{error:'Preview cannot connect to the console.'});
-        return reply(res,200,await require('../engines/iz2s-core/tools/pc-link-files.cjs').openFtp(root,body,{panelUrl:origin}));
+        const files = require('../engines/iz2s-core/tools/pc-link-files.cjs');
+        return reply(res,200,await changeLauncherFiles(() => files.openFtp(root,{host:body.host,hosts:()=>require('../engines/iz2s-core/tools/pc-link-service.cjs').consoleAddresses(coreOut)},{panelUrl:origin})));
       }
       if(url.pathname.startsWith('/api/iz2s-core/media/')){
         if(manager.preview)return reply(res,403,{error:'Preview cannot share a PC source.'});
@@ -397,6 +436,20 @@ async function createWindowServer({
       const task = async () => {
         if (ownEpoch !== mutationEpoch)
           throw Error('Request cancelled by STOP');
+        if (url.pathname === '/api/iz2s-core/session/reset') {
+          if (manager.preview) throw Error('Session reset is unavailable in Preview.');
+          return changeLauncherFiles(async () => {
+            const current = await snapshot();
+            if (current.active || coreController.running()) throw Error('Stop the current operation first.');
+            const pcLink = require('../engines/iz2s-core/tools/pc-link-service.cjs');
+            const link = await pcLink.status();
+            if (link?.fileTransfers) throw Error('Wait for file transfers to finish before resetting the session.');
+            await require('../engines/iz2s-core/tools/pc-link-files.cjs').closeDirectFtp();
+            await pcLink.reset(coreOut);
+            await workspace.clearLauncherFiles(root);
+            return {ok:true};
+          });
+        }
         if (url.pathname === '/api/rpc/open') {
           if (manager.preview) throw Error('Preview cannot open Super File Bros.');
           return openRpcPage(root, body);
@@ -484,6 +537,7 @@ async function createWindowServer({
         if(url.pathname==='/api/connection/restore')return manager.restoreConnection();
         if (url.pathname === '/api/start') return manager.begin(body);
         if (url.pathname === '/api/setup') return manager.setupAction(body);
+        if (url.pathname === '/api/iz2sciv') return manager.iz2scivAction(body);
         if (url.pathname === '/api/civswitch') return manager.civswitchAction(body);
         if (url.pathname === '/api/civswitch-ldn') return manager.civswitchLdnAction(body);
         if (url.pathname === '/api/retry') return manager.retry();

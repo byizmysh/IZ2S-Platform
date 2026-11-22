@@ -1,4 +1,4 @@
-// IZlauncher launch topologies. Resolving a profile never contacts a device.
+// IZ2s launch topologies. Resolving a profile never contacts a device.
 const fs = require('node:fs/promises'),
   path = require('node:path'),
   net = require('node:net'),

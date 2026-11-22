@@ -100,8 +100,8 @@ globalThis.IZ2S_CIVSWITCH={create({document,act,setupInput=()=>{},downloadArm=()
    'auto-typing':'Entering chat lines and pressing A automatically. Leave the game in chat.',
    typing:'Input in progress. Leave the game in chat.',review:'Legacy manual session. Open a fresh lobby and start automatic input.',
    entered:'Input complete. Verify the game loader.',checking:'Waiting for LAN and checking the game loader.',
-   ready:'Game loader ready.',installing:'Installing IZ2S.Civ7Save. Keep the game open.',
-   installed:'IZ2S.Civ7Save installed. Restart the game and open Load Game.',
+   ready:'Game loader ready.',installing:'Installing IZ2SCIV.Civ7Save. Keep the game open.',
+   installed:'IZ2SCIV.Civ7Save installed. Restart the game and open Load Game.',
    'recovery-clearing':'Cancelling the partial line. No source text is sent.',
    'recovery-ready':'Confirm an empty chat field in the same lobby before continuing.',
    uncertain:'Input receipt is unconfirmed. Check the stored job before starting over.'};
@@ -278,7 +278,7 @@ globalThis.IZ2S_CIVSWITCH_LDN = {create({document, act, getStartup=()=>({}), isU
       sending: 'Sending commands over LDN. Leave the wireless lobby open.', restoring: 'Restoring the selected Wi-Fi radio.',
       stopping: 'Stopping delivery and waiting for Wi-Fi restoration.', checking: 'Checking the game loader on TCP 9026.',
       ready: 'Game loader ready.', entered: 'Delivery finished. Check the console address and game loader.',
-      installing: 'Installing IZ2S.Civ7Save. Keep the game open.', installed: 'IZ2S.Civ7Save installed. Restart the game and open Load Game.',
+      installing: 'Installing IZ2SCIV.Civ7Save. Keep the game open.', installed: 'IZ2SCIV.Civ7Save installed. Restart the game and open Load Game.',
       interrupted: 'Operation interrupted. Check Wi-Fi and the loader before using a fresh lobby.'};
     $('ldn-status').textContent = t(labels[current.phase] || current.phase);
     $('ldn-status').hidden=!current.busy;
@@ -336,7 +336,7 @@ function renderSaveInstallation(document,prefix,current,{view,save,consent,locke
  const $=id=>document.getElementById(prefix+'-'+id),t=value=>globalThis.RUN21_LANGUAGE?.t(value)||value;
  const installed=current.phase==='installed'||current.saveInstallation?.state==='installed';
  const status=$('save-status');
- if(status){status.textContent=t(current.phase==='installing'?'Installing IZ2S.Civ7Save. Keep the game open.':current.phase==='installed'?'Save installed. Restart Civilization VII, open Load Game, then use Launch in this panel.':installed?'Save installed. Next time: Civilization VII → Load Game, then Launch in this panel.':'Save installation is not confirmed. Install IZ2S.Civ7Save in First Setup to use Load Game next time.');status.classList.toggle('save-confirmed',installed);}
+ if(status){status.textContent=t(current.phase==='installing'?'Installing IZ2SCIV.Civ7Save. Keep the game open.':current.phase==='installed'?'Save installed. Restart Civilization VII, open Load Game, then use Launch in this panel.':installed?'Save installed. Next time: Civilization VII → Load Game, then Launch in this panel.':'Save installation is not confirmed. Install IZ2SCIV.Civ7Save in First Setup to use Load Game next time.');status.classList.toggle('save-confirmed',installed);}
  $('install').hidden=view==='run'||installed;
  $('install').disabled=locked||!current.loaderReady;
  $('install').textContent=t(save&&consent?'Install save':'Review save installation');

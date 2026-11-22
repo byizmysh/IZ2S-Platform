@@ -19,7 +19,7 @@ async function launch(root, {node = process.execPath, args = [], env = process.e
         if(url.hostname!=='127.0.0.1'||saved.preview!==preview)throw Error('Different panel instance');
         const response=await fetcher(url.origin+'/health',{signal:AbortSignal.timeout(1500)});
         const health=await response.json();
-        if(response.ok&&!health.closing&&health.pid===saved.pid&&health.edition==='0.25'&&health.preview===preview)
+        if(response.ok&&!health.closing&&health.pid===saved.pid&&health.edition==='0.3.0'&&health.preview===preview)
           return {pid:saved.pid,url:saved.url};
       } catch {}
       if(failed!==undefined)break;

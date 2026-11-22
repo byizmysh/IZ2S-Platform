@@ -173,6 +173,7 @@
     "core/extensions.cjs",
     "core/filesystem/games.cjs",
     "core/filesystem/layout.cjs",
+    "core/filesystem/ouncecake/.gitignore",
     "core/filesystem/ouncecake/LICENSE",
     "core/filesystem/ouncecake/UPSTREAM.json",
     "core/filesystem/ouncecake/engine/content.cjs",
@@ -247,6 +248,7 @@
     "core/services/controller-source.cjs",
     "core/services/delta-programs.cjs",
     "core/services/display-imports.json",
+
     "core/services/font-data.cjs",
     "core/services/frame-pacing.js",
     "core/services/frame-rate.cjs",

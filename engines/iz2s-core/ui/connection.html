@@ -9,10 +9,10 @@
   <li data-core-text="setupStepReview">Review</li>
   <li data-core-text="setupStepSave">Save</li>
 </ol>
-<p class="hint core-flow-intro" data-core-text="setupIntro">В SmileBASIC 4 выберите «Создание программы» (Make a Program). Настройте NS2IZA один раз. Если он уже сохранён, откройте «Запуск».</p>
+<p class="hint core-flow-intro" data-core-text="setupIntro">In SmileBASIC 4, open Make a Program. Set up NS2IZA once. If it is already saved, open Launch.</p>
 <div class="slot-options">
   <div class="hardware-row">
-    <label for="core-slot" data-core-text="slotLabel">Пустой слот программы</label>
+    <label for="core-slot" data-core-text="slotLabel">Empty program slot</label>
     <select id="core-slot">
       <option value="0" data-core-text="slot" data-n="0">Slot 0</option>
       <option value="1" data-core-text="slot" data-n="1">Slot 1</option>
@@ -22,27 +22,27 @@
   </div>
 </div>
 <div class="session-confirmation">
-  <label class="ack"><input id="core-setup-ready" class="panel-switch" type="checkbox" role="switch"><span data-core-text="setupReady">Открыт Direct, выбранный слот пуст, клавиатура English (US); содержимое этого слота можно заменить.</span></label>
+  <label class="ack"><input id="core-setup-ready" class="panel-switch" type="checkbox" role="switch"><span data-core-text="setupReady">Direct is open, the selected slot is empty and the keyboard is set to English (US).</span></label>
 </div>
 <div class="launch-row">
   <button id="core-enter-source" class="primary" type="button" aria-describedby="core-usb-keyboard-note" disabled>
-    <span data-core-text="enterSource">Ввести 229 строк</span><svg aria-hidden="true"><use href="#i-arrow"></use></svg>
+    <span data-core-text="enterSource">Enter 229 lines</span><svg aria-hidden="true"><use href="#i-arrow"></use></svg>
   </button>
   <p id="core-usb-keyboard-note" class="hint" role="status" data-core-text="usbKeyboardPending" hidden></p>
 </div>
 <progress id="core-source-progress" max="229" value="0" hidden></progress>
-<div id="core-source-review" class="wizard-panel" hidden><label class="ack"><input id="core-reviewed" class="panel-switch" type="checkbox" role="switch"><span data-core-text="reviewed">В редакторе есть все 229 строк, последняя строка END.</span></label>
-<div class="wizard-actions"><button id="core-verify" type="button" disabled data-core-text="verify">Проверить три части</button><button id="core-save" class="primary" type="button" disabled data-core-text="save">Сохранить NS2IZM</button></div><p class="hint" data-core-text="optional">Проверка необязательна. При сохранении подтвердите диалог на Switch; существующий NS2IZM будет заменён только после вашего подтверждения.</p></div>
-<div id="core-check-values" hidden><p data-core-text="checkIntro">Введите шесть чисел с экрана: количество символов и контрольную сумму каждой из трёх частей.</p><div class="check-grid"><span data-core-text="part">Часть</span><span data-core-text="chars">Символы</span><span data-core-text="checksum">Сумма</span><span>1</span><input id="core-metric-0" aria-label="IZ2S part 1 characters" inputmode="numeric"><input id="core-metric-1" aria-label="IZ2S part 1 checksum" inputmode="numeric"><span>2</span><input id="core-metric-2" aria-label="IZ2S part 2 characters" inputmode="numeric"><input id="core-metric-3" aria-label="IZ2S part 2 checksum" inputmode="numeric"><span>3</span><input id="core-metric-4" aria-label="IZ2S part 3 characters" inputmode="numeric"><input id="core-metric-5" aria-label="IZ2S part 3 checksum" inputmode="numeric"></div><label class="ack"><input id="core-lines" class="panel-switch" type="checkbox" role="switch"><span data-core-text="lines">Проверка завершилась без ошибок; SOURCE LINES — 229 или 230 с пустой последней строкой.</span></label><button id="core-compare" type="button" data-core-text="compare">Сверить значения</button><p id="core-comparison" role="status"></p></div>
-<div id="core-save-confirmation" hidden><p data-core-text="savePrompt">Подтвердите Save / Overwrite на Switch и дождитесь окончания сохранения.</p><label class="ack"><input id="core-saved-ready" class="panel-switch" type="checkbox" role="switch"><span data-core-text="savedReady">NS2IZM успешно сохранён на консоли.</span></label><button id="core-confirm-saved" class="primary" type="button" disabled data-core-text="finishSetup">Завершить First Setup</button></div>
+<div id="core-source-review" class="wizard-panel" hidden><label class="ack"><input id="core-reviewed" class="panel-switch" type="checkbox" role="switch"><span data-core-text="reviewed">All 229 lines are in the editor. The last line is END.</span></label>
+<div class="wizard-actions"><button id="core-verify" type="button" disabled data-core-text="verify">Check the source</button><button id="core-save" class="primary" type="button" disabled data-core-text="save">Save NS2IZA</button></div><p class="hint" data-core-text="optional">Checking is optional. Confirm the save or overwrite on Switch.</p></div>
+<div id="core-check-values" hidden><p data-core-text="checkIntro">Enter the character count and checksum shown on Switch for each part.</p><div class="check-grid"><span data-core-text="part">Part</span><span data-core-text="chars">Characters</span><span data-core-text="checksum">Checksum</span><span>1</span><input id="core-metric-0" aria-label="IZ2S part 1 characters" inputmode="numeric"><input id="core-metric-1" aria-label="IZ2S part 1 checksum" inputmode="numeric"><span>2</span><input id="core-metric-2" aria-label="IZ2S part 2 characters" inputmode="numeric"><input id="core-metric-3" aria-label="IZ2S part 2 checksum" inputmode="numeric"><span>3</span><input id="core-metric-4" aria-label="IZ2S part 3 characters" inputmode="numeric"><input id="core-metric-5" aria-label="IZ2S part 3 checksum" inputmode="numeric"></div><label class="ack"><input id="core-lines" class="panel-switch" type="checkbox" role="switch"><span data-core-text="lines">The check finished without errors. SOURCE LINES shows 229, or 230 with a final blank line.</span></label><button id="core-compare" type="button" data-core-text="compare">Compare values</button><p id="core-comparison" role="status"></p></div>
+<div id="core-save-confirmation" hidden><p data-core-text="savePrompt">Confirm Save or Overwrite on Switch and wait for it to finish.</p><label class="ack"><input id="core-saved-ready" class="panel-switch" type="checkbox" role="switch"><span data-core-text="savedReady">NS2IZA was saved on Switch.</span></label><button id="core-confirm-saved" class="primary" type="button" disabled data-core-text="finishSetup">Finish setup</button></div>
 </div><div id="core-launch-panel" role="tabpanel" aria-labelledby="core-mode-launch">
-<p class="hint core-flow-intro" data-core-text="launchIntro">Запуск из сохранённого NS2IZM. Доступ к SD запрашивается автоматически; после запуска IZ2S панель на ПК не нужна.</p>
+<p class="hint core-flow-intro" data-core-text="launchIntro">Launch uses the saved NS2IZA. The selected network address comes from the PC tile.</p>
 <aside class="session-options fs-access-panel core-fs-access" aria-labelledby="core-fs-heading">
   <strong id="core-fs-heading" data-core-text="fsAccess">Filesystem access</strong>
   <div class="fs-access-estimate"><strong>30–40%</strong><span data-core-text="estimate"></span></div>
 </aside>
 <div id="core-launch-readiness"><div id="core-fresh-confirmation" class="session-confirmation"><label class="ack"><input id="core-fresh" class="panel-switch" type="checkbox" role="switch"><span data-core-text="fresh">Switch 2 was fully restarted; fresh Direct is open.</span></label><p class="subtitle" data-core-text="cardputer"></p></div></div>
-<div class="launch-row"><button id="core-start" class="primary" type="button" disabled><span data-core-text="start">Запустить IZ2S</span><svg aria-hidden="true"><use href="#i-arrow"></use></svg></button><span id="core-network" class="hint"></span></div>
+<div class="launch-row"><button id="core-start" class="primary" type="button" disabled><span data-core-text="start">Launch IZ2S</span><svg aria-hidden="true"><use href="#i-arrow"></use></svg></button><span id="core-network" class="hint"></span></div>
 </div></div>
 <section id="core-session" class="core-session" hidden aria-labelledby="core-session-title">
 <div class="core-success-heading"><span class="core-success-icon" aria-hidden="true">✓</span><div><span class="eyebrow">IZ2S core</span><h2 id="core-session-title" role="status" aria-live="polite" data-core-text="sessionReady">IZ2S is running</h2><p id="core-session-detail" class="hint"></p></div></div>

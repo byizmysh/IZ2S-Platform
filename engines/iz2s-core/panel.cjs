@@ -180,7 +180,7 @@ function create(options = {}) {
       const snapshot = await runtime.state();
       const journal = await readLog(out, snapshot.attempt?.id);
       let pcLink=null;
-      if(!options.manager?.preview&&snapshot.attempt?.core?.complete)pcLink=await require('./tools/pc-link-service.cjs').snapshot(out).catch(error=>({online:false,error:error.message}));
+      if(!options.manager?.preview)pcLink=await require('./tools/pc-link-service.cjs').snapshot(out).catch(error=>({online:false,error:error.message}));
       const fsRpc=await filesystem(snapshot);
       const value = { ...snapshot, ...journal, pcLink, fsRpc };
       return { ...value, diagnostic: diagnostics.describe(value) };

@@ -8,12 +8,12 @@
   "storeCodeInRuntime": true,
   "independentStoreModulePreserved": true,
   "sources": {
-    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/main.c": "10701bb9ce8d00aee97e42b30219bcec60230f76a53c85baa880258beef0346e",
-    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/store.c": "9dde3874919ac609e93bb185ba41b81c2bea1c40e63d59bf546176102edc1f41",
-    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/ui.c": "c2df276d0b50838d19f5d1de835c7e571abebea4fb9c12a178d91fa478addef2",
-    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/download.c": "c0fec9c493fe80f86d77677349f709546844feb28d7481c338faed12a2c2563e",
-    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/installed-artwork.c": "16b8357490b6af6dc0adcb197f4ff3c59a16c67969ae7d2233b537ce70f3cf93",
-    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/iza/host.c": "ff2f76532986ca56c2528fd0056160f6d3f0223feb94bf179c79cbd54cee9566"
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/main.c": "10701bb9ce8d00aee97e42b30219bcec60230f76a53c85baa880258beef0346e",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/store.c": "9dde3874919ac609e93bb185ba41b81c2bea1c40e63d59bf546176102edc1f41",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/ui.c": "c2df276d0b50838d19f5d1de835c7e571abebea4fb9c12a178d91fa478addef2",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/download.c": "c0fec9c493fe80f86d77677349f709546844feb28d7481c338faed12a2c2563e",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/installed-artwork.c": "16b8357490b6af6dc0adcb197f4ff3c59a16c67969ae7d2233b537ce70f3cf93",
+    "workspace/iz2s-panel/iz2s-platform-run25/modules/iz2s-cheese/switch/iza/host.c": "ff2f76532986ca56c2528fd0056160f6d3f0223feb94bf179c79cbd54cee9566"
   },
   "application": "IZ2S Cheese",
   "appId": "iz2s-cheese"

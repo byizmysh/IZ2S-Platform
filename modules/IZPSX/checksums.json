@@ -1,0 +1,19 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "FONT-LICENSE.txt": "4388a5e2a70b40ceeff0d18855eef6c3278b2d541dde2d7e0fc8a54c090bf3cf",
+    "LICENSE": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d",
+    "README.md": "a9c6cb156650c831bc3db6fd640c9126c03c3745494b5a729cb580b849d0bf7b",
+    "module.json": "cee7a7f5cbfd146bfbb4b17e145c447b13209fab3938ea0fd187dbe98201bb53",
+    "switch/app.comp.spv": "2e20fe5e958e75291419592c6b391fd15efa4a7e22a601b8cd50f6ea144588bf",
+    "switch/app.frag.spv": "bdbb9d687f8ef1fce9d59af03647879a2a65c45acecfa323fcf69ca1d6ea47c2",
+    "switch/app.json": "b68ffe5d63d665cecc0334c99dd3d3e9c4adb2ad69c3ea5d3f8ee5c4461f6af2",
+    "switch/app.vert.spv": "9302f1b4f15fb2f52d20a0ce5d4bb66fdd98f8c6e4dfc330c1da077ae6ede8e9",
+    "switch/data.bin": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "switch/icon.png": "314d83280905cad6ed05a23d2628bec79d0f806b443eb80db2a31e42553d69a1",
+    "switch/native/asset-83efd383378977184133b5d8b01e60c64e864adbb2c6c0a43c1b5f5eb32fa0b6.izdata": "83efd383378977184133b5d8b01e60c64e864adbb2c6c0a43c1b5f5eb32fa0b6",
+    "switch/native/shim.bin": "345fbb9878c4132fbafc17eca2799552f7eedc7c9a27cd3d11f0bc478235fa08",
+    "switch/pixels.bin": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7",
+    "switch/state.bin": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+  }
+}

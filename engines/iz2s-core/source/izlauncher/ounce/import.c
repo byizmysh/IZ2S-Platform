@@ -1104,17 +1104,37 @@ static u32 write_bundle(const Package *package, const char *path, const char *di
     return finish_file(file, ok ? 0 : EIO);
 }
 
-static u32 publish_asset(const char *source, const char *dest, const Companion *asset) {
+static u32 publish_asset(const char *source, const char *dest, const Companion *asset,
+                         int repair, int *published) {
     char digest[65];
     u64 bytes = 0;
     u32 result = file_digest(dest, asset->bytes, digest, &bytes);
-    if (result == ENOENT) return rename(source, dest) ? (u32)errno : 0;
-    if (result) return result;
-    return bytes == asset->bytes && !strcmp(digest, asset->hash) ? 0 : HASH_ERROR;
+    if (!result && bytes == asset->bytes && !strcmp(digest, asset->hash)) return 0;
+    if (result == ENOENT) {
+        if (rename(source, dest)) return errno;
+        *published = 1;
+        return 0;
+    }
+    if (!repair || (result && result != BAD)) return result ? result : HASH_ERROR;
+
+    // The staged companion has already been verified against its content-addressed filename.
+    struct stat old;
+    if (lstat(dest, &old)) return errno;
+    if (!S_ISREG(old.st_mode)) return BAD;
+    char backup[848];
+    int length = snprintf(backup, sizeof backup, "%s.previous", source);
+    if (length < 0 || (size_t)length >= sizeof backup) return BAD;
+    if (rename(dest, backup)) return errno;
+    if (rename(source, dest)) {
+        const u32 error = errno;
+        return rename(backup, dest) ? (u32)errno : error;
+    }
+    *published = 1;
+    return unlink(backup) ? (u32)errno : 0;
 }
 
 static u32 update_package(const Package *package, const char *stage, const char *dest,
-                          const char *expected_old, int restore_only, int *updated) {
+                          const char *expected_old, int restore_only, int explicit_update, int *updated) {
     u32 result = recover_update(dest, package->header.id);
     if (result) return result;
     char source[848], target[848], launcher[848], backup[848], candidate[848];
@@ -1135,11 +1155,12 @@ static u32 update_package(const Package *package, const char *stage, const char 
     }
     if (expected_old && (!replacing || strcmp(expected_old, old_digest))) return HASH_ERROR;
 
+    int assets_published = 0;
     for (unsigned i = 0; i < package->companion_count; ++i) {
         const Companion *asset = &package->companions[i];
         snprintf(source, sizeof source, "%s/%s", stage, asset->name);
         snprintf(target, sizeof target, "%s/%s", dest, asset->name);
-        result = publish_asset(source, target, asset);
+        result = publish_asset(source, target, asset, explicit_update, &assets_published);
         if (result) return result;
     }
     snprintf(source, sizeof source, "%s/sd-bundle.json", stage);
@@ -1161,7 +1182,11 @@ static u32 update_package(const Package *package, const char *stage, const char 
     }
     result = commit_update(dest);
     if (result) return result;
-    if (replacing && old_bytes == bytes && !strcmp(digest, old_digest)) return EEXIST;
+    if (replacing && old_bytes == bytes && !strcmp(digest, old_digest)) {
+        if (!assets_published) return EEXIST;
+        *updated = 1;
+        return 0;
+    }
 
     if (replacing) {
         if (rename(launcher, backup)) return errno;
@@ -1646,7 +1671,7 @@ static u32 import_package(const char *source, const char *root, const char *pad,
     phase = "publish";
     if (existing_directory) rc = update_package(package, stage, destination,
                                                  explicit_update || restore_only ? NULL : old_hash,
-                                                 restore_only, updated);
+                                                 restore_only, explicit_update, updated);
     else if (!lstat(destination, &info)) rc = EEXIST;
     else if (errno != ENOENT) rc = errno;
     else if (rename(stage, destination)) rc = errno;

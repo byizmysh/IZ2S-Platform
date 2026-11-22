@@ -1680,7 +1680,7 @@ label.transport-option:has(input:disabled) {
   }
 }
 
-/* Version follows the right edge of the IZlauncher wordmark. */
+/* Version follows the right edge of the IZ2s wordmark. */
 .brand > span {
   display: inline-block;
   white-space: nowrap;
@@ -4288,6 +4288,8 @@ dialog {
 .game-buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .game-buttons button { min-height:76px; font-size:20px; font-weight:600; }
 .game-buttons button.selected { background:var(--surface-selected); border-color:var(--lime); color:var(--lime); }
+.game-buttons #game-civ7 { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:10px; }
+.game-platform-badge { flex:none; padding:5px 8px; border:2px solid #ff6b6b; border-radius:6px; color:#ff6b6b; font-size:14px; font-weight:800; line-height:1.2; white-space:nowrap; }
 .wizard-steps.civ-steps { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .civ-steps li { position:relative; }
 .civ-steps button { display:block; width:100%; padding:0; min-height:0; border:0; border-radius:0; background:transparent; color:inherit; font:inherit; line-height:inherit; text-align:left; box-shadow:none; }
@@ -4471,6 +4473,7 @@ button.danger:hover:enabled, button.soft-stop:hover:enabled, button.hard-stop:ho
 #workspace-home .civ-action-bar, #workspace-home .launch-row { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
 #workspace-home .launch-row .soft-stop, #workspace-home .launch-row .hard-stop { margin-left:auto; }
 #workspace-home .setup-details, #workspace-home .device-settings { border:1px solid var(--line); border-radius:var(--radius-control); background:var(--surface-inset); }
+#workspace-home #izcivswitch-info { border:0; border-top:1px solid var(--line); border-radius:0; }
 #workspace-home .setup-details > summary, #workspace-home .device-settings > summary { margin:0; padding:10px 12px; font-size:var(--text-body); line-height:1.5; }
 #workspace-home .setup-details-body { padding:var(--surface-padding); }
 #workspace-home .device-settings-body { display:grid; gap:var(--space-4); padding:var(--surface-padding); min-width:0; }
@@ -4975,7 +4978,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible,select:focus-visi
 #panel-sidebar .workspace-dock-state::before{content:'';width:5px;height:5px;border-radius:50%;background:#78857b;flex:none}
 #panel-sidebar .workspace-dock-row[data-state=running] .workspace-dock-state::before{background:var(--lime)}
 #panel-sidebar .workspace-dock-row:is([data-state=loaded],[data-state=opening]) .workspace-dock-state::before{background:var(--blue)}
-#panel-sidebar .workspace-dock-row:is([data-state=retained],[data-state=pending],[data-state=unavailable]) .workspace-dock-state::before{background:#dfb654}
+#panel-sidebar .workspace-dock-row:is([data-state=retained],[data-state=pending],[data-state=unavailable],[data-state=checking],[data-state=unverified]) .workspace-dock-state::before{background:#dfb654}
 #panel-sidebar .workspace-dock-row .workspace-dock-stop{grid-column:3;grid-row:1/3;display:flex;align-items:center;justify-content:center;width:28px;min-height:28px;padding:5px;margin:0;border:1px solid #4c5a4d;border-radius:7px;background:transparent;color:#bbc6bd;font-size:0}
 #panel-sidebar .workspace-dock-stop svg{width:15px;height:15px;stroke-width:1.7}
 #panel-sidebar .workspace-dock-row .workspace-dock-stop:hover:enabled{background:#71373b;border-color:#dd7f83;color:#fff1f1}
@@ -5018,7 +5021,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible,select:focus-visi
 #apps .library-context>strong{flex:1;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #apps .library-context button{display:inline-flex;align-items:center;gap:7px;min-height:30px;padding:4px 8px;font-size:12px}
 #apps #library-back svg{width:15px;height:15px;transform:rotate(180deg)}
-#apps .library-toolbar{display:grid;grid-template-columns:minmax(200px,1fr) minmax(145px,180px) minmax(100px,135px) minmax(90px,120px) auto;align-items:end;gap:10px;margin-bottom:0}
+#apps .library-toolbar{display:grid;grid-template-columns:minmax(200px,1fr) minmax(170px,210px) minmax(165px,190px) minmax(150px,170px) auto;align-items:end;gap:10px;margin-bottom:0}
 #apps .library-toolbar>label{display:grid;gap:5px;min-width:0;font-size:11px;line-height:16px}
 #apps .library-toolbar :is(input,select,button){width:100%;min-width:0;min-height:34px;height:34px;padding:5px 9px;font-size:12px;line-height:20px}
 #apps .library-toolbar>button{width:auto}
@@ -5055,7 +5058,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible,select:focus-visi
 #apps .storage-more>summary{padding:0;font-size:10px;line-height:18px}
 #apps .storage-more[open]>.storage-more-body { display:grid; gap:var(--space-2); position:absolute; top:calc(100% + var(--space-2)); inset-inline-end:0; z-index:30; inline-size:min(260px,100%); }
 #apps .storage-more-body>button{width:100%;min-height:32px;padding:5px 8px;margin:0;font-size:11px}
-@media(max-width:1000px){#apps .library-toolbar{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#apps .library-search-field{grid-column:1/-1}#apps .library-toolbar>button{grid-column:1/-1;justify-self:end}}
+@media(max-width:1200px){#apps .library-toolbar{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#apps .library-search-field{grid-column:1/-1}#apps .library-toolbar>button{grid-column:1/-1;justify-self:end}}
 @media(max-width:600px){#apps .library-context{flex-wrap:wrap;gap:6px}#apps .library-context>strong{order:3;flex-basis:100%;padding:2px 8px}#apps #library-context-all{margin-left:auto}#apps .library-toolbar{gap:8px}#apps .library-toolbar>button{width:100%}}
 .storage-more-body{display:grid;gap:var(--space-2)}
 .storage-more-body>button{margin:0;min-height:32px}
@@ -5118,7 +5121,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible,select:focus-visi
 .civ-flow-controls>button { min-height:var(--control-height); }
 
 
-/* 0.25 workspace: shared navigation, page introductions and controls. */
+/* 0.3.0 workspace: shared navigation, page introductions and controls. */
 #panel-sidebar .brand { margin-bottom:24px; }
 #panel-sidebar .brand .brand-version {
   display:inline-block; margin-left:6px; padding:2px 6px;
@@ -5364,6 +5367,8 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible,select:focus-visi
   outline: 2px solid var(--blue);
   outline-offset: var(--focus-offset);
 }
+/* Keep the disclosure focus ring inside its clipping details container. */
+#izcivswitch-info > summary:focus-visible { outline-offset: -3px; }
 .page-intro h1:focus-visible { outline: 2px solid var(--blue); outline-offset: var(--space-1); width: fit-content; }
 #panel-main button.danger.quiet {
   color: var(--tone-error);
@@ -5612,6 +5617,8 @@ select option {
     min-inline-size: 0;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
+    overflow-wrap: normal;
   }
   select:not([multiple]):is(:not([size]), [size="1"])::picker-icon {
     color: var(--muted);
@@ -5728,3 +5735,129 @@ select option {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
 }
+
+/* IZ2SCiv uses native buttons and disclosure controls at every viewport size. */
+#iz2sciv-flow { margin-top: 16px; min-width: 0; }
+#iz2sciv-flow .section-heading { flex-wrap: wrap; gap: 12px; }
+#iz2sciv-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; padding: 0; list-style: none; }
+#iz2sciv-steps li { min-width: 0; }
+#iz2sciv-steps button { width: 100%; white-space: normal; height: 100%; }
+#iz2sciv-flow button { white-space: normal; overflow-wrap: anywhere; }
+#iz2sciv-flow .wizard-actions { flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+#iz2sciv-flow p, #iz2sciv-flow li { overflow-wrap: anywhere; line-height: 1.55; }
+#iz2sciv-flow .iz2sciv-field { display: grid; gap: 6px; margin: 16px 0; }
+#iz2sciv-flow input[type=file], #iz2sciv-flow select { max-width: 100%; min-width: 0; width: 100%; }
+#iz2sciv-flow .iz2sciv-confirm { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0; }
+#iz2sciv-flow input[type=checkbox] { flex: 0 0 auto; margin-top: 5px; }
+#iz2sciv-flow .iz2sciv-result { margin-top: 16px; border-top: 1px solid var(--border, #36404e); padding-top: 8px; }
+#iz2sciv-error, #iz2sciv-link-error { color: var(--danger, #ffb4a8); overflow-wrap: anywhere; }
+#iz2sciv-flow summary:focus-visible { outline-offset: -3px; }
+#iz2sciv-flow h3:focus { outline-offset: 4px; }
+
+#iz2sciv-steps li::before { content: none; }
+#iz2sciv-flow .iz2sciv-sd-tree { max-width: 100%; overflow-x: auto; font-size: 12px; line-height: 1.5; }
+
+/* IZ2SCiv: one guided PC action and one shared session log. */
+#iz2sciv-flow .iz2sciv-pc-state { font-weight: 650; }
+#iz2sciv-flow .iz2sciv-pc-state[data-ready="true"] { color: var(--accent, #c9fc40); }
+#iz2sciv-flow .iz2sciv-checklist { display: grid; gap: 0; border: 1px solid var(--line, #36404e); border-radius: 12px; overflow: hidden; }
+#iz2sciv-flow .iz2sciv-check { padding: 16px 18px; min-width: 0; }
+#iz2sciv-flow .iz2sciv-check + .iz2sciv-check { border-top: 1px solid var(--line, #36404e); }
+#iz2sciv-flow .iz2sciv-check-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 20px; flex-wrap: wrap; }
+#iz2sciv-flow .iz2sciv-check-heading h4 { margin: 0; font-size: inherit; }
+#iz2sciv-flow .iz2sciv-check-state { font-size: 12px; color: var(--muted); }
+#iz2sciv-flow [data-ready="true"] .iz2sciv-check-state { color: var(--accent, #c9fc40); }
+#iz2sciv-flow [data-ready="true"] .iz2sciv-check-state::before { content: '✓ '; }
+#iz2sciv-flow .iz2sciv-check p { margin: 8px 0 0; }
+#iz2sciv-flow .iz2sciv-key-file { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+#iz2sciv-keys-file { overflow-wrap: anywhere; min-width: 0; }
+#iz2sciv-flow #iz2sciv-keys-feedback[data-error="true"] { color: var(--danger, #ff9393); }
+#iz2sciv-flow .iz2sciv-check .iz2sciv-field { margin: 10px 0 0; }
+#iz2sciv-flow .iz2sciv-pc-actions { justify-content: space-between; }
+#iz2sciv-log-modes { flex-wrap: wrap; min-width: 0; }
+#session-activity #log-details-control[hidden], #iz2sciv-log-modes[hidden] { display: none; }
+#session-activity .log-tools button { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+ #iz2sciv-flow .iz2sciv-check { padding: 14px 12px; }
+ #iz2sciv-flow .iz2sciv-pc-actions .primary { flex: 1; }
+ #iz2sciv-log-modes { width: 100%; }
+ #iz2sciv-log-modes button { flex: 1; padding-inline: 8px; }
+}
+
+/* Shared progress and error surface for every IZ2SCiv stage. */
+.iz2sciv-status-card { margin: 16px 0; padding: 16px 20px; border: 1px solid var(--line, #364038); border-left: 3px solid var(--blue, #c9fc40); border-radius: 14px; background: var(--panel, #1d2420); overflow-wrap: anywhere; }
+.iz2sciv-status-card h3 { margin: 0; font-size: 13px; color: var(--muted, #a4aea3); }
+.iz2sciv-status-card .section-heading { margin-bottom: 8px; gap: 12px; }
+.iz2sciv-status-card .iz2sciv-status-title { margin: 8px 0; font-size: 17px; font-weight: 650; }
+.iz2sciv-status-card[data-tone="error"] { border-left-color: #ff9696; }
+.iz2sciv-status-card[data-tone="error"] .badge, #iz2sciv-error { color: #ffaaaa; }
+.iz2sciv-status-card progress { display: block; width: 100%; height: 8px; margin: 16px 0; accent-color: var(--accent, #c9fc40); }
+.iz2sciv-status-card .wizard-actions { margin-bottom: 0; }
+#iz2sciv-flow .iz2sciv-console-steps { padding-left: 24px; }
+#iz2sciv-flow .iz2sciv-console-steps li { padding: 5px 0 5px 4px; }
+#iz2sciv-flow .iz2sciv-explanation { border-left: 2px solid var(--line, #364038); padding: 8px 14px; color: var(--muted, #a4aea3); }
+#iz2sciv-flow #iz2sciv-connect-state { border-left-color: var(--blue); font-weight: 600; }
+#iz2sciv-lobby-instructions { margin-top: 24px; }
+#iz2sciv-lobby-instructions h4 { margin-bottom: 8px; }
+@media (max-width: 600px) { .iz2sciv-status-card { padding: 14px; } .iz2sciv-status-card .wizard-actions { flex-wrap: wrap; } }
+
+#iz2sciv-flow[data-connected="true"] > .hint, #iz2sciv-flow[data-connected="true"] > .section-heading { display:none; }
+#iz2sciv-flow[data-connected="true"] #iz2sciv-stage-5 > h3 { display:none; }
+
+#iz2sciv-flow[data-view="run"] > .hint { display:none; }
+
+/* Consistent, scannable console instructions across setup and launch. */
+#iz2sciv-flow .iz2sciv-instructions { counter-reset: civ-instruction; list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 16px; max-width: 850px; }
+#iz2sciv-flow .iz2sciv-instructions > li { counter-increment: civ-instruction; position: relative; padding-left: 42px; min-height: 28px; }
+#iz2sciv-flow .iz2sciv-instructions > li::before { content: counter(civ-instruction) / ""; position: absolute; left: 0; top: 0; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: var(--blue); background: var(--surface, #222a23); font-weight: 700; }
+#iz2sciv-flow .iz2sciv-instructions > .iz2sciv-reset-step::before { color: #ff9c9c; border-color: #aa6363; background: #ff7c7c14; }
+#iz2sciv-flow .iz2sciv-instructions > li > strong { display: block; padding-top: 3px; }
+#iz2sciv-flow .iz2sciv-instructions p { margin: 5px 0 0; }
+#iz2sciv-flow .iz2sciv-menu-path { font-weight: 650; color: var(--blue); overflow-wrap: anywhere; }
+#iz2sciv-flow .iz2sciv-outcome { padding: 12px 16px; border: 1px solid var(--line); border-left: 3px solid #e4ae75; border-radius: 10px; background: #e4ae7508; max-width: 850px; margin: 10px 0 20px; overflow-wrap: anywhere; }
+#iz2sciv-flow .iz2sciv-outcome[data-tone="success"] { border-left-color: #b8df81; background: #b8df810a; margin: 8px 0 0; display: flex; gap: 8px 14px; flex-wrap: wrap; align-items: baseline; }
+#iz2sciv-flow .iz2sciv-outcome[data-tone="success"] > strong { color: #b8df81; }
+#iz2sciv-flow .iz2sciv-outcome[data-tone="error"] > strong { color: #e4ae75; }
+#iz2sciv-flow .iz2sciv-instructions .iz2sciv-outcome[data-tone="error"] { margin: 8px 0 0; }
+#iz2sciv-flow .iz2sciv-outcome p { margin: 6px 0 0; }
+#iz2sciv-flow kbd { display: inline-block; min-width: 24px; padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 5px; font-weight: 700; text-align: center; color: var(--blue); }
+
+#iz2sciv-flow .iz2sciv-link-card {
+  max-width: 850px;
+  margin: 18px 0 16px;
+  padding: 14px clamp(12px, 3vw, 18px);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--blue);
+  border-radius: 10px;
+  background: var(--panel);
+}
+#iz2sciv-flow .iz2sciv-link-card[data-connected="true"] { border-left-color: #b8df81; }
+#iz2sciv-flow .iz2sciv-link-card[data-connected="true"] #iz2sciv-link-state { color: #b8df81; }
+#iz2sciv-link-state { margin: 0; color: var(--blue); }
+.iz2sciv-connection-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.iz2sciv-connection-type {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+.iz2sciv-connection-type p { margin: 5px 0 10px; overflow-wrap: anywhere; }
+.wiz-connection-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.iz2sciv-link-option { margin-top: 12px; }
+.iz2sciv-link-option:not([hidden]) + .iz2sciv-link-option:not([hidden]) { border-top: 1px solid var(--line); padding-top: 10px; }
+.iz2sciv-link-option p { margin: 4px 0 0; }
+.iz2sciv-shortcut { display: inline-block; white-space: nowrap; }
+#iz2sciv-flow .iz2sciv-link-card .wizard-actions { margin: 14px 0 0; }
+
+/* Launch routes share instructions without requiring a new console operation. */
+#iz2sciv-flow .iz2sciv-run-choices { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:12px; margin:16px 0; }
+#iz2sciv-flow .iz2sciv-run-choices button { display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:16px; text-align:left; white-space:normal; height:auto; }
+#iz2sciv-flow .iz2sciv-run-choices button span { font-weight:400; line-height:1.5; }
+#iz2sciv-flow .iz2sciv-run-choices button[aria-pressed="true"] { border-color:var(--accent,#c9ff32); background:#c9ff3212; }
+#iz2sciv-flow .iz2sciv-run-choices button[aria-pressed="true"] strong { color:var(--accent,#c9ff32); }
