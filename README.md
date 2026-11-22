@@ -1,6 +1,6 @@
 # IZ2S Platform
 
-IZ2S is a Homebrew launcher for Nintendo Switch.
+IZ2S is a Homebrew launcher for Nintendo Switch 2.
 
 ## Download 0.3.0
 
