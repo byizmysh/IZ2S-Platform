@@ -7,16 +7,30 @@ const prepare=require('../../engines/iz2s-core/tools/prepare-sd-app.cjs');
 const packages=require('../../core/console/sd-launcher/package.cjs');
 const assets=require('../../core/console/sd-launcher/assets.cjs');
 const expected={
- 'iz2s-cheese':['0.8.7','0b2d6c8fe32ab5679c9da58840a8bbcaf06caf24ca7ab95484681df6dc80a9b8','3e099b13db6af275b2e3cdc1f2b62002d94e42ea0de8774e84bc90cfd88fdb23'],
- izpsx:['0.5.3','7257c46bb8a018849cf25d2e38591fbddb5a1083303c9ee859bf1ab2edb86a3b','4f6dd478ec0e9c7160935355f1cbcab24f60a39fb0b39ee47879cda6dc2d086e'],
- izps2:['0.5.0','c57b8667a7165642f361d50752c7970c88975eb76bd7bc205dfa8f13165824cb','b60159db3d2111769d1392b85ee76cd6e07a839cabee12b99e1b92474f1eafde'],
+ 'iz2s-cheese':['0.8.7','0b2d6c8fe32ab5679c9da58840a8bbcaf06caf24ca7ab95484681df6dc80a9b8','f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426',113816],
+ izpsx:['0.5.3','7257c46bb8a018849cf25d2e38591fbddb5a1083303c9ee859bf1ab2edb86a3b','4b0a995128b0cb0708aa38c800f16bbe509050c43e354a8d0ffeffb261425121',1746208],
+ izps2:['0.5.0','c57b8667a7165642f361d50752c7970c88975eb76bd7bc205dfa8f13165824cb','b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60',42534144],
 };
 async function moduleFor(id){const homes={'iz2s-cheese':'iz2s-cheese',izpsx:'IZPSX',izps2:'IZPS2'};return archive.inspect(await fs.readFile(path.join(root,'modules',homes[id],id+'.module.zip')));}
-for(const [id,[version,imageSha,bundleSha]]of Object.entries(expected))test(id+' library export preserves the published IZA and companions',async()=>{
+for(const [id,[version,imageSha,assetSha,assetBytes]]of Object.entries(expected))test(id+' library export preserves the published IZA and companions',async()=>{
  const checked=await moduleFor(id);assert.equal(checked.descriptor.version,version);
  const image=compat.directImage(checked.descriptor,checked.files);assert.equal(archive.sha(image.bytes),imageSha);
  const scratch=await fs.mkdtemp(path.join(os.tmpdir(),'iz2s-release-test-'));
- try{const exported=await prepare.packageModule(checked,scratch);assert.equal(archive.sha(exported.bytes),bundleSha);}
+ try{
+  const exported=await prepare.packageModule(checked,scratch);assert.equal(exported.packed,true);
+  // ZIP compression varies between Node/zlib releases. Verify the exact
+  // upstream executable, companion bytes and metadata inside the container.
+  const members=new Map(archive.decode(exported.bytes).map(file=>[file.name,file.bytes]));
+  const assetName='asset-'+assetSha+'.izdata';
+  assert.deepEqual([...members.keys()].sort(),[assetName,'launcher.iza','sd-bundle.json'].sort());
+  assert.equal(archive.sha(members.get('launcher.iza')),imageSha);
+  assert.equal(members.get(assetName).length,assetBytes);
+  assert.equal(archive.sha(members.get(assetName)),assetSha);
+  assert.deepEqual(JSON.parse(members.get('sd-bundle.json')),{
+   format:'iz2s.sd-bundle',version:1,id,launcher:{bytes:image.bytes.length,sha256:imageSha},
+   assets:[{file:assetName,path:assetName,bytes:assetBytes,sha256:assetSha}],
+  });
+ }
  finally{await fs.rm(scratch,{recursive:true,force:true});}
 });
 test('prebuilt import rejects missing, damaged and undeclared companions and mismatched metadata',async()=>{

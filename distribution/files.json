@@ -140613,8 +140613,8 @@
       "executable": true
     },
     "tests/release/sd-kit.test.cjs": {
-      "bytes": 5007,
-      "sha256": "df3718ab6e754bff6221255488e96203358b7ecf1d6335ae08b6b0ef7168290c",
+      "bytes": 5843,
+      "sha256": "c42a1cc2bae481334800081b6ea1a1da82a9e4c0e53b8289a290b330daecdffe",
       "executable": false
     },
     "tools/dolphin-fs-rpc/bridge.cjs": {
