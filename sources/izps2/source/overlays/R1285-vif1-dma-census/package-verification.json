@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1285-vif1-dma-census/IZPS2-R1285.iza",
+  "bytes": 12067620,
+  "sha256": "d9882735c7c7823b50340ed7240644e402495dfe6d46e778f1a41862cf7e0be8",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "972dc96fce35949e7ea935836100fd012ab8b3a6bfbdba3d3a4d47481e59ddce"
+  },
+  "engine": {
+    "file": "asset-860355ef35eee0376f2aadd89ea35650e6130971d65fb2e85bfb224e5873e2ce.izdata",
+    "path": "asset-860355ef35eee0376f2aadd89ea35650e6130971d65fb2e85bfb224e5873e2ce.izdata",
+    "bytes": 29574504,
+    "sha256": "860355ef35eee0376f2aadd89ea35650e6130971d65fb2e85bfb224e5873e2ce"
+  }
+}

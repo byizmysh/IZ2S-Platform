@@ -11,9 +11,15 @@
 #define STORE_PATH 512
 #define STORE_MESSAGE 160
 #define STORE_ICON_SIZE 96
+#define STORE_DIR "/iz2s/iz2s-cheese"
 #define MODULE_DIR "/iz2s/modules"
-#define STORE_DIR MODULE_DIR "/iz2s-cheese"
-#define STORE_CATALOG_DIR STORE_DIR "/catalog"
+#define STORE_MAX_CATALOGS 8
+#define STORE_COMMUNITY_CATALOG_URL "https://raw.githubusercontent.com/dadadush/switch2-homebrew-catalog/main/catalog/catalog-new.tsv"
+#ifdef IZ_STORE_STANDALONE
+#define STORE_CATALOG_DIR "/switch/iz2s-cheese/catalog"
+#else
+#define STORE_CATALOG_DIR MODULE_DIR "/iz2s-cheese/catalog"
+#endif
 
 
 typedef enum { PACKAGE_IZM, PACKAGE_NRO, PACKAGE_IZM_NRO } PackageKind;
@@ -41,15 +47,26 @@ typedef struct {
     InstallState state;
     char installed_version[24];
     int icon;
+    unsigned catalog;
 } App;
 
 typedef struct {
     char root[STORE_PATH];
-    unsigned count, remote_count;
+    unsigned count;
     App *apps;
+    unsigned catalog_count;
+    char catalog_urls[STORE_MAX_CATALOGS][RELEASE_URL_MAX];
+    App update;
+    bool update_checked, local_catalog_available;
 } Store;
 
-typedef struct { char url[RELEASE_URL_MAX]; bool online; } StoreSettings;
+typedef struct { char url[RELEASE_URL_MAX]; bool enabled, community; } CatalogSource;
+typedef struct {
+    bool sd_enabled;
+    unsigned count;
+    CatalogSource sources[STORE_MAX_CATALOGS];
+} StoreSettings;
+typedef enum { CATALOG_CACHED, CATALOG_CHECK, CATALOG_REFRESH } CatalogRefreshMode;
 
 typedef void (*StoreProgress)(void *, uint64_t done, uint64_t total);
 typedef struct { StoreProgress report; void *context; const atomic_bool *cancel; } Progress;
@@ -57,15 +74,16 @@ typedef struct { StoreProgress report; void *context; const atomic_bool *cancel;
 void store_clear(Store *store);
 bool store_clone(Store *target, const Store *source);
 bool store_load(Store *store, const char *root, char message[STORE_MESSAGE]);
-bool store_refresh_catalog(Store *store, const char *root, const StoreSettings *settings,
-                           bool fetch_updates, char message[STORE_MESSAGE]);
+bool store_refresh_catalog(Store *store, const char *root, StoreSettings *settings,
+                           CatalogRefreshMode mode, char message[STORE_MESSAGE]);
 void store_settings_read(const char *root, StoreSettings *settings);
+bool store_catalog_address(const char *input, char output[RELEASE_URL_MAX]);
+unsigned store_enabled_online_catalogs(const StoreSettings *settings);
+unsigned store_community_catalog(const StoreSettings *settings);
 bool store_settings_write(const char *root, const StoreSettings *settings, char message[STORE_MESSAGE]);
-bool store_fetch_list(Store *store, const StoreSettings *settings, char message[STORE_MESSAGE]);
-bool store_read_artwork_icon(const Store *store, const StoreSettings *settings,
-                             unsigned slot, uint32_t *pixels);
-unsigned store_fetch_artwork(const Store *store, const StoreSettings *settings);
-unsigned store_read_artwork(const Store *store, const StoreSettings *settings,
+bool store_fetch_list(Store *store, StoreSettings *settings, char message[STORE_MESSAGE]);
+bool store_read_artwork_icon(const Store *store, unsigned slot, uint32_t *pixels);
+unsigned store_read_artwork(const Store *store,
                             uint32_t pixels[][STORE_ICON_SIZE * STORE_ICON_SIZE]);
 #ifdef IZ_STORE_STANDALONE
 void store_set_running_nro(const char *path, const char *version);
@@ -73,6 +91,7 @@ void store_set_running_nro(const char *path, const char *version);
 void store_set_running_iza(const char *version);
 #endif
 const App *store_self_entry(const Store *store);
+bool store_check_update(Store *store, char message[STORE_MESSAGE]);
 void store_refresh(const Store *store, App *app);
 void store_sync_icon(const Store *store, const App *app, const char *artwork);
 void store_sync_icon_pixels(const Store *store, const App *app, const void *rgba);

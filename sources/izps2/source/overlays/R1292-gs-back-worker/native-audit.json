@@ -1,0 +1,56 @@
+{
+  "inheritedArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1286-vu1-redundant-unpack/libpcsx2-hosted.a",
+  "unchangedArchiveSha256": "36128d44895c57436a7b2fbed5a137e3161f231031618a9c408e924b722af85b",
+  "replacements": [
+    {
+      "member": "GSState.cpp.obj",
+      "indexAmongSameNames": 1,
+      "archivedSha256": "0abeb5e22d0569b23c5c2174d3122f43cf5d6499733c09acc0c908edc4e2cb72",
+      "sourceRecipeReference": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-shaderc-5pa3zJ/izps2-vulkan/pcsx2/CMakeFiles/PCSX2.dir/GS/GSState.cpp.obj",
+      "referenceRelocatedInstructionsMatch": true,
+      "replacementSha256": "b6c46a86893b9bb9141b23a86b71a3f2915e5b2340680c93d1418ecc770d9bc1"
+    },
+    {
+      "member": "GS.cpp.obj",
+      "indexAmongSameNames": 2,
+      "archivedSha256": "a8f395505be45ca248a9538452b2437dda78db1fb8af205372532bc422f7cc5b",
+      "sourceRecipeReference": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-shaderc-5pa3zJ/izps2-vulkan/pcsx2/CMakeFiles/PCSX2.dir/GS/GS.cpp.obj",
+      "referenceRelocatedInstructionsMatch": true,
+      "replacementSha256": "88876ea2a3f79dc5eaf7e017792683446fc50a81455d11d3e9c3efabfb901be9"
+    }
+  ],
+  "sdkArchives": [
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a",
+      "sha256": "69a616fd8fd03ad6e80bde9b4824efc50f49c04526d3e264210f361040b738a0",
+      "explicitLinkInput": true,
+      "selectedMemberInMap": false
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a",
+      "sha256": "cc3e3f4698aaa7b2389b9652d536ff855026dc544d00ea318a306fdb8ba8745c",
+      "explicitLinkInput": true,
+      "selectedMemberInMap": true
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a",
+      "sha256": "0189100b17ae3143cca7f1ba0b859cf300090960deeae9f23d046120b7f6285a",
+      "explicitLinkInput": true,
+      "selectedMemberInMap": true
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a",
+      "sha256": "6e2f49c45c0a160ecc93d4a5934e844d109cfec339ce7cb73506af6b8a192fba",
+      "explicitLinkInput": true,
+      "selectedMemberInMap": true
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a",
+      "sha256": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da",
+      "explicitLinkInput": false,
+      "selectedMemberInMap": true
+    }
+  ],
+  "threadProvider": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a",
+  "linkMapRawSha256": "6e30d8ac6f8db680275748732f657efff1ca88660bb1934c990d2ac5ec956333"
+}

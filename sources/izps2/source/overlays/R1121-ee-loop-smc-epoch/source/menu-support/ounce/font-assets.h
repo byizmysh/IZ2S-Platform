@@ -1,0 +1,5 @@
+#pragma once
+#define IZ_LEGACY_FONT_BYTES 34816u
+#define IZ_LEGACY_FONT_CRC 0xc874f985u
+#define IZ_FOCUS_FONT_BYTES 376832u
+#define IZ_FOCUS_FONT_CRC 0x2785e6fau

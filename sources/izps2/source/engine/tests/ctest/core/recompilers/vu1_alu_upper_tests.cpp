@@ -1,0 +1,580 @@
+// SPDX-FileCopyrightText: 2026 yaps2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+// VU1 upper-pipe FMAC DiffJitVsInterp suite — parity counterpart to
+// vu0_alu_upper_tests.cpp. Same opcode encodings, same microprograms;
+// drives the VU1 instance instead of VU0. Exercises the VU1 codegen path
+// specifically: VU1 register allocator state, the VU1 dispatcher, and any
+// VU1-conditional code in shared microVU helpers.
+//
+// Architectural caveat: on short standalone programs the JIT does not spill
+// the FMAC pipeline's MAC/STATUS into REG_*_FLAG the way a real running
+// program would, so those two flag registers can read 0 where the
+// interpreter has the architectural flag bits. Tests that only measure VF
+// results opt out of the auto-diff on those registers via IgnoreViInDiff.
+
+#include "harness/VuTestHarness.h"
+
+#include "Config.h"
+#include "VU.h"
+
+#include <gtest/gtest.h>
+
+namespace recompiler_tests {
+
+using namespace vu;
+
+namespace {
+
+// Pair 0 = upper op + I-bit-skipped lower (the lower word becomes a 32-bit
+// float immediate into VI[REG_I] which is ignored). Pair 1 = E-bit terminator
+// (the harness appends an architectural-delay-slot NOP pair automatically).
+inline VuOp UpperOnly(u32 upper)
+{
+	return IBit(VuOp{VLitZero(), upper});
+}
+
+} // namespace
+
+// -------- VADD primary (xyzw operand) --------
+
+TEST(Vu1AluUpper, VaddXyzwAcrossAllLanes)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.SetVf(2, 0.5f, 0.25f, 0.125f, 0.0625f);
+	h.LoadProgram({
+		UpperOnly(VADD_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 1.5f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 2.25f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 3.125f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 4.0625f);
+}
+
+TEST(Vu1AluUpper, VaddXOnlyLeavesOtherLanesPreSeed)
+{
+	// Mask=x; FD lanes y/z/w must retain their pre-state, only x updates.
+	VuTestHarness h(1);
+	h.SetVf(1, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.SetVf(2, 10.0f, 20.0f, 30.0f, 40.0f);
+	h.SetVf(3, 99.0f, -77.0f, 55.5f, -33.25f);
+	h.LoadProgram({
+		UpperOnly(VADD_U(mask::x, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 11.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), -77.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 55.5f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), -33.25f);
+}
+
+TEST(Vu1AluUpper, VaddYzMaskLeavesXAndW)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.SetVf(2, 10.0f, 20.0f, 30.0f, 40.0f);
+	h.SetVf(3, -1.0f, -2.0f, -3.0f, -4.0f);
+	h.LoadProgram({
+		UpperOnly(VADD_U(mask::y | mask::z, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), -1.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 22.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 33.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), -4.0f);
+}
+
+TEST(Vu1AluUpper, VaddSelfAliasingFdEqualsFs)
+{
+	// FD == FS: result accumulates into the same register without trampling
+	// the source mid-instruction. The regalloc has to flush-or-share
+	// here; aliasing is a real bug class on the EE side.
+	VuTestHarness h(1);
+	h.SetVf(1, 1.5f, 2.5f, 3.5f, 4.5f);
+	h.SetVf(2, 0.5f, 0.5f, 0.5f, 0.5f);
+	h.LoadProgram({
+		UpperOnly(VADD_U(mask::xyzw, vf::vf1, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(1, 'x'), 2.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(1, 'y'), 3.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(1, 'z'), 4.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(1, 'w'), 5.0f);
+}
+
+TEST(Vu1AluUpper, VaddNegativeOperands)
+{
+	VuTestHarness h(1);
+	h.IgnoreViInDiff(REG_STATUS_FLAG); // see file header — short-program flag spill
+	h.IgnoreViInDiff(REG_MAC_FLAG);
+	h.SetVf(1, -1.0f, -2.0f, -3.0f, -4.0f);
+	h.SetVf(2, 1.0f, 1.5f, 2.0f, 2.5f);
+	h.LoadProgram({
+		UpperOnly(VADD_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 0.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), -0.5f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), -1.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), -1.5f);
+}
+
+// -------- VSUB primary --------
+
+TEST(Vu1AluUpper, VsubXyzw)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 5.0f, 10.0f, 15.0f, 20.0f);
+	h.SetVf(2, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.LoadProgram({
+		UpperOnly(VSUB_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 4.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 8.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 12.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 16.0f);
+}
+
+TEST(Vu1AluUpper, VsubFdEqualsFt)
+{
+	// FD==FT: the JIT mustn't read a stale FT after writing FD lane-by-lane.
+	VuTestHarness h(1);
+	h.SetVf(1, 10.0f, 20.0f, 30.0f, 40.0f);
+	h.SetVf(2, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.LoadProgram({
+		UpperOnly(VSUB_U(mask::xyzw, vf::vf2, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(2, 'x'), 9.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(2, 'y'), 18.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(2, 'z'), 27.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(2, 'w'), 36.0f);
+}
+
+// -------- VMUL primary --------
+
+TEST(Vu1AluUpper, VmulXyzw)
+{
+	VuTestHarness h(1);
+	h.IgnoreViInDiff(REG_STATUS_FLAG);
+	h.IgnoreViInDiff(REG_MAC_FLAG);
+	h.SetVf(1, 2.0f, 3.0f, 4.0f, 5.0f);
+	h.SetVf(2, 0.5f, 0.5f, 0.25f, -1.0f);
+	h.LoadProgram({
+		UpperOnly(VMUL_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 1.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 1.5f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 1.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), -5.0f);
+}
+
+TEST(Vu1AluUpper, VmulZeroProducesZero)
+{
+	VuTestHarness h(1);
+	h.IgnoreViInDiff(REG_STATUS_FLAG);
+	h.IgnoreViInDiff(REG_MAC_FLAG);
+	h.SetVf(1, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.SetVf(2, 0.0f, 0.0f, 0.0f, 0.0f);
+	h.SetVf(3, 99.0f, 99.0f, 99.0f, 99.0f);
+	h.LoadProgram({
+		UpperOnly(VMUL_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 0.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 0.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 0.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 0.0f);
+}
+
+// -------- VMAX / VMINI --------
+
+TEST(Vu1AluUpper, VmaxPicksLargerLaneByLane)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 1.0f, 5.0f, -3.0f, 0.0f);
+	h.SetVf(2, 2.0f, 4.0f, -1.0f, -0.5f);
+	h.LoadProgram({
+		UpperOnly(VMAX_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 2.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 5.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), -1.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 0.0f);
+}
+
+TEST(Vu1AluUpper, VminiPicksSmallerLaneByLane)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 1.0f, 5.0f, -3.0f, 0.0f);
+	h.SetVf(2, 2.0f, 4.0f, -1.0f, -0.5f);
+	h.LoadProgram({
+		UpperOnly(VMINI_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 1.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 4.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), -3.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), -0.5f);
+}
+
+// -------- VMADD / VMSUB (read-modify-write into FD via ACC) --------
+//
+// VMADD: FD = ACC + FS * FT
+// VMSUB: FD = ACC - FS * FT
+// The interpreter and JIT have separate ACC representations; correctness
+// requires both to agree at E-bit. ACC is seeded via a preceding op so the
+// test doesn't have to construct ACC out-of-band.
+
+TEST(Vu1AluUpper, VmaddAddsAccProduct)
+{
+	// Seed ACC via a VMUL (FD=ACC). Trick: there's a separate VMULA op for
+	// "MUL into ACC" but no encoder for it is available here. Instead use
+	// VADD to a scratch FD (which doesn't write ACC), then test VMADD with
+	// ACC at its zeroed default. ACC starts (0,0,0,0), so the result is
+	// just FS * FT — good enough to exercise the VMADD primary.
+	VuTestHarness h(1);
+	h.SetVf(1, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.SetVf(2, 5.0f, 6.0f, 7.0f, 8.0f);
+	h.LoadProgram({
+		UpperOnly(VMADD_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 5.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 12.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 21.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 32.0f);
+}
+
+TEST(Vu1AluUpper, VmsubSubtractsAccProduct)
+{
+	VuTestHarness h(1);
+	h.IgnoreViInDiff(REG_STATUS_FLAG);
+	h.IgnoreViInDiff(REG_MAC_FLAG);
+	h.SetVf(1, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.SetVf(2, 5.0f, 6.0f, 7.0f, 8.0f);
+	h.LoadProgram({
+		UpperOnly(VMSUB_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	// ACC=0, so VMSUB writes -FS*FT to FD.
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), -5.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), -12.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), -21.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), -32.0f);
+}
+
+// -------- Broadcast variants — VADDx/y/z/w --------
+// FD = FS + FT.bc — bc replicated across all lanes of FT before add.
+
+TEST(Vu1AluUpper, VaddxBroadcastsFtX)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 0.0f, 100.0f, 200.0f, 300.0f);
+	h.SetVf(2, 7.0f, 99.0f, 99.0f, 99.0f); // only x lane of FT consulted
+	h.LoadProgram({
+		UpperOnly(VADDx_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 7.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 107.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 207.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 307.0f);
+}
+
+TEST(Vu1AluUpper, VaddyBroadcastsFtY)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 0.0f, 100.0f, 200.0f, 300.0f);
+	h.SetVf(2, 99.0f, 7.0f, 99.0f, 99.0f);
+	h.LoadProgram({
+		UpperOnly(VADDy_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 7.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 107.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 207.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 307.0f);
+}
+
+TEST(Vu1AluUpper, VaddzBroadcastsFtZ)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 0.0f, 100.0f, 200.0f, 300.0f);
+	h.SetVf(2, 99.0f, 99.0f, 7.0f, 99.0f);
+	h.LoadProgram({
+		UpperOnly(VADDz_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 7.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 107.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 207.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 307.0f);
+}
+
+TEST(Vu1AluUpper, VaddwBroadcastsFtW)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 0.0f, 100.0f, 200.0f, 300.0f);
+	h.SetVf(2, 99.0f, 99.0f, 99.0f, 7.0f);
+	h.LoadProgram({
+		UpperOnly(VADDw_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 7.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 107.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 207.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 307.0f);
+}
+
+// -------- Broadcast variants — VSUBx/y/z/w --------
+
+TEST(Vu1AluUpper, VsubxSubtractsBroadcastFtX)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 100.0f, 200.0f, 300.0f, 400.0f);
+	h.SetVf(2, 50.0f, 99.0f, 99.0f, 99.0f);
+	h.LoadProgram({
+		UpperOnly(VSUBx_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 50.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 150.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 250.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 350.0f);
+}
+
+TEST(Vu1AluUpper, VsubwSubtractsBroadcastFtW)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 100.0f, 200.0f, 300.0f, 400.0f);
+	h.SetVf(2, 99.0f, 99.0f, 99.0f, 50.0f);
+	h.LoadProgram({
+		UpperOnly(VSUBw_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 50.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 150.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 250.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 350.0f);
+}
+
+// -------- Broadcast variants — VMULx/y/z/w --------
+
+TEST(Vu1AluUpper, VmulxBroadcastsFtX)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.SetVf(2, 10.0f, 99.0f, 99.0f, 99.0f);
+	h.LoadProgram({
+		UpperOnly(VMULx_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), 10.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), 20.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 30.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), 40.0f);
+}
+
+TEST(Vu1AluUpper, VmulyBroadcastsFtY)
+{
+	VuTestHarness h(1);
+	h.IgnoreViInDiff(REG_STATUS_FLAG);
+	h.IgnoreViInDiff(REG_MAC_FLAG);
+	h.SetVf(1, 1.0f, 2.0f, 3.0f, 4.0f);
+	h.SetVf(2, 99.0f, -5.0f, 99.0f, 99.0f);
+	h.LoadProgram({
+		UpperOnly(VMULy_U(mask::xyzw, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), -5.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), -10.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), -15.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), -20.0f);
+}
+
+// -------- Mask + broadcast crossover --------
+// Single-lane masks combined with a broadcast op: the destination lane must
+// take its FT from the broadcasted source, not from the matching FT lane.
+
+TEST(Vu1AluUpper, VaddwMaskZWritesOnlyZWithFtW)
+{
+	VuTestHarness h(1);
+	h.SetVf(1, 10.0f, 20.0f, 30.0f, 40.0f);
+	h.SetVf(2, 99.0f, 99.0f, 99.0f, 5.0f); // bc value lives in w
+	h.SetVf(3, -1.0f, -2.0f, -3.0f, -4.0f);
+	h.LoadProgram({
+		UpperOnly(VADDw_U(mask::z, vf::vf3, vf::vf1, vf::vf2)),
+		EBitNopPair(),
+	});
+	h.Run();
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'x'), -1.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'y'), -2.0f);
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'z'), 35.0f);  // 30 + 5
+	EXPECT_FLOAT_EQ(h.GetVfJit(3, 'w'), -4.0f);
+}
+
+// -------- VOPMULA / VOPMSUB (cross-product FMACs) --------
+//
+// The OP ops rotate their operands -- fs.yzxw against ft.zxy0 -- and are
+// otherwise ordinary four-lane FMACs: the dest field picks the lanes written
+// and the MAC lanes cleared, and lane w multiplies fs.w by a hard +0, so its
+// product is a zero carrying fs.w's sign. EeVu0Cop2Macro.OpOpsAreFourLaneFmacs
+// carries the console rows for that and scores the interpreter against them;
+// what is left here is whether microVU agrees with the interpreter at every
+// dest field a microprogram can encode. Run()'s auto-diff compares ACC
+// bit-exactly, so it is also what watches the sign of OPMULA's zero -- reaching
+// ACC from a VF costs an add, which erases it.
+
+namespace {
+
+constexpr u32 kOpMasks[] = {mask::xyzw, mask::xyz, mask::x | mask::y,
+	mask::x, mask::y, mask::z, mask::w, mask::none};
+
+} // namespace
+
+TEST(Vu1AluUpper, OpmsubHonoursEveryDestField)
+{
+	for (u32 m : kOpMasks)
+	{
+		SCOPED_TRACE(::testing::Message() << "dest field " << (m >> 21));
+		VuTestHarness h(1);
+		// The zero product raises Z, and a standalone program of this length
+		// does not spill the flag pipeline (see the file header).
+		h.IgnoreViInDiff(REG_STATUS_FLAG);
+		h.IgnoreViInDiff(REG_MAC_FLAG);
+		h.SetVf(1, 2.0f, 3.0f, 5.0f, -7.0f);       // fs -- w negative for the zero's sign
+		h.SetVf(2, 11.0f, 13.0f, 17.0f, 19.0f);    // ft
+		h.SetVf(3, 100.0f, 200.0f, 300.0f, 400.0f);
+		h.SetVf(4, 1.0f, 1.0f, 1.0f, 1.0f);
+		h.SetVfBits(5, 0x11111111u, 0x22222222u, 0x33333333u, 0x44444444u);
+		h.LoadProgram({
+			UpperOnly(VMULA_U(mask::xyzw, vf::vf3, vf::vf4)), // ACC = 100,200,300,400
+			UpperOnly(VOPMSUB_U(m, vf::vf5, vf::vf1, vf::vf2)),
+			EBitNopPair(),
+		});
+		h.Run();
+		// fd = ACC - (fs.y*ft.z, fs.z*ft.x, fs.x*ft.y, fs.w*+0)
+		//    = 100-51, 200-55, 300-26, 400-(-0), in the lanes the field selects.
+		const u32 want[4] = {
+			(m & mask::x) ? 0x42440000u : 0x11111111u, //  49
+			(m & mask::y) ? 0x43110000u : 0x22222222u, // 145
+			(m & mask::z) ? 0x43890000u : 0x33333333u, // 274
+			(m & mask::w) ? 0x43C80000u : 0x44444444u, // 400
+		};
+		static const char kLane[4] = {'x', 'y', 'z', 'w'};
+		for (int l = 0; l < 4; ++l)
+			EXPECT_EQ(h.GetVfBitsJit(5, kLane[l]), want[l]) << "lane " << kLane[l];
+	}
+}
+
+TEST(Vu1AluUpper, OpmulaHonoursEveryDestField)
+{
+	for (u32 m : kOpMasks)
+	{
+		SCOPED_TRACE(::testing::Message() << "dest field " << (m >> 21));
+		VuTestHarness h(1);
+		h.IgnoreViInDiff(REG_STATUS_FLAG);
+		h.IgnoreViInDiff(REG_MAC_FLAG);
+		h.SetVf(1, 2.0f, 3.0f, 5.0f, -7.0f);
+		h.SetVf(2, 11.0f, 13.0f, 17.0f, 19.0f);
+		h.SetVf(3, 100.0f, 200.0f, 300.0f, 400.0f);
+		h.SetVf(4, 1.0f, 1.0f, 1.0f, 1.0f);
+		h.LoadProgram({
+			UpperOnly(VMULA_U(mask::xyzw, vf::vf3, vf::vf4)), // ACC = 100,200,300,400
+			UpperOnly(VOPMULA_U(m, vf::vf1, vf::vf2)),
+			// VF0 is (0,0,0,1), so this reads ACC back one lane short of itself.
+			UpperOnly(VMSUB_U(mask::xyzw, vf::vf5, vf::vf0, vf::vf0)),
+			EBitNopPair(),
+		});
+		h.Run();
+		// ACC = (fs.y*ft.z, fs.z*ft.x, fs.x*ft.y, fs.w*+0) = 51, 55, 26, -0.
+		EXPECT_FLOAT_EQ(h.GetVfJit(5, 'x'), (m & mask::x) ?  51.0f : 100.0f);
+		EXPECT_FLOAT_EQ(h.GetVfJit(5, 'y'), (m & mask::y) ?  55.0f : 200.0f);
+		EXPECT_FLOAT_EQ(h.GetVfJit(5, 'z'), (m & mask::z) ?  26.0f : 300.0f);
+		EXPECT_FLOAT_EQ(h.GetVfJit(5, 'w'), (m & mask::w) ?  -1.0f : 399.0f);
+	}
+}
+
+// Lanes outside the dest field must not reach the MAC or STATUS flags. The true
+// lane-w product is a -0 (MAC Z and S when w is in the field), while fs.x * ft.z
+// is far past the exponent range; the lane a w-less OP op is free to compute
+// anything in must not leak into the flags, at the default clamp mode or at
+// mode 4 (where O is modelled). FMAND and FSAND read the flags back after the
+// pipeline retires, and Run() diffs them against the interpreter. FSAND reads
+// only the non-sticky half: the interpreter takes OPMSUB's sticky S from the
+// multiply stage's -0, which neither emitter does, so the final STATUS is
+// excluded from the diff.
+TEST(Vu1AluUpper, OpOpsKeepUnwrittenLanesOutOfTheFlags)
+{
+	const u32 masks[] = {mask::xyzw, mask::xyz, mask::x | mask::y, mask::x, mask::y, mask::z, mask::w};
+	for (bool exact : {false, true})
+	{
+		const bool prevO = EmuConfig.Cpu.Recompiler.vu1Overflow;
+		const bool prevE = EmuConfig.Cpu.Recompiler.vu1ExtraOverflow;
+		const bool prevS = EmuConfig.Cpu.Recompiler.vu1SignOverflow;
+		const bool prevX = EmuConfig.Cpu.Recompiler.vu1ExactMode;
+		EmuConfig.Cpu.Recompiler.vu1Overflow = true;
+		EmuConfig.Cpu.Recompiler.vu1ExtraOverflow = exact;
+		EmuConfig.Cpu.Recompiler.vu1SignOverflow = exact;
+		EmuConfig.Cpu.Recompiler.vu1ExactMode = exact;
+		for (bool opmula : {true, false})
+		{
+			for (u32 m : masks)
+			{
+				SCOPED_TRACE(::testing::Message() << (opmula ? "OPMULA" : "OPMSUB") << " dest field "
+				                                  << (m >> 21) << (exact ? " mode 4" : " mode 1"));
+				VuTestHarness h(1);
+				h.SetVf(1, 1e30f, 1e-30f, 3.0f, -7.0f); // fs
+				h.SetVf(2, 5.0f, 1e-30f, 1e30f, 19.0f); // ft
+				h.SetVf(3, 100.0f, 200.0f, 300.0f, 400.0f);
+				h.SetVf(4, 1.0f, 1.0f, 1.0f, 1.0f);
+				h.SetVi(vi::vi3, 0xFFFF);
+				h.IgnoreViInDiff(REG_STATUS_FLAG);
+				h.LoadProgram({
+					UpperOnly(VMULA_U(mask::xyzw, vf::vf3, vf::vf4)),
+					UpperOnly(opmula ? VOPMULA_U(m, vf::vf1, vf::vf2) : VOPMSUB_U(m, vf::vf5, vf::vf1, vf::vf2)),
+					NopPair(),
+					NopPair(),
+					NopPair(),
+					VuOp{VFMAND_L(vi::vi1, vi::vi3), VNOP_U()},
+					VuOp{VFSAND_L(vi::vi2, 0x03F), VNOP_U()},
+					EBitNopPair(),
+				});
+				h.Run();
+			}
+		}
+		EmuConfig.Cpu.Recompiler.vu1Overflow = prevO;
+		EmuConfig.Cpu.Recompiler.vu1ExtraOverflow = prevE;
+		EmuConfig.Cpu.Recompiler.vu1SignOverflow = prevS;
+		EmuConfig.Cpu.Recompiler.vu1ExactMode = prevX;
+	}
+}
+
+} // namespace recompiler_tests

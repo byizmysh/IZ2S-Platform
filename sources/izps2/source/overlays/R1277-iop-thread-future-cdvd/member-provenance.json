@@ -1,0 +1,6 @@
+{
+  "baselineArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1271-spu2-active-routing/libpcsx2-hosted.a",
+  "referenceObject": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1184-iop-stop-and-reap/IopThreadVm.cpp.obj",
+  "baselineSha256": "c9e0b3b041ac82b1798a2376435b571c3e9cd6eeae918704d8b4375372c3d478",
+  "replacementSha256": "02280ae8972af2295badc72bff6623eb97ef6bf96aa1b71b54dfb36bf0fb433e"
+}

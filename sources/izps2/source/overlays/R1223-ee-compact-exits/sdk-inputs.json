@@ -1,0 +1,25 @@
+{
+  "linkedArchiveSha256": {
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a": "69a616fd8fd03ad6e80bde9b4824efc50f49c04526d3e264210f361040b738a0",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a": "cc3e3f4698aaa7b2389b9652d536ff855026dc544d00ea318a306fdb8ba8745c",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a": "0189100b17ae3143cca7f1ba0b859cf300090960deeae9f23d046120b7f6285a",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a": "6e2f49c45c0a160ecc93d4a5934e844d109cfec339ce7cb73506af6b8a192fba",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da"
+  },
+  "unlinkedKaihenArchivesSha256": {
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/portlibs/switch2/lib/libkaihen.a": "de434c67f306392d9c08c9f5ecc9702f170c675109671bcd2a10141f45658df6",
+    "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/build/izhen/libkaihen/build/libkaihen.a": "de434c67f306392d9c08c9f5ecc9702f170c675109671bcd2a10141f45658df6"
+  },
+  "moduleCompileAndLink": [
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1223-ee-compact-exits/compile-recipes.json",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1223-ee-compact-exits/link-command.json",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1223-ee-compact-exits/engine.map"
+  ],
+  "sourceAudit": {
+    "sb4Contract": "${RUN25_AUDIT_SDK}/sb4/jit-cache.h",
+    "launcherProvider": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/build/izlauncher/ounce/jit-cache.c",
+    "kaihenApi": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/portlibs/switch2/include/kaihen.h",
+    "kaihenImplementation": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/build/izhen/libkaihen/source/jit.c"
+  },
+  "qualification": "The recipe selects the exact RUN23 libounce and sb4 archives listed here. The launcher-provided Sb4JitCacheApi exposes one range per call. The local documented kaihenJitPublishRanges accepts multiple ranges but requires an actual libounce Jit pointer. Sb4JitCache::owner is opaque and is owned by the launcher; casting or bypassing the provider is not valid. The fixture models calls before the SDK, not the running launcher backend."
+}

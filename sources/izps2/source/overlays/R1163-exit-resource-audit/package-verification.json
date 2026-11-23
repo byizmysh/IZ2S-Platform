@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1163-exit-resource-audit/IZPS2-R1163.iza",
+  "bytes": 11208358,
+  "sha256": "b378750d43f307cf5cd724cee6fde48cf51a0e110981da13d22ae403dcc53cc2",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "66295e709a399d3c9ebad741151b1aed73c7bf199acd93fc1e8c71f73c98b627"
+  },
+  "engine": {
+    "file": "asset-a8444c75a6f3c81fca5fb49c07f04b759241b32317219a2e4e00ba6399eb4958.izdata",
+    "path": "asset-a8444c75a6f3c81fca5fb49c07f04b759241b32317219a2e4e00ba6399eb4958.izdata",
+    "bytes": 27911616,
+    "sha256": "a8444c75a6f3c81fca5fb49c07f04b759241b32317219a2e4e00ba6399eb4958"
+  }
+}

@@ -9,6 +9,8 @@ IZ2S_PLATFORM_ROOT=/path/to/IZ2S-Platform sh build.sh both
 
 For IZA, install the updated libsb4 headers alongside the devkitPro directory. Set `IZ_RELOCATABLE_PACKER` to the SDK `relocatable.py` if it is not in the default sibling RUN23 tree. `IZ_STORE_OUT` overrides the release directory. `IZ_STORE_CHECK=1` enables package and catalog tests; these also require a host C compiler and OpenSSL development headers.
 
+Publish `iz2s-cheese-install.iza` for App library imports and `iz2s-cheese.nro` for the homebrew menu. Keep the separately generated `iz2s-cheese.iza` and `asset-*.izdata` in the same GitHub release for Cheese's built-in updater and compatible catalogs.
+
 ## Native module
 
 `switch/iza/entry.c` loads the module-owned `asset-<sha256>.izdata` using the SDK image loader. The resource contains `main.c`, `store.c`, `ui.c`, `download.c` and the icon decoder. Their writable state is allocated with the image. IZ2S Cheese executes its own application code and uses the launcher SDK for system services. The launcher must grant application I/O to the `iz2s-cheese` module ID.

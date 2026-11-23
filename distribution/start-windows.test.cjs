@@ -39,9 +39,9 @@ test('setup-only does not launch and concurrent starts wait for the owner',async
 });
 test('missing and relocated Python runtimes trigger repair',async t=>{
  const root=await fixture(t);
- await fs.writeFile(path.join(root,'package.json'),JSON.stringify({version:'0.3.0'}));
+ await fs.writeFile(path.join(root,'package.json'),JSON.stringify({version:'0.3.1'}));
  assert.equal(await ready(root),false);
- await fs.writeFile(path.join(root,'data/state/installation.json'),JSON.stringify({status:'complete',version:'0.3.0',platform:'win32'}));
+ await fs.writeFile(path.join(root,'data/state/installation.json'),JSON.stringify({status:'complete',version:'0.3.1',platform:'win32'}));
  await fs.mkdir(path.join(root,'data/runtime/node'),{recursive:true});
  await fs.writeFile(path.join(root,'data/runtime/node/node.exe'),'test');
  assert.equal(await ready(root,{execute:async()=>{throw Error('moved Python');}}),false);
@@ -51,7 +51,7 @@ test('portable setup retries a partial installation without replacing source or 
  const root=await fixture(t),nodeHome=path.join(root,'bootstrap/node');
  await fs.mkdir(nodeHome,{recursive:true});await fs.writeFile(path.join(nodeHome,'node.exe'),'node fixture');
  await fs.mkdir(path.join(root,'distribution'),{recursive:true});
- const pkg=Buffer.from(JSON.stringify({version:'0.3.0'}));await fs.writeFile(path.join(root,'package.json'),pkg);
+ const pkg=Buffer.from(JSON.stringify({version:'0.3.1'}));await fs.writeFile(path.join(root,'package.json'),pkg);
  await fs.writeFile(path.join(root,'distribution/files.json'),JSON.stringify({format:'iz2s.runtime-distribution',version:1,files:{'package.json':{bytes:pkg.length,sha256:crypto.createHash('sha256').update(pkg).digest('hex'),executable:false}}}));
  await fs.writeFile(path.join(root,'distribution/profile.json'),JSON.stringify({hostPlatforms:[]}));
  await fs.writeFile(path.join(root,'data/state/keep.txt'),'user data');

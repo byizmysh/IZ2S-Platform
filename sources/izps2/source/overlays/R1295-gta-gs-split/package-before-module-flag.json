@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1295-gta-gs-split/IZPS2-R1295.iza",
+  "bytes": 12071974,
+  "sha256": "2212e010f21960a04e35fe191cbb69e696449f1ee0178f0d22c5588907f9a05a",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "75b5adf38940ba8f21a0d1e3afb26339e7c8ac2e98c96a446098214f2f08c41f"
+  },
+  "engine": {
+    "file": "asset-d0fafdbe325c0ff85e791fc6733e449fd72a40f1e38d342a9555749776c18fd2.izdata",
+    "path": "asset-d0fafdbe325c0ff85e791fc6733e449fd72a40f1e38d342a9555749776c18fd2.izdata",
+    "bytes": 29575832,
+    "sha256": "d0fafdbe325c0ff85e791fc6733e449fd72a40f1e38d342a9555749776c18fd2"
+  }
+}

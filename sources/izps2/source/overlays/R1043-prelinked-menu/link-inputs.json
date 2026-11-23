@@ -1,0 +1,724 @@
+{
+  "sdkRoot": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro",
+  "sdkVersion": [
+    "ounce-devkit 20261114",
+    "libounce 9382b1ec48ac",
+    "ouncevk f5afcd27a98d",
+    "kaihen eb81e1912586"
+  ],
+  "sdkInputs": {
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce_core.a": "fc5a75d3a338282b10a7b73e561f6919f6d5e14912f4ecb712a77dd43a2e7694",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/portlibs/switch2/lib/libouncevk.a": "7769adcf0da3b9fd932380e83b8dbae95e7af897c74a64ae6db999b724ab25e3",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/libpthread.a": "3767b8e1895e557b88bb4ed204ffce5f06446a5ee13817c58e866f5fa0db8350",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/libm.a": "d643526cdeeca73d4bd1f7d9c8a268673299926383b5e2e14c5f6d57bc727d57",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/crti.o": "e9d32b155bcf5eaec12ffbe438f473652dc735b59b74253b9b0507f8707d4403",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/crtbegin.o": "33a17aed6673d6ee83ff7a89632a60984eb43bad065b114ebcf911b6376870c4",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/crtend.o": "42ed838c1903a6fc72e7b5adc9c4dc6234bdc327364f51369dd1774f3cc16314",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/crtn.o": "7a5bf17e62e16e86b67b465b906ed3ae4b8ef9bcaa89c3d9e53cdc26d32fad07",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/libgcc.a": "d4c82474104f74c4b85ab6f3859d37104a9dfbd5c85c421121adcf9c3226780f",
+    "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-static-HSkTmn/pic-runtime/libstdc++.a": "c2c02cab8fc20883842161a8d702eae04ed6144721a83c6a78abdeab6f96e182",
+    "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-static-HSkTmn/pic-runtime/libc.a": "1ba2e0ee00f18e1bcb6c3aabc884df718c90faa004d36b9f4e868a1897211bfe",
+    "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-static-HSkTmn/pic-runtime/libsysbase.a": "fde3b91db6e8554352f5741279cb7f5bff8474b9a703b46b1a1164de3fbc03a4",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/crti.o": "e9d32b155bcf5eaec12ffbe438f473652dc735b59b74253b9b0507f8707d4403",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/crtbegin.o": "33a17aed6673d6ee83ff7a89632a60984eb43bad065b114ebcf911b6376870c4",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/crtend.o": "42ed838c1903a6fc72e7b5adc9c4dc6234bdc327364f51369dd1774f3cc16314",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/crtn.o": "7a5bf17e62e16e86b67b465b906ed3ae4b8ef9bcaa89c3d9e53cdc26d32fad07",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/pic/libstdc++.a": "6e1841249b7dad3b0b9a290c33dadfe58befbe41dda8a95cb32f4d84bf11a359",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/pic/libm.a": "e9d2e4ae3376222d8cac21f6f5143481e4ef5b58f51ba48c6d4b24b9e2c7bad7",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/libgcc.a": "0e3e6fcb85dc96548fc6421f0b756c7b55776c360300e83795e6280b3475f2db",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/pic/libc.a": "9bf41282aadf7957fe18b8c1fc71394bf255fca6175c8b449fd3f23ff387a362",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/pic/libsysbase.a": "6e616a27169f07402bfd1a2df0693778b248c84597d1220a912b3a21f91f8026",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/switch.ld": "253e3ea34d4d5df97a4a26c9e8f35f598060095365ce078c219e17cb28a95f7f",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/switch.specs": "d2b3eade111d8067e9b5b7382c58ff7ff40aef2d3bd6db9c520673b7f8e4310a"
+  },
+  "application": [
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/50-libpcsx2-soundtouch.a",
+      "sha256": "159d90691a04175163380f1bb2bfdb5fd264d519377a7fa60029ce50500615eb",
+      "bytes": 135338
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/gta-r7-libcommon.a",
+      "sha256": "25067ebe552736beacf29512d9bfcef0f0088387b2210ad29522cdd02e482cd1",
+      "bytes": 752604
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/kaihen-jit.o",
+      "sha256": "64172499289ed936565d409e6ab983800b232eb60721f40eb669c3682d4310e4",
+      "bytes": 9688
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/legacy-launcher.o",
+      "sha256": "4bba2a6977aa54461ec1b6935a4d9a81440c1d6f8472b1e007ed1827fbd7df2a",
+      "bytes": 90656
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/legacy-memory.o",
+      "sha256": "023ece3bb7072a941cbc95302d47b63a3a46edf36c87444676ef77a3affeec45",
+      "bytes": 9216
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/libounce-jit.o",
+      "sha256": "1eed6d2bbfe296b3876908aaaec1f453290e2a0aa3cbd8146e69808bd2c38e7e",
+      "bytes": 6840
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/libpcsx2-ee-block.a",
+      "sha256": "0f43a2cc76c4f87d7e026d97eef71370bd51874d8ac6069103171f2933d7965e",
+      "bytes": 34602272
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/linked-izps2-app-paths.o",
+      "sha256": "ea00440aeadc1df3eec9c3e9c2eafd268abc447ceacb6cd3b3d8403c246ad696",
+      "bytes": 29688
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/native_audio_stream.cpp.obj",
+      "sha256": "1047f353922953cd8f90a629262dd7ef27a7aaa3635ee5a6aa0bafd1379e9e9e",
+      "bytes": 18120
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/native_pad.c.obj",
+      "sha256": "c4944c39148eb837d1c0f2a8cc0bf210b8e23de22ef19b6f95aa94c1edfe1a9e",
+      "bytes": 7848
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/native_pad_frontend.cpp.obj",
+      "sha256": "7c93b40179a21855f920222f1a6a66b5d0e374f07bc07cc0ce68e8d996693760",
+      "bytes": 12840
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ounce-apps.o",
+      "sha256": "5d9c1dd3c9b6a98adf855aae52b4bdf196fdb2313d2cf2b1d043422687bf82ea",
+      "bytes": 12864
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ounce-import.o",
+      "sha256": "10ab649fe740a1e03605552147849c31dda0906968c32b7754ff76847e1fa214",
+      "bytes": 85864
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ounce-jit-cache.o",
+      "sha256": "2f5c626e7a598c623a93ae721a4173dda227a8b3a67760f2639143115e21a15e",
+      "bytes": 30392
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ounce-main.o",
+      "sha256": "71d1d005edacd3f51ed9090c9d7af8de2e2f83fccf929e8a2d500e736aa633cd",
+      "bytes": 45376
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ounce-pc-files.o",
+      "sha256": "0e12a5c23cd591c63202a74bca37e453f06d995648c90d9fc3e6955344c76698",
+      "bytes": 11256
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ounce-pc-link.o",
+      "sha256": "6a2171c98718a4999ac8f5b05ae3f7d6df188056b1a3cb35c32a3079011c0eff",
+      "bytes": 39568
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ounce-platform.o",
+      "sha256": "221347c051e6f7ad9296a1b4a90c0fb8cfc46141ed50905641b6402b3f249408",
+      "bytes": 49184
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ps2_psx_settings_menu.c.obj",
+      "sha256": "90276557d0b90b132e355f69748c4986f04760371ad14f361f82eb16875fb9e1",
+      "bytes": 12744
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ps2_psx_ui.c.obj",
+      "sha256": "f1eb6f1ee02533030e39c2b4ecf3cf724dc7fbcac5f84f0d8493ca1df24c256d",
+      "bytes": 25608
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ps2_sb4_preferences.c.obj",
+      "sha256": "9f615978c23dfa962ddad68cedf4c49d350b2b7c0c41ed07fa14ce004d6d9449",
+      "bytes": 9816
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/ps2_vm_runner.cpp.obj",
+      "sha256": "e300685678a5a018cf49ae9451082d0969c692dceec930b97acd4ddde4b3d83d",
+      "bytes": 108664
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/video.cpp.obj",
+      "sha256": "9930cba49317194d4c505e48d5a0b1d04f5435f595e1fbec09c95e67290925ad",
+      "bytes": 40064
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R936-libounce-direct-tls/inputs/emutls.direct.o",
+      "sha256": "78760f0b72d5868a1e5fb1642a6ebc24f9c1310540aa16407641c272c412462f",
+      "bytes": 20056
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/fs_bridge.cpp.obj",
+      "sha256": "74db8354aec032779f7899414b9bbd0528ddcab004aa2f8f8057af0c2f5026b4",
+      "bytes": 11312
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/host.cpp.obj",
+      "sha256": "5d3b765797d43328e21c4a333ef5263ced2893e8f6ea7a34ae7e59b1a6381ed7",
+      "bytes": 40224
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/native_audio.c.obj",
+      "sha256": "ac7c29d60343ac2daa2eb8a7128b5ec41bd5244a793961a9bf835d032c0a17e1",
+      "bytes": 9992
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sb4_live_audio.cpp.obj",
+      "sha256": "7057ea4b26ed0c1d5f8eb3c06069b99f64b3ae894a78bd27b909ef70ea91c578",
+      "bytes": 4688
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sb4_pad.c.obj",
+      "sha256": "fb5a98fec41671b642b08c91478c226b91c060e65da254adf8eb0d94b288f666",
+      "bytes": 2496
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sb4_platform.c.obj",
+      "sha256": "18ad33db70d2220c4c1f3476605b12d78bd44fb27d7b31138d90669bfb803cd5",
+      "bytes": 1816
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sb4_sd_saves.cpp.obj",
+      "sha256": "cb97615956886dcf26f32341cb16297ea76bd711457cb7e0cca37e12499d9af2",
+      "bytes": 6464
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sb4_session.c.obj",
+      "sha256": "eb50954d654834454297bc7c63abb2ae77ed5ad332303a88e9ad5a84f7f38bee",
+      "bytes": 7008
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sb4_vm_entry.cpp.obj",
+      "sha256": "5a917231ee638d48d5e365baebcc5e1bcfe90e3478e7e6875d8b479e952a4dbd",
+      "bytes": 6136
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sb4_vulkan.c.obj",
+      "sha256": "707c057adfa7bd8f91792574c7ee069fbbc048aa6bebc1c6579367ad5e279b02",
+      "bytes": 4648
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sd_card.cpp.obj",
+      "sha256": "a3743a76dd005f4f8ec7fb8d8c9913537ff4f0c607885ddd12a4f4d9b3deadd4",
+      "bytes": 59024
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/ps2_sd_saves.cpp.obj",
+      "sha256": "6d0fbd983fdaae38e4aa028ca5b0fe743f5fa58c950cee2a2c0ed2bb3214af81",
+      "bytes": 30056
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/sdk_fs.c.obj",
+      "sha256": "3d859f15566653a9679b0d2b9d12f469d0f35b805ae390ee2f70b8f2de911d5c",
+      "bytes": 6168
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/sw_deinterlace.c.obj",
+      "sha256": "921da1fdd412f6c0b5251e900c212f7c1ac33d27d8104ff81e4cb24ad75af5af",
+      "bytes": 4888
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/sw_frame_mode.cpp.obj",
+      "sha256": "f11efee308f65ba8beed1bea96f3cd48ca8aa172e0ceecb0d313543dd9083c88",
+      "bytes": 11128
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/sw_merge.c.obj",
+      "sha256": "f00e705fc0cf71782eca4c82f725542ddd18b3a66b40a89fa5a25e830d0d8fd6",
+      "bytes": 3816
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/sw_presentation.c.obj",
+      "sha256": "cdb056ee9e69475509e897154c600708c0adfdf177dd78fe90d03fcd1a8417fd",
+      "bytes": 2576
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-r799-integration-3RdPdi/linked/sw_temporal_storage.cpp.obj",
+      "sha256": "82b38b08984ff3db7c4262c96cd59f66adcaa2533b8bceb7819a87b3ba6f0e26",
+      "bytes": 3448
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-static-HSkTmn/pic-runtime/libc.a",
+      "sha256": "1ba2e0ee00f18e1bcb6c3aabc884df718c90faa004d36b9f4e868a1897211bfe",
+      "bytes": 1617848
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-static-HSkTmn/pic-runtime/libstdc++.a",
+      "sha256": "c2c02cab8fc20883842161a8d702eae04ed6144721a83c6a78abdeab6f96e182",
+      "bytes": 6556102
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-static-HSkTmn/pic-runtime/libsysbase.a",
+      "sha256": "fde3b91db6e8554352f5741279cb7f5bff8474b9a703b46b1a1164de3fbc03a4",
+      "bytes": 161558
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-r799-rgba-3teI8d/native_video.c.obj",
+      "sha256": "1b86886c580074bfbac484a09e558f79d72491890fd919a5f54b3dde0862e565",
+      "bytes": 3688
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/izps2-cache-writer-RbC1oY/ps2_sb4_fs.c.obj",
+      "sha256": "780bc2a583d9fcc95f8fdee3b6f5edc390b9e6a5d7b6a8471b01f7246e10cce9",
+      "bytes": 28672
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/izps2-cache-writer-RbC1oY/ps2_sb4_vm_fs.cpp.obj",
+      "sha256": "bbb2a1423afa7abf9fb8c562081ffa8e06e5461b680c0e5bc436f7d55750f896",
+      "bytes": 39744
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/r799-sdk-jit-JAS89r/objects-sdk-gpu-descriptors-checkpoint-softmem-opt/optional-services.cpp.obj",
+      "sha256": "80cde5d584ea8e1e004b4cd1cf14c201a359fabc472d475a33507f142be0f033",
+      "bytes": 7464
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/r799-sdk-jit-JAS89r/objects-sdk-gpu-descriptors-checkpoint-softmem-opt/ps2_vm_config.cpp.obj",
+      "sha256": "f383945f612b40c0d6a4db783cbed52cf41e5e5fe79d1e315428dfbfffe5f522",
+      "bytes": 11224
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/libm.a",
+      "sha256": "d643526cdeeca73d4bd1f7d9c8a268673299926383b5e2e14c5f6d57bc727d57",
+      "bytes": 931640
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/libpthread.a",
+      "sha256": "3767b8e1895e557b88bb4ed204ffce5f06446a5ee13817c58e866f5fa0db8350",
+      "bytes": 820
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/crtbegin.o",
+      "sha256": "33a17aed6673d6ee83ff7a89632a60984eb43bad065b114ebcf911b6376870c4",
+      "bytes": 3360
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/crtend.o",
+      "sha256": "42ed838c1903a6fc72e7b5adc9c4dc6234bdc327364f51369dd1774f3cc16314",
+      "bytes": 984
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/crti.o",
+      "sha256": "e9d32b155bcf5eaec12ffbe438f473652dc735b59b74253b9b0507f8707d4403",
+      "bytes": 1000
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/crtn.o",
+      "sha256": "7a5bf17e62e16e86b67b465b906ed3ae4b8ef9bcaa89c3d9e53cdc26d32fad07",
+      "bytes": 952
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/libgcc.a",
+      "sha256": "d4c82474104f74c4b85ab6f3859d37104a9dfbd5c85c421121adcf9c3226780f",
+      "bytes": 8740918
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a",
+      "sha256": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da",
+      "bytes": 31118374
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/portlibs/switch2/lib/libouncevk.a",
+      "sha256": "7769adcf0da3b9fd932380e83b8dbae95e7af897c74a64ae6db999b724ab25e3",
+      "bytes": 23223038
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/000-izpsx-linked.o",
+      "sha256": "1601d7a61433fac1ac15724ea81f9b87cbcd21490ab58147ce4889a8b6cf5069",
+      "bytes": 2400808
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/001-select-linked-izps2-gta-r7.o",
+      "sha256": "95335b7a64f174ed6c4604804053dd468d49ee73b22a57535ad712fd8ec6ae27",
+      "bytes": 3000
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/006-ounce-vulkan-extra.o",
+      "sha256": "b6f950485e1a364ae4b1354f0b258b2894641947a5ecc0cffbe1cab5c18d3f76",
+      "bytes": 8536
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/008-ounce-audio.o",
+      "sha256": "776275c5a3b2603b2b84e75ce7eecc7da9dc0437126c03cb03ef15285d86ed62",
+      "bytes": 1856
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/009-ounce-font.o",
+      "sha256": "482ee06c8ae2764c576d50b867b4026b03a9f6892d9af35141ef3f16131502dc",
+      "bytes": 53520
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/012-ounce-menu-update.o",
+      "sha256": "edf0ddb19214b9eb5deab8f7da93db553ed4777396b7852927b0ce5d7d5475cb",
+      "bytes": 20880
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/014-ounce-pc-video.o",
+      "sha256": "94e25032c449c80d186a05ce8ebd18e414b6cd92f7287d08630660550f0e65a6",
+      "bytes": 4952
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/015-ounce-pc-audio.o",
+      "sha256": "561f9662bb6d24598115eaf0d9dfc010dd25c82ef1766ca4a2b70209ef8e1607",
+      "bytes": 4248
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/016-ounce-ftp-connect.o",
+      "sha256": "b41b4326867cd686dc1240a058d151013ed3c6c96c7daba95b695397be319fb8",
+      "bytes": 10824
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/017-ftp-ftpsrv.o",
+      "sha256": "952e5b64644261ccff3692046dc7db825515adb1e0fbde3ba18da413c096058e",
+      "bytes": 72568
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/018-ftp-vfs_sd.o",
+      "sha256": "80ef7bc3cb565837c2b49f11d8df83acefe9c26fcb5099016b1c2fec7e04eea8",
+      "bytes": 15688
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/019-unzip.o",
+      "sha256": "72863365216a8340ecb77b4881202c1b6434ef5a764e54335567601332fff102",
+      "bytes": 25320
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/020-ioapi.o",
+      "sha256": "e248ae6ebda4ff4f18ca7ed544853944519dac088a99380e07b9033d5bac375b",
+      "bytes": 7696
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/021-nro-format.o",
+      "sha256": "afcac6f29b0bb4ef584b6f7f1eb7f3d3a9da5814ada46a2a0ae1f5698f2f5028",
+      "bytes": 3456
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/023-legacy-filesystem.o",
+      "sha256": "b55f60d7878735bed4b0d1182b10c18e2afe87a662fa9fa58b01077a578de95c",
+      "bytes": 38656
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/024-legacy-native-loader.o",
+      "sha256": "2ff1daabae523ebe507e9e2a9bdc79ae7f8cc9d9127230be62f80ece6f52f3e3",
+      "bytes": 45096
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/025-legacy-library.o",
+      "sha256": "5b4a9010abff0610fa1f4036276f3dc15e03a154a1fee32595ea83874ae807d9",
+      "bytes": 4656
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/027-legacy-host-rpc.o",
+      "sha256": "defe661d24dd19faf34c29d7e6f68e2659e585ff25ae21d9f495d531d8081888",
+      "bytes": 19608
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/028-legacy-host-mapper.o",
+      "sha256": "411f974d6a0bdc122f8fd922f4a5d1cef037dc5fd0747a144f42316c185122e4",
+      "bytes": 10512
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/029-reloc-loader.o",
+      "sha256": "a7ed7863c71c1e8d87229279ef4fd2b50999c772897cf3763ac41c6de373b4fe",
+      "bytes": 13400
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/030-reloc-rebase.o",
+      "sha256": "04f7bb1acae2cef3ad38a5d864ec3be96fb9da658396a47ede54edfc9bb04ff1",
+      "bytes": 5072
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/031-reloc-address.o",
+      "sha256": "26dc651d65a05b529dbd1a546c19b6641eed04e5227536c1b32ef193f16b9eb6",
+      "bytes": 6272
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/032-reloc-system.o",
+      "sha256": "7f258a53fb40d1b86e45a85ab4c7831298a6d2fe44c20e5d40b66907d9cb4ce4",
+      "bytes": 888
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/033-ounce-prelinked-apps.o",
+      "sha256": "9598516c61bf658511cea1da5d1c01ef7eb18b5b39c6f1c72f0fdf11ea02752b",
+      "bytes": 15480
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/034-prelinked-payloads.o",
+      "sha256": "0c5f939618f4bc502a8c842e4829b8837ff5f6a8b3f7f434c49910306e8902f0",
+      "bytes": 18816
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/035-prelinked-music-bulk.o",
+      "sha256": "c18f9a1f02a7dc018db52666b432a4e719f8bec852d15c86bcac56826f527054",
+      "bytes": 4040
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/036-prelinked-sd-read-test.o",
+      "sha256": "886f17c3740f5c2b98a68ed43ca64454ea984ac62c9815561e134a7b37eede3d",
+      "bytes": 5008
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/037-prelinked-file-exchange.o",
+      "sha256": "fdbde29bf86548a8f052ba448a00cb3cb25000ef67bb82f14ba7d3da02468d33",
+      "bytes": 6912
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/038-prelinked-pc-media.o",
+      "sha256": "c7a5270e9d26b4a58403d73ce27e9be485f14b76ec9ce9d2a18342142c6c0a7e",
+      "bytes": 2200
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/039-prelinked-iznes.o",
+      "sha256": "15b1c0a04cc7ad59e80fd0c878ed72d433122d3634ca3ba784115c6466e909b3",
+      "bytes": 5768
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/040-libiz-services.a",
+      "sha256": "e2e4f2d91e51aa1501724843111f919a7ee02cd3f8817466ec1c337b947ee449",
+      "bytes": 1966
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/041-libsb4.a",
+      "sha256": "11e0cd644e05cc981eb66416125415e1166727a1eb7b75dbc94a99062a8ecfaa",
+      "bytes": 125736
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/042-libzlibstatic.a",
+      "sha256": "81837a6fe43fbc0df91f364fadc8acc17638a2740ab3be18d5b340f3e62408c6",
+      "bytes": 143036
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/044-29-libizps2-platform.a",
+      "sha256": "a2c6a71838f5fdfb9765666bfc48ef8c7bf956e50df836ffd3dff3eada06e743",
+      "bytes": 26826
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/045-libshaderc_combined.a",
+      "sha256": "5c1d17801cf0c6a57329a49399d3a919cf4e8d2aa619631ea2339d61dc866b26",
+      "bytes": 19387020
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/046-32-libvixl.a",
+      "sha256": "8871460d5be02f96d718ade3ad26b4bb79fa94bef0c8a8b63c4e5daab6e414b0",
+      "bytes": 3477348
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/048-34-libizps2-platform.a",
+      "sha256": "a2c6a71838f5fdfb9765666bfc48ef8c7bf956e50df836ffd3dff3eada06e743",
+      "bytes": 26826
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/049-35-libwebp.a",
+      "sha256": "a2f016a1f3962f187a41483725c33ef7bd2aaa4e24186cc39f1adf72a09746fc",
+      "bytes": 947254
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/050-36-libsharpyuv.a",
+      "sha256": "cbf2d5f36bc95041ea0917193f9d9a79d54c511cb5520e1a06ee629740857455",
+      "bytes": 43296
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/051-37-libpcsx2-rapidyaml.a",
+      "sha256": "23d9bf4d3c3401093c3350d1e20197e8d578dce1085b198406c54f92d2a6988c",
+      "bytes": 966434
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/052-38-libimgui.a",
+      "sha256": "aa24620ad20b2b2958fa73bf9224c62bdccd35699a93c1f6f054b5dfbab66f99",
+      "bytes": 1167500
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/053-39-libfmt.a",
+      "sha256": "994b02c228d746a7fde9081c70735fe51b9a01c84e8f51ab2259678047174b84",
+      "bytes": 249226
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/054-40-liblibchdr.a",
+      "sha256": "9398a30c9a2c7189c1ab8e35f0020ab499b484c7785b127636ffefb387e2d97a",
+      "bytes": 255096
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/055-41-libzip.a",
+      "sha256": "cbd562a9253517c5fcd81b1caef9bd7d0b87037576085da955a808c9ccbbfbd7",
+      "bytes": 405208
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/056-42-libcpuinfo.a",
+      "sha256": "eb263e7661ed80f60e1a9927ca80e8eb0f8cfb3cfd09149fd50be18b9f05f3a5",
+      "bytes": 41758
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/057-43-libcubeb.a",
+      "sha256": "c4145edd069c2e049cbb2756e032e7172c1938cabe2253dc2c130dbe2f9340f3",
+      "bytes": 141018
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/058-44-librcheevos.a",
+      "sha256": "5a0ce5509f05c9cf90adacc686dae0dfda664e2f35478c0f21913169baa60ff7",
+      "bytes": 601442
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/059-45-libdiscord-rpc.a",
+      "sha256": "4a8eca1c87f2be737b0afaf839684e0c81059e5707abb1d22998bc1f36d9bf46",
+      "bytes": 94592
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/060-46-libsimpleini.a",
+      "sha256": "964c1156124e0bb71a27a0775b2ccce1674a2bb586fec01a8471e56cef0bf593",
+      "bytes": 9614
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/061-47-libfreesurround.a",
+      "sha256": "ef7a6759b68bb11b2a37f3fc918e49d9bd32bd9d6559fc3cdf3e51258a15bc2e",
+      "bytes": 84260
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/062-48-libfreetype.a",
+      "sha256": "2bb290eed8929319c5f903d29dd598af621e9337681c831df332ec1c95b802bb",
+      "bytes": 1441804
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/063-49-liblz4.a",
+      "sha256": "159d5ea3015dcc74ad31cec98fc5ead2f4225286169fa4296be8cfd78bcbb3de",
+      "bytes": 329640
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/065-51-libjpeg.a",
+      "sha256": "a78e458db322f87b20f0d64cad5a363fea9072d68d141a55e7cb71853f47d99a",
+      "bytes": 978116
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/066-52-liblibpng18_static.a",
+      "sha256": "1b2a4bc215416892339d0265a572e9900adcdf511ff066bae53a34c41b64bf0a",
+      "bytes": 528748
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/067-53-libzlibstatic.a",
+      "sha256": "4276de54f0bd1a2371e97036653eea0b787ab7386cde8ecbe11fb59ec5733b8d",
+      "bytes": 165188
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/068-54-libpcsx2-lzma.a",
+      "sha256": "e6112c37683d35ef31f1bcfac9766fdb263aef93d51437120df7f0d20b2e9e5a",
+      "bytes": 437886
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/069-55-libzstd.a",
+      "sha256": "f766322043e6e17ed5e2ab48573da5f1003c52d3cf81ddec8c538a7ee9381c0c",
+      "bytes": 1175278
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/070-56-libdemanglegnu.a",
+      "sha256": "a0de0e4f8c8b666bd7179b365ebb59a83a1053d09e4b6562ae404a181b1a897f",
+      "bytes": 328206
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/071-57-libccc.a",
+      "sha256": "da53ee15d92dd316adf18ebcf02eeeecc6139dd5c5918550bc76f89d6cb6d36c",
+      "bytes": 960606
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/072-58-libplutosvg.a",
+      "sha256": "cc5f6295365e4c344bc5fe228c7b6b8ae562b578e0594de5240cd45f333d9354",
+      "bytes": 78620
+    },
+    {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/run25-audit/r799-sdk/inputs/073-59-libplutovg.a",
+      "sha256": "be2df547d2a1976e9629a4e102fbe6ddc8d9bc3e99b5de3d5c232537eda16ca7",
+      "bytes": 472122
+    }
+  ],
+  "loader": [
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/loader/builtin_image.o",
+      "sha256": "00cc2386cd739043c98baa8f6010c2b415cdcd5aa8755fe1a600206abda861a0",
+      "bytes": 2088
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/loader/builtin_runtime.o",
+      "sha256": "2b076bdba7c6c6f2a4215256f5c1dbf31b6911bab4469f8c6b969ebcc29eb24d",
+      "bytes": 37331920
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/loader/clean_main.o",
+      "sha256": "bcad47a51b11261fc28c03e0b2e919e4499a85ec40d8e50a85c69f7d48d96a76",
+      "bytes": 27304
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/loader/config.o",
+      "sha256": "5c84e9e86232ae0f8128846a23b3924f5a586285c9ce3aea8785c4b34cffc90a",
+      "bytes": 2000
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/loader/cycle.o",
+      "sha256": "01f246c900116941079ab90332d9e4b0074d5d0261106b5782e74121f919788d",
+      "bytes": 2976
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/loader/entry.o",
+      "sha256": "8a4102a6521a0805ee2a3de4072ddf101fea9daf8c6e0a82f9f354e5c98e0cd9",
+      "bytes": 1728
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/objects/loader/leak_check.o",
+      "sha256": "0874372209b37d9dc25cf2e47f632a5543782b54e34baaa24362255a5fce6959",
+      "bytes": 3088
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/pic/libc.a",
+      "sha256": "9bf41282aadf7957fe18b8c1fc71394bf255fca6175c8b449fd3f23ff387a362",
+      "bytes": 1613080
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/pic/libm.a",
+      "sha256": "e9d2e4ae3376222d8cac21f6f5143481e4ef5b58f51ba48c6d4b24b9e2c7bad7",
+      "bytes": 931416
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/pic/libstdc++.a",
+      "sha256": "6e1841249b7dad3b0b9a290c33dadfe58befbe41dda8a95cb32f4d84bf11a359",
+      "bytes": 6484498
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/aarch64-none-elf/lib/pic/libsysbase.a",
+      "sha256": "6e616a27169f07402bfd1a2df0693778b248c84597d1220a912b3a21f91f8026",
+      "bytes": 161190
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/crtbegin.o",
+      "sha256": "33a17aed6673d6ee83ff7a89632a60984eb43bad065b114ebcf911b6376870c4",
+      "bytes": 3360
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/crtend.o",
+      "sha256": "42ed838c1903a6fc72e7b5adc9c4dc6234bdc327364f51369dd1774f3cc16314",
+      "bytes": 984
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/crti.o",
+      "sha256": "e9d32b155bcf5eaec12ffbe438f473652dc735b59b74253b9b0507f8707d4403",
+      "bytes": 1000
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/crtn.o",
+      "sha256": "7a5bf17e62e16e86b67b465b906ed3ae4b8ef9bcaa89c3d9e53cdc26d32fad07",
+      "bytes": 952
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/15.2.0/pic/libgcc.a",
+      "sha256": "0e3e6fcb85dc96548fc6421f0b756c7b55776c360300e83795e6280b3475f2db",
+      "bytes": 8727838
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce_core.a",
+      "sha256": "fc5a75d3a338282b10a7b73e561f6919f6d5e14912f4ecb712a77dd43a2e7694",
+      "bytes": 28400138
+    }
+  ]
+}

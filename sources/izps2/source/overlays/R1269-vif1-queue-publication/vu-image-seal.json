@@ -1,0 +1,15 @@
+{
+  "seal": "5b4849436d50ab25463a298e3a287a502af33d440f908f7e9ea9ba69bb92475a",
+  "fileOffset": 19717590,
+  "elfSha256": "862aaefcf2687a27472817fbd7238be90018f99c380a69e92144542742e2d146",
+  "segments": {
+    "rx": {
+      "begin": "0x100000000",
+      "last": "0x101aaf80f"
+    },
+    "rw": {
+      "begin": "0x101bb0000",
+      "last": "0x108cacdc3"
+    }
+  }
+}

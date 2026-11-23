@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/IZPS2-R1188.iza",
+  "bytes": 11225249,
+  "sha256": "039274495c6a323518b3fac3072b71967ca12db2e512878b356425ac7a8bbdd9",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "790b75334608932b5d76940d8f5b8f413fa6148fc44366fe74a919a6ac2a80e1"
+  },
+  "engine": {
+    "file": "asset-3344b22caca2e92af108fc309b0bba9ed9a93aa77c8c21f331dff662417d93bb.izdata",
+    "path": "asset-3344b22caca2e92af108fc309b0bba9ed9a93aa77c8c21f331dff662417d93bb.izdata",
+    "bytes": 27983144,
+    "sha256": "3344b22caca2e92af108fc309b0bba9ed9a93aa77c8c21f331dff662417d93bb"
+  }
+}

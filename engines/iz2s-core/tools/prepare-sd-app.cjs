@@ -83,7 +83,10 @@ async function prepareArchive(checked,candidate,extracted,{includeLibrary}={}) {
   const folder=path.join(candidate,bundleRoot,descriptor.id);
   const direct = compat.directImage(descriptor, checked.files);
   if (direct) {
-    const result = await prepareImage(null, candidate, extracted, direct.bytes, direct.header, []);
+    await archive.writeFiles(extracted, direct.companions.map(row => ({name:row.path,bytes:row.contents})));
+    const sources = direct.companions.map(({path:name,bytes,sha256}) =>
+      ({path:name,bytes,sha256,file:path.join(extracted,name)}));
+    const result = await prepareImage(null, candidate, extracted, direct.bytes, direct.header, sources);
     return {...result, version:descriptor.version, sourceSha256:sha256};
   }
   const program=await require('./nro-package.cjs').moduleProgram(checked,app);

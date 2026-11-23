@@ -1,0 +1,54 @@
+{
+  "revision": "R1244",
+  "packageBytes": 12043345,
+  "packageSha256": "266d3dcfcc06362f5deeea432d37a20bbb4baa5e3113759c34e6e9d26b37bb98",
+  "installerMembers": {
+    "asset-48c8c16ed21081bc782c996bd79a2b8b0621c9ceea5b3dcef77ce01ca729b6dd.izdata": 29498624,
+    "launcher.iza": 180636,
+    "sd-bundle.json": 518
+  },
+  "linkedDynamicDependencies": [],
+  "embeddedResourcesMatchedToPackageBytes": {
+    "GameIndex.yaml": {
+      "bytes": 2690355,
+      "sha256": "61c77b789ccde856096f024e4a3eef6891e15ca59c127e0dd13e762a7d338a7e"
+    },
+    "RedumpDatabase.yaml": {
+      "bytes": 1917242,
+      "sha256": "302b57fdd1f9472ef590789e4b347381cc8442a04a765c7eae3d3f2e4b06394c"
+    },
+    "patches.zip": {
+      "bytes": 2180232,
+      "sha256": "b8ab00d2d68376cc15b792d5776a150c678a2c0ea8fd896ed20492aecc6643db"
+    }
+  },
+  "externalShader": {
+    "sdPath": "SD:/iz2s/modules/izps2/resources/shaders/vulkan/tfx.glsl",
+    "bytes": 59921,
+    "sha256": "283808481bfa0db4d2060ee65d456712df20eaeaf8d520e03a01bf9b62b73a1d",
+    "engineHasShaderBytes": false,
+    "linkedShaderReaderCalls": [
+      "strlen",
+      "_ZN4Path7CombineB5cxx11ESt17basic_string_viewIcSt11char_traitsIcEES3_",
+      "_ZN10FileSystem16ReadFileToStringB5cxx11EPKc",
+      "_ZdlPvm"
+    ],
+    "requiredBy": "GSDeviceVK startup"
+  },
+  "externalPlatform": "IZlauncher RUN25 hosted ABI 7 and Switch 2 system services",
+  "externalUserData": [
+    "PlayStation 2 BIOS",
+    "game images",
+    "existing saves/scenes for replay"
+  ],
+  "pcLinkCanImportApp": true,
+  "pcLinkAppLaunchRouteFound": false,
+  "consoleWrites": false,
+  "launchWithEmptyResourcesDirectoryTested": false,
+  "evidence": [
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1244-default-late-ee-seed/link-command.json",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1244-default-late-ee-seed/console-app-deployment.json",
+    "${IZPS2_WORKSPACE}/build/izps2-homebrew/source/pcsx2/GS/Renderers/Vulkan/GSDeviceVK.cpp",
+    "${RUN25_ROOT}/engines/iz2s-core/tools/pc-link.cjs"
+  ]
+}

@@ -1,0 +1,6 @@
+[
+  "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-objcopy",
+  "--redefine-syms=${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-static-HSkTmn/vulkan-symbols.txt",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1268-threaded-iop-idle/raw-iR3000A-arm64.cpp.obj",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1268-threaded-iop-idle/iR3000A-arm64.cpp.obj"
+]

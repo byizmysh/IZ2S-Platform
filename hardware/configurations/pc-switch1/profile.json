@@ -3,7 +3,7 @@
   "name": "PC + Switch 1",
   "executionHost": "pc",
   "inputAdapter": "switch-wifi",
-  "description": "0.3.0 sends SB4 input over Wi-Fi; Switch 1 types it as a USB keyboard.",
+  "description": "0.3.1 sends SB4 input over Wi-Fi; Switch 1 types it as a USB keyboard.",
   "fields": [
     {
       "key": "consoleHost",

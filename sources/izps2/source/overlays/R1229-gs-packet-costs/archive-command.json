@@ -1,0 +1,6 @@
+[
+  "llvm-ar",
+  "rD",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1229-gs-packet-costs/libpcsx2-hosted.a",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1229-gs-packet-costs/MTGS.cpp.obj"
+]

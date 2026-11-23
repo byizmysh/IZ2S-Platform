@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1301-gs-drain-on-stop/IZPS2-R1301.iza",
+  "bytes": 12073369,
+  "sha256": "f26dd34484fda5a1e2dc86f97989d24d5b70c4592896c6c06b5b5acb6a038aeb",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "85586dcae32c55080f015d1909c5a2947c8d8389b9325388abf1c3191802ad66"
+  },
+  "engine": {
+    "file": "asset-8a7de6fb35ec228a5df53f976f99910455f72d4d849c56588f3479c0e863efcc.izdata",
+    "path": "asset-8a7de6fb35ec228a5df53f976f99910455f72d4d849c56588f3479c0e863efcc.izdata",
+    "bytes": 29576408,
+    "sha256": "8a7de6fb35ec228a5df53f976f99910455f72d4d849c56588f3479c0e863efcc"
+  }
+}

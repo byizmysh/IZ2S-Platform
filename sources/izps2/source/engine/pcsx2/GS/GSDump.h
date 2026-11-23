@@ -1,0 +1,124 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include "SaveState.h"
+#include "GS/GSRegs.h"
+#include "GS/Renderers/SW/GSVertexSW.h"
+
+#include <string>
+#include <vector>
+
+/*
+
+Dump file format:
+- [0xFFFFFFFF] [Header] [state size/4] [state data/size] [PMODE/0x2000] [id/1] [data/?] .. [id/1] [data/?]
+
+The [Header] above is a length-prefixed block: [header_size/4] then header_size bytes
+holding GSDumpHeader, the serial and the screenshot, each located by an offset field.
+Nothing in the format addresses bytes past the screenshot, so a reader that does not
+know about GSDumpProvenance skips it and loads the dump as before.
+
+Transfer data (id == 0)
+- [0/1] [path index/1] [size/4] [data/size]
+
+VSync data (id == 1)
+- [1/1] [field/1]
+
+ReadFIFO2 data (id == 2)
+- [2/1] [size/?]
+
+Regs data (id == 3)
+- [PMODE/0x2000]
+
+*/
+
+#pragma pack(push, 4)
+struct GSDumpHeader
+{
+	u32 state_version; ///< Must always be first in struct to safely prevent old PCSX2 versions from crashing.
+	u32 state_size;
+	u32 serial_offset;
+	u32 serial_size;
+	u32 crc;
+	u32 screenshot_width;
+	u32 screenshot_height;
+	u32 screenshot_offset;
+	u32 screenshot_size;
+};
+
+/// Appended to the header block, after the screenshot. It records how the dump was
+/// made rather than what it contains, and it exists because the two are not visible
+/// in each other: a dump captured before the capture path read the texture cache back
+/// holds stale local memory wherever the hardware renderer drew, and a dump captured
+/// after it holds the real thing, and the files look alike from the outside.
+///
+/// Absent or with the wrong magic means "written before this record existed", which is
+/// not the same as "targets were not read back" -- it is "we do not know".
+struct GSDumpProvenance
+{
+	static constexpr u32 MAGIC = 0x564F5250; // 'PROV'
+
+	enum Flags : u32
+	{
+		/// Every live render target was read back into local memory before the state
+		/// was frozen, so the dump's memory is what the game had, not what the
+		/// hardware renderer happened to leave behind.
+		TargetsReadBack = 1u << 0,
+	};
+
+	u32 magic;
+	u32 flags;
+};
+#pragma pack(pop)
+
+class GSDumpBase
+{
+	FILE* m_gs;
+	std::string m_filename;
+	int m_frames;
+	int m_extra_frames;
+	std::string m_bundle_path;
+	std::vector<std::string> m_bundle_companions;
+
+protected:
+	void AddHeader(const std::string& serial, u32 crc,
+		u32 screenshot_width, u32 screenshot_height, const u32* screenshot_pixels,
+		const freezeData& fd, const GSPrivRegSet* regs);
+	void Write(const void* data, size_t size);
+
+	virtual void AppendRawData(const void* data, size_t size) = 0;
+	virtual void AppendRawData(u8 c) = 0;
+
+public:
+	GSDumpBase(std::string fn);
+	virtual ~GSDumpBase();
+
+	__fi const std::string& GetPath() const { return m_filename; }
+
+	/// Files other code writes for this same dump, on its own schedule: the driver report and the
+	/// screenshot. When the dump is closed they are packed with it into one zip at `zip_path` and
+	/// the loose files removed (GSDumpBundle::Pack), so a dump leaves one file behind.
+	void SetBundle(std::string zip_path, std::vector<std::string> companions);
+
+	/// The file the user ends up with: the zip once a bundle is set, otherwise the dump itself.
+	__fi const std::string& GetFinalPath() const { return m_bundle_path.empty() ? m_filename : m_bundle_path; }
+
+	void ReadFIFO(u32 size);
+	void Transfer(int index, const u8* mem, size_t size);
+	bool VSync(int field, bool last, const GSPrivRegSet* regs);
+
+	static std::unique_ptr<GSDumpBase> CreateUncompressedDump(
+		const std::string& fn, const std::string& serial, u32 crc,
+		u32 screenshot_width, u32 screenshot_height, const u32* screenshot_pixels,
+		const freezeData& fd, const GSPrivRegSet* regs);
+	static std::unique_ptr<GSDumpBase> CreateXzDump(
+		const std::string& fn, const std::string& serial, u32 crc,
+		u32 screenshot_width, u32 screenshot_height, const u32* screenshot_pixels,
+		const freezeData& fd, const GSPrivRegSet* regs);
+	static std::unique_ptr<GSDumpBase> CreateZstDump(
+		const std::string& fn, const std::string& serial, u32 crc,
+		u32 screenshot_width, u32 screenshot_height, const u32* screenshot_pixels,
+		const freezeData& fd, const GSPrivRegSet* regs);
+};

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1277-iop-thread-future-cdvd/IZPS2-R1277.iza",
+  "bytes": 12067626,
+  "sha256": "4c1923d1d21e21d2dcc1e6c6140bc35458d3144f2419de9d2f8197c0a55f89ab",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "e5b431d933fa469524b230dfa2772f2be020bdfc58c246ed951cd39f25c74782"
+  },
+  "engine": {
+    "file": "asset-283c174e5cb393410352f39a93e83a3b47e5cfd0f1041f0b3bd93202e356246d.izdata",
+    "path": "asset-283c174e5cb393410352f39a93e83a3b47e5cfd0f1041f0b3bd93202e356246d.izdata",
+    "bytes": 29573864,
+    "sha256": "283c174e5cb393410352f39a93e83a3b47e5cfd0f1041f0b3bd93202e356246d"
+  }
+}

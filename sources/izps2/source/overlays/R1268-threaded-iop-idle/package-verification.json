@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1268-threaded-iop-idle/IZPS2-R1268.iza",
+  "bytes": 12065321,
+  "sha256": "edfe8d95ba547c434bade3be22062820b7dbd83327b3a0b085ee2cdfe48407fe",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "503ac1094b363db16d9ce716e393562719b022ed93b000d10d1390746740e41d"
+  },
+  "engine": {
+    "file": "asset-708c40c3e97bc57055fe4a5ad96011383fc2fedb05c09fcaa79ee728ec4ebc76.izdata",
+    "path": "asset-708c40c3e97bc57055fe4a5ad96011383fc2fedb05c09fcaa79ee728ec4ebc76.izdata",
+    "bytes": 29573120,
+    "sha256": "708c40c3e97bc57055fe4a5ad96011383fc2fedb05c09fcaa79ee728ec4ebc76"
+  }
+}

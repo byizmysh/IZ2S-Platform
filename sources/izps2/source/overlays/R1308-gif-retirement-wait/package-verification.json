@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1308-gif-retirement-wait/IZPS2-R1308.iza",
+  "bytes": 12075466,
+  "sha256": "0285af8e6767096ac6ecf1fe9ab227ac790d48191467f89c061f9ea32805b904",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "b63d44f02bb77f71746c9731bd279e5029a8d12647591f8f16e52f48dd50997b"
+  },
+  "engine": {
+    "file": "asset-f288269b2a4d7400443f39be34e4ca71c35e43f71b3c21f2b3b4e5ed3739e77e.izdata",
+    "path": "asset-f288269b2a4d7400443f39be34e4ca71c35e43f71b3c21f2b3b4e5ed3739e77e.izdata",
+    "bytes": 29643184,
+    "sha256": "f288269b2a4d7400443f39be34e4ca71c35e43f71b3c21f2b3b4e5ed3739e77e"
+  }
+}

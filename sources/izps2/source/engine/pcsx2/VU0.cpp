@@ -1,0 +1,291 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+/* TODO
+ -Fix the flags Proper as they aren't handle now..
+ -Add BC Table opcodes
+ -Add Interlock in QMFC2,QMTC2,CFC2,CTC2
+ -Finish instruction set
+ -Bug Fixes!!!
+*/
+
+#include "Common.h"
+
+#include <cmath>
+
+#include "R5900OpcodeTables.h"
+#include "VUmicro.h"
+#include "Vif_Dma.h"
+#include "MTVU.h"
+
+#define _Ft_ _Rt_
+#define _Fs_ _Rd_
+#define _Fd_ _Sa_
+
+#define _Fsf_ ((cpuRegs.code >> 21) & 0x03)
+#define _Ftf_ ((cpuRegs.code >> 23) & 0x03)
+
+using namespace R5900;
+
+// ---- pcsx2-eerunner --vu0diff per-COP2-read capture hooks (DIAGNOSTIC) ----------
+// Null in production (zero overhead). pcsx2-eerunner installs a sink so that, with
+// the EE pinned to interp in both passes, every EE-interpreter COP2 *read* (QMFC2
+// reads VF[fs], CFC2 reads VI[fs]) of a freshly-run VU0 program is recorded in
+// execution order. Diffing the VU0-jit pass vs the VU0-interp pass read-streams
+// pins the FIRST VU0 program output the micro JIT computes differently from the
+// interpreter — a live, in-context VU0-jit-vs-interp value diff the offline
+// capture-replay harness can't produce (no real EE<->VU0 interleave). op:
+// 0=QMFC2(VF), 1=CFC2(VI). NOTE: single-arch jit-vs-interp; valid for an
+// arithmetic value bug, but a pipeline/flag/cycle-instance divergence here is
+// usually shared-with-x86 noise —
+// confirm arch-specificity with an arm64-jit-vs-x86-jit diff before trusting it.
+#ifdef PCSX2_RECOMPILER_TESTS
+typedef void (*Cop2ReadHook)(u32 ee_pc, u32 op, u32 fs, const u32* lanes);
+Cop2ReadHook g_cop2ReadHook = nullptr;
+
+// Companion: VU0 pipeline/flag state at the read (TPC=last micro PC, Q=DIV result,
+// MAC/STATUS/CLIP flags). Lets the harness tell whether a divergent VF read is driven
+// by a wrong Q (broadcast-scalar pipeline) or a flag-instance handoff.
+typedef void (*Cop2StateHook)(u32 tpc, u32 q, u32 mac, u32 status, u32 clip);
+Cop2StateHook g_cop2StateHook = nullptr;
+#endif
+
+void COP2_BC2() { Int_COP2BC2PrintTable[_Rt_]();}
+void COP2_SPECIAL() { _vu0FinishMicro(); Int_COP2SPECIAL1PrintTable[_Funct_]();}
+
+void COP2_SPECIAL2() {
+	Int_COP2SPECIAL2PrintTable[(cpuRegs.code & 0x3) | ((cpuRegs.code >> 4) & 0x7c)]();
+}
+
+void COP2_Unknown()
+{
+	CPU_LOG("Unknown COP2 opcode called");
+}
+
+//****************************************************************************
+
+__fi void _vu0run(bool breakOnMbit, bool addCycles, bool sync_only, bool runAhead) {
+
+	if (!(VU0.VI[REG_VPU_STAT].UL & 1)) return;
+
+	//VU0 is ahead of the EE and M-Bit is already encountered, so no need to wait for it, just catch up the EE
+	if ((VU0.flags & VUFLAG_MFLAGSET) && breakOnMbit && (s64)(cpuRegs.cycle - VU0.cycle) <= 0)
+	{
+		cpuRegs.cycle = VU0.cycle;
+		return;
+	}
+
+	if(!EmuConfig.Cpu.Recompiler.EnableEE)
+		intUpdateCPUCycles();
+
+	u64 startcycle = cpuRegs.cycle;
+	s32 runCycles  = 0x7fffffff;
+
+	if (sync_only)
+	{
+		runCycles  = (s64)(cpuRegs.cycle - VU0.cycle);
+
+		if (runCycles < 0)
+			return;
+
+		// Run-ahead (non-interlocked COP2 sync only): dispatching a tiny VU0
+		// catch-up (e.g. 3 cycles) pays the full mVU dispatch envelope to run
+		// almost nothing. When the sync isn't interlocked it's fine to overshoot
+		// the EE by a few cycles — the next sync sees a negative delta and
+		// no-ops until the EE catches back up, so several round-trips collapse
+		// into one. Mirrors upstream CalculateMinRunCycles(delta, /*accurate*/
+		// false) (commit 6dc5087cb "VU: Run sync ahead on small blocks"); the
+		// arm64 COP2 path syncs via vu0Sync rather than ExecuteBlockJIT, so the
+		// floor lives here instead.
+		if (runAhead && runCycles < 16)
+			runCycles = 16;
+	}
+
+	do { // Run VU until it finishes or M-Bit
+		CpuVU0->Execute(runCycles);
+	} while ((VU0.VI[REG_VPU_STAT].UL & 1)						// E-bit Termination
+	  &&	!sync_only && (!breakOnMbit || (!(VU0.flags & VUFLAG_MFLAGSET) && (s32)(cpuRegs.cycle - VU0.cycle) > 0)));	// M-bit Break
+
+	// Add cycles if called from EE's COP2
+	if (addCycles)
+	{
+		cpuRegs.cycle += (VU0.cycle - startcycle);
+		CpuVU1->ExecuteBlock(0); // Catch up VU1 as it's likely fallen behind
+
+		if(VU0.VI[REG_VPU_STAT].UL & 1)
+			cpuSetNextEventDelta(4);
+	}
+}
+
+void _vu0WaitMicro()   { _vu0run(1, 1, 0, 0); } // Runs VU0 Micro Until E-bit or M-Bit End
+void _vu0FinishMicro() { _vu0run(0, 1, 0, 0); } // Runs VU0 Micro Until E-Bit End
+void vu0Finish()	   { _vu0run(0, 0, 0, 0); } // Runs VU0 Micro Until E-Bit End (doesn't stall EE)
+void vu0Sync()		   { _vu0run(0, 0, 1, 0); } // Runs VU0 until it catches up (exact)
+void vu0SyncRunAhead() { _vu0run(0, 0, 1, 1); } // Catches up, but runs a 16-cycle minimum (non-interlocked)
+
+namespace R5900 {
+namespace Interpreter{
+namespace OpcodeImpl
+{
+	void LQC2() {
+		vu0Sync();
+		u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + (s16)cpuRegs.code;
+		if (_Ft_) {
+			memRead128(addr, VU0.VF[_Ft_].UQ);
+		} else {
+			u128 val;
+ 			memRead128(addr, val);
+		}
+	}
+
+	// Asadr.Changed
+	//TODO: check this
+	// HUH why ? doesn't make any sense ...
+	void SQC2() {
+		vu0Sync();
+		u32 addr = _Imm_ + cpuRegs.GPR.r[_Rs_].UL[0];
+		memWrite128(addr, VU0.VF[_Ft_].UQ);
+	}
+}}}
+
+
+void QMFC2() {
+	vu0Sync();
+
+	if (cpuRegs.code & 1) {
+		_vu0FinishMicro();
+	}
+
+#ifdef PCSX2_RECOMPILER_TESTS
+	if (g_cop2ReadHook && g_cop2StateHook) // diagnostic hooks (recompiler test harness); null in production
+	{
+		g_cop2ReadHook(cpuRegs.pc, 0, _Fs_, VU0.VF[_Fs_].UL);
+		g_cop2StateHook(VU0.VI[REG_TPC].UL, VU0.VI[REG_Q].UL, VU0.VI[REG_MAC_FLAG].UL,
+			VU0.VI[REG_STATUS_FLAG].UL, VU0.VI[REG_CLIP_FLAG].UL);
+	}
+#endif
+
+	if (_Rt_ == 0) return;
+	cpuRegs.GPR.r[_Rt_].UD[0] = VU0.VF[_Fs_].UD[0];
+	cpuRegs.GPR.r[_Rt_].UD[1] = VU0.VF[_Fs_].UD[1];
+}
+
+void QMTC2() {
+	vu0Sync();
+
+	if (cpuRegs.code & 1) {
+		_vu0WaitMicro();
+	}
+
+	if (_Fs_ == 0) return;
+	VU0.VF[_Fs_].UD[0] = cpuRegs.GPR.r[_Rt_].UD[0];
+	VU0.VF[_Fs_].UD[1] = cpuRegs.GPR.r[_Rt_].UD[1];
+}
+
+void CFC2() {
+	vu0Sync();
+
+	if (cpuRegs.code & 1) {
+		_vu0FinishMicro();
+	}
+
+#ifdef PCSX2_RECOMPILER_TESTS
+	if (g_cop2ReadHook && g_cop2StateHook) // diagnostic hooks (recompiler test harness); null in production
+	{
+		g_cop2ReadHook(cpuRegs.pc, 1, _Fs_, &VU0.VI[_Fs_].UL);
+		g_cop2StateHook(VU0.VI[REG_TPC].UL, VU0.VI[REG_Q].UL, VU0.VI[REG_MAC_FLAG].UL,
+			VU0.VI[REG_STATUS_FLAG].UL, VU0.VI[REG_CLIP_FLAG].UL);
+	}
+#endif
+
+	if (_Rt_ == 0) return;
+
+	if (_Fs_ == REG_R)
+		cpuRegs.GPR.r[_Rt_].UL[0] = VU0.VI[REG_R].UL & 0x7FFFFF;
+	else
+	{
+		cpuRegs.GPR.r[_Rt_].UL[0] = VU0.VI[_Fs_].UL;
+
+		if (VU0.VI[_Fs_].UL & 0x80000000)
+			cpuRegs.GPR.r[_Rt_].UL[1] = 0xffffffff;
+		else
+			cpuRegs.GPR.r[_Rt_].UL[1] = 0;
+	}
+
+}
+
+void CTC2() {
+	vu0Sync();
+
+	if (cpuRegs.code & 1) {
+		_vu0WaitMicro();
+	}
+
+	if (_Fs_ == 0) return;
+
+	switch(_Fs_) {
+		case REG_MAC_FLAG: // read-only
+		case REG_TPC:      // read-only
+		case REG_VPU_STAT: // read-only
+			break;
+		case REG_R:
+			VU0.VI[REG_R].UL = ((cpuRegs.GPR.r[_Rt_].UL[0] & 0x7FFFFF) | 0x3F800000);
+			break;
+		case REG_FBRST:
+			VU0.VI[REG_FBRST].UL = cpuRegs.GPR.r[_Rt_].UL[0] & 0x0C0C;
+			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x1) { // VU0 Force Break
+				Console.Error("fixme: VU0 Force Break");
+			}
+			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x2) { // VU0 Reset
+				//Console.WriteLn("fixme: VU0 Reset");
+				vu0ResetRegs();
+			}
+			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x100) { // VU1 Force Break
+				Console.Error("fixme: VU1 Force Break");
+			}
+			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x200) { // VU1 Reset
+//				Console.WriteLn("fixme: VU1 Reset");
+				vu1ResetRegs();
+			}
+			break;
+		case REG_CMSAR0:
+			// A microprogram start address, so 16 bits wide.
+			VU0.VI[REG_CMSAR0].UL = cpuRegs.GPR.r[_Rt_].UL[0] & 0xFFFF;
+			break;
+		case REG_CMSAR1: // REG_CMSAR1
+			// The kick does not consume the write: a CFC2 reads the address back.
+			VU0.VI[REG_CMSAR1].UL = cpuRegs.GPR.r[_Rt_].UL[0] & 0xFFFF;
+			vu1Finish(true);
+			vu1ExecMicro(cpuRegs.GPR.r[_Rt_].US[0]);	// Execute VU1 Micro SubRoutine
+			break;
+		case REG_STATUS_FLAG:
+			// Only the sticky field (0xFC0) is writable; the current-flag
+			// field (0x3F) belongs to the FMAC pipeline and survives the
+			// write. Both recompilers do exactly this (microVU_Macro.inl
+			// recCTC2, iCOP2-arm64.cpp recCOP2_CTC2). They additionally
+			// broadcast the denormalized value into micro_statusflags; the
+			// interpreter does not need to, because vu0ExecMicro re-copies
+			// VI[REG_STATUS_FLAG] into the micro instances at program start.
+			VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0x3F) |
+			                             (cpuRegs.GPR.r[_Rt_].UL[0] & 0xFC0);
+			// The sticky field also accumulates in statusflag; a write that
+			// clears a sticky bit has to reach it too, or the next FMAC puts
+			// the bit back.
+			VU0.statusflag = (VU0.statusflag & 0x3F) | (cpuRegs.GPR.r[_Rt_].UL[0] & 0xFC0);
+			break;
+		case REG_CLIP_FLAG:
+			// Four generations of six clip conditions, so 24 bits wide.
+			VU0.clipflag = cpuRegs.GPR.r[_Rt_].UL[0] & 0xFFFFFF;
+			VU0.VI[REG_CLIP_FLAG].UL = VU0.clipflag;
+			break;
+		default:
+			// VI01-VI15 are 16-bit integer registers, so only the low half is
+			// stored. The control registers that land in this arm — I, Q and
+			// the rest — are full 32-bit words.
+			if (_Fs_ < REG_STATUS_FLAG)
+				VU0.VI[_Fs_].US[0] = cpuRegs.GPR.r[_Rt_].US[0];
+			else
+				VU0.VI[_Fs_].UL = cpuRegs.GPR.r[_Rt_].UL[0];
+			break;
+	}
+}

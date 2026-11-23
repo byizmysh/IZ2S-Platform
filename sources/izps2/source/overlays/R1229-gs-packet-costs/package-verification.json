@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1229-gs-packet-costs/IZPS2-R1229.iza",
+  "bytes": 11665536,
+  "sha256": "da995a84622e05b4ed7260743c89c37b13f1627f749e76721ad4bdf15f50f644",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "46676756c47b0fc9685346dbb07c5a4e792822726980410205da2d2b444fd8c1"
+  },
+  "engine": {
+    "file": "asset-c96434eb787ff88f46d1905a07bce78a9237155c0390aafb6dff6734c2b8ab4f.izdata",
+    "path": "asset-c96434eb787ff88f46d1905a07bce78a9237155c0390aafb6dff6734c2b8ab4f.izdata",
+    "bytes": 28627336,
+    "sha256": "c96434eb787ff88f46d1905a07bce78a9237155c0390aafb6dff6734c2b8ab4f"
+  }
+}

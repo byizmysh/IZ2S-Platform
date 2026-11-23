@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1260-gta-full-stall-warm/IZPS2-R1260.iza",
+  "bytes": 12065020,
+  "sha256": "31253a00015e8b826e82c8da95356fd488c341b76c0b2909436660a0faaf4860",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "d013a62767506c92a3f17bd75ff849dce3e9458eeaac1b18c24a4c30c9cdb6ff"
+  },
+  "engine": {
+    "file": "asset-d190a005653e674aaae0d14ccca04f653d08792b97abf846471242dd831caf5c.izdata",
+    "path": "asset-d190a005653e674aaae0d14ccca04f653d08792b97abf846471242dd831caf5c.izdata",
+    "bytes": 29572424,
+    "sha256": "d190a005653e674aaae0d14ccca04f653d08792b97abf846471242dd831caf5c"
+  }
+}

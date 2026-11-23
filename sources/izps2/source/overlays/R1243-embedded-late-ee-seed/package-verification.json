@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1243-embedded-late-ee-seed/IZPS2-R1243.iza",
+  "bytes": 12043417,
+  "sha256": "cfe5192fbe902f3a3f585d3194916387d456959b22c0958b7f32e87cb4857a46",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "866756cc18a8455cfbe1e9ed404bdb5b813edbd906482bee9d15709ad2a2046e"
+  },
+  "engine": {
+    "file": "asset-a7d12fffe636e66e0362dbd265ea7d1c857892b96ed808503599f11fab7829d6.izdata",
+    "path": "asset-a7d12fffe636e66e0362dbd265ea7d1c857892b96ed808503599f11fab7829d6.izdata",
+    "bytes": 29498624,
+    "sha256": "a7d12fffe636e66e0362dbd265ea7d1c857892b96ed808503599f11fab7829d6"
+  }
+}

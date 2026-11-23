@@ -1,0 +1,480 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include "common/Pcsx2Defs.h"
+
+#include <string>
+#include <string_view>
+
+enum class GpuProfileOverride : u8
+{
+	Auto,
+	Mali,
+	Adreno,
+	PowerVR,
+	Xclipse,
+};
+
+enum class RuntimeGpuProfile : u8
+{
+	Unknown,
+	Mali,
+	Adreno,
+	PowerVR,
+	Xclipse,
+	/// Apple Silicon. A tiler like the mobile parts, but it must never inherit their workarounds;
+	/// without this value desktop GL resolved it to Adreno and ran Adreno-only paths. Distinct
+	/// from Unknown so its tiler-ness can be acted on deliberately.
+	Apple,
+};
+
+enum class MobileGpuArchitecture : u8
+{
+	Unknown,
+	Adreno2xx,
+	Adreno3xx,
+	Adreno4xx,
+	Adreno5xx,
+	Adreno6xx,
+	Adreno7xx,
+	Adreno8xx,
+	AdrenoX,
+	MaliUtgard,
+	MaliMidgard,
+	MaliBifrost,
+	MaliValhall1,
+	MaliValhall2,
+	MaliValhall3,
+	MaliFifthGen,
+	MaliG1,
+	PowerVR,
+};
+
+// Driver identity and known-bug model, ported from EmuCoreX (sashkinbro) with his approval.
+// The GPU family alone does not decide behaviour: the same Mali part behaves differently under
+// Arm's driver and under Mesa PanVK. Rules are keyed on driver + version + a bug set, so a new
+// device quirk is a table entry rather than another branch.
+
+enum class MobileGpuApi : u8
+{
+	Unknown,
+	OpenGL,
+	Vulkan,
+};
+
+// Deliberately independent of VkDriverId so profile resolution stays unit-testable without
+// pulling in Vulkan headers, and so the OpenGL path can use the same table.
+enum class MobileGpuDriver : u8
+{
+	Unknown,
+	ArmProprietary,
+	MesaPanVK,
+	QualcommProprietary,
+	MesaTurnip,
+	ImaginationProprietary,
+	MesaPowerVR,
+	Angle,
+};
+
+/// How specifically a profile was matched. A rule matched on the exact driver version is worth
+/// more than one matched on the vendor alone, so a broad entry never overrides a precise one.
+enum class DriverProfileConfidence : u8
+{
+	Unknown,
+	Vendor,
+	Model,
+	Driver,
+	DriverVersion,
+};
+
+/// Observed driver defects. Naming is descriptive of the DEFECT, not of the fix, so one bug can
+/// drive several workarounds and the table stays readable.
+enum class DriverBug : u8
+{
+	BrokenBufferStreaming,
+	BrokenUnsynchronizedMapping,
+	BrokenNegatedBoolean,
+	BrokenVectorBitwiseAnd,
+	BrokenBitwiseOpNegation,
+	BrokenPrimitiveRestart,
+	BrokenPushDescriptors,
+	BrokenProvokingVertex,
+	BrokenAttachmentFeedbackLoopLayout,
+	BrokenSubpassFeedback,
+	BrokenColorWriteMaskWithDepthTest,
+	BrokenDepthStencilDiscard,
+	BrokenReversedDepthRange,
+	SlowCachedReadbackMemory,
+	SlowOptimalImageToBufferCopy,
+	BrokenClearLoadOpRenderPass,
+	Broken16BitTextureFormats,
+	BrokenGenerateMipmapTallTexture,
+	BrokenEmptyRenderPass,
+	BrokenConstantLoad,
+	BrokenUniformIndexing,
+	BrokenVSync,
+	BrokenMultithreadedShaderCompilation,
+	BrokenDynamicRendering,
+	BrokenImagelessFramebuffer,
+	BrokenExtendedDynamicState,
+	BrokenPrimitiveTopologyDynamicState,
+	BrokenGraphicsPipelineLibrary,
+	/// The driver advertises rasterization-order attachment access and returns zero or stale
+	/// colour from the destination read (black or missing textures). Distinct from
+	/// BrokenSubpassFeedback, where the in-pass self-read loses whole draws or the device.
+	BrokenRoaaDestinationRead,
+	/// The driver sometimes applies CONST_COLOR / INV_CONST_COLOR as if the constant were zero.
+	/// The trigger is run history, not anything the draw carries, so it cannot be probed at
+	/// start-up and no emission order avoids it.
+	BrokenBlendConstant,
+	Count,
+};
+
+/// What we do about a bug. Separate from DriverBug because one mitigation answers several
+/// defects, and a workaround can be forced on for testing without claiming the bug.
+enum class DriverWorkaround : u8
+{
+	RewriteBooleanNegation,
+	ScalarizeVectorBitwiseAnd,
+	StoreBitwiseNegationInTemporary,
+	UseDescriptorSets,
+	DisableProvokingVertex,
+	DisableAttachmentFeedbackLoopLayout,
+	/// Read the render target from a copy instead of in-pass. Turns texture barriers off, which
+	/// also disables framebuffer fetch, so the RT is never bound and sampled at once. Costs a full
+	/// RT copy per feedback draw: a last resort for drivers that fail both the input-attachment
+	/// and the feedback-loop-layout reads.
+	UseRenderTargetCopyForFeedback,
+	EmulateColorWriteMask,
+	PreferCoherentReadback,
+	UseStagingImageForReadback,
+	AvoidClearLoadOpRenderPass,
+	GenerateMipmapManuallyForTallTextures,
+	RewriteUniformIndexing,
+	ForceFifoPresent,
+	AlignSwapchainWidthTo32,
+	/// Report no stencil buffer: depth targets are plain D32_SFLOAT and no stencil DATE pre-pass
+	/// is emitted. For drivers that hang on a depth-stencil attachment. DATE falls back to
+	/// primitive-ID tracking, then Full, then Off.
+	DisableStencilBuffer,
+	/// Steer the Auto renderer to Vulkan on this part. Declared by an OpenGL-side rule, because
+	/// Auto is decided from the GL strings before any Vulkan device exists. A preference, not a
+	/// defect workaround; GSUtil::AndroidAutoPrefersVulkan is its only reader.
+	PreferVulkanRenderer,
+	/// Allocate the Vulkan stream rings from a HOST_CACHED memory type instead of the
+	/// write-combined one VMA picks, for GPUs where write-combined CPU writes cost more than
+	/// cached stores plus cache maintenance. The memory table picks coherent if available, else
+	/// non-coherent with the clean VKStreamBuffer::CommitMemory already issues. A preference, not
+	/// a defect. Without this bit the rings stay write-combined even when a cached coherent type
+	/// exists (that road lost on the SD865). See GSStreamRingMemoryPolicy.h.
+	PreferCachedStreamRingMemory,
+	/// Remote play reads its frames back instead of handing them to the encoder as
+	/// AHardwareBuffers. For a driver whose buffer export or foreign-queue release misbehaves; the
+	/// extensions stay enabled, only their use is off. No rule declares it yet: it is the switch
+	/// that excludes one driver without new code.
+	ReadBackRemotePlayFrames,
+	Count,
+};
+
+struct MobileDriverVersion
+{
+	u32 raw = 0;
+	u16 major = 0;
+	u16 minor = 0;
+	u16 patch = 0;
+	u32 build = 0;
+	bool known = false;
+	bool legacy_hash = false;
+};
+
+/// Everything the resolver is allowed to look at. Filled from VkPhysicalDeviceProperties on the
+/// Vulkan path and from the GL strings otherwise.
+struct MobileDriverContext
+{
+	MobileGpuApi api = MobileGpuApi::Unknown;
+	u32 vendor_id = 0;
+	u32 device_id = 0;
+	u32 driver_version = 0;
+	u32 driver_id = 0;
+	u32 api_version = 0;
+	u32 android_sdk = 0;
+	u32 max_draw_indirect_count = 0;
+	/// The device advertises rasterization-order colour attachment access: the extension (EXT or
+	/// ARM name) is supported and its rasterizationOrderColorAttachmentAccess feature reads true,
+	/// as the device settled it after vkCreateDevice. Vulkan only; false for GL and when unknown.
+	bool roaa_color_access = false;
+	/// VkPhysicalDevicePushDescriptorPropertiesKHR::maxPushDescriptors, or 0 when
+	/// VK_KHR_push_descriptor is not enabled on the device. Vulkan only.
+	u32 max_push_descriptors = 0;
+	std::string_view driver_name;
+	std::string_view driver_info;
+	std::string_view api_version_string;
+	/// Platform identity from outside the graphics API -- the SoC and board strings. The resolver
+	/// reads these itself where the platform offers them (Android system properties, the Linux
+	/// device tree); a caller that already knows them, or a test pinning a specific device without
+	/// one, supplies them here and they are folded into the same hint string the rules match on.
+	std::string_view platform_hints;
+};
+
+struct MobileDriverProfile
+{
+	static constexpr u32 DATABASE_VERSION = 1;
+
+	MobileGpuApi api = MobileGpuApi::Unknown;
+	MobileGpuDriver driver = MobileGpuDriver::Unknown;
+	MobileDriverVersion version;
+	u64 bugs = 0;
+	u64 workarounds = 0;
+	/// Rows whose bugs and workarounds were applied. A row that matched and was exempted is in
+	/// matched_rules and exempted_rules and not counted here.
+	u32 matched_rule_count = 0;
+	/// The table rows whose conditions matched, bit i for row i (GpuProfileDetector::DriverRuleId
+	/// names a row). Set whether or not the row's bugs and workarounds are then applied.
+	u64 matched_rules = 0;
+	/// The subset of matched_rules that was skipped, its bugs and workarounds left out of `bugs` and
+	/// `workarounds`. Today only malisx2 is exempted: its rows are the ones written for Arm's r44p1
+	/// blob (see Malisx2Exemption in the rule table).
+	u64 exempted_rules = 0;
+	DriverProfileConfidence confidence = DriverProfileConfidence::Unknown;
+	/// True when nothing in the table matched and the safe defaults are in force.
+	bool conservative_fallback = true;
+
+	/// Generation of the declared-feedback-loop ordering fix this driver build carries, from its
+	/// driverInfo tag; 0 when there is no tag. See ParseDeclaredLoopFixGeneration.
+	u32 declared_loop_fix_generation = 0;
+
+	/// This driver orders overlapping self-reads inside a declared attachment feedback loop.
+	/// ⚠️ No extension promises this: stock Turnip emits the ordering mode and does not deliver
+	/// it (see GSSelfReadRoadPolicy.h). True only for our own builds, measured byte-identical to
+	/// the barrier-keeping reference and tagged in driverInfo; every other driver keeps barriers.
+	bool orders_declared_feedback_loop = false;
+
+	/// With orders_declared_feedback_loop: the driver orders a declared-loop draw against earlier
+	/// draws on its own, but orders overlapping primitives WITHIN the draw only when the pipeline
+	/// requests rasterization-order attachment access. True for a generation-2 build on Adreno 7xx,
+	/// where the per-overlap wait is expensive and so is left to the draws that need it.
+	bool declared_loop_orders_overlap_on_request = false;
+
+	/// This driver's best in-pass self-read road is a declared attachment feedback loop with the
+	/// per-draw barriers kept: the declaration gives the layout and coherent destination read,
+	/// our barriers give the ordering. Weaker than orders_declared_feedback_loop, which lets the
+	/// barriers go and wins if both are set.
+	///
+	/// True for Turnip on Adreno 730 and up and on the 722, where the copy road renders wrong. The
+	/// barrier-less declared road races on a7xx under stock Turnip, which never emits the ordering
+	/// state there; a generation-2 build does, and on the 730 and up orders_declared_feedback_loop is
+	/// set as well and wins. On the 722 it is not set: without our barriers that part renders a
+	/// different picture on each run, so it keeps them.
+	bool prefers_declared_loop_with_barriers = false;
+
+	std::string driver_name;
+
+	constexpr bool HasBug(DriverBug bug) const
+	{
+		return (bugs & (u64{1} << static_cast<u8>(bug))) != 0;
+	}
+
+	constexpr bool UsesWorkaround(DriverWorkaround workaround) const
+	{
+		return (workarounds & (u64{1} << static_cast<u8>(workaround))) != 0;
+	}
+};
+
+// Both sets are u64 bitfields, so neither enum may exceed 64 entries without widening them.
+static_assert(static_cast<u8>(DriverBug::Count) <= 64);
+static_assert(static_cast<u8>(DriverWorkaround::Count) <= 64);
+
+struct MobileGsTuning
+{
+	bool constrained = true;
+	bool prefer_new_textures = false;
+	u32 pooled_targets = 96;
+	u32 target_age = 8;
+	u32 pooled_textures = 96;
+	u32 texture_age = 6;
+};
+
+struct MobileGpuIdentity
+{
+	MobileGpuArchitecture architecture = MobileGpuArchitecture::Unknown;
+	u16 model_number = 0;
+	u8 core_count = 0;
+	bool recognized = false;
+	std::string name = "Unknown";
+};
+
+/// PCI vendor IDs as Vulkan reports them in VkPhysicalDeviceProperties::vendorID. Apple silicon
+/// reports a different ID per driver, so it is identified by driver instead.
+namespace GpuVendorID
+{
+constexpr u32 AMD = 0x1002;
+constexpr u32 NVIDIA = 0x10DE;
+constexpr u32 Intel = 0x8086;
+constexpr u32 ARM = 0x13B5;
+constexpr u32 Qualcomm = 0x5143;
+constexpr u32 Imagination = 0x1010;
+constexpr u32 Broadcom = 0x14E4;
+/// Samsung Xclipse. Not confirmed on a device: a driver reporting another ID leaves every check
+/// against this one inert.
+constexpr u32 Samsung = 0x144D;
+} // namespace GpuVendorID
+
+/// The push descriptors the Vulkan backend needs: one per texture slot of its TFX descriptor set
+/// (GSDeviceVK::NUM_TFX_TEXTURES, which a static_assert in GSDeviceVK.cpp holds equal to this).
+constexpr u32 VULKAN_PUSH_DESCRIPTORS_REQUIRED = 7;
+
+/// Vulkan device rules keyed on the device's own identity (vendor ID, device name, driver ID,
+/// driverInfo) rather than matched in the driver-bug database. Each keeps the exact condition the
+/// backend has always applied, which is not always the database's: the push-descriptor rule covers
+/// Mali on every driver but malisx2, where the database names Arm's.
+struct VulkanDeviceRules
+{
+	/// Mali-G615: timestamp queries never resolve, and the present spin that waits on them stalls.
+	bool broken_timestamp_queries = false;
+	/// The attachment-feedback-loop layout is not used, so the in-pass self-read is spelled as a
+	/// subpass input attachment instead.
+	///   - Mali on a driver whose driverInfo names r44p1. The rest of the r44p1 workaround is rule
+	///     vk-arm-r44p1-attachment-self-read.
+	///   - PowerVR on Imagination's driver, which the database already marks
+	///     BrokenAttachmentFeedbackLoopLayout / DisableAttachmentFeedbackLoopLayout (rule
+	///     vk-powervr-proprietary) without anything acting on it. On that layout every feedback
+	///     barrier samples the attachment through the texture unit, which on a tiler means storing
+	///     the tile first; measured ~0.1 ms per barrier on a Pixel 11 Pro (CXTP-48-1536), ~3500 per
+	///     frame in NFS Underground at Full blending. subpassLoad keeps the read in the tile.
+	bool avoid_feedback_loop_layout = false;
+	/// Mali crashes inside vkCmdPushDescriptorSetKHR. Adreno is trusted with push descriptors on the
+	/// Qualcomm driver and Turnip only. malisx2 is exempt when it advertises the extension with
+	/// enough descriptors (exempt_malisx2_push_descriptors).
+	bool avoid_push_descriptors = false;
+	/// Adreno on the Qualcomm driver selects the wrong provoking vertex.
+	bool broken_provoking_vertex = false;
+	/// Adreno 5xx, or a Qualcomm driver older than 0x801EA000, ignores colorWriteMask while a depth
+	/// test is active. That version is in the Qualcomm encoding, so Turnip is excluded outright.
+	bool broken_colormask_with_depth = false;
+	/// Mali-G57: the FastMAD history banks read back stale, so deinterlace uses weave and blend.
+	bool broken_mad_deinterlace = false;
+	/// Adreno 8xx on the Qualcomm driver: rasterization-order reads return stale colour above
+	/// Basic blending. Turnip on the same parts is fine.
+	bool adreno8xx_proprietary = false;
+	/// Turnip or Honeykrisp: the drivers on which the in-pass self-read was measured. A per-draw
+	/// barrier there costs about what a per-draw copy does, and the loop is declared per draw.
+	bool self_read_costs_measured = false;
+	/// Honeykrisp: the barrier-ordered road's fast stencil shadow and carry were measured there.
+	bool barrier_road_measured = false;
+	/// malisx2 would have taken avoid_push_descriptors as Mali, and is exempt: the crash is Arm's
+	/// blob's, and this driver advertises VK_KHR_push_descriptor with at least
+	/// VULKAN_PUSH_DESCRIPTORS_REQUIRED descriptors. Recorded so a log shows the exemption, not just
+	/// the absence of the avoid.
+	bool exempt_malisx2_push_descriptors = false;
+	/// PowerVR on Imagination's driver: a single-sample subpassLoad of the attachment being written
+	/// is coherent and in primitive order in tile memory, without
+	/// VK_EXT_rasterization_order_attachment_access. The extension cannot be advertised on this
+	/// hardware only because it also promises coherent reads of OTHER samples of a pixel, which IMG
+	/// does not give; ANGLE relies on the single-sample guarantee to expose coherent
+	/// GL_EXT/ARM_shader_framebuffer_fetch on the same driver (vk_renderer.cpp,
+	/// mIsColorFramebufferFetchCoherent). Puts the device on the in-tile fetch road with no per-draw
+	/// barriers. Needs the input-attachment spelling, so it applies only with
+	/// avoid_feedback_loop_layout. Fixes tab -> Disable Framebuffer Fetch returns to the barrier road.
+	bool ordered_input_attachment_read = false;
+};
+
+/// A VulkanDeviceRules flag and the name the log and the driver report print it under.
+struct VulkanDeviceRuleName
+{
+	const char* name;
+	bool VulkanDeviceRules::* flag;
+};
+
+/// Every VulkanDeviceRules flag, in declaration order. A flag added above needs an entry here, or
+/// the size check below fails.
+inline constexpr VulkanDeviceRuleName VULKAN_DEVICE_RULE_NAMES[] = {
+	{"broken_timestamp_queries", &VulkanDeviceRules::broken_timestamp_queries},
+	{"avoid_feedback_loop_layout", &VulkanDeviceRules::avoid_feedback_loop_layout},
+	{"avoid_push_descriptors", &VulkanDeviceRules::avoid_push_descriptors},
+	{"broken_provoking_vertex", &VulkanDeviceRules::broken_provoking_vertex},
+	{"broken_colormask_with_depth", &VulkanDeviceRules::broken_colormask_with_depth},
+	{"broken_mad_deinterlace", &VulkanDeviceRules::broken_mad_deinterlace},
+	{"adreno8xx_proprietary", &VulkanDeviceRules::adreno8xx_proprietary},
+	{"self_read_costs_measured", &VulkanDeviceRules::self_read_costs_measured},
+	{"barrier_road_measured", &VulkanDeviceRules::barrier_road_measured},
+	{"exempt_malisx2_push_descriptors", &VulkanDeviceRules::exempt_malisx2_push_descriptors},
+	{"ordered_input_attachment_read", &VulkanDeviceRules::ordered_input_attachment_read},
+};
+static_assert(sizeof(VulkanDeviceRules) == sizeof(VULKAN_DEVICE_RULE_NAMES) / sizeof(VULKAN_DEVICE_RULE_NAMES[0]),
+	"VulkanDeviceRules is all bool flags; every one needs a VULKAN_DEVICE_RULE_NAMES entry");
+
+struct GpuProfileSelection
+{
+	GpuProfileOverride override_mode = GpuProfileOverride::Auto;
+	RuntimeGpuProfile runtime_profile = RuntimeGpuProfile::Unknown;
+	bool is_mediatek_soc = false;
+	MobileGpuIdentity gpu;
+	MobileGsTuning gs_tuning;
+	MobileDriverProfile driver;
+	std::string hints;
+};
+
+class GpuProfileDetector
+{
+public:
+	static GpuProfileOverride ParseOverride(std::string_view value);
+	static const char* OverrideToConfigString(GpuProfileOverride value);
+	static const char* OverrideToString(GpuProfileOverride value);
+	static const char* RuntimeProfileToString(RuntimeGpuProfile value);
+	static const char* ArchitectureToString(MobileGpuArchitecture value);
+
+	/// Arm's architecture number for a Valhall part, counted as Mesa's panfrost model table
+	/// counts it: 9 for G57/G68/G77/G78, 10 for G310/G510/G610/G710, 11 for G615/G715. 0 for
+	/// everything else. The 5th-gen parts are NOT v11: G620/G720 are 12 and G625/G725 are 13.
+	static u32 MaliValhallArch(MobileGpuArchitecture architecture);
+
+	static const char* ApiToString(MobileGpuApi value);
+	static const char* DriverToString(MobileGpuDriver value);
+	static const char* BugToString(DriverBug value);
+	static const char* WorkaroundToString(DriverWorkaround value);
+
+	/// The driver-bug table's rows, in table order. DriverRuleId is null past the last row.
+	static u32 DriverRuleCount();
+	static const char* DriverRuleId(u32 row);
+
+	/// For the device-creation log: comma-separated names, or "none" for an empty set. Bugs and
+	/// workarounds are named from the masks, the matched rows by id, the device rules by field name.
+	static std::string DescribeMatchedRules(const MobileDriverProfile& profile);
+	static std::string DescribeBugs(u64 mask);
+	static std::string DescribeWorkarounds(u64 mask);
+	static std::string DescribeDeviceRules(const VulkanDeviceRules& rules);
+
+	/// Whether driverInfo names malisx2, our Vulkan driver for Mali. It reports Arm's vendorID,
+	/// driverID and a stock-looking device name on purpose, so driverInfo is the only field that
+	/// tells it apart from Arm's own driver. Packs released before the driver was renamed say
+	/// "libmali" there instead of "malisx2", so both count. Arm's stock driverInfo
+	/// ("v1.r40p0-01eac0.<hash>") has neither. Lives here, not in the driver report, because the
+	/// rule resolvers below key on it and the report sits above them.
+	static bool IsMaliSX2Driver(std::string_view driver_info);
+
+	static GpuProfileSelection Resolve(std::string_view override_value, std::string_view gpu_vendor,
+		std::string_view gpu_renderer_or_name);
+	/// Also resolves the driver profile. The three-argument form leaves
+	/// GpuProfileSelection::driver in its conservative-fallback state.
+	static GpuProfileSelection Resolve(std::string_view override_value, std::string_view gpu_vendor,
+		std::string_view gpu_renderer_or_name, const MobileDriverContext& driver_context);
+
+	static constexpr u64 BugMask(DriverBug bug) { return u64{1} << static_cast<u8>(bug); }
+
+	/// Bugs OR'd into every resolved profile whatever the database says, so a test harness can
+	/// reach a workaround road on a driver without the defect. Set once by gsrunner before the VM
+	/// starts. Deliberately not a user setting: users cannot know which bugs their driver has.
+	static void SetForcedBugs(u64 mask);
+	static u64 GetForcedBugs();
+
+	/// The generation from a `git-axfl<G>-` build tag in a Vulkan driverInfo string, or 0 if none.
+	/// Exposed for tests; the resolver publishes it as declared_loop_fix_generation.
+	static u32 ParseDeclaredLoopFixGeneration(std::string_view driver_info);
+
+	/// The Vulkan device rules for a device. `selection` is the result of Resolve on the same
+	/// context; `device_name` is VkPhysicalDeviceProperties::deviceName.
+	static VulkanDeviceRules ResolveVulkanDeviceRules(const GpuProfileSelection& selection,
+		const MobileDriverContext& context, std::string_view device_name);
+};

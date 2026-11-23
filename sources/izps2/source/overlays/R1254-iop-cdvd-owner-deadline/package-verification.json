@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1254-iop-cdvd-owner-deadline/IZPS2-R1254.iza",
+  "bytes": 12049363,
+  "sha256": "8b14979766f27accfa79528cdbe1db52431d133fa746f5f1751e87c9ddcb4bc3",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "de78fb86c5d84a354682b6ae6fa917d37b5ae68388f2d7c832a56565649ad311"
+  },
+  "engine": {
+    "file": "asset-070b083a3edee68a600ba4e6ff0021262c0fbf00059ba303b00f69d47f265f2b.izdata",
+    "path": "asset-070b083a3edee68a600ba4e6ff0021262c0fbf00059ba303b00f69d47f265f2b.izdata",
+    "bytes": 29498888,
+    "sha256": "070b083a3edee68a600ba4e6ff0021262c0fbf00059ba303b00f69d47f265f2b"
+  }
+}

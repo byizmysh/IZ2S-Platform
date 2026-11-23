@@ -1,0 +1,43 @@
+{
+  "format": "izlauncher.module",
+  "formatVersion": 1,
+  "apiVersion": 1,
+  "id": "izps2",
+  "name": "IZPS2 emulator",
+  "version": "0.5.0",
+  "author": "@byizmysh",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64",
+    "win32-x64"
+  ],
+  "requires": {
+    "platformApi": 1,
+    "shell": "izlauncher",
+    "consoleAbi": 1
+  },
+  "switch": {
+    "entry": "switch/app.json",
+    "abi": 1,
+    "sdImage": "switch/launcher.iza",
+    "files": [
+      "switch/app.comp.spv",
+      "switch/app.frag.spv",
+      "switch/app.json",
+      "switch/app.vert.spv",
+      "switch/asset-b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60.izdata",
+      "switch/data.bin",
+      "switch/icon.png",
+      "switch/launcher.iza",
+      "switch/native-data.bin",
+      "switch/native.bin",
+      "switch/pixels.bin",
+      "switch/sd-bundle.json",
+      "switch/state.bin"
+    ]
+  },
+  "dependencies": [],
+  "settingsSchema": [],
+  "license": "GPL-3.0-or-later",
+  "installationDirectory": "IZPS2"
+}

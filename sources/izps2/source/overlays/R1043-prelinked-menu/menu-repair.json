@@ -1,0 +1,17 @@
+{
+  "change": "Использование одного готового бинарника меню для пакета IZPS2 и встроенной копии в ядре RUN25.",
+  "failureStage": "Выбор игры на активной R1038, до появления свежего журнала движка.",
+  "causeEvidence": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/model/menu-binding-regression.json",
+  "consoleEvidence": {
+    "runtime-marker.json": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1038-izpsx-settings-ports/model/launch-failure/runtime-marker.json",
+    "emulog.txt": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1038-izpsx-settings-ports/model/launch-failure/emulog.txt",
+    "runtime-latest.log": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1038-izpsx-settings-ports/model/launch-failure/runtime-latest.log",
+    "settings.a.izcfg": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1038-izpsx-settings-ports/model/launch-failure/settings.a.izcfg"
+  },
+  "result": "R1043 активна по PC Link. Пользователь подтвердил, что GTA SA дошла до управления на Switch 2.",
+  "proof": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/prelinked-verification.json",
+  "consoleInstallation": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/logs/console-core-20261117T152120Z-79cdb3cc/receipt.json",
+  "activeRuntimeCheck": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/model/active-runtime-check.json",
+  "consoleGameplay": "confirmed-by-user",
+  "gameLogStatus": "Извлечённый runtime-latest.log совпал с предыдущим. Подтверждение запуска основано на активном маркере ядра и проверке пользователем."
+}

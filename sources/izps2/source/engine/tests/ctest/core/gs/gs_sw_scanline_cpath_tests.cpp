@@ -1,0 +1,690 @@
+// SPDX-FileCopyrightText: 2026 ARMSX2 Contributors
+// SPDX-License-Identifier: GPL-3.0+
+
+// The C++ rasteriser and the generated one, on the same span, must agree.
+//
+// They are two transcriptions of one design and nothing checked them against each
+// other, so they drifted: the C++ setup packed the per-lane colour offsets with the
+// SIGNED saturating pack while both generators used the unsigned one. The mask
+// above the pack has already put every lane in 0..65535, which makes the unsigned
+// pack the identity -- and makes the signed pack saturate everything from 32768 up
+// to 32767. A descending gouraud gradient is exactly how a lane gets there: its
+// offset is negative, the mask turns it into a large positive, and the signed pack
+// flattens it. Every pixel of the group then carries that instead of its own
+// colour, for the whole scanline.
+//
+// Upstream had already fixed this once -- "GS/SW: Mask color gradients to prevent
+// incorrect clamping" is the commit that introduced the mask and the unsigned pack
+// together -- and a later refactor that rewrote the same lines to change how the
+// shift table is loaded retyped the tail back to the signed pack. The generators
+// were not touched by that refactor, which is why only the C++ path regressed and
+// why nothing noticed: shipping builds always take the generated code.
+//
+// The C++ path is not dead. It is the whole renderer wherever there is no code
+// memory to compile into, which is a real shipping configuration on locked-down
+// platforms, and it is the only path a measurement can run without a JIT.
+//
+// This suite exists to make that class of drift loud. It runs both paths over the
+// same spans and compares what they store, so a future divergence anywhere in the
+// scanline -- not only in colour -- fails here.
+//
+// Rides ARCH_ARM64 like its siblings: the generators are per-architecture.
+
+#include "common/Pcsx2Defs.h"
+
+#ifdef ARCH_ARM64
+
+#include "GS/Renderers/SW/GSColourWalk.h"
+#include "GS/Renderers/SW/GSDrawScanline.h"
+#include "GS/Renderers/SW/GSDrawScanlineCodeGenerator.arm64.h"
+#include "GS/Renderers/SW/GSSetupPrimCodeGenerator.arm64.h"
+#include "GS/Renderers/SW/GSScanlineEnvironment.h"
+#include "GS/Renderers/SW/GSVertexSW.h"
+#include "GS/GSLocalMemory.h"
+#include "GS/GSState.h"
+#include "common/HostSys.h"
+
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <cstring>
+
+#ifndef _WIN32
+#include <sys/mman.h>
+#else
+#include "common/RedtapeWindows.h"
+#endif
+
+namespace
+{
+using DrawScanlinePtr = void (*)(int pixels, int left, int top, const GSVertexSW& scan, GSScanlineLocalData& local);
+using SetupPrimPtr = void (*)(const GSVertexSW* vertex, const u16* index, const GSVertexSW& dscan, GSScanlineLocalData& local);
+
+// The scanline carries a colour multiplied by 128: seven fractional bits under the
+// byte the GS stores.
+constexpr float kColorScale = 128.0f;
+
+// A gouraud span, in colour units per pixel.
+struct Span
+{
+	float r0, g0, b0, a0;
+	float dr, dg, db, da;
+};
+
+// One row of PSMCT32 at FBW=1.
+constexpr int kRowPixels = 64;
+
+// Everything a run produces that the two paths have to agree on: what reached the
+// framebuffer, and the setup state the scanline spent to get there.
+struct Reading
+{
+	u32 px[kRowPixels];
+	GSVector4i d_rb[4];
+	GSVector4i d_ga[4];
+	GSVector4i d4c;
+	GSScanlineLocalData::blockstep dw[8][2];
+
+	// How many of the four per-lane offset vectors the scanline can reach. A span
+	// that is known to start on a group boundary reads only the first, and the
+	// generator declines to compute the rest where the C++ writes them anyway --
+	// dead either way, so comparing them would be comparing scratch.
+	int live_offsets;
+};
+
+// The block phase these tests drive the walk at, where nothing sweeps it.
+constexpr int kPhase = 5;
+
+// The walk the scanline rides. The rasterizer derives one per primitive from the
+// geometry (GSColourWalk.h) and hands it over in GSScanlineLocalData::cwalk; these
+// tests drive the scanline directly, so they build one from the gradient and a
+// chosen block phase and hand it over the same way.
+void MakeWalk(GSScanlineLocalData& local, const GSVertexSW& dscan, int phase)
+{
+	// This suite's selector is TFX_NONE, so its block is eight pixels wide.
+	constexpr int kWidth = 8;
+
+	GSColourWalk& w = local.cwalk;
+
+	w = {};
+	w.d = 1;
+	w.top_anchor = 1;
+	w.S = phase;
+	w.A = phase + 2;
+	w.live = 1;
+
+	GSColourWalkGradientInit(w.c, GSColourWalkTruncUnit(dscan.c), GSVector4::zero(),
+		GSVector4::zero(), GSVector4::zero(), kWidth, w.S, w.d);
+	GSColourWalkGradientInit(w.f, GSColourWalkTruncUnit(dscan.t.wwww()), GSVector4::zero(),
+		GSVector4::zero(), GSVector4::zero(), kWidth, w.S, w.d);
+}
+
+// The rule itself, and not merely that two transcriptions of it agree -- which is
+// the failure this project keeps meeting, both arms wrong together.
+//
+// A draw interpolates an eight-pixel block at a time, and the blocks are pinned to
+// absolute screen x. Inside a block the value ramps by gc, the gradient truncated
+// to a multiple of eight colour units, and makes the rest up in one jump of d8 at
+// the block's phase; a whole block is 8g however the ramp and the jump split it.
+// So a pixel's value is the truncated seed, plus one 8g for every block boundary
+// between it and the seed's block, plus the difference between the two pixels'
+// offsets inside their own blocks. Nothing in it mentions the host's vector, which
+// is the whole point.
+int WalkModel(float c0, float dc, int phase, int x0, int x)
+{
+	const float g = std::trunc(dc * kColorScale * 8.0f) * 0.125f;
+	const int gc = static_cast<int>(std::trunc(g * 0.125f) * 8.0f);
+	const int d8 = static_cast<int>((g - static_cast<float>(gc)) * 8.0f);
+
+	const auto off = [gc, d8, phase](int i) { return i * gc + ((i >= phase) ? d8 : 0); };
+
+	const int b = ((x & ~7) - (x0 & ~7)) / 8;
+	const int seed = static_cast<int>(c0 * kColorScale);
+
+	return (seed + b * static_cast<int>(g * 8.0f) + off(x & 7) - off(x0 & 7)) >> 7;
+}
+
+/// One whole block's step for a channel, in the packed table's low 16 bits.
+u32 BlockStep(float dc)
+{
+	const float g = std::trunc(dc * kColorScale * 8.0f) * 0.125f;
+	return static_cast<u32>(static_cast<int>(g * 8.0f)) & 0xffff;
+}
+
+class SwScanlineCPathTest : public ::testing::Test
+{
+protected:
+	static constexpr size_t kCodeSlotSize = 16 * 1024;
+	static constexpr size_t kCodeBufferSize = 8 * kCodeSlotSize;
+
+	static void SetUpTestSuite()
+	{
+#ifdef _WIN32
+		s_code = static_cast<u8*>(VirtualAlloc(nullptr, kCodeBufferSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+#elif defined(__APPLE__)
+		s_code = static_cast<u8*>(mmap(nullptr, kCodeBufferSize, PROT_READ | PROT_WRITE | PROT_EXEC,
+			MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0));
+		if (s_code == MAP_FAILED)
+			s_code = nullptr;
+#else
+		s_code = static_cast<u8*>(mmap(nullptr, kCodeBufferSize, PROT_READ | PROT_WRITE | PROT_EXEC,
+			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+		if (s_code == MAP_FAILED)
+			s_code = nullptr;
+#endif
+		s_code_used = 0;
+		s_mem = new GSLocalMemory();
+	}
+
+	static void TearDownTestSuite()
+	{
+		delete s_mem;
+		s_mem = nullptr;
+
+		if (s_code)
+		{
+#ifdef _WIN32
+			VirtualFree(s_code, 0, MEM_RELEASE);
+#else
+			munmap(s_code, kCodeBufferSize);
+#endif
+			s_code = nullptr;
+		}
+	}
+
+	static u8* Slot()
+	{
+		if (!s_code || s_code_used + kCodeSlotSize > kCodeBufferSize)
+			return nullptr;
+
+		u8* slot = s_code + s_code_used;
+		s_code_used += kCodeSlotSize;
+		return slot;
+	}
+
+	static DrawScanlinePtr CompileScanline(GSScanlineSelector sel)
+	{
+		u8* slot = Slot();
+		if (!slot)
+			return nullptr;
+
+		HostSys::BeginCodeWriteRange(slot, kCodeSlotSize);
+		GSDrawScanlineCodeGenerator cg(sel.key, slot, kCodeSlotSize);
+		cg.Generate();
+		HostSys::EndCodeWriteRange(slot, kCodeSlotSize);
+		HostSys::FlushInstructionCache(slot, static_cast<u32>(cg.GetSize()));
+
+		return reinterpret_cast<DrawScanlinePtr>(const_cast<u8*>(cg.GetCode()));
+	}
+
+	// The reduced key GetScanlineGlobalData builds, so this is the same variant a
+	// real draw would compile.
+	static SetupPrimPtr CompileSetup(GSScanlineSelector full)
+	{
+		GSScanlineSelector sel;
+		sel.key = 0;
+		sel.iip = full.iip;
+		sel.tfx = full.tfx;
+		sel.tcc = full.tcc;
+		sel.fst = full.fst;
+		sel.fge = full.fge;
+		sel.prim = full.prim;
+		sel.fb = full.fb;
+		sel.zb = full.zb;
+		sel.zoverflow = full.zoverflow;
+		sel.zequal = full.zequal;
+		sel.notest = full.notest;
+
+		u8* slot = Slot();
+		if (!slot)
+			return nullptr;
+
+		HostSys::BeginCodeWriteRange(slot, kCodeSlotSize);
+		GSSetupPrimCodeGenerator cg(sel.key, slot, kCodeSlotSize);
+		cg.Generate();
+		HostSys::EndCodeWriteRange(slot, kCodeSlotSize);
+		HostSys::FlushInstructionCache(slot, static_cast<u32>(cg.GetSize()));
+
+		return reinterpret_cast<SetupPrimPtr>(const_cast<u8*>(cg.GetCode()));
+	}
+
+	// A gouraud triangle with no texture into PSMCT32: the stored pixel IS the
+	// interpolated colour, so nothing between the DDA and the readback can hide a
+	// difference.
+	static GSScanlineSelector MakeSelector(bool notest)
+	{
+		GSScanlineSelector sel;
+		sel.key = 0;
+		sel.fpsm = 0;
+		sel.zpsm = 3;
+		sel.atst = ATST_ALWAYS;
+		sel.tfx = TFX_NONE;
+		sel.tcc = 0;
+		sel.fst = 1;
+		sel.ababcd = 0xff;
+		sel.prim = GS_TRIANGLE_CLASS;
+		sel.iip = 1;
+		sel.fwrite = 1;
+		sel.notest = notest ? 1 : 0;
+		sel.colclamp = 1;
+		return sel;
+	}
+
+	static const GSPixelOffset4* GetOffsets()
+	{
+		GIFRegFRAME frame;
+		frame.U64 = 0;
+		frame.FBP = 0;
+		frame.FBW = 1;
+		frame.PSM = PSMCT32;
+
+		GIFRegZBUF zbuf;
+		zbuf.U64 = 0;
+		zbuf.ZBP = 256;
+		zbuf.PSM = PSMZ32;
+
+		return s_mem->GetPixelOffset4(frame, zbuf);
+	}
+
+	static u32 PixelAddr(int x, int y)
+	{
+		return GSLocalMemory::m_psm[PSMCT32].info.pa(x, y, 0, 1);
+	}
+
+	// Runs one span through one pair of functions. `left` chooses the lane the span
+	// starts on, which is what selects between the four per-lane offset vectors.
+	static void Run(GSScanlineSelector sel, SetupPrimPtr setup, DrawScanlinePtr draw,
+		const Span& span, int left, int pixels, Reading& out, int phase)
+	{
+		u32* vm32 = s_mem->vm32();
+		for (int x = 0; x < kRowPixels; x++)
+			vm32[PixelAddr(x, 0)] = 0u;
+
+		alignas(32) GSScanlineGlobalData global{};
+		alignas(32) GSScanlineLocalData local = {};
+
+		global.sel = sel;
+		global.vm = s_mem->vm8();
+		global.fzbr = GetOffsets()->row;
+		global.fzbc = GetOffsets()->col;
+		global.fm = GSVector4i(0);
+		global.zm = GSVector4i(static_cast<int>(0xffffffffu));
+
+		local.gd = &global;
+
+		GSVertexSW vertex[3];
+		u16 index[3] = {0, 1, 2};
+		for (int i = 0; i < 3; i++)
+			vertex[i] = GSVertexSW::zero();
+
+		GSVertexSW dscan = GSVertexSW::zero();
+		dscan.c = GSVector4(span.dr, span.dg, span.db, span.da) * kColorScale;
+
+		setup(vertex, index, dscan, local);
+
+		// The colour tables are no longer the setup's to build: the rasterizer
+		// builds them from the primitive's walk right after calling it
+		// (GSColourWalk.h). These tests drive the scanline directly, so they hand
+		// over a walk of their own and build the tables the same way.
+		MakeWalk(local, dscan, phase);
+		// The tables follow the ROW now -- their jumps are floored with the row's
+		// own fraction in them, which is what makes the walk one floor per pixel
+		// (gs-cwalk). Row 0 is what this suite's walk is written against.
+		isa_native::GSDrawScanline::SetupColourWalkTables(local, 0);
+
+		for (int i = 0; i < 4; i++)
+		{
+			out.d_rb[i] = local.d[i].rb;
+			out.d_ga[i] = local.d[i].ga;
+		}
+		out.d4c = local.d4.c;
+		out.live_offsets = sel.notest ? 1 : 4;
+
+		std::memcpy(out.dw, local.dw, sizeof(out.dw));
+
+		GSVertexSW scan = GSVertexSW::zero();
+		scan.c = GSVector4(span.r0, span.g0, span.b0, span.a0) * kColorScale;
+
+		draw(pixels, left, 0, scan, local);
+
+		for (int x = 0; x < kRowPixels; x++)
+			out.px[x] = vm32[PixelAddr(x, 0)];
+	}
+
+	// Compiled once per selector variant: the generators are deterministic, and a
+	// pair per test would outrun the code buffer.
+	static bool RunJit(bool notest, const Span& span, int left, int pixels, Reading& out, int phase = kPhase)
+	{
+		const int slot = notest ? 1 : 0;
+		if (!s_setup[slot])
+		{
+			s_sel[slot] = MakeSelector(notest);
+			s_setup[slot] = CompileSetup(s_sel[slot]);
+			s_draw[slot] = CompileScanline(s_sel[slot]);
+		}
+
+		if (!s_setup[slot] || !s_draw[slot])
+			return false;
+
+		Run(s_sel[slot], s_setup[slot], s_draw[slot], span, left, pixels, out, phase);
+		return true;
+	}
+
+	static void RunCpp(bool notest, const Span& span, int left, int pixels, Reading& out, int phase = kPhase)
+	{
+		Run(MakeSelector(notest), &isa_native::GSDrawScanline::CSetupPrim,
+			static_cast<DrawScanlinePtr>(&isa_native::GSDrawScanline::CDrawScanline),
+			span, left, pixels, out, phase);
+	}
+
+	// Compares the two, naming the lane and the field, so a failure says where the
+	// paths parted rather than only that they did.
+	static void ExpectSame(const Reading& c, const Reading& jit, const char* what)
+	{
+		for (int i = 0; i < c.live_offsets; i++)
+		{
+			for (int lane = 0; lane < 4; lane++)
+			{
+				EXPECT_EQ(c.d_rb[i].U32[lane], jit.d_rb[i].U32[lane])
+					<< what << ": setup offset d[" << i << "].rb lane " << lane;
+				EXPECT_EQ(c.d_ga[i].U32[lane], jit.d_ga[i].U32[lane])
+					<< what << ": setup offset d[" << i << "].ga lane " << lane;
+			}
+		}
+
+		for (int lane = 0; lane < 4; lane++)
+			EXPECT_EQ(c.d4c.U32[lane], jit.d4c.U32[lane]) << what << ": step d4.c lane " << lane;
+
+		// An untextured draw walks an eight-pixel block, so its per-vector step is
+		// the alternating pair in dw rather than d4.c. Both are compared: whichever
+		// one this selector actually reads, a drift in it shows up here and not only
+		// as a wrong pixel somewhere downstream.
+		for (int s = 0; s < 8; s++)
+		{
+			// A span known to start on a group boundary can only ever begin at one
+			// of the two halves, so the generator declines to build the six
+			// unreachable pairs where the C++ writes them anyway.
+			if (c.live_offsets == 1 && (s & 3) != 0)
+				continue;
+
+			for (int ph = 0; ph < 2; ph++)
+			{
+				for (int lane = 0; lane < 4; lane++)
+				{
+					EXPECT_EQ(c.dw[s][ph].rb.U32[lane], jit.dw[s][ph].rb.U32[lane])
+						<< what << ": block step dw[" << s << "][" << ph << "].rb lane " << lane;
+					EXPECT_EQ(c.dw[s][ph].ga.U32[lane], jit.dw[s][ph].ga.U32[lane])
+						<< what << ": block step dw[" << s << "][" << ph << "].ga lane " << lane;
+				}
+			}
+		}
+
+		for (int x = 0; x < kRowPixels; x++)
+			EXPECT_EQ(c.px[x], jit.px[x]) << what << ": pixel " << x;
+	}
+
+	static u32 Pixel(u32 r, u32 g, u32 b, u32 a) { return r | (g << 8) | (b << 16) | (a << 24); }
+
+	static GSScanlineSelector s_sel[2];
+	static SetupPrimPtr s_setup[2];
+	static DrawScanlinePtr s_draw[2];
+
+	static u8* s_code;
+	static size_t s_code_used;
+	static GSLocalMemory* s_mem;
+};
+
+GSScanlineSelector SwScanlineCPathTest::s_sel[2] = {};
+SetupPrimPtr SwScanlineCPathTest::s_setup[2] = {nullptr, nullptr};
+DrawScanlinePtr SwScanlineCPathTest::s_draw[2] = {nullptr, nullptr};
+u8* SwScanlineCPathTest::s_code = nullptr;
+size_t SwScanlineCPathTest::s_code_used = 0;
+GSLocalMemory* SwScanlineCPathTest::s_mem = nullptr;
+
+// The defect. Red and alpha descend, so their per-lane offsets are negative and the
+// signed pack flattened all three of them to the same saturated value.
+TEST_F(SwScanlineCPathTest, ADescendingGouraudSpanMatches)
+{
+	const Span span = {200.0f, 10.0f, 100.0f, 250.0f, -8.0f, 10.0f, 0.0f, -5.0f};
+
+	Reading jit, cpp;
+	ASSERT_TRUE(RunJit(true, span, 0, 4, jit));
+	RunCpp(true, span, 0, 4, cpp);
+
+	ExpectSame(cpp, jit, "descending");
+}
+
+// And the answer both paths give is the ramp, not merely the same thing twice. The
+// colours are whole bytes on the scanline's own seven-bit grid, so this is exact.
+TEST_F(SwScanlineCPathTest, ADescendingGouraudSpanIsTheRamp)
+{
+	const Span span = {200.0f, 10.0f, 100.0f, 250.0f, -8.0f, 10.0f, 0.0f, -5.0f};
+
+	Reading cpp;
+	RunCpp(true, span, 0, 4, cpp);
+
+	EXPECT_EQ(cpp.px[0], Pixel(200, 10, 100, 250));
+	EXPECT_EQ(cpp.px[1], Pixel(192, 20, 100, 245));
+	EXPECT_EQ(cpp.px[2], Pixel(184, 30, 100, 240));
+	EXPECT_EQ(cpp.px[3], Pixel(176, 40, 100, 235));
+}
+
+// The control: with every channel climbing and the span starting on a group
+// boundary, no lane offset is ever negative, so nothing reaches the pack's
+// saturating range. This agreed before the fix and has to keep agreeing -- it is
+// what says the fix did not simply move the disagreement somewhere else.
+TEST_F(SwScanlineCPathTest, AnAscendingGouraudSpanMatches)
+{
+	const Span span = {10.0f, 40.0f, 0.0f, 5.0f, 9.0f, 10.0f, 21.0f, 17.0f};
+
+	Reading jit, cpp;
+	ASSERT_TRUE(RunJit(true, span, 0, 4, jit));
+	RunCpp(true, span, 0, 4, cpp);
+
+	ExpectSame(cpp, jit, "ascending");
+}
+
+// A flat span is the other control: no gradient, no offsets, nothing to pack.
+TEST_F(SwScanlineCPathTest, AFlatGouraudSpanMatches)
+{
+	const Span span = {60.0f, 70.0f, 80.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+	Reading jit, cpp;
+	ASSERT_TRUE(RunJit(true, span, 0, 4, jit));
+	RunCpp(true, span, 0, 4, cpp);
+
+	ExpectSame(cpp, jit, "flat");
+}
+
+// Every channel decides on its own gradient, so a span that descends in two of them
+// and climbs in the other two has to match lane for lane.
+TEST_F(SwScanlineCPathTest, EachChannelIsPackedOnItsOwnGradient)
+{
+	const Span span = {250.0f, 0.0f, 250.0f, 0.0f, -30.0f, 30.0f, -1.0f, 1.0f};
+
+	Reading jit, cpp;
+	ASSERT_TRUE(RunJit(true, span, 0, 4, jit));
+	RunCpp(true, span, 0, 4, cpp);
+
+	ExpectSame(cpp, jit, "mixed");
+}
+
+// The four offset vectors differ only in which lane sits at zero, and a span that
+// does not start on a group boundary selects a different one. This walks all four,
+// which is also the only way the negative entries of the shift table are reached.
+TEST_F(SwScanlineCPathTest, EveryStartingLaneMatches)
+{
+	const Span span = {240.0f, 12.0f, 200.0f, 255.0f, -11.0f, 7.0f, -3.0f, -13.0f};
+
+	for (int left = 0; left < 4; left++)
+	{
+		Reading jit, cpp;
+		ASSERT_TRUE(RunJit(false, span, left, 4 - left, jit));
+		RunCpp(false, span, left, 4 - left, cpp);
+
+		ExpectSame(cpp, jit, "starting lane");
+	}
+}
+
+// A sweep, so the pin is the rule and not the handful of gradients above. Steep
+// gradients are included deliberately: they are what pushes an offset furthest past
+// the point the signed pack saturates at.
+TEST_F(SwScanlineCPathTest, TheTwoPathsAgreeAcrossAGradientSweep)
+{
+	static const float kSteps[] = {-85.0f, -60.0f, -17.0f, -1.0f, 0.0f, 1.0f, 17.0f, 60.0f, 85.0f};
+
+	for (float dr : kSteps)
+	{
+		for (float da : kSteps)
+		{
+			const Span span = {128.0f, 128.0f, 128.0f, 128.0f, dr, -dr, da, -da};
+
+			Reading jit, cpp;
+			ASSERT_TRUE(RunJit(true, span, 0, 4, jit));
+			RunCpp(true, span, 0, 4, cpp);
+
+			ExpectSame(cpp, jit, "sweep");
+		}
+	}
+}
+
+// The two paths only ever met on one vector's worth of pixels, which is the one
+// length at which the per-vector step is never taken. An untextured draw's step is
+// an alternating pair, so a span has to run several vectors before the two halves
+// of that pair are both exercised -- and it has to start at all eight positions
+// inside the block, because that is what chooses which half it begins on.
+TEST_F(SwScanlineCPathTest, EveryBlockStartMatchesAcrossManyVectors)
+{
+	const Span span = {240.0f, 12.0f, 200.0f, 255.0f, -3.0f, 7.0f, -1.0f, -2.0f};
+
+	for (int left = 0; left < 8; left++)
+	{
+		Reading jit, cpp;
+		ASSERT_TRUE(RunJit(false, span, left, 32, jit));
+		RunCpp(false, span, left, 32, cpp);
+
+		ExpectSame(cpp, jit, "block start");
+	}
+}
+
+TEST_F(SwScanlineCPathTest, TheGouraudWalkStepsInEightPixelBlocks)
+{
+	// Gradients deliberately off any binade, so a block step is not accidentally
+	// eight lane steps and the truncation actually has something to lose.
+	const Span span = {40.0f, 90.0f, 60.0f, 120.0f, 1.3f, -0.7f, 2.1f, 0.55f};
+
+	// Every phase, because the coarse ramp's one jump sits at the phase and a
+	// single phase would hide where it lands.
+	for (int phase = 0; phase < 8; phase++)
+	{
+		for (int left = 0; left < 8; left++)
+		{
+			Reading jit;
+			ASSERT_TRUE(RunJit(false, span, left, 40 - left, jit, phase));
+
+			for (int x = left; x < 40; x++)
+			{
+				SCOPED_TRACE(testing::Message() << "phase " << phase << " left " << left << " pixel " << x);
+
+				EXPECT_EQ(static_cast<int>(jit.px[x] & 0xff), WalkModel(span.r0, span.dr, phase, left, x)) << "red";
+				EXPECT_EQ(static_cast<int>((jit.px[x] >> 8) & 0xff), WalkModel(span.g0, span.dg, phase, left, x)) << "green";
+				EXPECT_EQ(static_cast<int>((jit.px[x] >> 16) & 0xff), WalkModel(span.b0, span.db, phase, left, x)) << "blue";
+				EXPECT_EQ(static_cast<int>((jit.px[x] >> 24) & 0xff), WalkModel(span.a0, span.da, phase, left, x)) << "alpha";
+			}
+		}
+	}
+}
+
+// A walk that dips below zero stores BLACK, not white.
+//
+// The scanline carries the colour as signed 16-bit 8.7 fixed point and the walk
+// is allowed to go negative -- clamping what it CARRIES was measured against five
+// console frames and refused, costing 2,046 words on Gran Turismo 4 and doubling
+// Stuntman's worst delta. The saturation belongs at the PACK, where the lane
+// becomes the stored byte, and that is the one place it was missing: a plain
+// logical shift turns -128 (minus one level) into 511, which saturates to 255.
+//
+// Console-measured, indirectly and decisively. Xenosaga's frame 3 had 75 pixels
+// where an untextured gouraud TRIANGLESTRIP accumulated additively (Cs + Cd,
+// COLCLAMP on) drove a channel from a mid value straight to 255, against a console
+// holding the destination unchanged there -- Cs = 0 on silicon. With the pack
+// saturating, all 75 go to the console's side and the frame's worst delta falls
+// from 245 to 42, which is the pre-lane reference's own worst.
+//
+// The subject starts one level up and descends a level a pixel, so the first
+// vector's later lanes sit one and two levels BELOW zero -- two gradients' worth
+// of the block's fine-pixel offset past the seed. Those pixels must read 0. The
+// step's own max-with-zero cannot cover them: it runs between vectors, and these
+// are all in the first.
+TEST_F(SwScanlineCPathTest, AWalkBelowZeroStoresBlack)
+{
+	const Span span = {1.0f, 2.0f, 1.0f, 3.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+
+	Reading jit, cpp;
+	ASSERT_TRUE(RunJit(true, span, 0, 4, jit));
+	RunCpp(true, span, 0, 4, cpp);
+
+	// Lane l holds seed - l levels, so red is 1, 0, -1, -2 and green 2, 1, 0, -1.
+	const int want_r[4] = {1, 0, 0, 0};
+	const int want_g[4] = {2, 1, 0, 0};
+	const int want_b[4] = {1, 0, 0, 0};
+	const int want_a[4] = {3, 2, 1, 0};
+
+	for (int x = 0; x < 4; x++)
+	{
+		SCOPED_TRACE(testing::Message() << "pixel " << x);
+
+		EXPECT_EQ(static_cast<int>(jit.px[x] & 0xff), want_r[x]) << "red";
+		EXPECT_EQ(static_cast<int>((jit.px[x] >> 8) & 0xff), want_g[x]) << "green";
+		EXPECT_EQ(static_cast<int>((jit.px[x] >> 16) & 0xff), want_b[x]) << "blue";
+		EXPECT_EQ(static_cast<int>((jit.px[x] >> 24) & 0xff), want_a[x]) << "alpha";
+
+		// The C++ scanline is the whole renderer wherever there is no code memory
+		// to compile into, so it saturates the same way or it is a bug nobody
+		// would see in a shipping build.
+		EXPECT_EQ(cpp.px[x], jit.px[x]);
+	}
+
+	// And the case can fail: without the saturation the negative lanes read back
+	// through a logical shift as 511 and 383, which saturate to white.
+	EXPECT_NE(want_r[2], 255);
+	EXPECT_NE(want_r[3], 255);
+}
+
+// The invariant behind the alternating pair: however a block is split across two
+// vectors, the two halves together advance by exactly one whole block step. If this
+// fails the walk drifts by a little every block, which is the shape of error that
+// only shows up hundreds of pixels along a span.
+TEST_F(SwScanlineCPathTest, TheTwoPhasesOfAStepSumToTheBlockStep)
+{
+	static const float kSteps[] = {-85.0f, -17.0f, -1.3f, 0.0f, 0.55f, 17.0f, 85.0f};
+
+	for (float dr : kSteps)
+	{
+		const Span span = {128.0f, 128.0f, 128.0f, 128.0f, dr, -dr, dr * 0.5f, -dr * 0.25f};
+
+		Reading jit;
+		ASSERT_TRUE(RunJit(false, span, 0, 32, jit));
+
+		for (int s = 0; s < 8; s++)
+		{
+			for (int lane = 0; lane < 4; lane++)
+			{
+				// Two 16-bit channels share each word, so each is summed on its own
+				// rather than letting one carry into its neighbour.
+				const u32 rb0 = jit.dw[s][0].rb.U32[lane], rb1 = jit.dw[s][1].rb.U32[lane];
+				const u32 ga0 = jit.dw[s][0].ga.U32[lane], ga1 = jit.dw[s][1].ga.U32[lane];
+
+				SCOPED_TRACE(testing::Message() << "dr " << dr << " s " << s << " lane " << lane);
+
+				EXPECT_EQ((rb0 + rb1) & 0xffff, BlockStep(span.dr)) << "red";
+				EXPECT_EQ(((rb0 >> 16) + (rb1 >> 16)) & 0xffff, BlockStep(span.db)) << "blue";
+				EXPECT_EQ((ga0 + ga1) & 0xffff, BlockStep(span.dg)) << "green";
+				EXPECT_EQ(((ga0 >> 16) + (ga1 >> 16)) & 0xffff, BlockStep(span.da)) << "alpha";
+			}
+		}
+	}
+}
+
+} // namespace
+
+#endif // ARCH_ARM64

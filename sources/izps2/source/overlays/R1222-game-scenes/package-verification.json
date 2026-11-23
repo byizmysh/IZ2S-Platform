@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1222-game-scenes/IZPS2-R1222.iza",
+  "bytes": 11438966,
+  "sha256": "537199b0dd4e62478d6d22ea202af1ef667c6e11363fe5b7950ea0ef61ffd90e",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "5236915c7c81567023e400a84e447d665e2cdee8b48e0c2a061ed48279b060d1"
+  },
+  "engine": {
+    "file": "asset-795d953601d8d191e4d07fc015e268a2e2cdaf7e9676a3a9ff263c28b57762d3.izdata",
+    "path": "asset-795d953601d8d191e4d07fc015e268a2e2cdaf7e9676a3a9ff263c28b57762d3.izdata",
+    "bytes": 28317608,
+    "sha256": "795d953601d8d191e4d07fc015e268a2e2cdaf7e9676a3a9ff263c28b57762d3"
+  }
+}

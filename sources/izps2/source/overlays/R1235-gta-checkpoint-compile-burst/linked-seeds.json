@@ -1,0 +1,51 @@
+{
+  "baseSeed": {
+    "bytes": 308344,
+    "sha256": "469db9b593ba7317b2acddb8bdf2d377a0906d7092d9cb347e9a5325a3ac449f"
+  },
+  "burstSeed": {
+    "bytes": 330680,
+    "sha256": "edd1c15b5649b133fadbe6c056db78e8aec1b54d4e0d76a2590b1d79cc9c9fe1"
+  },
+  "inheritedShaders": {
+    "bytes": 521988,
+    "sha256": "9c5e91f01ee905208f199c89691c90e65a2a8d2557a5d27f3beb827343d2159d"
+  },
+  "unchangedArchives": [
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1229-gs-packet-costs/libpcsx2-hosted.a",
+    "frontend/libizps2-platform.a",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a",
+    "${IZPS2_WORKSPACE}/build/izps2-homebrew/logs/hen-izps2-shaderc-5pa3zJ/shaderc/libshaderc/libshaderc_combined.a",
+    "3rdparty/vixl/libvixl.a",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1131-vu1-lanew-abi-reload/libcommon-hosted.a",
+    "frontend/libizps2-platform.a",
+    "deps/webp/libwebp.a",
+    "deps/webp/libsharpyuv.a",
+    "3rdparty/rapidyaml/libpcsx2-rapidyaml.a",
+    "3rdparty/imgui/libimgui.a",
+    "3rdparty/fmt/libfmt.a",
+    "3rdparty/libchdr/liblibchdr.a",
+    "3rdparty/libzip/libzip.a",
+    "3rdparty/cpuinfo/libcpuinfo.a",
+    "3rdparty/cubeb/libcubeb.a",
+    "3rdparty/rcheevos/librcheevos.a",
+    "3rdparty/discord-rpc/libdiscord-rpc.a",
+    "3rdparty/simpleini/libsimpleini.a",
+    "3rdparty/freesurround/libfreesurround.a",
+    "deps/freetype/libfreetype.a",
+    "liblz4.a",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1122-ee-loop-smc-epoch-charge/objects/50-libpcsx2-soundtouch.a",
+    "deps/jpeg/libjpeg.a",
+    "deps/png/liblibpng18_static.a",
+    "deps/zlib/libzlibstatic.a",
+    "3rdparty/lzma/libpcsx2-lzma.a",
+    "deps/zstd/lib/libzstd.a",
+    "3rdparty/demangler/libdemanglegnu.a",
+    "3rdparty/ccc/libccc.a",
+    "3rdparty/plutosvg/libplutosvg.a",
+    "3rdparty/plutovg/libplutovg.a",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a"
+  ]
+}

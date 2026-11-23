@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1177-iop-third-core-admission/IZPS2-R1177.iza",
+  "bytes": 11219378,
+  "sha256": "a6f523948f8169e0cab28be6411f544fe9671ee78d0ed1c200b5790cea64e844",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "9061d443a691d28b858ba5b2bc7911c11cc9f298d06b124f156d318a5d43aace"
+  },
+  "engine": {
+    "file": "asset-2fab0f02e3c3f360f52139a9d8045a20a1d02e29dbb6a2d58bac3be6e4b62b99.izdata",
+    "path": "asset-2fab0f02e3c3f360f52139a9d8045a20a1d02e29dbb6a2d58bac3be6e4b62b99.izdata",
+    "bytes": 27980680,
+    "sha256": "2fab0f02e3c3f360f52139a9d8045a20a1d02e29dbb6a2d58bac3be6e4b62b99"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1270-iop-host-hotspots/IZPS2-R1270.iza",
+  "bytes": 12067425,
+  "sha256": "ea1e483b617d64d2a423b8e92b6549816a74aab99af3f5d6eff709122ab8d664",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "141ae3c14a02a1976f8345592aee952dfad250362b7531f8e25f236abff3d0e7"
+  },
+  "engine": {
+    "file": "asset-b2c19cfcca0c21145a4b8518c82ac6b0d66db56a1d8d9aae0f650c2875233459.izdata",
+    "path": "asset-b2c19cfcca0c21145a4b8518c82ac6b0d66db56a1d8d9aae0f650c2875233459.izdata",
+    "bytes": 29573776,
+    "sha256": "b2c19cfcca0c21145a4b8518c82ac6b0d66db56a1d8d9aae0f650c2875233459"
+  }
+}

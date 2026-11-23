@@ -1,0 +1,14 @@
+
+${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1270-iop-host-hotspots/engine.elf:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+00000001007ae220 <iz_system_ticks>:
+1007ae220: d53be020    	mrs	x0, CNTPCT_EL0
+1007ae224: d65f03c0    	ret
+		...
+
+00000001007ae240 <iz_tick_frequency>:
+1007ae240: d53be000    	mrs	x0, CNTFRQ_EL0
+1007ae244: d65f03c0    	ret
+		...

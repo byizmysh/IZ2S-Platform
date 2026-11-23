@@ -1,0 +1,170 @@
+.*.swp
+.*.swn
+.*.swo
+
+*.suo
+*.ncb
+*.sdf
+*.opensdf
+*.user
+*.log
+*.dsp
+*.dsw
+*.bsc
+*.aps
+*.exe
+*.wav
+
+*.trace
+*.dump
+
+*.asm
+# ...but hand-written source assembly is real source, not build output.
+!common/FastJmp.asm
+!common/FastJmp.aarch64.asm
+
+*.VC.db
+*.VC.VC.opendb
+
+_ReSharper.*
+pcsx2.snapshot_*
+svnrev.h
+
+/build*
+/obj-*
+*.obj
+
+# Coverage-instrumented binaries drop these wherever they are run from when
+# LLVM_PROFILE_FILE is unset (tools/coverage.sh always sets it).
+*.profraw
+*.profdata
+
+.DS_Store
+Thumbs.db
+
+Debug.txt
+install_log.txt
+bad_shader_*
+crash-*.txt
+
+# Ad-hoc dev logs (produced by instrumentation / testing)
+crash.txt
+emulog.txt
+vu0_ops_*.log
+vu1_ops_*.log
+vu0_rec.log
+vu1_rec.log
+vu1_interp.log
+vu1_xgkick_*.log
+vkinfo_*.txt
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+Debug
+Release
+Devel
+
+oprofile_data/
+
+# Recording Specific Ignores (pcsx2-rr)
+*.p2s
+*.p2m2
+*.p2m2_backup
+*.p2m2_SaveState.p2s
+
+# Visual Studio upgrades
+/Backup*
+/UpgradeLog*.htm
+/.vscode*
+
+# Jetbrains Rider
+/.idea*
+
+# KDevelop 4 Workspace Configuration Files
+*.kdev4
+/.kdev4*
+
+# Kate Projects
+.kateproject*
+
+# Resources and docs in /bin are tracked
+/bin/**/*.dll
+/bin/**/*.dmp
+/bin/**/*.exp
+/bin/**/*.ilk
+/bin/**/*.lib
+/bin/**/*.pdb
+/bin/pcsx2*
+/bin/qt.conf
+/bin/bios
+/bin/cache
+/bin/cheats
+/bin/patches
+/bin/covers
+/bin/dumps
+/bin/gamesettings
+/bin/help
+/bin/inis
+/bin/inis/debuggersettings
+/bin/logs
+/bin/memcards
+/bin/plugins
+/bin/snaps
+/bin/sstates
+/bin/textures
+/bin/translations
+/bin/inputprofiles
+/bin/videos
+/bin/portable.ini
+/bin/portable.txt
+
+# Resources and docs copied from /bin
+/bin-arm64
+
+# Manually added by user.
+/bin/resources/patches.zip
+
+# Resources that are runtime downloaded.
+/bin/resources/fonts/NotoSansJP-Regular.ttf
+/bin/resources/fonts/NotoSansKR-Regular.ttf
+/bin/resources/fonts/NotoSansSC-Regular.ttf
+/bin/resources/fonts/NotoSansTC-Regular.ttf
+
+/deps-build
+/deps
+/deps-arm64
+/pcsx2-deps
+/gammaray-build
+/gammaray
+/ipch
+
+!/3rdparty/libjpeg/change.log
+/tools/bin
+.vs
+
+/out/build/x64-Debug (default)
+CMakeSettings.json
+/ci-artifacts/
+/out/
+/.cache/
+
+# Achievement sounds are shipped assets, not build output — keep them tracked
+!platforms/android/app/src/main/assets/resources/sounds/**/*.wav
+
+# RetroAchievements client User-Agent secret — the real pinned version is injected
+# from this header at build time and must NEVER be committed (spoofing prevention).
+ra_ua_secret.h
+
+# Kotlin compiler session scratch dir created by Gradle next to the android project.
+platforms/android/.kotlin/
+
+# Discord Social SDK — supplied privately at build time via DISCORD_SDK_DIR, never committed.
+# Discord's terms permit shipping the SDK inside a working application but not republishing the
+# raw SDK on its own, so none of it belongs in this repository. Our own bridge, IPC interface and
+# helper service ARE here; only Discord's material is excluded.
+**/libdiscord_partner_sdk.so
+**/discord_partner_sdk.aar
+**/discord_partner_sdk.jar
+platforms/android/app/src/main/cpp/3rdparty/discord/include/

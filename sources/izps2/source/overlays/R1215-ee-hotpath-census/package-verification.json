@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1215-ee-hotpath-census/IZPS2-R1215.iza",
+  "bytes": 11428742,
+  "sha256": "c60c678afa110d56a16f825efbbc8f86cc067c16a80e407cba1c1434f59ff0df",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "0b15ae87a1dda1e1d993c8f8787ab64986468ac32a5e0d09e1cdb9f301a38e5d"
+  },
+  "engine": {
+    "file": "asset-c9c1b914baefd2a1fbb1bebb2789674515a90ab156d8c3acea72e9d153470df1.izdata",
+    "path": "asset-c9c1b914baefd2a1fbb1bebb2789674515a90ab156d8c3acea72e9d153470df1.izdata",
+    "bytes": 28250488,
+    "sha256": "c9c1b914baefd2a1fbb1bebb2789674515a90ab156d8c3acea72e9d153470df1"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1315-nfs-cadence/IZPS2-R1315.iza",
+  "bytes": 12085875,
+  "sha256": "3382ff059eec2fecada741ec10852dbb1860bafbd094f2f4ad84b57e1b3c0905",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "e8f327b39acffb32470b903e241de00afb10b0edd7fbe5edce32d757c84dfbd8"
+  },
+  "engine": {
+    "file": "asset-e1292e754d8ce0b76a7123216a49b8498e423edcd199c0975a1813512ddbea9b.izdata",
+    "path": "asset-e1292e754d8ce0b76a7123216a49b8498e423edcd199c0975a1813512ddbea9b.izdata",
+    "bytes": 29645656,
+    "sha256": "e1292e754d8ce0b76a7123216a49b8498e423edcd199c0975a1813512ddbea9b"
+  }
+}

@@ -1,0 +1,350 @@
+// SPDX-FileCopyrightText: 2026 yaps2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+// VU0 clamping-mode DiffJitVsInterp suite. The PS2 VU has no IEEE
+// inf/NaN/denormal: every numerically-special result is clamped to a finite
+// IEEE float. PCSX2 makes the clamping aggressiveness configurable via four
+// per-VU EmuConfig knobs:
+//
+//   vu0Overflow        — basic overflow → ±MAX_FLOAT (0x7F7FFFFF / 0xFF7FFFFF)
+//   vu0ExtraOverflow   — clamp at MUL/MADD intermediate steps (more strict)
+//   vu0SignOverflow    — sign-aware overflow (preserves sign of operand)
+//   vu0ExactMode       — the models mode 4 carries
+//
+// JIT and interp must agree under every combination — these tests pick a
+// handful of canonical edge inputs (large-positive overflow, large-negative
+// overflow, denormal-producing underflow) and sweep the knob matrix. The
+// assertion is cross-engine agreement (GetVfBitsJit == GetVfBitsInterp) for
+// each knob setting, not a hardcoded clamped value: whatever the active
+// clamping mode produces, both engines must produce bit-for-bit. Each test
+// scopes its config change with a RAII saver so fixture-shared state
+// (EmuConfig is a global) doesn't leak across tests.
+//
+
+#include "harness/VuTestHarness.h"
+
+#include "Config.h"
+#include "VU.h"
+
+#include <gtest/gtest.h>
+
+namespace recompiler_tests {
+
+using namespace vu;
+
+namespace {
+
+// Set the I-bit so the zero lower word is positively suppressed rather than
+// decoded as a real lower instruction (a bare {0, upper} decodes lower=0 as
+// the LQ family — inert today only because _vuLQ early-returns on _Ft_==0).
+// Matches the canonical lower-pipe-suppression form used across the suite.
+inline VuOp UpperOnly(u32 upper) { return IBit(VuOp{VLitZero(), upper}); }
+
+// RAII guard: snapshots the four VU0 clamp knobs in ctor, restores in dtor.
+// Tests use it as `ClampGuard cg; cg.Set(true, false, true, false);` — each
+// permutation flipped explicitly so the test reads as a matrix row.
+struct ClampGuard
+{
+	bool prev_overflow;
+	bool prev_extra;
+	bool prev_sign;
+	bool prev_exact;
+
+	ClampGuard()
+	{
+		prev_overflow  = EmuConfig.Cpu.Recompiler.vu0Overflow;
+		prev_extra     = EmuConfig.Cpu.Recompiler.vu0ExtraOverflow;
+		prev_sign      = EmuConfig.Cpu.Recompiler.vu0SignOverflow;
+		prev_exact     = EmuConfig.Cpu.Recompiler.vu0ExactMode;
+	}
+	~ClampGuard()
+	{
+		EmuConfig.Cpu.Recompiler.vu0Overflow     = prev_overflow;
+		EmuConfig.Cpu.Recompiler.vu0ExtraOverflow = prev_extra;
+		EmuConfig.Cpu.Recompiler.vu0SignOverflow = prev_sign;
+		EmuConfig.Cpu.Recompiler.vu0ExactMode    = prev_exact;
+	}
+
+	void Set(bool overflow, bool extra, bool sign, bool exact)
+	{
+		EmuConfig.Cpu.Recompiler.vu0Overflow     = overflow;
+		EmuConfig.Cpu.Recompiler.vu0ExtraOverflow = extra;
+		EmuConfig.Cpu.Recompiler.vu0SignOverflow = sign;
+		EmuConfig.Cpu.Recompiler.vu0ExactMode    = exact;
+	}
+};
+
+constexpr u32 kPosBigBits   = 0x7E800000u; // ~8.5e+37, multiplying by self overflows
+constexpr u32 kNegBigBits   = 0xFE800000u; // -8.5e+37
+constexpr u32 kPosTinyBits  = 0x00800000u; // smallest positive normal float
+
+inline VuOp VMulxyzw(u32 fd, u32 fs, u32 ft) { return UpperOnly(VMUL_U(mask::xyzw, fd, fs, ft)); }
+
+// The clamp knobs are a recompiler setting now: the interpreter saturates an
+// overflow at 0x7FFFFFFF, the VU's largest value and what the console returns,
+// whatever the knobs say. So an overflowing program's value is asserted
+// directly against the word the clamp is supposed to produce -- a stronger
+// statement than the engines agreeing -- and the divergence is recorded rather
+// than dropped.
+constexpr const char* kWhyClampCeiling =
+	"the clamp knobs bind the emitters only; the interpreter saturates at "
+	"0x7FFFFFFF";
+
+void RunAndExpectJitClamps(VuTestHarness& h, u32 dst_vf, u32 want, const char* lanes = "xyzw")
+{
+	h.RunRequiringDivergence(kWhyClampCeiling);
+	for (const char* l = lanes; *l; ++l)
+		EXPECT_EQ(h.GetVfBitsJit(dst_vf, *l), want) << "lane " << *l;
+}
+
+void RunAndExpectAllLanesAgree(VuTestHarness& h, u32 dst_vf)
+{
+	h.Run();
+	EXPECT_EQ(h.GetVfBitsJit(dst_vf, 'x'), h.GetVfBitsInterp(dst_vf, 'x'));
+	EXPECT_EQ(h.GetVfBitsJit(dst_vf, 'y'), h.GetVfBitsInterp(dst_vf, 'y'));
+	EXPECT_EQ(h.GetVfBitsJit(dst_vf, 'z'), h.GetVfBitsInterp(dst_vf, 'z'));
+	EXPECT_EQ(h.GetVfBitsJit(dst_vf, 'w'), h.GetVfBitsInterp(dst_vf, 'w'));
+}
+
+} // namespace
+
+// =========================================================================
+//  VMUL of two tiny normals, at the top and the bottom of the fourth knob.
+//  Whatever the mode does with the product, both engines must do the same.
+// =========================================================================
+
+TEST(Vu0ClampModes, ExactOnTinyProductAgrees)
+{
+	ClampGuard cg;
+	cg.Set(true, true, true, /*exact*/true);
+
+	VuTestHarness h(0);
+	h.SetVfBits(vf::vf2, kPosTinyBits, kPosTinyBits, kPosTinyBits, kPosTinyBits);
+	// The subject here is the underflow VALUE, and the two engines part company
+	// on the flag: the interpreter classifies the underflow from its operands and
+	// raises U, the recompiler only ever sees the flushed zero. That divergence
+	// has a home of its own in
+	// VuStickyConsoleConformance.ProductionFpEnvironmentGatesTheJitsUnderflowOnItsMode,
+	// so it is kept out of this diff rather than asserted twice.
+	h.IgnoreViInDiff(REG_MAC_FLAG);
+	h.IgnoreViInDiff(REG_STATUS_FLAG);
+	h.LoadProgram({
+		VMulxyzw(vf::vf1, vf::vf2, vf::vf2),
+		EBitNopPair(),
+	});
+	RunAndExpectAllLanesAgree(h, vf::vf1);
+}
+
+TEST(Vu0ClampModes, ExactOffTinyProductAgrees)
+{
+	ClampGuard cg;
+	cg.Set(true, true, true, /*exact*/false);
+
+	VuTestHarness h(0);
+	h.SetVfBits(vf::vf2, kPosTinyBits, kPosTinyBits, kPosTinyBits, kPosTinyBits);
+	// The subject here is the underflow VALUE, and the two engines part company
+	// on the flag: the interpreter classifies the underflow from its operands and
+	// raises U, the recompiler only ever sees the flushed zero. That divergence
+	// has a home of its own in
+	// VuStickyConsoleConformance.ProductionFpEnvironmentGatesTheJitsUnderflowOnItsMode,
+	// so it is kept out of this diff rather than asserted twice.
+	h.IgnoreViInDiff(REG_MAC_FLAG);
+	h.IgnoreViInDiff(REG_STATUS_FLAG);
+	h.LoadProgram({
+		VMulxyzw(vf::vf1, vf::vf2, vf::vf2),
+		EBitNopPair(),
+	});
+	RunAndExpectAllLanesAgree(h, vf::vf1);
+}
+
+// =========================================================================
+//  Sign-overflow knob — vu0SignOverflow drops sign-aware overflow handling.
+//  Use VSUB to produce a large negative result and verify both engines
+//  clamp identically with and without the knob.
+// =========================================================================
+
+TEST(Vu0ClampModes, SignOverflowOnLargeNegativeResultClampsToNegMax)
+{
+	ClampGuard cg;
+	cg.Set(true, false, /*sign*/true, false);
+
+	VuTestHarness h(0);
+	h.SetVfBits(vf::vf2, kPosBigBits, kPosBigBits, kPosBigBits, kPosBigBits);
+	h.SetVfBits(vf::vf3, kNegBigBits, kNegBigBits, kNegBigBits, kNegBigBits);
+	h.LoadProgram({
+		UpperOnly(VSUB_U(mask::xyzw, vf::vf1, vf::vf3, vf::vf2)), // big_neg - big_pos
+		EBitNopPair(),
+	});
+	RunAndExpectAllLanesAgree(h, vf::vf1);
+}
+
+TEST(Vu0ClampModes, SignOverflowOffLargeNegativeResultClampsViaBaseOverflow)
+{
+	ClampGuard cg;
+	cg.Set(true, false, /*sign*/false, false);
+
+	VuTestHarness h(0);
+	h.SetVfBits(vf::vf2, kPosBigBits, kPosBigBits, kPosBigBits, kPosBigBits);
+	h.SetVfBits(vf::vf3, kNegBigBits, kNegBigBits, kNegBigBits, kNegBigBits);
+	h.LoadProgram({
+		UpperOnly(VSUB_U(mask::xyzw, vf::vf1, vf::vf3, vf::vf2)),
+		EBitNopPair(),
+	});
+	RunAndExpectAllLanesAgree(h, vf::vf1);
+}
+
+// =========================================================================
+//  Sign-overflow + single-lane broadcast — exercises mVUclamp2's SS row
+//  (AX-02): the sign-preserving operand clamp selects the 2-row bounds
+//  table (row 0 clamps only lane 0, sentinel no-ops in lanes 1-3, mirroring
+//  x86 sse4_min/maxvals). MULx carries the cFs operand clamp, so a -NaN in
+//  Fs.x must be sign-clamped to -MAX_FLOAT before the multiply — exactly
+//  what the interp's vuDouble does on read, so both engines agree. The
+//  sibling NaNs in Fs.y/z/w ride in the clamped copy's lanes 1-3 and die at
+//  the masked writeback either way; the test pins the emit path (offsets,
+//  lane-0 bound) rather than discriminating the row select.
+// =========================================================================
+
+TEST(Vu0ClampModes, SignOverflowSingleLaneBroadcastClampsOperandLane0)
+{
+	ClampGuard cg;
+	cg.Set(true, false, /*sign*/true, false);
+
+	VuTestHarness h(0);
+	// Fs = vf2: -NaN in x (the operand lane), NaN garbage in y/z/w.
+	h.SetVfBits(vf::vf2, 0xFFFFFFFFu, 0x7FFFFFFFu, 0xFF800000u, 0x7F800000u);
+	h.SetVfBits(vf::vf3, 0x3F800000u, 0, 0, 0); // vf3.x = 1.0 (broadcast lane)
+	h.LoadProgram({
+		UpperOnly(VMULx_U(mask::x, vf::vf1, vf::vf2, vf::vf3)),
+		EBitNopPair(),
+	});
+	// Sign-preserved: -NaN operand clamps to -MAX_FLOAT, * 1.0 = -MAX_FLOAT.
+	RunAndExpectJitClamps(h, vf::vf1, 0xFF7FFFFFu, "x");
+}
+
+// =========================================================================
+//  Extra-overflow knob — clamps inside MUL/MADD intermediate steps. Use a
+//  VMADD (vf1 = ACC + fs*ft) whose product overflows, so the knob clamps the
+//  intermediate to MAX_FLOAT before the accumulator add.
+// =========================================================================
+
+TEST(Vu0ClampModes, ExtraOverflowOnMaddIntermediateClampsBeforeAdd)
+{
+	ClampGuard cg;
+	cg.Set(true, /*extra*/true, false, false);
+
+	VuTestHarness h(0);
+	// Pre-load ACC via VADDA, then VMADD: vf1 = ACC + (vf2 * vf3). The product
+	// vf2*vf3 overflows (big*big), which the extra-overflow knob clamps to
+	// MAX_FLOAT at the MADD intermediate, before the ACC add.
+	h.SetVfBits(vf::vf2, kPosBigBits, kPosBigBits, kPosBigBits, kPosBigBits);
+	h.SetVfBits(vf::vf3, kPosBigBits, kPosBigBits, kPosBigBits, kPosBigBits);
+	h.LoadProgram({
+		UpperOnly(VADDA_U(mask::xyzw, vf::vf2, vf::vf3)),          // ACC = vf2 + vf3
+		UpperOnly(0u | VNOP_U()),
+		UpperOnly(VMADD_U(mask::xyzw, vf::vf1, vf::vf2, vf::vf3)), // vf1 = ACC + vf2*vf3
+		EBitNopPair(),
+	});
+	RunAndExpectJitClamps(h, vf::vf1, 0x7F7FFFFFu);
+}
+
+TEST(Vu0ClampModes, ExtraOverflowOffSameProgramAgreesOnFinalValue)
+{
+	ClampGuard cg;
+	cg.Set(true, /*extra*/false, false, false);
+
+	VuTestHarness h(0);
+	h.SetVfBits(vf::vf2, kPosBigBits, kPosBigBits, kPosBigBits, kPosBigBits);
+	h.SetVfBits(vf::vf3, kPosBigBits, kPosBigBits, kPosBigBits, kPosBigBits);
+	h.LoadProgram({
+		UpperOnly(VADDA_U(mask::xyzw, vf::vf2, vf::vf3)),
+		UpperOnly(0u | VNOP_U()),
+		UpperOnly(VMADD_U(mask::xyzw, vf::vf1, vf::vf2, vf::vf3)),
+		EBitNopPair(),
+	});
+	RunAndExpectJitClamps(h, vf::vf1, 0x7F7FFFFFu);
+}
+
+// =========================================================================
+//  Overflow knob — VMUL of two large positive values produces +Inf in IEEE,
+//  which the interp clamps to MAX_FLOAT during the MAC flag update. The JIT
+//  only applies its post-multiply overflow clamp when ExtraOverflow is on —
+//  so this case must include extra-overflow to exercise the clamp.
+// =========================================================================
+
+TEST(Vu0ClampModes, OverflowOnPositiveVmulClampsToMaxFloat)
+{
+	ClampGuard cg;
+	cg.Set(/*overflow*/true, /*extra*/true, false, false);
+
+	VuTestHarness h(0);
+	h.SetVfBits(vf::vf2, kPosBigBits, kPosBigBits, kPosBigBits, kPosBigBits);
+	h.LoadProgram({
+		VMulxyzw(vf::vf1, vf::vf2, vf::vf2),
+		EBitNopPair(),
+	});
+	RunAndExpectJitClamps(h, vf::vf1, 0x7F7FFFFFu);
+}
+
+TEST(Vu0ClampModes, OverflowOnNegativeVmulClampsToNegMaxFloat)
+{
+	ClampGuard cg;
+	cg.Set(/*overflow*/true, /*extra*/true, false, false);
+
+	VuTestHarness h(0);
+	// Big positive × big negative → big-negative-overflow → -MAX_FLOAT.
+	h.SetVfBits(vf::vf2, kPosBigBits, kPosBigBits, kPosBigBits, kPosBigBits);
+	h.SetVfBits(vf::vf3, kNegBigBits, kNegBigBits, kNegBigBits, kNegBigBits);
+	h.LoadProgram({
+		VMulxyzw(vf::vf1, vf::vf2, vf::vf3),
+		EBitNopPair(),
+	});
+	RunAndExpectJitClamps(h, vf::vf1, 0xFF7FFFFFu);
+}
+
+// =========================================================================
+//  A single-lane dest field, which every test above misses: they all write
+//  four lanes, and mVUclamp1 answers a single-lane dest with a sequence of
+//  its own that computes the clamped scalar off to one side and writes lane
+//  0 alone, so lanes 1-3 survive (VuSsClampLane).
+//
+//  The operand carries the out-of-range word rather than the arithmetic
+//  producing one. A product that overflows cannot tell whether the clamp ran:
+//  the recompiler rounds toward zero, where the host multiply saturates at
+//  +/-FLT_MAX by itself and lands on the same word the clamp would have
+//  written. An infinity read out of a VF register reaches the clamp
+//  untouched, and only the max's bound turns +Inf into +MAX_FLOAT, only the
+//  min's -Inf into -MAX_FLOAT.
+// =========================================================================
+
+TEST(Vu0ClampModes, SingleLaneOperandInfinityClampsToMaxFloat)
+{
+	ClampGuard cg;
+	cg.Set(/*overflow*/true, /*extra*/true, false, false);
+
+	VuTestHarness h(0);
+	h.SetVfBits(vf::vf2, 0, 0, 0x7F800000u, 0); // +Inf in the dest field's lane
+	h.SetVfBits(vf::vf3, 0x3F800000u, 0x3F800000u, 0x3F800000u, 0x3F800000u);
+	h.LoadProgram({
+		UpperOnly(VMUL_U(mask::z, vf::vf1, vf::vf2, vf::vf3)),
+		EBitNopPair(),
+	});
+	RunAndExpectJitClamps(h, vf::vf1, 0x7F7FFFFFu, "z");
+}
+
+TEST(Vu0ClampModes, SingleLaneOperandNegInfinityClampsToNegMaxFloat)
+{
+	ClampGuard cg;
+	cg.Set(/*overflow*/true, /*extra*/true, false, false);
+
+	VuTestHarness h(0);
+	h.SetVfBits(vf::vf2, 0, 0xFF800000u, 0, 0); // -Inf in the dest field's lane
+	h.SetVfBits(vf::vf3, 0x3F800000u, 0x3F800000u, 0x3F800000u, 0x3F800000u);
+	h.LoadProgram({
+		UpperOnly(VMUL_U(mask::y, vf::vf1, vf::vf2, vf::vf3)),
+		EBitNopPair(),
+	});
+	RunAndExpectJitClamps(h, vf::vf1, 0xFF7FFFFFu, "y");
+}
+
+} // namespace recompiler_tests

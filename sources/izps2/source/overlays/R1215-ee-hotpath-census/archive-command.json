@@ -1,0 +1,6 @@
+[
+  "llvm-ar",
+  "rD",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1215-ee-hotpath-census/libpcsx2-hosted.a",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1215-ee-hotpath-census/ADSR.cpp.obj"
+]

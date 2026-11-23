@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE_DIR="$ROOT_DIR"
+BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build/device}"
+BUNDLE_ID="${BUNDLE_ID:-com.armsx2.ios}"
+TEAM_ID="${TEAM_ID:-}"
+DISPLAY_NAME="${DISPLAY_NAME:-ARMSX2 iOS}"
+VERSION_SUFFIX="${VERSION_SUFFIX:-}"
+
+if ! command -v cmake >/dev/null 2>&1; then
+	echo "error: cmake is required to generate the iOS Xcode project." >&2
+	echo "Install CMake from https://cmake.org/download/ or through your package manager." >&2
+	exit 1
+fi
+
+cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G Xcode \
+	-DCMAKE_SYSTEM_NAME=iOS \
+	-DARMSX2_REAL_DEVICE=ON \
+	-DARMSX2_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+	-DARMSX2_DEVELOPMENT_TEAM="$TEAM_ID" \
+	-DARMSX2_DISPLAY_NAME="$DISPLAY_NAME" \
+	-DARMSX2_VERSION_SUFFIX="$VERSION_SUFFIX"
+
+cat <<EOF
+
+Generated Xcode project:
+  $BUILD_DIR/ARMSX2iOS.xcodeproj
+
+Open in Xcode:
+  open "$BUILD_DIR/ARMSX2iOS.xcodeproj"
+
+Prebuilt core (Ninja, rebuilt before every app build when its sources change):
+  $ROOT_DIR/build/core-device
+
+Unsigned device build:
+  xcodebuild -project "$BUILD_DIR/ARMSX2iOS.xcodeproj" -scheme ARMSX2iOS -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+
+To use automatic signing, regenerate with:
+  TEAM_ID=YOUR_APPLE_TEAM_ID BUNDLE_ID=com.your.bundle.id ./scripts/generate-ios-xcode.sh
+
+EOF

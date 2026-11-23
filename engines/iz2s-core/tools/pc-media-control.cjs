@@ -170,7 +170,7 @@ async function requestMedia(id,action,out,selection){
   const service=require('./pc-link-service.cjs');
   const state=action==='start'?await service.ensure(out):await service.status();
   if(!state&&action==='stop')return stop(id);
-  assert(state?.service?.root===path.resolve(__dirname,'../../..'),'Start PC Link from this 0.3.0 installation.');
+  assert(state?.service?.root===path.resolve(__dirname,'../../..'),'Start PC Link from this 0.3.1 installation.');
   const origin='http://127.0.0.1:39525';
   const response=await fetch(origin+'/media/'+id+'/'+action,{
     method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({window:selection}),

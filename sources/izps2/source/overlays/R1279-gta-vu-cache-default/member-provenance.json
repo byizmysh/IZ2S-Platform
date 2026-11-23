@@ -1,0 +1,6 @@
+{
+  "baselineArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1277-iop-thread-future-cdvd/libpcsx2-hosted.a",
+  "referenceObject": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1181-fastmem-capability-notice/VMManager.cpp.obj",
+  "baselineSha256": "23b84286fb8941dbc6e01e63304ca7704f01a5080689cf016c939e6a9816a620",
+  "replacementSha256": "35557ee7d3e82c1f0d90a86c84af5db21c8a27ffcb90f73e5212fea4e68f5626"
+}

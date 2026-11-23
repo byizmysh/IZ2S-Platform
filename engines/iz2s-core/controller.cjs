@@ -61,7 +61,7 @@ function create({root,manager,out=DEFAULT_OUT,launch=spawn,inputFactory,checkPor
    await checkKeyboard(input);
    const id=crypto.randomUUID();inputId=crypto.randomUUID();
    job={id,kind:'launch',state:'starting',inputDevice:config.selected,inputName:inputNames[config.selected],startedAt:new Date().toISOString(),host,inputId,inputSent:false,needsReboot:false,core:null,error:null,run:null};await save();
-   const output=journal.writer(path.join(directory,id+'.log'));await output.append('IZ2S core · 0.3.0\n');
+   const output=journal.writer(path.join(directory,id+'.log'));await output.append('IZ2S core · 0.3.1\n');
    let tail='',launched=false,lines=Promise.resolve();
    const append=output.append;
    child=launch(process.execPath,[runtime.start,host],{cwd:__dirname,env:{...process.env,IZ2S_CORE_OUT:out,NS2_BASIC_ARITY:'5',TMPDIR:path.join(out,'tmp'),

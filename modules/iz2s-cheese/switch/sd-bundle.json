@@ -1,0 +1,17 @@
+{
+  "format": "iz2s.sd-bundle",
+  "version": 1,
+  "id": "iz2s-cheese",
+  "launcher": {
+    "bytes": 826684,
+    "sha256": "0b2d6c8fe32ab5679c9da58840a8bbcaf06caf24ca7ab95484681df6dc80a9b8"
+  },
+  "assets": [
+    {
+      "file": "asset-f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426.izdata",
+      "path": "asset-f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426.izdata",
+      "bytes": 113816,
+      "sha256": "f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426"
+    }
+  ]
+}

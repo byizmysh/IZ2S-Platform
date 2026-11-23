@@ -1,0 +1,15 @@
+/* Generated from the framework SDK service profile. */
+#define IZ_HAPTIC_SEND_OFFSET 4840144u
+#define IZ_HAPTIC_READ_OFFSET 4840432u
+#define IZ_UDP_INIT_OFFSET 1315232u
+#define IZ_UDP_SOCKET_OFFSET 1314112u
+#define IZ_UDP_SEND_OFFSET 1313776u
+#define IZ_UDP_RECV_OFFSET 1313680u
+#define IZ_UDP_CLOSE_OFFSET 1314192u
+#define IZ_UDP_ERRNO_OFFSET 1314992u
+#define IZ_UDP_TICK_OFFSET 1218112u
+static inline int iz_host_sdk_target(const IzContext*c,u64 target){
+ if(c->sdk<4096||c->sdk>=(1ull<<39)-0x5e1000ull)return 0;
+ const u32 offsets[]={4801504u,4850560u,4818208u,4818336u,4817696u,4854688u,4839648u,4840144u,4840432u,4839328u,4794464u,4793248u,4801904u,4797520u,4845408u,4845184u,4847136u,4847360u,4847584u,3739888u,3740032u,1315232u,4978784u,4979680u,1314112u,1313776u,1313680u,1314192u,1314992u,3621600u,3623024u,3623200u,3624784u,3624976u,3625136u,3625280u,3623616u,1218112u};
+ for(unsigned i=0;i<sizeof offsets/sizeof *offsets;i++)if(target==c->sdk+offsets[i])return 1;return 0;
+}

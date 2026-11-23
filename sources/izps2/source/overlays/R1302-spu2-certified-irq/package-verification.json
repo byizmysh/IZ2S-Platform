@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1302-spu2-certified-irq/IZPS2-R1302.iza",
+  "bytes": 12076171,
+  "sha256": "7bc1e681ebde0db77bba8dc64e284e5c8a026b0e6fa89366d4445757c2e95044",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "5351a57a57b87f15335c7997b58e17bb4119d3cdbead7f3636c7ba68d7379cc5"
+  },
+  "engine": {
+    "file": "asset-3acb4e55170e026b77be89197d17db9c0756fcac9809682b7c85e44b4e1fb10e.izdata",
+    "path": "asset-3acb4e55170e026b77be89197d17db9c0756fcac9809682b7c85e44b4e1fb10e.izdata",
+    "bytes": 29641992,
+    "sha256": "3acb4e55170e026b77be89197d17db9c0756fcac9809682b7c85e44b4e1fb10e"
+  }
+}

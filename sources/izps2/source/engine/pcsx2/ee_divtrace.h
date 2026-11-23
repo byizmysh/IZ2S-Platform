@@ -1,0 +1,184 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+// ee_divtrace — EE (R5900) JIT-vs-interpreter divergence trace.
+//
+// Records a stream of architectural fingerprints from a deterministic
+// full-system run so that an interpreter "golden" run and a JIT run, replayed
+// from the same savestate, can be diffed OFFLINE (never live / in lockstep).
+// The shared clock cpuRegs.cycle plus cpuRegs.pc is the alignment key between the two runs.
+//
+// Three-level funnel, all bounded in memory (pcsx2-eerunner drives it):
+//   1. per-FRAME  — runner hashes FingerprintCpu()+HashMemory() once per frame
+//                   over the whole run; cheap; localizes the divergent frame.
+//   2. per-OP     — within the one divergent frame, the capture sites append a
+//                   Sample (cycle, pc, fp) per executed op (interp, dense) and
+//                   per block dispatch (JIT, sparse). Aligned by (cycle, pc).
+//   3. full-snap  — a small window (ConfigureFullWindow) around the first
+//                   divergent op stores whole cpuRegisters+fpuRegisters for the
+//                   register-level report.
+//
+// Capture sites:
+//   pcsx2/Interpreter.cpp            — interp, after execI() (dense)
+//   pcsx2/arm64/iR5900-arm64.cpp     — JIT, C-hook at the block dispatcher (sparse)
+//
+// fp hashes EXACTLY the fields DiffEe (harness/StateSnapshot.cpp) compares —
+// GPR (both doublewords), HI/LO, CP0 except {1 Random, 9 Count, 11 Compare},
+// FPR, FPU ACC, pc, sa — so a fingerprint mismatch is a genuine architectural
+// divergence, not dispatcher-bookkeeping noise.
+
+#include "common/Pcsx2Defs.h"
+#include "R5900.h"
+
+#include <atomic>
+#include <vector>
+
+namespace ee_divtrace
+{
+	// One architectural sample, ~24 bytes.
+	struct Sample
+	{
+		u64 cycle;   // cpuRegs.cycle at the sample
+		u64 fp;      // FingerprintCpu()
+		u32 pc;      // cpuRegs.pc at the sample (next instr / block entry)
+		u32 _pad;
+	};
+
+	// Full architectural snapshot — stored only inside the detail window.
+	// vu0_vf holds VF00..VF31 then ACC (33 quads); the three flag VIs follow.
+	// Captured unconditionally (cheap memcpy); only the FINGERPRINT inclusion
+	// is gated on g_vu0_include so alignment behavior is opt-in.
+	struct FullSnap
+	{
+		cpuRegisters cpu;
+		fpuRegisters fpu;
+		alignas(16) u8 vu0_vf[33 * 16];
+		u32          vu0_vi_status;
+		u32          vu0_vi_mac;
+		u32          vu0_vi_clip;
+		u32          _pad0;
+		u64          cycle;
+		u32          pc;
+		u32          _pad;
+	};
+
+	// Gates the per-op/per-block capture sites. Read on the hot path, so the
+	// site is `if (g_enabled.load(relaxed)) RecordSample();`. The runner sets
+	// it true only for the single frame being finely traced.
+	extern std::atomic<bool>       g_enabled;
+
+	// Current pass's sample stream (interp run, then JIT run — separate runs).
+	extern std::vector<Sample>     g_stream;
+
+	// Detail-window full snapshots; g_snaps[idx - g_full_lo] for idx in window.
+	extern std::vector<FullSnap>   g_snaps;
+	extern u32                     g_full_lo;
+	extern u32                     g_full_hi;
+
+	// When set, recRecompile emits a block-entry hook into every EE block
+	// prologue (pcsx2-eerunner triage build). Read at codegen time, so it must
+	// be set before the recompiler is initialized / reset. Default false →
+	// production recompiles emit nothing. Checked in pcsx2/arm64/iR5900-arm64.cpp.
+	extern bool                    g_emit_block_hook;
+
+	// When set, FingerprintCpu() omits the FPU register file + ACC from the hash,
+	// so FP-register divergences do not break the alignment walk. Used to hunt a
+	// NON-FP (integer / control-flow) EE-jit divergence when the FP path is known
+	// benign (e.g. Burnout 3: the hang persists with the EE-FPU fully converged to
+	// the interp, so the cond_b off-by-0xC0 is an integer/pointer bug, and the
+	// pervasive 1-ULP div.s noise just masks it). The eerunner sets this from
+	// EERUNNER_NOFP; the Main.cpp diff helpers honor it too for consistent reports.
+	extern bool                    g_fp_exclude;
+
+	// When set, FingerprintCpu() ALSO mixes VU0 macro-visible state (VF00-31,
+	// ACC, and the STATUS/MAC/CLIP flag VIs) into the hash, so the alignment
+	// walk breaks at the first EE block whose COP2 macro emission produced
+	// divergent VU0 state — instead of only when that state later lands in a
+	// GPR or memory (the Jak 3 blindness: the funnel surfaced a downstream
+	// memcpy of fMax-flooded vertex data, not the VU0-macro producer). VF is
+	// memory-resident at every block boundary (the COP2 VF cache seam policy
+	// flushes at block tails), so the JIT block-prologue sample site reads
+	// consistent state. Off by default: the benign-divergence filters were
+	// tuned without VU0 fields, and mVU-vs-interp has its own by-design NaN /
+	// clamp corners that could add noise classes. eerunner sets this from
+	// EERUNNER_VU0FP.
+	extern bool                    g_vu0_include;
+
+	// When set, FingerprintCpu() also mixes in the VU0 state that a JIT-vs-JIT comparison across
+	// builds needs and a JIT-vs-interp one cannot use: all 32 VI registers (VPU_STAT, TPC, FBRST
+	// included), VU0's clock and flags word, VF00-31 + ACC, and hashes of VU0 data and micro memory.
+	// The VU0 clock differs between JIT and interp by design. For --twindump/--twincompare between
+	// two JIT builds; eerunner sets it.
+	extern bool                    g_vu0_full;
+
+	// When set, FingerprintCpu() and HashMemory() cover the whole emulated machine instead of only
+	// what a JIT-vs-interp diff can tolerate: every EE register (k0/k1 and the CP0 timing registers
+	// included), the EE and IOP event schedulers and counter sets, the IOP register file, VU1, and
+	// the bytes of IOP RAM, both hardware-register pages and VU1 memory. For --twindump/--twincompare
+	// between two JIT builds that claim identical emulated timing; eerunner sets it.
+	extern bool                    g_sys_full;
+
+	// When set, the interpreter's SYSCALL handler skips FlushCache (0x64) /
+	// iFlushCache (0x68) — returning without raising the syscall exception —
+	// exactly as the JIT's recSYSCALL does when $v1 is a known const. This keeps
+	// the golden interp timeline in lockstep with the JIT across that ABI-benign
+	// divergence (the JIT skip leaves caller-saved v0/v1/at/t0/t1 + EPC and the
+	// BIOS exception-frame memory untouched; running the real handler in interp
+	// only would desync both register state AND the kernel stack, masking real
+	// codegen bugs downstream). Set by pcsx2-eerunner; default false → production
+	// interp runs the real handler. Read in pcsx2/R5900OpcodeImpl.cpp SYSCALL().
+	extern bool                    g_skip_flushcache_syscall;
+
+	// Hash live cpuRegs+fpuRegs over exactly DiffEe's compared field set.
+	u64  FingerprintCpu();
+	u64  FingerprintSystem();
+
+#ifdef PCSX2_RECOMPILER_TESTS
+	// The IOP-side state FingerprintSystem and HashMemory do not reach, one hash per subsystem so a
+	// mismatch says which one moved:
+	//   spu2  the SPU2 savestate block (registers, both cores' voices, the SPDIF block, mixing
+	//         clocks) and the 2 MB of sample memory
+	//   sif   sif0, sif1 and sif2 (the SIF FIFOs, DMA tags and busy/cycle fields)
+	//   sio   Sio0, Sio2 and both multitap states, as a savestate writes them
+	//   cdvd  the cdvd struct, as a savestate writes it
+	// The spu2 and cdvd hashes copy and hash about 2 MB, so this is called once per frame by
+	// --twindump/--twincompare when g_sys_full is set, and is not folded into FingerprintSystem,
+	// which the per-op sampler calls. Reads the live state only.
+	struct IopFingerprint
+	{
+		u64 spu2;
+		u64 sif;
+		u64 sio;
+		u64 cdvd;
+	};
+	IopFingerprint FingerprintIop();
+#endif
+
+	// Append one Sample (cycle, pc, fp) from live cpuRegs, plus a FullSnap when
+	// the new index is in the detail window. `pc` is passed explicitly because
+	// the JIT block hook knows its startpc at compile time but cpuRegs.pc is
+	// not reliable on a statically-linked entry. The caller (JIT site) must
+	// flush its pinned cycle register to cpuRegs.cycle first.
+	void RecordSample(u32 pc);
+
+	// xxh3 of EE main RAM (32 MB) + scratchpad (16 KB) — frame memory fingerprint.
+	u64  HashMemory();
+
+	// Clear g_stream; zero the used portion of the detail window.
+	void Reset();
+
+	// Set the detail window to [lo, lo+len); (re)allocates g_snaps to `len`.
+	void ConfigureFullWindow(u32 lo, u32 len);
+
+	// Reserve g_stream capacity (samples) up front so the fine pass doesn't
+	// reallocate mid-frame. Called by the runner before a traced frame.
+	void ReserveStream(size_t samples);
+} // namespace ee_divtrace
+
+// C-callable JIT block-entry hook (plain symbol for armEmitCall). Emitted into
+// every EE block prologue when ee_divtrace::g_emit_block_hook is set. Checks
+// g_enabled and records a sample for block `startpc`. cpuRegs.cycle must
+// already have been flushed from the pinned cycle register by the caller.
+extern "C" void ee_divtrace_jit_block_hook(u32 startpc);

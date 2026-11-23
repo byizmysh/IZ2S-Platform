@@ -6,7 +6,7 @@ No. IZPSX works only through [IZ2S Panel / IZ2S Platform](https://github.com/byi
 
 ## What does the bundle include?
 
-The 0.5.2 module, matching native SD assets, source/frontend/server code, pinned PCSX-ReARMed source, ABI metadata and licenses. BIOS, commercial games, keys, user saves, crash dumps and private test captures are not included.
+The IZA installer contains the native launcher, ARM64 engine, shaders, and interface assets. The SD ZIP includes the same files in their installation folders. The release tag includes the corresponding source and licenses.
 
 ## RAM or SD?
 
@@ -22,7 +22,7 @@ Use Continue upload and select the exact same original file. The service verifie
 
 ## How do I return to the launcher?
 
-Open the Minus menu and choose Exit IZPSX emulator. Plus is PS1 Start. R3 has no global exit shortcut in 0.5.2. Follow the single-Joy-Con menu chord when using a sideways controller.
+Open the Minus menu and choose Exit IZPSX emulator. Plus is PS1 Start. R3 has no global exit shortcut. Follow the single-Joy-Con menu chord when using a sideways controller.
 
 ## Are save states or disc swapping supported?
 

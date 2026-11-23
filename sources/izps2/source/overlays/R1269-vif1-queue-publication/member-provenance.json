@@ -1,0 +1,14 @@
+{
+  "MTVU.cpp.obj": {
+    "baselineArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1268-threaded-iop-idle/libpcsx2-hosted.a",
+    "reproducedFrom": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1208-mtvu-v4-paired-rows/MTVU.cpp.obj",
+    "baselineSha256": "15275b75b4a58caf4b4157be8770bfd3ed937d493205de18db9a58673901cac2",
+    "candidateSha256": "5b5bafff22f2c78f064f8ebde3a3065ac696ebc91c39e4f5dd542b1bdf80e877"
+  },
+  "Vif_Transfer.cpp.obj": {
+    "baselineArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1268-threaded-iop-idle/libpcsx2-hosted.a",
+    "reproducedFrom": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1269-vif1-queue-publication/provenance-Vif_Transfer.cpp.obj",
+    "baselineSha256": "7d77ff97edbb16ec05416db3669d581965f6c619d277889cb187653ed378d105",
+    "candidateSha256": "9d2d68a64372bb71a66d6481bc17ae9e7baa90c4520fa97679e8bfaf374b198e"
+  }
+}

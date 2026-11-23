@@ -1,0 +1,225 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include "Config.h"
+#include "Patch.h"
+#include "PerGameOverrides.h"
+
+#include "common/FPControl.h"
+
+#include <cstring>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+enum GamefixId;
+
+namespace GameDatabaseSchema
+{
+	enum class Compatibility
+	{
+		Unknown = 0,
+		Nothing,
+		Intro,
+		Menu,
+		InGame,
+		Playable,
+		Perfect
+	};
+
+	enum class ClampMode
+	{
+		Undefined = -1,
+		Disabled = 0,
+		Normal,
+		Extra,
+		Full,
+		Exact,
+		Count
+	};
+
+	enum class GSHWFixId : u32
+	{
+		// boolean settings
+		AutoFlush,
+		CPUFramebufferConversion,
+		FlushTCOnClose,
+		DisableDepthSupport,
+		PreloadFrameData,
+		DisablePartialInvalidation,
+		TextureInsideRT,
+		Limit24BitDepth,
+		AlignSprite,
+		MergeSprite,
+		Mipmap,
+		AccurateAlphaTest,
+		ForceEvenSpritePosition,
+		BilinearUpscale,
+		NativePaletteDraw,
+		EstimateTextureRegion,
+		DrawBuffering,
+		RewriteLargeSTCoords,
+		PCRTCOffsets,
+		PCRTCOverscan,
+		CoalesceRenderPasses,
+		NativeCounterDraws,
+
+		// integer settings
+		TrilinearFiltering,
+		SkipDrawStart,
+		SkipDrawEnd,
+		HalfPixelOffset,
+		RoundSprite,
+		NativeScaling,
+		TexturePreloading,
+		Deinterlace,
+		CPUSpriteRenderBW,
+		CPUSpriteRenderLevel,
+		CPUCLUTRender,
+		GPUTargetCLUT,
+		GPUPaletteConversion,
+		MinimumBlendingLevel,
+		MaximumBlendingLevel,
+		// The blending-level ceiling that only applies while the device has to read the render
+		// target from a per-draw copy of it. See GS/Renderers/Common/GSCopyRoadBlendingPolicy.h.
+		CopyRoadMaximumBlendingLevel,
+		RecommendedBlendingLevel,
+		RecommendedAccurateAlphaTest,
+		RecommendedHWAA1,
+		// GS multi-threading (the back thread) as a per-title recommendation: a nonzero value turns it on where the host can
+		// spare the cores (VMManager::Internal::CanSplitGS) and never turns it off.
+		BackThread,
+		HWDownloadMode,
+		GetSkipCount,
+		BeforeDraw,
+		MoveHandler,
+
+		Count
+	};
+
+	/// Whether the database's values are actually being adopted, or only being worked
+	/// out so something can be compared against them. A hypothetical apply says nothing
+	/// to the log or the screen and allocates nothing, because nothing is going to run
+	/// with the result.
+	enum class ApplyMode : u8
+	{
+		Live,
+		Hypothetical,
+	};
+
+	struct GameEntry
+	{
+		std::string name;
+		std::string name_sort;
+		std::string name_en;
+		std::string region;
+		Compatibility compat = Compatibility::Unknown;
+		FPRoundMode eeRoundMode = FPRoundMode::MaxCount;
+		FPRoundMode eeDivRoundMode = FPRoundMode::MaxCount;
+		FPRoundMode vu0RoundMode = FPRoundMode::MaxCount;
+		FPRoundMode vu1RoundMode = FPRoundMode::MaxCount;
+		ClampMode eeClampMode = ClampMode::Undefined;
+		ClampMode vu0ClampMode = ClampMode::Undefined;
+		ClampMode vu1ClampMode = ClampMode::Undefined;
+		std::vector<GamefixId> gameFixes;
+		std::vector<std::pair<SpeedHack, int>> speedHacks;
+		std::vector<std::pair<GSHWFixId, s32>> gsHWFixes;
+		std::vector<std::string> memcardFilters;
+		std::unordered_map<u32, std::string> patches;
+		std::vector<Patch::DynamicPatch> dynaPatches;
+
+		// Arcade (Namco System 246/256) entries only: the boot program, the media type (CD, DVD or HDD)
+		// and the JVS input kind the game expects (PCSX2x6).
+		struct ArcadeInfo
+		{
+			std::string bootprog;
+			std::string media;
+			std::string input;
+		} arcade;
+
+		// Returns the list of memory card serials as a `/` delimited string
+		std::string memcardFiltersAsString() const;
+		const std::string* findPatch(u32 crc) const;
+		const char* compatAsString() const;
+
+		/// Applies Core game fixes to an existing config. Anything the player set for
+		/// this game specifically is left alone — `overrides` says which, and defaults
+		/// to nothing claimed, which is the old behaviour.
+		void applyGameFixes(Pcsx2Config& config, bool applyAuto, const PerGameOverrides& overrides = {},
+			ApplyMode mode = ApplyMode::Live) const;
+
+		/// Applies GS hardware fixes to an existing config, on the same terms.
+		void applyGSHardwareFixes(Pcsx2Config::GSOptions& config, const PerGameOverrides& overrides = {},
+			ApplyMode mode = ApplyMode::Live) const;
+
+		/// Returns true if the current config value for the specified hw fix id matches the value.
+		static bool configMatchesHWFix(const Pcsx2Config::GSOptions& config, GSHWFixId id, int value);
+
+		/// One setting this entry writes, in the terms a settings screen needs to show it and
+		/// to let a player take it back: the name the log uses, the value, and the per-game
+		/// keys whose presence makes applyGameFixes()/applyGSHardwareFixes() skip it.
+		struct ClaimableSetting
+		{
+			std::string name;
+			int value;
+			/// Skipped wholesale while automatic game fixes are off.
+			bool core;
+			/// Skipped wholesale while manual hardware fixes are on.
+			bool user_hack;
+			std::vector<std::pair<const char*, const char*>> keys; ///< section, key
+		};
+
+		/// Every setting this entry writes that a per-game key can claim, in the order the
+		/// apply functions visit them. Leaves out the renderer routine selectors, which no
+		/// setting can claim, and the recommendations, which only raise a warning.
+		std::vector<ClaimableSetting> claimableSettings() const;
+	};
+}; // namespace GameDatabaseSchema
+
+namespace GameDatabase
+{
+	void ensureLoaded();
+	const GameDatabaseSchema::GameEntry* findGame(const std::string_view serial);
+
+	/// Every Namco System 246/256 arcade game on record, by game ID (NM and five digits, upper case),
+	/// in ID order. For frontends that offer them for import.
+	std::vector<std::pair<std::string, const GameDatabaseSchema::GameEntry*>> findArcadeGames();
+
+	struct TrackHash
+	{
+		static constexpr u32 SIZE = 16;
+
+		bool parseHash(const std::string_view str);
+		std::string toString() const;
+
+#define MAKE_OPERATOR(op) \
+	bool operator op(const TrackHash& hash) const { return (std::memcmp(data, hash.data, sizeof(data)) op 0); }
+		MAKE_OPERATOR(==);
+		MAKE_OPERATOR(!=);
+		MAKE_OPERATOR(<);
+		MAKE_OPERATOR(<=);
+		MAKE_OPERATOR(>);
+		MAKE_OPERATOR(>=);
+#undef MAKE_OPERATOR
+
+		u8 data[SIZE];
+		u64 size;
+	};
+
+	struct HashDatabaseEntry
+	{
+		std::string serial;
+		std::string name;
+		std::string version;
+		std::vector<TrackHash> tracks;
+	};
+
+	bool loadHashDatabase();
+	void unloadHashDatabase();
+	const HashDatabaseEntry* lookupHash(const TrackHash* tracks, size_t num_tracks, bool* tracks_matched, std::string* match_error);
+}; // namespace GameDatabase

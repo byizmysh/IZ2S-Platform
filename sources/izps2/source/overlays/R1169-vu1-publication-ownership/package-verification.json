@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1169-vu1-publication-ownership/IZPS2-R1169.iza",
+  "bytes": 11213469,
+  "sha256": "83c0bacfc8d231d12c564b2747ef4ddab4f21322ae8978e77c14a89158e056c0",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "6eb976f5d344e370e2635adb81d1ecae08b4e4d7c9bfc3cf2ae62cbbb5d12730"
+  },
+  "engine": {
+    "file": "asset-cf1e9e87a71150187a80239807db5c56f49ab84df355e60017e371e8ebd09681.izdata",
+    "path": "asset-cf1e9e87a71150187a80239807db5c56f49ab84df355e60017e371e8ebd09681.izdata",
+    "bytes": 27912808,
+    "sha256": "cf1e9e87a71150187a80239807db5c56f49ab84df355e60017e371e8ebd09681"
+  }
+}

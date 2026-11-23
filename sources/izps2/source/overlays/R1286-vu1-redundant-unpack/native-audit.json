@@ -1,0 +1,34 @@
+{
+  "unchangedMembers": 392,
+  "changedMembers": [
+    "MTVU.cpp.obj"
+  ],
+  "inheritedGifScanner": true,
+  "sdkArchives": [
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a",
+      "sha256": "69a616fd8fd03ad6e80bde9b4824efc50f49c04526d3e264210f361040b738a0"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a",
+      "sha256": "cc3e3f4698aaa7b2389b9652d536ff855026dc544d00ea318a306fdb8ba8745c"
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a",
+      "sha256": "0189100b17ae3143cca7f1ba0b859cf300090960deeae9f23d046120b7f6285a"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a",
+      "sha256": "6e2f49c45c0a160ecc93d4a5934e844d109cfec339ce7cb73506af6b8a192fba"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a",
+      "sha256": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da"
+    }
+  ],
+  "selectedLibounceMembers": [
+    "cache.o",
+    "levent.o",
+    "svc.o"
+  ]
+}

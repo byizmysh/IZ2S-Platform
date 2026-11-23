@@ -21,15 +21,17 @@
     "downloadName": "foldrift.iza",
     "abi": 1,
     "files": [
+      "switch/app.comp.spv",
+      "switch/app.frag.spv",
       "switch/app.json",
       "switch/app.vert.spv",
-      "switch/app.frag.spv",
-      "switch/app.comp.spv",
+      "switch/assets/font.bin",
       "switch/assets/icon.png",
       "switch/assets/state.bin",
-      "switch/assets/font.bin",
+      "switch/launcher.iza",
       "switch/native.bin"
-    ]
+    ],
+    "sdImage": "switch/launcher.iza"
   },
   "dependencies": [],
   "settingsSchema": [],

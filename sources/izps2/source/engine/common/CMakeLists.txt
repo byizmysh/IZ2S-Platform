@@ -1,0 +1,273 @@
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+	message(FATAL_ERROR "
+	You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+	It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
+
+add_library(common)
+
+target_sources(common PRIVATE
+	AlignedMalloc.cpp
+	Assertions.cpp
+	Console.cpp
+	CrashHandler.cpp
+	DynamicLibrary.cpp
+	Error.cpp
+	FastJmp.cpp
+	FileSystem.cpp
+	HostVFS.cpp
+	HostSys.cpp
+	Image.cpp
+	HTTPDownloader.cpp
+	MemoryInterface.cpp
+	MemorySettingsInterface.cpp
+	MD5Digest.cpp
+	PrecompiledHeader.cpp
+	Perf.cpp
+	PmuCounters.cpp
+	ProgressCallback.cpp
+	ReadbackSpinManager.cpp
+	Semaphore.cpp
+	SettingsWrapper.cpp
+	SHA256.cpp
+	SmallString.cpp
+	StringUtil.cpp
+	TextureDecompress.cpp
+	Timer.cpp
+	WAVWriter.cpp
+	WindowInfo.cpp
+	YAML.cpp
+)
+
+target_sources(common PRIVATE
+	AlignedMalloc.h
+	ARCADE.h
+	Assertions.h
+	boost_spsc_queue.hpp
+	BitUtils.h
+	ByteSwap.h
+	Console.h
+	CrashHandler.h
+	DynamicLibrary.h
+	Easing.h
+	EnumOps.h
+	Error.h
+	FPControl.h
+	FastJmp.h
+	FileSystem.h
+	HostVFS.h
+	HashCombine.h
+	HostSys.h
+	HeterogeneousContainers.h
+	Image.h
+	LRUCache.h
+	HeapArray.h
+	HTTPDownloader.h
+	MemoryInterface.h
+	MemorySettingsInterface.h
+	MD5Digest.h
+	MRCHelpers.h
+	Path.h
+	PmuCounters.h
+	PrecompiledHeader.h
+	ProgressCallback.h
+	ReadbackSpinManager.h
+	RedtapeWilCom.h
+	RedtapeWindows.h
+	ScopedGuard.h
+	SettingsInterface.h
+	SettingsWrapper.h
+	SHA256.h
+	SingleRegisterTypes.h
+	SmallString.h
+	StringUtil.h
+	Timer.h
+	TextureDecompress.h
+	Threading.h
+	VectorIntrin.h
+	WAVWriter.h
+	WindowInfo.h
+	WrappedMemCopy.h
+	YAML.h
+)
+
+if(ARCH_X86)
+	target_sources(common PRIVATE
+		emitter/bmi.cpp
+		emitter/fpu.cpp
+		emitter/groups.cpp
+		emitter/jmp.cpp
+		emitter/legacy.cpp
+		emitter/legacy_sse.cpp
+		emitter/movs.cpp
+		emitter/simd.cpp
+		emitter/x86emitter.cpp
+	)
+
+	target_sources(common PRIVATE
+		emitter/implement/dwshift.h
+		emitter/implement/group1.h
+		emitter/implement/group2.h
+		emitter/implement/group3.h
+		emitter/implement/helpers.h
+		emitter/implement/incdec.h
+		emitter/implement/jmpcall.h
+		emitter/implement/movs.h
+		emitter/implement/simd_arithmetic.h
+		emitter/implement/simd_comparisons.h
+		emitter/implement/simd_helpers.h
+		emitter/implement/simd_moremovs.h
+		emitter/implement/simd_shufflepack.h
+		emitter/implement/simd_templated_helpers.h
+		emitter/implement/test.h
+		emitter/implement/xchg.h
+		emitter/instructions.h
+		emitter/internal.h
+		emitter/legacy_instructions.h
+		emitter/legacy_internal.h
+		emitter/legacy_types.h
+		emitter/x86emitter.h
+		emitter/x86types.h
+	)
+endif()
+
+if(WIN32)
+	# FastJmp is hand-written assembly (MSVC has no inline asm). x86 uses MASM
+	# (ml64); arm64 uses the Microsoft ARM assembler (armasm64 / ASM_MARMASM).
+	if(ARCH_ARM64)
+		enable_language(ASM_MARMASM)
+		target_sources(common PRIVATE FastJmp.aarch64.asm)
+	else()
+		enable_language(ASM_MASM)
+		target_sources(common PRIVATE FastJmp.asm)
+	endif()
+	target_sources(common PRIVATE
+		HTTPDownloaderWinHTTP.cpp
+		HTTPDownloaderWinHTTP.h
+		StackWalker.cpp
+		StackWalker.h
+		Windows/WinThreads.cpp
+		Windows/WinHostSys.cpp
+		Windows/WinMisc.cpp
+	)
+	target_link_libraries(common PUBLIC
+		WIL::WIL
+		winmm
+		pathcch
+	)
+elseif(APPLE AND IOS)
+	target_sources(common PRIVATE
+		Darwin/DarwinThreads.cpp
+		Darwin/DarwinMisc.cpp
+		Darwin/DarwinMisc.h
+		Linux/LnxHostSys.cpp
+	)
+	target_compile_options(common PRIVATE -fobjc-arc)
+	target_link_options(common PRIVATE -fobjc-link-runtime)
+	target_link_libraries(common PRIVATE
+		"-framework Foundation"
+		"-framework UIKit"
+	)
+elseif(APPLE)
+	target_sources(common PRIVATE
+		CocoaTools.mm
+		CocoaTools.h
+		Darwin/DarwinThreads.cpp
+		Darwin/DarwinMisc.cpp
+		Darwin/DarwinMisc.h
+		Linux/LnxHostSys.cpp
+	)
+	target_compile_options(common PRIVATE -fobjc-arc)
+	target_link_options(common PRIVATE -fobjc-link-runtime)
+	target_link_libraries(common PRIVATE
+		"-framework Foundation"
+		"-framework IOKit"
+	)
+elseif(NINTENDO_SWITCH2)
+	target_sources(common PRIVATE Switch2/HostSys.cpp Switch2/Threads.cpp Switch2/Misc.cpp Switch2/CPUInfo.cpp)
+	target_include_directories(common PRIVATE "${CMAKE_SOURCE_DIR}/../frontend")
+	target_link_libraries(common PUBLIC izps2-platform)
+elseif(ANDROID)
+	# Android reuses the Linux host layer plus a JNI-backed HTTP downloader
+	# (relocated from the former android core fork). Source wiring only:
+	# validate against a real NDK build. See REFACTOR_STATUS.md.
+	target_sources(common PRIVATE
+		Linux/LnxHostSys.cpp
+		Linux/LnxThreads.cpp
+		Linux/LnxMisc.cpp
+		HTTPDownloaderAndroid.cpp
+		HTTPDownloaderAndroid.h
+	)
+else()
+	target_sources(common PRIVATE
+		Linux/LnxHostSys.cpp
+		Linux/LnxThreads.cpp
+		Linux/LnxMisc.cpp
+	)
+	# Empty on Android, where LnxMisc.cpp leaves the D-Bus path out entirely.
+	target_include_directories(common PRIVATE
+		${DBUS_INCLUDE_DIRS}
+	)
+	target_link_libraries(common PRIVATE
+		${DBUS_LINK_LIBRARIES}
+	)
+	if(X11_API)
+		target_link_libraries(common PRIVATE
+			X11::X11
+			X11::Xrandr
+			X11::Xi
+		)
+	endif()
+	if(USE_BACKTRACE)
+		target_compile_definitions(common PRIVATE "HAS_LIBBACKTRACE=1")
+		target_link_libraries(common PRIVATE libbacktrace::libbacktrace)
+	endif()
+endif()
+
+set_source_files_properties(PrecompiledHeader.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
+
+if(USE_VTUNE)
+	target_link_libraries(common PUBLIC Vtune::Vtune)
+endif()
+
+if (USE_GCC AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+	# GCC LTO doesn't work with asm statements
+	set_source_files_properties(FastJmp.cpp PROPERTIES COMPILE_FLAGS -fno-lto)
+endif()
+
+if(NOT WIN32 AND NOT ANDROID AND NOT IOS AND NOT NINTENDO_SWITCH2)
+	# libcurl-based HTTPDownloader (Android uses HTTPDownloaderAndroid instead)
+	target_sources(common PRIVATE
+		HTTPDownloaderCurl.cpp
+		HTTPDownloaderCurl.h
+	)
+	target_link_libraries(common PRIVATE
+		CURL::libcurl
+	)
+endif()
+
+target_link_libraries(common PRIVATE
+	${LIBC_LIBRARIES}
+	JPEG::JPEG
+	PNG::PNG
+	WebP::libwebp
+	cpuinfo
+	LZMA::LZMA
+)
+
+target_link_libraries(common PUBLIC
+	fmt::fmt
+	fast_float
+	rapidyaml::rapidyaml
+)
+
+fixup_file_properties(common)
+target_compile_features(common PUBLIC cxx_std_17)
+target_include_directories(common PUBLIC ../3rdparty/include ../)
+target_compile_definitions(common PUBLIC "${PCSX2_DEFS}")
+target_compile_options(common PRIVATE "${PCSX2_WARNINGS}")
+
+if(COMMAND target_precompile_headers)
+	target_precompile_headers(common PRIVATE PrecompiledHeader.h)
+endif()

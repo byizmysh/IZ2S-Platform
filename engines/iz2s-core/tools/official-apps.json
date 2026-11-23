@@ -1,5 +1,26 @@
 [
   {
+    "id": "izps2",
+    "version": "0.5.0",
+    "bytes": 180636,
+    "sha256": "c57b8667a7165642f361d50752c7970c88975eb76bd7bc205dfa8f13165824cb",
+    "sourceSha256": "90f1b84bab6bc04e1d31598fe2a44d6be8f4c65a7708f3f280e009fab9e09192"
+  },
+  {
+    "id": "izpsx",
+    "version": "0.5.3",
+    "bytes": 160696,
+    "sha256": "7257c46bb8a018849cf25d2e38591fbddb5a1083303c9ee859bf1ab2edb86a3b",
+    "sourceSha256": "31fffb3669fc1c7df048fd68c18aeeb82b4192f4a7daae72d77eb706778d992f"
+  },
+  {
+    "id": "iz2s-cheese",
+    "version": "0.8.7",
+    "bytes": 826684,
+    "sha256": "0b2d6c8fe32ab5679c9da58840a8bbcaf06caf24ca7ab95484681df6dc80a9b8",
+    "sourceSha256": "58f3603fcd38daca22900e1cf983b1bafbbc4dd7815a7f6ffbb0cbb013a37dd6"
+  },
+  {
     "id": "iz-file-deck",
     "version": "0.3.3",
     "sourceSha256": "35dcfca1049cb84807caeeda055ee620212af68433b35ccd7da354742ac60617",

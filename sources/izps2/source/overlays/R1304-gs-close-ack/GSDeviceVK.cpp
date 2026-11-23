@@ -1,0 +1,11524 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#include "GS/GS.h"
+#include "GS/GSCacheFile.h"
+#include "GS/GSCompileStats.h"
+#include "GS/GSShaderCompileIndicator.h"
+#include "GS/GSGL.h"
+#include "GS/GSPerfMon.h"
+#include "GS/GSUtil.h"
+#include "GS/Renderers/Vulkan/GSDeviceVK.h"
+#include "gs-field-profile.h"
+#include "gs-back-close.h"
+#include "GS/Renderers/Vulkan/GSLsfg.h"
+#include "GS/Renderers/Vulkan/VKBuilders.h"
+#include "GS/Renderers/Vulkan/VKShaderCache.h"
+#include "GS/Renderers/Vulkan/VKSwapChain.h"
+#include "GS/Renderers/Vulkan/VKLibretro.h"
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+#include "GS/Renderers/Vulkan/VKNativeLoader.h"
+#include "GS/Renderers/Vulkan/VKNativeLifecycle.h"
+#include "native_hwgs_av_contract_v1.h"
+extern "C" {
+#include "hbxl.h"
+#include "hbx_sdk.h"
+}
+#if defined(ARMSX2_HAS_LSFG) || defined(ARMSX2_HAS_LIBRASHADER) || defined(__ANDROID__)
+#error Initial native own-GS queue policy excludes external framegen/filter/Android owners
+#endif
+#endif
+#include "GS/Renderers/Common/GSHeadlessPresent.h"
+#include "Switch2HostBufferScale.h"
+
+// Libretro presentation backbuffers: the frontend samples the published
+// VkImageView asynchronously (including cached-frame replays long after the
+// present), so it must never point at a pooled texture that GSDeviceVK can
+// recycle. Frames are copied into this small ring of dedicated textures that
+// live until device teardown.
+namespace
+{
+	constexpr int kLibretroBackbuffers = 3;
+	std::unique_ptr<GSTextureVK> s_libretro_bb[kLibretroBackbuffers];
+	int s_libretro_bb_idx = 0;
+	// Monotonic count of libretro presents; used to age out retired backbuffers.
+	u64 s_libretro_present_count = 0;
+	// A backbuffer displaced by a resolution change: the frontend may still be
+	// replaying its image for a few frames (cached/duped frames up to its
+	// swapchain depth), so it can't be freed immediately -- but leaving it here
+	// forever leaks a full-resolution render target on every interlace<->
+	// progressive switch (frequent in FMV-heavy games). Each is tagged with the
+	// present count at retirement and reclaimed once enough presents have gone
+	// by that the frontend can no longer reference it.
+	struct RetiredBackbuffer { std::unique_ptr<GSTextureVK> tex; u64 retired_at; };
+	std::vector<RetiredBackbuffer> s_libretro_bb_retired;
+	// Comfortably beyond any libretro frontend's swapchain depth (2-3).
+	constexpr u64 kLibretroRetireFrames = 6;
+} // namespace
+#include "GS/Renderers/Common/GSDevice.h"
+#include "GS/Renderers/Common/GSAlphaBitLogicOp.h"
+#include "GS/Renderers/Common/GSFastStencilShadow.h"
+#include "GS/Renderers/Common/GSDynamicFeedbackLoopPolicy.h"
+#include "GS/Renderers/Common/GSFramebufferFetchPolicy.h"
+#include "GS/Renderers/Common/GSMeasurementOverrides.h"
+#include "GS/Renderers/Common/GSSelfReadRoadPolicy.h"
+#include "GS/DriverReport/GSDriverReport.h"
+#include "GS/DriverReport/GSDriverReportActive.h"
+#include "GS/DriverReport/GSDriverReportClassify.h"
+#include "GS/DriverReport/GSDriverReportProfile.h"
+#include "GS/DriverReport/GSDriverReportVulkan.h"
+#include "GS/Renderers/Common/GSStreamRingMemoryPolicy.h"
+
+#include "BuildVersion.h"
+#include "Config.h"
+#include "Host.h"
+#include "ShaderCacheVersion.h"
+#include "ImGui/ImGuiManager.h"
+
+#include "common/Console.h"
+#include "common/BitUtils.h"
+#include "common/Error.h"
+#include "common/FileSystem.h"
+#include "common/HostSys.h"
+#include "common/Path.h"
+#include "common/ScopedGuard.h"
+#include "common/Threading.h"
+#include "common/Timer.h"
+
+#include "imgui.h"
+
+#ifdef ARMSX2_HAS_LIBRASHADER
+// librashader only declares its Vulkan entry points when the consumer opts in, and it
+// needs the Vulkan types already in scope — GSDeviceVK.h pulls those in above. Defined
+// by CMake only when the Rust toolchain actually produced the library.
+#define LIBRA_RUNTIME_VULKAN
+#include "librashader.h"
+#endif
+
+#ifndef PS2_NATIVE_TFX_WARMUP
+#define PS2_NATIVE_TFX_WARMUP 0
+#endif
+#if PS2_NATIVE_TFX_WARMUP && !defined(PS2_NATIVE_GSVK_EXTERNAL)
+#error Native TFX warmup requires the serial native GS profile
+#endif
+#if PS2_NATIVE_TFX_WARMUP
+#include "native_spirv_store.h"
+#include "native_tfx_warm_state.h"
+#include "native_tfx_validator.h"
+#include "native_tfx_build_identity.h"
+extern "C" unsigned int ps2_exit_requested;
+namespace {
+static NativeTfxWarm::State s_native_tfx;
+static bool NativeTfxStopping(){return __atomic_load_n(&ps2_exit_requested,__ATOMIC_ACQUIRE)!=0;}
+static void NativeTfxFinalize(const void*owner){
+ auto&s=s_native_tfx;if(s.owner!=owner)return;
+ if(s.active&&s.dirty)NativeSpirvStore::PutTfx(s.identity,s.identityBytes,s.keys,s.count);
+ s.Clear();
+}
+}
+#endif
+
+#include <bit>
+#include <chrono>
+#include <limits>
+#include <mutex>
+#include <optional>
+#include <sstream>
+#include <utility>
+
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+#include "native_gs_draw_cache.h"
+namespace
+{
+// No class-layout or public ABI changes. Every live cache belongs to the one
+// serial GS owner; it never supplies a GPU-completion or resource-release proof.
+struct NativeGsTextureDescriptorKey
+{
+    std::array<VkDescriptorImageInfo, 7> images{};
+    VkDescriptorSetLayout set_layout{};
+    VkPipelineLayout pipeline_layout{};
+    VkCommandBuffer command_buffer{};
+    VkCommandPool command_pool{};
+    u64 activation_generation{};
+    u32 set_index{};
+    bool input_attachments{};
+    bool operator==(const NativeGsTextureDescriptorKey& other) const
+    {
+        if (set_layout != other.set_layout || pipeline_layout != other.pipeline_layout ||
+            command_buffer != other.command_buffer || command_pool != other.command_pool ||
+            activation_generation != other.activation_generation || set_index != other.set_index ||
+            input_attachments != other.input_attachments) return false;
+        for (size_t i = 0; i < images.size(); ++i)
+            if (images[i].sampler != other.images[i].sampler || images[i].imageView != other.images[i].imageView ||
+                images[i].imageLayout != other.images[i].imageLayout) return false;
+        return true;
+    }
+};
+using NativeGsPipelineKey = std::array<u8, sizeof(GSDeviceVK::PipelineSelector)>;
+static NativeGsDrawCache::Bounded<NativeGsTextureDescriptorKey, VkDescriptorSet, 8> s_native_gs_texture_sets;
+static NativeGsDrawCache::Bounded<NativeGsPipelineKey, VkPipeline, 1> s_native_gs_pipeline_front;
+static u64 s_native_gs_activation_generation;
+static NativeGsPipelineKey NativeGsMakePipelineKey(const GSDeviceVK::PipelineSelector& selector)
+{
+    NativeGsPipelineKey key;
+    std::memcpy(key.data(), &selector, key.size());
+    return key;
+}
+} // namespace
+#endif
+
+#ifdef __ANDROID__
+#include <android/hardware_buffer.h>
+#endif
+
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+namespace
+{
+// Diagnostic only: this bank has the same serial GS owner as the command ring.
+// It neither supplies completion proof nor changes GPU lifetime/queue policy.
+enum NativeGsTimingKind : u32 { NativeGsSubmit, NativeGsRecycle, NativeGsCounter,
+    NativeGsSubmitWait, NativeGsOther, NativeGsTimingCount };
+struct NativeGsTimingRow
+{
+    u64 calls, valid, total, maximum, unqualified, regressions, overflows;
+    u64 last_end;
+    bool have_last_end;
+};
+struct NativeGsAggregate
+{
+    NativeGsTimingRow timing[NativeGsTimingCount];
+    u64 compile_initial[GSCompileStats::Count];
+    u64 tick_hz, submit_pass_sum, submit_pass_max, submit_errors;
+    u64 present_calls, readback_requests, midframe_kicks;
+    u32 wait_kind;
+    bool active, qualified, printed;
+};
+static NativeGsAggregate s_native_gs_aggregate;
+
+static void NativeGsAggregateInit()
+{
+    auto& d = s_native_gs_aggregate;
+    d = {};
+#ifdef PS2_NATIVE_GS_DRAW_CACHE
+    s_native_gs_texture_sets.Clear();
+    s_native_gs_pipeline_front.Clear();
+    s_native_gs_texture_sets.ResetDiagnostics();
+    s_native_gs_pipeline_front.ResetDiagnostics();
+#endif
+    d.active = true;
+    d.wait_kind = NativeGsOther;
+    const hbx_ctx* c = hbxl_ctx;
+    // The current owning host independently qualifies the frequency and puts it
+    // in its admitted immutable context. These checks only validate that ABI;
+    // they do not calibrate a clock or turn timer Hz into a CPU frequency.
+    if (c && c->magic == HBX_ABI_MAGIC && c->abi_version == 3 && c->size >= sizeof(*c) &&
+        c->flags == 0 && c->tick_hz && c->tick_hz <= 1000000000ull)
+    {
+        d.tick_hz = c->tick_hz;
+        d.qualified = true;
+    }
+    for (u32 i = 0; i < GSCompileStats::Count; ++i)
+        d.compile_initial[i] = GSCompileStats::Get(static_cast<GSCompileStats::Counter>(i));
+}
+static u64 NativeGsTimingBegin(u32 kind)
+{
+    auto& d = s_native_gs_aggregate;
+    auto& r = d.timing[kind];
+    ++r.calls;
+    if (!d.qualified) { ++r.unqualified; return 0; }
+    return hbxl_svc_tick();
+}
+static void NativeGsTimingEnd(u32 kind, u64 started)
+{
+    auto& d = s_native_gs_aggregate;
+    if (!d.qualified) return;
+    auto& r = d.timing[kind];
+    const u64 ended = hbxl_svc_tick();
+    const bool regressed = ended < started || (r.have_last_end && started < r.last_end);
+    r.last_end = ended;
+    r.have_last_end = true;
+    if (regressed) { ++r.regressions; return; }
+    ++r.valid;
+    const u64 elapsed = ended - started;
+    r.maximum = std::max(r.maximum, elapsed);
+    if (elapsed > ~u64(0) - r.total) { r.total = ~u64(0); ++r.overflows; }
+    else r.total += elapsed;
+}
+struct NativeGsWaitKindScope
+{
+    u32 previous;
+    explicit NativeGsWaitKindScope(u32 kind) : previous(s_native_gs_aggregate.wait_kind)
+    { s_native_gs_aggregate.wait_kind = kind; }
+    ~NativeGsWaitKindScope() { s_native_gs_aggregate.wait_kind = previous; }
+};
+static void NativeGsAggregatePrintClosed()
+{
+    auto& d = s_native_gs_aggregate;
+    if (!d.active || d.printed) return;
+    d.printed = true;
+#ifdef PS2_NATIVE_GS_DRAW_CACHE
+    const auto& tc = s_native_gs_texture_sets.counts;
+    const auto& pc = s_native_gs_pipeline_front.counts;
+    Console.WriteLn("PS2_GS_DRAW_CACHE diagnosticOnly=1 ownershipAuthority=0 descriptorCapacity=8 "
+        "descriptorHits=%llu descriptorMisses=%llu descriptorStores=%llu descriptorInvalidations=%llu "
+        "pipelineFrontHits=%llu pipelineFrontMisses=%llu pipelineFrontStores=%llu pipelineFrontInvalidations=%llu",
+        (unsigned long long)tc.hits, (unsigned long long)tc.misses, (unsigned long long)tc.stores,
+        (unsigned long long)tc.invalidations, (unsigned long long)pc.hits, (unsigned long long)pc.misses,
+        (unsigned long long)pc.stores, (unsigned long long)pc.invalidations);
+#endif
+    u64 compile_delta[GSCompileStats::Count] = {};
+    u64 compile_regressions = 0;
+    for (u32 i = 0; i < GSCompileStats::Count; ++i)
+    {
+        const u64 now = GSCompileStats::Get(static_cast<GSCompileStats::Counter>(i));
+        if (now >= d.compile_initial[i]) compile_delta[i] = now - d.compile_initial[i];
+        else compile_regressions |= u64(1) << i;
+    }
+    // One output after the existing exact GS close hook. Tuple order is explicit
+    // so failed/unqualified timings cannot be mistaken for measured zero waits.
+#define NATIVE_GS_ROW(k) \
+    (unsigned long long)d.timing[k].calls, (unsigned long long)d.timing[k].valid, \
+    (unsigned long long)d.timing[k].total, (unsigned long long)d.timing[k].maximum, \
+    (unsigned long long)d.timing[k].unqualified, (unsigned long long)d.timing[k].regressions, \
+    (unsigned long long)d.timing[k].overflows
+#define NATIVE_GS_COMPILE(k) (unsigned long long)compile_delta[GSCompileStats::k]
+    Console.WriteLn("PS2_OWN_GS_AGGREGATES diagnosticOnly=1 ownershipAuthority=0 source=hbxl_svc_tick "
+        "qualified=%u tickHz=%llu submitPassSum=%llu submitPassMax=%llu submitErrors=%llu "
+        "presentCalls=%llu readbackRequests=%llu midframeKicks=%llu "
+        "tuple=calls,valid,totalTicks,maxTicks,unqualified,regressions,overflows "
+        "submitCall=[%llu,%llu,%llu,%llu,%llu,%llu,%llu] "
+        "fenceRecycle=[%llu,%llu,%llu,%llu,%llu,%llu,%llu] "
+        "fenceCounter=[%llu,%llu,%llu,%llu,%llu,%llu,%llu] "
+        "fenceSubmitWait=[%llu,%llu,%llu,%llu,%llu,%llu,%llu] "
+        "fenceOther=[%llu,%llu,%llu,%llu,%llu,%llu,%llu] "
+        "compileRegressionMask=%llu shaderSources=%llu shaderSourceNs=%llu spirvCompiles=%llu "
+        "spirvCompileNs=%llu spirvCacheHits=%llu moduleCreateNs=%llu pipelineCreates=%llu "
+        "pipelineCreateNs=%llu tfxPipelineMisses=%llu gsCompileStallNs=%llu cacheFlushNs=%llu "
+        "precompileWaits=%llu precompileWaitNs=%llu precompileBuilt=%llu",
+        d.qualified ? 1u : 0u, (unsigned long long)d.tick_hz,
+        (unsigned long long)d.submit_pass_sum, (unsigned long long)d.submit_pass_max,
+        (unsigned long long)d.submit_errors, (unsigned long long)d.present_calls,
+        (unsigned long long)d.readback_requests, (unsigned long long)d.midframe_kicks,
+        NATIVE_GS_ROW(NativeGsSubmit), NATIVE_GS_ROW(NativeGsRecycle), NATIVE_GS_ROW(NativeGsCounter),
+        NATIVE_GS_ROW(NativeGsSubmitWait), NATIVE_GS_ROW(NativeGsOther),
+        (unsigned long long)compile_regressions, NATIVE_GS_COMPILE(ShaderSources),
+        NATIVE_GS_COMPILE(ShaderSourceNs), NATIVE_GS_COMPILE(SpirvCompiles),
+        NATIVE_GS_COMPILE(SpirvCompileNs), NATIVE_GS_COMPILE(SpirvCacheHits),
+        NATIVE_GS_COMPILE(ModuleCreateNs), NATIVE_GS_COMPILE(PipelineCreates),
+        NATIVE_GS_COMPILE(PipelineCreateNs), NATIVE_GS_COMPILE(TFXPipelineMisses),
+        NATIVE_GS_COMPILE(GSThreadStallNs), NATIVE_GS_COMPILE(CacheFlushNs),
+        NATIVE_GS_COMPILE(PrecompileWaits), NATIVE_GS_COMPILE(PrecompileWaitNs),
+        NATIVE_GS_COMPILE(PrecompileBuilt));
+#undef NATIVE_GS_COMPILE
+#undef NATIVE_GS_ROW
+}
+} // namespace
+#endif
+
+// Tweakables
+enum : u32
+{
+	MAX_DRAW_CALLS_PER_FRAME = 8192,
+	MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTORS_PER_FRAME = 2 * MAX_DRAW_CALLS_PER_FRAME,
+	MAX_SAMPLED_IMAGE_DESCRIPTORS_PER_FRAME =
+		MAX_DRAW_CALLS_PER_FRAME, // assume at least half our draws aren't going to be shuffle/blending
+	// CAS uses one storage image per frame, but the TFX texture set also carries the
+	// two ROV storage-image bindings (TFX_TEXTURE_RT_ROV / _DEPTH_ROV), and every
+	// vkAllocateDescriptorSets of that layout reserves both whether written or not.
+	// On the ROV-without-push-descriptor path that is two per TFX draw, so
+	// size to match the draw budget rather than the old CAS-only value of 4.
+	MAX_STORAGE_IMAGE_DESCRIPTORS_PER_FRAME = 2 * MAX_DRAW_CALLS_PER_FRAME,
+	MAX_INPUT_ATTACHMENT_IMAGE_DESCRIPTORS_PER_FRAME = MAX_DRAW_CALLS_PER_FRAME,
+	MAX_DESCRIPTOR_SETS_PER_FRAME = MAX_DRAW_CALLS_PER_FRAME * 2,
+
+	// Halved from the original 32/16/8/8/64 MiB sizing on the ring-size sweep
+	// (two-device corpus run, MQ65 + SD865): zero stream-ring waits and
+	// byte-identical frames at this size on both devices. At this size the
+	// vertex ring holds about seven stuntman frames; a further halving
+	// (quarter of original) starts waiting on the texture ring on
+	// flatout2/bgda2.
+	VERTEX_BUFFER_SIZE = 16 * 1024 * 1024,
+	INDEX_BUFFER_SIZE = 8 * 1024 * 1024,
+	VERTEX_UNIFORM_BUFFER_SIZE = 4 * 1024 * 1024,
+	FRAGMENT_UNIFORM_BUFFER_SIZE = 4 * 1024 * 1024,
+	TEXTURE_BUFFER_SIZE = 32 * 1024 * 1024,
+
+	// The vertex ring starts at VERTEX_BUFFER_SIZE and doubles, up to this, only when a frame's
+	// vertices would otherwise make the GS thread wait for the GPU (GSStreamRingGrowth.h). A title
+	// whose frames fit never pays for more.
+	VERTEX_BUFFER_MAX_SIZE = 64 * 1024 * 1024,
+
+	// The texture upload ring grows the same way. A title that streams textures every frame
+	// otherwise blocks on the GPU once a frame when the 32 MiB ring comes round, and CPU and GPU
+	// stop overlapping.
+	TEXTURE_BUFFER_MAX_SIZE = 128 * 1024 * 1024,
+
+	// The smallest start gsrunner's -vertex-ring-kib may choose.
+	VERTEX_BUFFER_MIN_START_SIZE = 64 * 1024,
+};
+
+static constexpr u32 CountDoublings(u32 from, u32 to)
+{
+	u32 n = 0;
+	for (; from < to; from *= 2)
+		n++;
+	return n;
+}
+
+// How many persistent TFX UBO sets can be alive at once: the current one plus one retiring per
+// vertex-ring growth, since each growth rebinds the ring by handle. Sized for the smallest start,
+// though the shipped 16 -> 32 -> 64 MiB is only two growths.
+static constexpr u32 MAX_TFX_UBO_DESCRIPTOR_SETS =
+	1 + CountDoublings(VERTEX_BUFFER_MIN_START_SIZE, VERTEX_BUFFER_MAX_SIZE * Switch2HostBufferScale);
+
+
+#ifdef ENABLE_OGL_DEBUG
+static u32 s_debug_scope_depth = 0;
+#endif
+
+static bool IsDATEModePrimIDInit(u32 flag)
+{
+	return flag == 1 || flag == 2;
+}
+
+static VkAttachmentLoadOp GetLoadOpForTexture(GSTextureVK* tex)
+{
+	if (!tex)
+		return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+
+	// clang-format off
+	switch (tex->GetState())
+	{
+	case GSTextureVK::State::Cleared:       tex->SetState(GSTexture::State::Dirty); return VK_ATTACHMENT_LOAD_OP_CLEAR;
+	case GSTextureVK::State::Invalidated:   tex->SetState(GSTexture::State::Dirty); return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	case GSTextureVK::State::Dirty:         return VK_ATTACHMENT_LOAD_OP_LOAD;
+	default:                                return VK_ATTACHMENT_LOAD_OP_LOAD;
+	}
+	// clang-format on
+}
+
+static constexpr VkClearValue s_present_clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+
+// We need to synchronize instance creation because of adapter enumeration from the UI thread.
+static std::mutex s_instance_mutex;
+
+// Device extensions that are required for PCSX2.
+// No hard-required device extensions beyond the swapchain (handled separately).
+// VK_KHR_push_descriptor used to be required, but it's now OPTIONAL: some Mali
+// drivers (e.g. Mali-G52) don't expose it at all, and we have a full
+// non-push-descriptor binding fallback — so requiring it needlessly rejected
+// otherwise-capable GPUs ("No physical devices found"). Kept as a (currently
+// empty) list so the existing required-extension scan loops stay valid.
+static constexpr std::array<const char*, 0> s_required_device_extensions = {};
+
+static std::vector<std::string> s_enabled_instance_extensions;
+
+GSDeviceVK::GSDeviceVK()
+{
+	m_null_framebuffer = VK_NULL_HANDLE; // DestroyResources is valid before CreateNullFramebuffer.
+#ifdef ENABLE_OGL_DEBUG
+	s_debug_scope_depth = 0;
+#endif
+
+	std::memset(&m_pipeline_selector, 0, sizeof(m_pipeline_selector));
+	if (g_gs_measurement_overrides.readback_kick_passes != 0)
+	{
+		m_readback_kick_passes = g_gs_measurement_overrides.readback_kick_passes;
+		Console.WriteLn("VK: measurement override: readback kick after %u unsubmitted render passes", m_readback_kick_passes);
+	}
+}
+
+GSDeviceVK::~GSDeviceVK() = default;
+
+VkInstance GSDeviceVK::CreateVulkanInstance(const WindowInfo& wi, OptionalExtensions* oe, bool enable_debug_utils,
+	bool enable_validation_layer)
+{
+	ExtensionList enabled_extensions;
+	if (!SelectInstanceExtensions(&enabled_extensions, wi, oe, enable_debug_utils))
+		return VK_NULL_HANDLE;
+
+	VkApplicationInfo app_info = {};
+	app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	app_info.pNext = nullptr;
+	app_info.pApplicationName = "PCSX2";
+	app_info.applicationVersion = VK_MAKE_VERSION(
+		BuildVersion::GitTagHi, BuildVersion::GitTagMid, BuildVersion::GitTagLo);
+	app_info.pEngineName = "PCSX2";
+	app_info.engineVersion = VK_MAKE_VERSION(
+		BuildVersion::GitTagHi, BuildVersion::GitTagMid, BuildVersion::GitTagLo);
+	app_info.apiVersion = VK_API_VERSION_1_1;
+
+	VkInstanceCreateInfo instance_create_info = {};
+	instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instance_create_info.pNext = nullptr;
+	instance_create_info.flags = 0;
+	instance_create_info.pApplicationInfo = &app_info;
+	instance_create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
+	instance_create_info.ppEnabledExtensionNames = enabled_extensions.data();
+	instance_create_info.enabledLayerCount = 0;
+	instance_create_info.ppEnabledLayerNames = nullptr;
+
+	// Enable debug layer on debug builds
+	if (enable_validation_layer)
+	{
+		static const char* layer_names[] = {"VK_LAYER_KHRONOS_validation"};
+		instance_create_info.enabledLayerCount = 1;
+		instance_create_info.ppEnabledLayerNames = layer_names;
+	}
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	VkInstance instance = VK_NULL_HANDLE;
+	VkResult res = Vulkan::NativeCreateInstanceRecorded(&instance_create_info, nullptr, &instance);
+#else
+	VkInstance instance;
+	VkResult res = vkCreateInstance(&instance_create_info, nullptr, &instance);
+#endif
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkCreateInstance failed: ");
+		return nullptr;
+	}
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	Vulkan::NativeNoteInstanceCreated(instance);
+#endif
+	s_enabled_instance_extensions.assign(enabled_extensions.begin(), enabled_extensions.end());
+	return instance;
+}
+
+bool GSDeviceVK::SelectInstanceExtensions(ExtensionList* extension_list, const WindowInfo& wi, OptionalExtensions* oe,
+	bool enable_debug_utils)
+{
+	u32 extension_count = 0;
+	VkResult res = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkEnumerateInstanceExtensionProperties failed: ");
+		return false;
+	}
+
+	if (extension_count == 0)
+	{
+		Console.Error("VK: No extensions supported by instance.");
+		return false;
+	}
+
+	std::vector<VkExtensionProperties> available_extension_list(extension_count);
+	res = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, available_extension_list.data());
+	pxAssert(res == VK_SUCCESS);
+
+	auto SupportsExtension = [&available_extension_list, extension_list](const char* name, bool required) {
+		if (std::find_if(available_extension_list.begin(), available_extension_list.end(),
+				[name](const VkExtensionProperties& properties) { return !strcmp(name, properties.extensionName); }) !=
+			available_extension_list.end())
+		{
+			DevCon.WriteLn("VK: Enabling extension: %s", name);
+			extension_list->push_back(name);
+			return true;
+		}
+
+		if (required)
+			Console.Error("VK: Missing required extension %s.", name);
+
+		return false;
+	};
+
+	// Common extensions
+	if (wi.type != WindowInfo::Type::Surfaceless && !SupportsExtension(VK_KHR_SURFACE_EXTENSION_NAME, true))
+		return false;
+
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+	if (wi.type == WindowInfo::Type::Win32 && !SupportsExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, true))
+		return false;
+#endif
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
+	if (wi.type == WindowInfo::Type::X11 && !SupportsExtension(VK_KHR_XLIB_SURFACE_EXTENSION_NAME, true))
+		return false;
+#endif
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+	if (wi.type == WindowInfo::Type::Wayland && !SupportsExtension(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME, true))
+		return false;
+#endif
+#if defined(VK_USE_PLATFORM_METAL_EXT)
+	if (wi.type == WindowInfo::Type::MacOS && !SupportsExtension(VK_EXT_METAL_SURFACE_EXTENSION_NAME, true))
+		return false;
+#endif
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+	if (wi.type == WindowInfo::Type::Android && !SupportsExtension(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME, true))
+		return false;
+#endif
+
+	// VK_KHR_display direct-to-monitor surface (kmsdrm handhelds).
+	// VK_KHR_get_display_properties2 is optional but lets us read HDR / extended
+	// display info on ICDs that support it.
+	if (wi.type == WindowInfo::Type::VulkanDirect)
+	{
+		if (!SupportsExtension(VK_KHR_DISPLAY_EXTENSION_NAME, true))
+			return false;
+		SupportsExtension(VK_KHR_GET_DISPLAY_PROPERTIES_2_EXTENSION_NAME, false);
+	}
+
+	// VK_EXT_debug_utils
+	if (enable_debug_utils && !SupportsExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false))
+		Console.Warning("VK: Debug report requested, but extension is not available.");
+
+	oe->vk_swapchain_maintenance1 = wi.type != WindowInfo::Type::Surfaceless;
+	if (wi.type != WindowInfo::Type::Surfaceless)
+	{
+		oe->vk_swapchain_maintenance1 = true;
+		// VK_EXT_swapchain_maintenance1 requires VK_EXT_surface_maintenance1.
+		// VK_KHR_swapchain_maintenance1 might require VK_KHR_surface_maintenance1 (It does on Nvidia).
+		// If either VK_KHR_surface_maintenance1 is supported, or VK_EXT_swapchain_maintenance1 is unsupported, don't try VK_EXT_swapchain_maintenance1.
+		oe->vk_swapchain_maintenance1_is_khr = SupportsExtension(VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME, false) ||
+			!SupportsExtension(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME, false);
+	}
+	else
+		oe->vk_swapchain_maintenance1 = false;
+
+	// Needed for exclusive fullscreen control.
+	SupportsExtension(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME, false);
+
+	return true;
+}
+
+GSDeviceVK::GPUList GSDeviceVK::EnumerateGPUs(VkInstance instance)
+{
+	GPUList gpus;
+
+	u32 gpu_count = 0;
+	VkResult res = vkEnumeratePhysicalDevices(instance, &gpu_count, nullptr);
+	if ((res != VK_SUCCESS && res != VK_INCOMPLETE) || gpu_count == 0)
+	{
+		LOG_VULKAN_ERROR(res, "vkEnumeratePhysicalDevices (1) failed: ");
+		return gpus;
+	}
+
+	std::vector<VkPhysicalDevice> physical_devices(gpu_count);
+	res = vkEnumeratePhysicalDevices(instance, &gpu_count, physical_devices.data());
+	if (res == VK_INCOMPLETE)
+	{
+		Console.Warning("VK: First vkEnumeratePhysicalDevices() call returned %zu devices, but second returned %u",
+			physical_devices.size(), gpu_count);
+	}
+	else if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkEnumeratePhysicalDevices (2) failed: ");
+		return gpus;
+	}
+
+	// Maybe we lost a GPU?
+	if (gpu_count < physical_devices.size())
+		physical_devices.resize(gpu_count);
+
+	gpus.reserve(physical_devices.size());
+	for (VkPhysicalDevice device : physical_devices)
+	{
+		VkPhysicalDeviceProperties props = {};
+		vkGetPhysicalDeviceProperties(device, &props);
+
+		// Skip GPUs which don't support Vulkan 1.1, since we won't be able to create a device with them anyway.
+		if (VK_API_VERSION_VARIANT(props.apiVersion) == 0 && VK_API_VERSION_MAJOR(props.apiVersion) <= 1 &&
+			VK_API_VERSION_MINOR(props.apiVersion) < 1)
+		{
+			Console.Warning(fmt::format("VK: Ignoring GPU '{}' because it only claims support for Vulkan {}.{}.{}",
+				props.deviceName, VK_API_VERSION_MAJOR(props.apiVersion), VK_API_VERSION_MINOR(props.apiVersion),
+				VK_API_VERSION_PATCH(props.apiVersion)));
+			continue;
+		}
+
+		// Query the extension list to ensure that we don't include GPUs that are missing the extensions we require.
+		u32 extension_count = 0;
+		res = vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
+		if (res != VK_SUCCESS)
+		{
+			Console.Warning(fmt::format("VK: Ignoring GPU '{}' because vkEnumerateInstanceExtensionProperties() failed: ",
+				props.deviceName, Vulkan::VkResultToString(res)));
+			continue;
+		}
+
+		std::vector<VkExtensionProperties> available_extension_list(extension_count);
+		if (extension_count > 0)
+		{
+			res = vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, available_extension_list.data());
+			pxAssert(res == VK_SUCCESS);
+		}
+		bool has_missing_extension = false;
+		for (const char* required_extension_name : s_required_device_extensions)
+		{
+			if (std::find_if(available_extension_list.begin(), available_extension_list.end(), [required_extension_name](const VkExtensionProperties& ext) {
+					return (std::strcmp(required_extension_name, ext.extensionName) == 0);
+				}) == available_extension_list.end())
+			{
+				Console.Warning(fmt::format("VK: Ignoring GPU '{}' because is is missing required extension {}",
+					props.deviceName, required_extension_name));
+				has_missing_extension = true;
+			}
+		}
+		if (has_missing_extension)
+			continue;
+
+		GSAdapterInfo ai;
+		ai.name = props.deviceName;
+		ai.max_texture_size = std::min(props.limits.maxFramebufferWidth, props.limits.maxImageDimension2D);
+		ai.max_upscale_multiplier = GSGetMaxUpscaleMultiplier(ai.max_texture_size);
+
+		// handle duplicate adapter names
+		if (std::any_of(
+				gpus.begin(), gpus.end(), [&ai](const auto& other) { return (ai.name == other.second.name); }))
+		{
+			std::string original_adapter_name = std::move(ai.name);
+
+			u32 current_extra = 2;
+			do
+			{
+				ai.name = fmt::format("{} ({})", original_adapter_name, current_extra);
+				current_extra++;
+			} while (std::any_of(
+				gpus.begin(), gpus.end(), [&ai](const auto& other) { return (ai.name == other.second.name); }));
+		}
+
+		gpus.emplace_back(device, std::move(ai));
+	}
+
+	return gpus;
+}
+
+GSDeviceVK::GPUList GSDeviceVK::EnumerateGPUs()
+{
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	// Native has no UI-owned temporary instance/loader ownership.
+	if (!g_gs_device || !Vulkan::IsVulkanLibraryLoaded()) return {};
+	return EnumerateGPUs(GSDeviceVK::GetInstance()->GetVulkanInstance());
+#else
+	std::unique_lock lock(s_instance_mutex);
+
+	// Device shouldn't be torn down since we have the lock.
+	if (const auto* borrowed = Vulkan::GetBorrowedDevice())
+		return vkGetInstanceProcAddr ? EnumerateGPUs(borrowed->instance) : GPUList{};
+	GPUList gpus;
+	if (g_gs_device && Vulkan::IsVulkanLibraryLoaded())
+	{
+		gpus = EnumerateGPUs(GSDeviceVK::GetInstance()->GetVulkanInstance());
+	}
+	else
+	{
+		// The library may already be loaded by the host (libretro preloads it
+		// for the context negotiation) — use it, and don't unload it after.
+		const bool library_was_loaded = Vulkan::IsVulkanLibraryLoaded();
+		if (library_was_loaded || Vulkan::LoadVulkanLibrary(nullptr))
+		{
+			OptionalExtensions oe = {};
+			const VkInstance instance = CreateVulkanInstance(WindowInfo(), &oe, false, false);
+			if (instance != VK_NULL_HANDLE)
+			{
+				if (Vulkan::LoadVulkanInstanceFunctions(instance))
+					gpus = EnumerateGPUs(instance);
+
+				vkDestroyInstance(instance, nullptr);
+			}
+
+			if (!library_was_loaded)
+				Vulkan::UnloadVulkanLibrary();
+		}
+	}
+
+	return gpus;
+#endif
+}
+
+bool GSDeviceVK::SelectDeviceExtensions(ExtensionList* extension_list, bool enable_surface)
+{
+	u32 extension_count = 0;
+	VkResult res = vkEnumerateDeviceExtensionProperties(m_physical_device, nullptr, &extension_count, nullptr);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkEnumerateDeviceExtensionProperties failed: ");
+		return false;
+	}
+
+	if (extension_count == 0)
+	{
+		Console.Error("VK: No extensions supported by device.");
+		return false;
+	}
+
+	std::vector<VkExtensionProperties> available_extension_list(extension_count);
+	res = vkEnumerateDeviceExtensionProperties(
+		m_physical_device, nullptr, &extension_count, available_extension_list.data());
+	pxAssert(res == VK_SUCCESS);
+
+	m_missing_device_extensions.clear();
+	auto SupportsExtension = [this, &available_extension_list, extension_list](const char* name, bool required) {
+		if (std::find_if(available_extension_list.begin(), available_extension_list.end(),
+				[name](const VkExtensionProperties& properties) { return !strcmp(name, properties.extensionName); }) !=
+			available_extension_list.end())
+		{
+			if (std::none_of(extension_list->begin(), extension_list->end(),
+					[name](const char* existing_name) { return (std::strcmp(existing_name, name) == 0); }))
+			{
+				DevCon.WriteLn("VK: Enabling extension: %s", name);
+				extension_list->push_back(name);
+			}
+
+			return true;
+		}
+
+		if (required)
+			Console.Error("VK: Missing required extension %s.", name);
+
+		if (std::find(m_missing_device_extensions.begin(), m_missing_device_extensions.end(), name) ==
+			m_missing_device_extensions.end())
+			m_missing_device_extensions.emplace_back(name);
+		return false;
+	};
+
+	if (enable_surface && !SupportsExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true))
+		return false;
+
+	// Required extensions.
+	for (const char* extension_name : s_required_device_extensions)
+	{
+		if (!SupportsExtension(extension_name, true))
+			return false;
+	}
+
+	// Optional now (was required). Enabled when present; CreateDevice decides
+	// whether to actually use it (never on Mali — driver bug) or fall back.
+	m_optional_extensions.vk_khr_push_descriptor = SupportsExtension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
+	m_optional_extensions.vk_ext_provoking_vertex = SupportsExtension(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME, false);
+	m_optional_extensions.vk_ext_memory_budget = SupportsExtension(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false);
+	m_optional_extensions.vk_ext_calibrated_timestamps =
+		SupportsExtension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME, false);
+	// ROAA is DUAL-NAMED: ARM shipped VK_ARM_rasterization_order_attachment_access (Mali
+	// driver r36p0), and the promoted VK_EXT_ alias only landed at r40p0. The structs/enums
+	// are identical (alias), so accept EITHER — otherwise Mali on r36-r39 blobs (a big chunk
+	// of mid-tier, incl. Tensor G2/G3 on old blobs) exposes only the ARM name and gets
+	// silently demoted to the per-primitive-barrier slideshow. SupportsExtension enables
+	// whichever name it finds (EXT preferred via short-circuit). Matches upstream 5da4b7e.
+	m_optional_extensions.vk_ext_rasterization_order_attachment_access =
+		SupportsExtension(VK_EXT_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_EXTENSION_NAME, false) ||
+		SupportsExtension(VK_ARM_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_EXTENSION_NAME, false);
+	// VK_EXT_attachment_feedback_loop_layout: enabled wherever the driver advertises it, and the
+	// feature bit is reconciled after device creation. A driver that fails under it is excluded by
+	// driver version (see the r44p1 rule), not by vendor.
+	m_optional_extensions.vk_ext_attachment_feedback_loop_layout =
+		SupportsExtension(VK_EXT_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_EXTENSION_NAME, false);
+	// VK_EXT_attachment_feedback_loop_dynamic_state: the per-draw spelling of the feedback-loop
+	// declaration, the DEFAULT spelling on Turnip wherever the layout road above is live -- there
+	// the create-flag spelling puts the driver's serialising primitive mode on every pipeline in a
+	// latched pass and costs 2.8x on wrc3@1x. See GSDynamicFeedbackLoopPolicy.h. Requested on
+	// Adreno only: every other driver keeps the create flag it always had, so the device it
+	// creates is the one it created before. `-loop-create-flag` keeps the old device reachable
+	// for measuring the fallback. Whether it is USED is decided in CheckFeatures, which is where
+	// the road is known.
+	m_optional_extensions.vk_ext_attachment_feedback_loop_dynamic_state =
+		m_optional_extensions.vk_ext_attachment_feedback_loop_layout && IsDeviceAdreno() &&
+		!g_gs_measurement_overrides.loop_create_flag &&
+		SupportsExtension(VK_EXT_ATTACHMENT_FEEDBACK_LOOP_DYNAMIC_STATE_EXTENSION_NAME, false);
+	m_optional_extensions.vk_ext_line_rasterization = SupportsExtension(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME, false);
+	m_optional_extensions.vk_khr_driver_properties = SupportsExtension(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME, false);
+	// VK_EXT_device_fault: post-mortem for VK_ERROR_DEVICE_LOST. The ~1-in-60 SD865
+	// device loss in the opening frames exits carrying nothing but the error code
+	// today; where the driver offers this (Turnip does), the loss is followed by
+	// vkGetDeviceFaultInfoEXT and the fault's addresses and reasons go to the log,
+	// so the next occurrence arrives with its own diagnosis instead of a rate.
+	m_optional_extensions.vk_ext_device_fault = SupportsExtension(VK_EXT_DEVICE_FAULT_EXTENSION_NAME, false);
+
+	if (m_optional_extensions.vk_swapchain_maintenance1)
+	{
+		const bool khr_swapchain_maintenance1 = SupportsExtension(VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME, false);
+		// vk_swapchain_maintenance1_is_khr will be set if we havn't enabled VK_EXT_surface_maintenance1
+		// This will happen if either the VK_EXT_surface_maintenance1 was unsupported, or we instead found the KHR version.
+		// As the EXT version depends on the surface maintenance1 extension, we need to check that aswell.
+		m_optional_extensions.vk_swapchain_maintenance1 = khr_swapchain_maintenance1 ? khr_swapchain_maintenance1 :
+			(!m_optional_extensions.vk_swapchain_maintenance1_is_khr && SupportsExtension(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME, false));
+
+		m_optional_extensions.vk_swapchain_maintenance1_is_khr = khr_swapchain_maintenance1;
+	}
+
+	// glslang generates debug info instructions before phi nodes at the beginning of blocks when non-semantic debug info
+	// is enabled, triggering errors by spirv-val. Gate it by an environment variable if you want source debugging until
+	// this is fixed.
+	if (const char* val = std::getenv("USE_NON_SEMANTIC_DEBUG_INFO"); val && StringUtil::FromChars<bool>(val).value_or(false))
+	{
+		m_optional_extensions.vk_khr_shader_non_semantic_info =
+			SupportsExtension(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, false);
+	}
+
+#ifdef _WIN32
+	m_optional_extensions.vk_ext_full_screen_exclusive =
+		enable_surface && SupportsExtension(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, false);
+#endif
+
+	m_optional_extensions.vk_ext_fragment_shader_interlock = SupportsExtension(VK_EXT_FRAGMENT_SHADER_INTERLOCK_EXTENSION_NAME, false);
+	// LSFG frame generation only. PCSX2 targets Vulkan 1.1, where neither is core — the memory
+	// model is 1.2 and nullDescriptor never became core at all — so both come in as extensions.
+	m_optional_extensions.vk_khr_vulkan_memory_model = SupportsExtension(VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME, false);
+	m_optional_extensions.vk_ext_robustness2_null_descriptor = SupportsExtension(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME, false);
+	// LSFG's half-precision shaders, only while that option is on (the rest of the renderer has no
+	// fp16), so it takes effect from the next device, which is the next game.
+	m_optional_extensions.vk_khr_shader_float16_int8 =
+		GSConfig.LsfgFp16 && SupportsExtension(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME, false);
+
+#ifdef __ANDROID__
+	// Remote play hands its frames to the video encoder as AHardwareBuffers, so they never pass
+	// through the CPU; without these extensions frames are read back instead. The foreign queue
+	// family is what lets the encoder's GL take a frame over.
+	// Both or neither: SupportsExtension enables what it finds, so asking for the two in a row
+	// would enable the foreign queue family alone on a driver that lists it without the buffer one.
+	const auto listed = [&available_extension_list](const char* name) {
+		return std::any_of(available_extension_list.begin(), available_extension_list.end(),
+			[name](const VkExtensionProperties& properties) { return !std::strcmp(name, properties.extensionName); });
+	};
+	m_optional_extensions.vk_android_external_memory_ahb =
+		listed(VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME) &&
+		listed(VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME) &&
+		SupportsExtension(VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME, false) &&
+		SupportsExtension(VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME, false);
+#endif
+
+	return true;
+}
+
+bool GSDeviceVK::SelectDeviceFeatures()
+{
+	VkPhysicalDeviceFeatures available_features;
+	vkGetPhysicalDeviceFeatures(m_physical_device, &available_features);
+
+	// Enable the features we use.
+	m_device_features.dualSrcBlend = available_features.dualSrcBlend;
+	m_device_features.largePoints = available_features.largePoints;
+	m_device_features.wideLines = available_features.wideLines;
+	m_device_features.fragmentStoresAndAtomics = available_features.fragmentStoresAndAtomics;
+	m_device_features.textureCompressionBC = available_features.textureCompressionBC;
+	// Enabled at logical-device creation, not merely queried: sampling an ASTC image
+	// without the feature bit enabled is a validation error and undefined behaviour on
+	// some drivers. SelectDeviceFeatures() runs before vkCreateDevice().
+	m_device_features.textureCompressionASTC_LDR = available_features.textureCompressionASTC_LDR;
+	m_device_features.geometryShader = available_features.geometryShader;
+	m_device_features.fragmentStoresAndAtomics = available_features.fragmentStoresAndAtomics;
+	m_device_features.pipelineStatisticsQuery = available_features.pipelineStatisticsQuery;
+	// Pipelines with logicOpEnable need the feature enabled at device creation (GSAlphaBitLogicOp.h).
+	m_device_features.logicOp = available_features.logicOp;
+
+	return true;
+}
+
+bool GSDeviceVK::CreateDevice(VkSurfaceKHR surface, bool enable_validation_layer)
+{
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	if (surface != VK_NULL_HANDLE)
+		ps2_hwgs_retain_ownership("own-GS-native-surface-not-admitted", VK_ERROR_INITIALIZATION_FAILED);
+#endif
+	u32 queue_family_count;
+	vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, nullptr);
+	if (queue_family_count == 0)
+	{
+		Console.Error("No queue families found on specified vulkan physical device.");
+		return false;
+	}
+
+	std::vector<VkQueueFamilyProperties> queue_family_properties(queue_family_count);
+	vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, queue_family_properties.data());
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	if (!queue_family_count || queue_family_count > queue_family_properties.size())
+		ps2_hwgs_retain_ownership("own-GS-queue-family-count-unproved", VK_ERROR_INITIALIZATION_FAILED);
+#endif
+	DevCon.WriteLn("%u vulkan queue families", queue_family_count);
+
+	// Find graphics and present queues.
+	m_graphics_queue_family_index = queue_family_count;
+	m_present_queue_family_index = queue_family_count;
+	m_spin_queue_family_index = queue_family_count;
+	u32 spin_queue_index = 0;
+	for (uint32_t i = 0; i < queue_family_count; i++)
+	{
+		VkBool32 graphics_supported = queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
+		if (graphics_supported)
+		{
+			m_graphics_queue_family_index = i;
+			// Quit now, no need for a present queue.
+			if (!surface)
+			{
+				break;
+			}
+		}
+
+		if (surface)
+		{
+			VkBool32 present_supported;
+			VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(m_physical_device, i, surface, &present_supported);
+			if (res != VK_SUCCESS)
+			{
+				LOG_VULKAN_ERROR(res, "vkGetPhysicalDeviceSurfaceSupportKHR failed: ");
+				return false;
+			}
+
+			if (present_supported)
+			{
+				m_present_queue_family_index = i;
+			}
+
+			// Prefer one queue family index that does both graphics and present.
+			if (graphics_supported && present_supported)
+			{
+				break;
+			}
+		}
+	}
+	for (uint32_t i = 0; i < queue_family_count; i++)
+	{
+		// Pick a queue for spinning
+		if (!(queue_family_properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT))
+			continue; // We need compute
+		if (queue_family_properties[i].timestampValidBits == 0)
+			continue; // We need timing
+		const bool queue_is_used = i == m_graphics_queue_family_index || i == m_present_queue_family_index;
+		if (queue_is_used && m_spin_queue_family_index != queue_family_count)
+			continue; // Found a non-graphics queue to use
+		spin_queue_index = 0;
+		m_spin_queue_family_index = i;
+		if (queue_is_used && queue_family_properties[i].queueCount > 1)
+			spin_queue_index = 1;
+		if (!(queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+			break; // Async compute queue, definitely pick this one
+	}
+	if (m_graphics_queue_family_index == queue_family_count)
+	{
+		Console.Error("VK: Failed to find an acceptable graphics queue.");
+		return false;
+	}
+	if (surface != VK_NULL_HANDLE && m_present_queue_family_index == queue_family_count)
+	{
+		Console.Error("VK: Failed to find an acceptable present queue.");
+		return false;
+	}
+
+	VkDeviceCreateInfo device_info = {};
+	device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	device_info.pNext = nullptr;
+	device_info.flags = 0;
+	device_info.queueCreateInfoCount = 0;
+
+	static constexpr float queue_priorities[] = {1.0f, 0.0f}; // Low priority for the spin queue
+	std::array<VkDeviceQueueCreateInfo, 3> queue_infos;
+	VkDeviceQueueCreateInfo& graphics_queue_info = queue_infos[device_info.queueCreateInfoCount++];
+	graphics_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	graphics_queue_info.pNext = nullptr;
+	graphics_queue_info.flags = 0;
+	graphics_queue_info.queueFamilyIndex = m_graphics_queue_family_index;
+	graphics_queue_info.queueCount = 1;
+	graphics_queue_info.pQueuePriorities = queue_priorities;
+
+	if (surface != VK_NULL_HANDLE && m_graphics_queue_family_index != m_present_queue_family_index)
+	{
+		VkDeviceQueueCreateInfo& present_queue_info = queue_infos[device_info.queueCreateInfoCount++];
+		present_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		present_queue_info.pNext = nullptr;
+		present_queue_info.flags = 0;
+		present_queue_info.queueFamilyIndex = m_present_queue_family_index;
+		present_queue_info.queueCount = 1;
+		present_queue_info.pQueuePriorities = queue_priorities;
+	}
+
+	if (m_spin_queue_family_index == m_graphics_queue_family_index)
+	{
+		if (spin_queue_index != 0)
+			graphics_queue_info.queueCount = 2;
+	}
+	else if (m_spin_queue_family_index == m_present_queue_family_index)
+	{
+		if (spin_queue_index != 0)
+			queue_infos[1].queueCount = 2; // present queue
+	}
+	else if (m_spin_queue_family_index != queue_family_count)
+	{
+		VkDeviceQueueCreateInfo& spin_queue_info = queue_infos[device_info.queueCreateInfoCount++];
+		spin_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		spin_queue_info.pNext = nullptr;
+		spin_queue_info.flags = 0;
+		spin_queue_info.queueFamilyIndex = m_spin_queue_family_index;
+		spin_queue_info.queueCount = 1;
+		spin_queue_info.pQueuePriorities = queue_priorities + 1;
+	}
+
+	device_info.pQueueCreateInfos = queue_infos.data();
+
+	ExtensionList enabled_extensions;
+	if (!SelectDeviceExtensions(&enabled_extensions, surface != VK_NULL_HANDLE))
+		return false;
+	m_enabled_device_extensions.assign(enabled_extensions.begin(), enabled_extensions.end());
+
+	device_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
+	device_info.ppEnabledExtensionNames = enabled_extensions.data();
+
+	// Check for required features before creating.
+	if (!SelectDeviceFeatures())
+		return false;
+
+	device_info.pEnabledFeatures = &m_device_features;
+
+	// Enable debug layer on debug builds
+	if (enable_validation_layer)
+	{
+		static const char* layer_names[] = {"VK_LAYER_LUNARG_standard_validation"};
+		device_info.enabledLayerCount = 1;
+		device_info.ppEnabledLayerNames = layer_names;
+	}
+
+	// provoking vertex
+	VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT};
+	VkPhysicalDeviceRasterizationOrderAttachmentAccessFeaturesEXT rasterization_order_access_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_FEATURES_EXT};
+	VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
+	VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT attachment_feedback_loop_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_FEATURES_EXT};
+	VkPhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT attachment_feedback_loop_dynamic_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_DYNAMIC_STATE_FEATURES_EXT};
+	// VK_EXT_swapchain_maintenance1 types/enums are aliases of VK_KHR_swapchain_maintenance1 types/enums.
+	VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR swapchain_maintenance1_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR};
+	VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT fragment_shader_interlock_ext_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT};
+	VkPhysicalDeviceVulkanMemoryModelFeatures vulkan_memory_model_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES};
+	VkPhysicalDeviceRobustness2FeaturesEXT robustness2_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
+	VkPhysicalDeviceShaderFloat16Int8FeaturesKHR float16_int8_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR};
+	VkPhysicalDeviceFaultFeaturesEXT device_fault_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT};
+
+	// An advertised EXTENSION does not guarantee its FEATURE bit, and asking for a feature the
+	// driver does not have fails vkCreateDevice outright with VK_ERROR_FEATURE_NOT_PRESENT —
+	// killing Vulkan entirely instead of quietly doing without one optional nicety. PowerVR
+	// BXM-8-256 does exactly this: it exposes the extensions below, reports at least one of their
+	// features as false, and the renderer then refuses to start at all with "Failed to create
+	// render device".
+	//
+	// ProcessDeviceExtensions performs this same reconcile, but it runs AFTER vkCreateDevice, so it
+	// can only ever describe the failure rather than prevent it. Probe every feature we are about to
+	// request, up front, and drop the ones that are not really there. This subsumes the depth-ROAA
+	// probe that used to be the only instance of this check.
+	{
+		VkPhysicalDeviceProvokingVertexFeaturesEXT probe_pv = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT};
+		VkPhysicalDeviceLineRasterizationFeaturesEXT probe_line = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
+		VkPhysicalDeviceRasterizationOrderAttachmentAccessFeaturesEXT probe_roaa = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_FEATURES_EXT};
+		VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT probe_afl = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_FEATURES_EXT};
+		VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR probe_sm1 = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR};
+		VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT probe_fsi = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT};
+		VkPhysicalDeviceVulkanMemoryModelFeatures probe_vmm = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES};
+		VkPhysicalDeviceRobustness2FeaturesEXT probe_r2 = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
+		VkPhysicalDeviceShaderFloat16Int8FeaturesKHR probe_f16 = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR};
+		VkPhysicalDeviceFaultFeaturesEXT probe_fault = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT};
+
+		// Only chain what we would actually enable: querying a struct whose extension is absent is
+		// not something the spec promises anything about.
+		VkPhysicalDeviceFeatures2 probe = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+		if (m_optional_extensions.vk_ext_provoking_vertex)
+			Vulkan::AddPointerToChain(&probe, &probe_pv);
+		if (m_optional_extensions.vk_ext_line_rasterization)
+			Vulkan::AddPointerToChain(&probe, &probe_line);
+		if (m_optional_extensions.vk_ext_rasterization_order_attachment_access)
+			Vulkan::AddPointerToChain(&probe, &probe_roaa);
+		if (m_optional_extensions.vk_ext_attachment_feedback_loop_layout)
+			Vulkan::AddPointerToChain(&probe, &probe_afl);
+		if (m_optional_extensions.vk_swapchain_maintenance1)
+			Vulkan::AddPointerToChain(&probe, &probe_sm1);
+		if (m_optional_extensions.vk_ext_fragment_shader_interlock)
+			Vulkan::AddPointerToChain(&probe, &probe_fsi);
+		if (m_optional_extensions.vk_khr_vulkan_memory_model)
+			Vulkan::AddPointerToChain(&probe, &probe_vmm);
+		if (m_optional_extensions.vk_ext_robustness2_null_descriptor)
+			Vulkan::AddPointerToChain(&probe, &probe_r2);
+		if (m_optional_extensions.vk_khr_shader_float16_int8)
+			Vulkan::AddPointerToChain(&probe, &probe_f16);
+		if (m_optional_extensions.vk_ext_device_fault)
+			Vulkan::AddPointerToChain(&probe, &probe_fault);
+		vkGetPhysicalDeviceFeatures2(m_physical_device, &probe);
+
+		// Returns the flag rather than taking it by reference: m_optional_extensions members are
+		// bit-fields, which cannot bind to bool&.
+		const auto keep = [](const char* name, bool advertised, bool supported) -> bool {
+			if (advertised && !supported)
+			{
+				// Logged, because "Vulkan works but this one thing is off" is a very different
+				// bug report from "Vulkan does not start", and the next person needs to know
+				// which feature the driver advertised without supporting.
+				Console.Warning(fmt::format(
+					"VK: {} advertised but its feature is unsupported — not requesting it.", name));
+				return false;
+			}
+			return advertised;
+		};
+		m_optional_extensions.vk_ext_provoking_vertex = keep("VK_EXT_provoking_vertex",
+			m_optional_extensions.vk_ext_provoking_vertex, probe_pv.provokingVertexLast == VK_TRUE);
+		m_optional_extensions.vk_ext_line_rasterization = keep("VK_EXT_line_rasterization",
+			m_optional_extensions.vk_ext_line_rasterization, probe_line.bresenhamLines == VK_TRUE);
+		m_optional_extensions.vk_ext_rasterization_order_attachment_access =
+			keep("VK_EXT_rasterization_order_attachment_access",
+				m_optional_extensions.vk_ext_rasterization_order_attachment_access,
+				probe_roaa.rasterizationOrderColorAttachmentAccess == VK_TRUE);
+		m_optional_extensions.vk_ext_attachment_feedback_loop_layout =
+			keep("VK_EXT_attachment_feedback_loop_layout",
+				m_optional_extensions.vk_ext_attachment_feedback_loop_layout,
+				probe_afl.attachmentFeedbackLoopLayout == VK_TRUE);
+		m_optional_extensions.vk_swapchain_maintenance1 = keep("VK_EXT_swapchain_maintenance1",
+			m_optional_extensions.vk_swapchain_maintenance1, probe_sm1.swapchainMaintenance1 == VK_TRUE);
+		m_optional_extensions.vk_ext_fragment_shader_interlock = keep("VK_EXT_fragment_shader_interlock",
+			m_optional_extensions.vk_ext_fragment_shader_interlock,
+			probe_fsi.fragmentShaderPixelInterlock == VK_TRUE);
+		m_optional_extensions.vk_khr_vulkan_memory_model = keep("VK_KHR_vulkan_memory_model",
+			m_optional_extensions.vk_khr_vulkan_memory_model, probe_vmm.vulkanMemoryModel == VK_TRUE);
+		// The FEATURE we want is nullDescriptor specifically. VK_EXT_robustness2 also carries
+		// robustBufferAccess2/robustImageAccess2, which cost performance and which nothing here
+		// needs — they are deliberately left VK_FALSE below.
+		m_optional_extensions.vk_ext_robustness2_null_descriptor = keep("VK_EXT_robustness2 (nullDescriptor)",
+			m_optional_extensions.vk_ext_robustness2_null_descriptor, probe_r2.nullDescriptor == VK_TRUE);
+		m_optional_extensions.vk_ext_device_fault = keep("VK_EXT_device_fault",
+			m_optional_extensions.vk_ext_device_fault, probe_fault.deviceFault == VK_TRUE);
+		m_optional_extensions.vk_khr_shader_float16_int8 = keep("VK_KHR_shader_float16_int8 (shaderFloat16)",
+			m_optional_extensions.vk_khr_shader_float16_int8, probe_f16.shaderFloat16 == VK_TRUE);
+
+		// Depth ROAA is an optional sub-feature: a driver can offer the extension and colour
+		// access yet not depth.
+		m_optional_extensions.vk_ext_roaa_depth =
+			m_optional_extensions.vk_ext_rasterization_order_attachment_access &&
+			probe_roaa.rasterizationOrderDepthAttachmentAccess == VK_TRUE;
+	}
+
+	if (m_optional_extensions.vk_ext_provoking_vertex)
+	{
+		provoking_vertex_feature.provokingVertexLast = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &provoking_vertex_feature);
+	}
+	if (m_optional_extensions.vk_ext_line_rasterization)
+	{
+		line_rasterization_feature.bresenhamLines = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &line_rasterization_feature);
+	}
+	if (m_optional_extensions.vk_ext_rasterization_order_attachment_access)
+	{
+		rasterization_order_access_feature.rasterizationOrderColorAttachmentAccess = VK_TRUE;
+		if (m_optional_extensions.vk_ext_roaa_depth)
+			rasterization_order_access_feature.rasterizationOrderDepthAttachmentAccess = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &rasterization_order_access_feature);
+	}
+	if (m_optional_extensions.vk_ext_attachment_feedback_loop_layout)
+	{
+		attachment_feedback_loop_feature.attachmentFeedbackLoopLayout = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &attachment_feedback_loop_feature);
+	}
+	if (m_optional_extensions.vk_ext_attachment_feedback_loop_dynamic_state)
+	{
+		attachment_feedback_loop_dynamic_feature.attachmentFeedbackLoopDynamicState = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &attachment_feedback_loop_dynamic_feature);
+	}
+	if (m_optional_extensions.vk_swapchain_maintenance1)
+	{
+		swapchain_maintenance1_feature.swapchainMaintenance1 = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &swapchain_maintenance1_feature);
+	}
+	if (m_optional_extensions.vk_ext_fragment_shader_interlock)
+	{
+		fragment_shader_interlock_ext_feature.fragmentShaderPixelInterlock = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &fragment_shader_interlock_ext_feature);
+	}
+	if (m_optional_extensions.vk_khr_vulkan_memory_model)
+	{
+		vulkan_memory_model_feature.vulkanMemoryModel = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &vulkan_memory_model_feature);
+	}
+	if (m_optional_extensions.vk_ext_robustness2_null_descriptor)
+	{
+		// nullDescriptor ONLY — see the note by the probe above.
+		robustness2_feature.nullDescriptor = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &robustness2_feature);
+	}
+	if (m_optional_extensions.vk_ext_device_fault)
+	{
+		device_fault_feature.deviceFault = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &device_fault_feature);
+	}
+	if (m_optional_extensions.vk_khr_shader_float16_int8)
+	{
+		// shaderFloat16 only; shaderInt8 is nothing we use.
+		float16_int8_feature.shaderFloat16 = VK_TRUE;
+		Vulkan::AddPointerToChain(&device_info, &float16_int8_feature);
+	}
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	VkResult res = Vulkan::NativeCreateDeviceRecorded(m_instance, m_physical_device,
+		&device_info, nullptr, &m_device, queue_family_count, queue_family_properties.data());
+#else
+	VkResult res = vkCreateDevice(m_physical_device, &device_info, nullptr, &m_device);
+#endif
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkCreateDevice failed: ");
+		return false;
+	}
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	Vulkan::NativeNoteDeviceCreated(m_instance, m_device);
+#endif
+	// With the device created, we can fill the remaining entry points.
+	if (!Vulkan::LoadVulkanDeviceFunctions(m_device))
+		return false;
+
+	// Grab the graphics and present queues.
+	vkGetDeviceQueue(m_device, m_graphics_queue_family_index, 0, &m_graphics_queue);
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	Vulkan::NativeRecordQueue(m_device, m_graphics_queue_family_index, 0, m_graphics_queue);
+#endif
+	if (surface)
+	{
+		vkGetDeviceQueue(m_device, m_present_queue_family_index, 0, &m_present_queue);
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	Vulkan::NativeRecordQueue(m_device, m_present_queue_family_index, 0, m_present_queue);
+#endif
+	}
+	m_spinning_supported = m_spin_queue_family_index != queue_family_count &&
+	                       queue_family_properties[m_graphics_queue_family_index].timestampValidBits > 0 &&
+	                       m_device_properties.limits.timestampPeriod > 0;
+	m_spin_queue_is_graphics_queue =
+		m_spin_queue_family_index == m_graphics_queue_family_index && spin_queue_index == 0;
+
+	m_gpu_timing_supported = (m_device_properties.limits.timestampComputeAndGraphics != 0 &&
+							  queue_family_properties[m_graphics_queue_family_index].timestampValidBits > 0 &&
+							  m_device_properties.limits.timestampPeriod > 0);
+	DevCon.WriteLn("GPU timing is %s (TS=%u TS valid bits=%u, TS period=%f)",
+		m_gpu_timing_supported ? "supported" : "not supported",
+		static_cast<u32>(m_device_properties.limits.timestampComputeAndGraphics),
+		queue_family_properties[m_graphics_queue_family_index].timestampValidBits,
+		m_device_properties.limits.timestampPeriod);
+
+	m_gpu_pipeline_statistics_supported = (m_device_features.pipelineStatisticsQuery != 0);
+	DevCon.WriteLn("GPU pipeline statistics is %s", m_gpu_pipeline_statistics_supported ? "supported" : "not supported");
+
+	if (!ProcessDeviceExtensions())
+		return false;
+
+#if defined(__ANDROID__)
+	// Mali-G615's timestamp queries never resolve, and the present spin that waits on them stalls
+	// for seconds. Other Mali parts keep both. Costs the GPU-time stat and present pacing only.
+	if (m_device_rules.broken_timestamp_queries)
+	{
+		Console.WriteLn("Mali-G615: disabling GPU timing + present spinning (r44p1 timestamp-query VK_NOT_READY freeze).");
+		m_gpu_timing_supported = false;
+		m_spinning_supported = false;
+	}
+#endif
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	// Initial native headless profile excludes GPU pacing/timestamp helpers.
+	// The real spin submission/wait methods still have finite guards below.
+	m_spinning_supported = false;
+	m_gpu_timing_supported = false;
+	m_gpu_pipeline_statistics_supported = false;
+#endif
+	if (m_spinning_supported)
+	{
+		vkGetDeviceQueue(m_device, m_spin_queue_family_index, spin_queue_index, &m_spin_queue);
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	Vulkan::NativeRecordQueue(m_device, m_spin_queue_family_index, spin_queue_index, m_spin_queue);
+#endif
+
+		m_spin_timestamp_scale = m_device_properties.limits.timestampPeriod;
+		if (m_optional_extensions.vk_ext_calibrated_timestamps)
+		{
+#ifdef _WIN32
+			LARGE_INTEGER Freq;
+			QueryPerformanceFrequency(&Freq);
+			m_queryperfcounter_to_ns = 1000000000.0 / static_cast<double>(Freq.QuadPart);
+#endif
+			CalibrateSpinTimestamp();
+		}
+	}
+
+	return true;
+}
+
+bool GSDeviceVK::ProcessDeviceExtensions()
+{
+	// advanced feature checks
+	VkPhysicalDeviceFeatures2 features2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+	VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_features = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT};
+	VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
+	VkPhysicalDeviceRasterizationOrderAttachmentAccessFeaturesEXT rasterization_order_access_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_FEATURES_EXT};
+	// VK_EXT_swapchain_maintenance1 types/enums are aliases of VK_KHR_swapchain_maintenance1 types/enums.
+	// Preset to VK_FALSE, NOT VK_TRUE: Adreno's proprietary driver advertises
+	// the extension string but doesn't recognize the feature struct ("Unknown
+	// struct with type 0x3b9efc38" in logcat) and never writes it. With a
+	// VK_TRUE preset the ignored struct reads back as supported, the device is
+	// created without the feature actually enabled, and the swapchain then uses
+	// present fences illegally. A driver that does know the struct overwrites
+	// this preset either way.
+	VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR swapchain_maintenance1_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR, nullptr, VK_FALSE};
+	VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT attachment_feedback_loop_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_FEATURES_EXT};
+	VkPhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT attachment_feedback_loop_dynamic_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_DYNAMIC_STATE_FEATURES_EXT};
+	VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT fragment_shader_interlock_ext_feature = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT };
+
+	// add in optional feature structs
+	if (m_optional_extensions.vk_ext_provoking_vertex)
+		Vulkan::AddPointerToChain(&features2, &provoking_vertex_features);
+	if (m_optional_extensions.vk_ext_line_rasterization)
+		Vulkan::AddPointerToChain(&features2, &line_rasterization_feature);
+	if (m_optional_extensions.vk_ext_rasterization_order_attachment_access)
+		Vulkan::AddPointerToChain(&features2, &rasterization_order_access_feature);
+	if (m_optional_extensions.vk_ext_attachment_feedback_loop_layout)
+		Vulkan::AddPointerToChain(&features2, &attachment_feedback_loop_feature);
+	if (m_optional_extensions.vk_ext_attachment_feedback_loop_dynamic_state)
+		Vulkan::AddPointerToChain(&features2, &attachment_feedback_loop_dynamic_feature);
+	if (m_optional_extensions.vk_swapchain_maintenance1)
+		Vulkan::AddPointerToChain(&features2, &swapchain_maintenance1_feature);
+	if (m_optional_extensions.vk_ext_fragment_shader_interlock)
+		Vulkan::AddPointerToChain(&features2, &fragment_shader_interlock_ext_feature);
+
+	// query
+	vkGetPhysicalDeviceFeatures2(m_physical_device, &features2);
+
+	// confirm we actually support it
+	m_optional_extensions.vk_ext_provoking_vertex &= (provoking_vertex_features.provokingVertexLast == VK_TRUE);
+	m_optional_extensions.vk_ext_rasterization_order_attachment_access &=
+		(rasterization_order_access_feature.rasterizationOrderColorAttachmentAccess == VK_TRUE);
+	// Depth ROAA is meaningless (and its subpass/pipeline flags invalid) without the color
+	// extension being usable; keep them consistent after the post-create reconcile.
+	m_optional_extensions.vk_ext_roaa_depth &= m_optional_extensions.vk_ext_rasterization_order_attachment_access;
+	m_optional_extensions.vk_ext_attachment_feedback_loop_layout &=
+		(attachment_feedback_loop_feature.attachmentFeedbackLoopLayout == VK_TRUE);
+
+	VkPhysicalDeviceProperties2 properties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+
+	if (m_optional_extensions.vk_khr_driver_properties)
+	{
+		m_device_driver_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+		Vulkan::AddPointerToChain(&properties2, &m_device_driver_properties);
+	}
+
+	VkPhysicalDevicePushDescriptorPropertiesKHR push_descriptor_properties = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR};
+	if (m_optional_extensions.vk_khr_push_descriptor)
+		Vulkan::AddPointerToChain(&properties2, &push_descriptor_properties);
+
+	// query
+	vkGetPhysicalDeviceProperties2(m_physical_device, &properties2);
+	// The properties struct is chained only when the extension is enabled; without it the device has
+	// no push descriptors to count.
+	ResolveDeviceIdentity(
+		m_optional_extensions.vk_khr_push_descriptor ? push_descriptor_properties.maxPushDescriptors : 0);
+
+	// Mali r44p1 loses the device under an in-pass self-read. This alone does not avoid it: the
+	// driver-bug database also puts r44p1 on the render-target copy road.
+	// Imagination's driver: the self-read goes through a subpass input attachment instead of the
+	// feedback-loop layout, so it stays in tile memory (see VulkanDeviceRules).
+	if (m_device_rules.avoid_feedback_loop_layout)
+	{
+		if (IsDevicePowerVR())
+			Console.WriteLn("PowerVR: not using the attachment-feedback-loop layout; the in-pass self-read uses a "
+							"subpass input attachment.");
+		else
+			Console.WriteLn("Mali r44p1: disabling attachment-feedback-loop blend path (DEVICE_LOST workaround).");
+		m_optional_extensions.vk_ext_attachment_feedback_loop_layout = false;
+	}
+
+	// After every write to the layout bit: the per-draw declaration has nothing to declare without it.
+	m_optional_extensions.vk_ext_attachment_feedback_loop_dynamic_state &=
+		(attachment_feedback_loop_dynamic_feature.attachmentFeedbackLoopDynamicState == VK_TRUE) &&
+		m_optional_extensions.vk_ext_attachment_feedback_loop_layout;
+
+	// The rule resolver exempts malisx2 from the Mali avoid at the descriptor count checked below.
+	static_assert(NUM_TFX_TEXTURES == VULKAN_PUSH_DESCRIPTORS_REQUIRED);
+
+	// Decide whether to bind textures via VK_KHR_push_descriptor. It's optional
+	// now — when it's absent (some Mali, e.g. Mali-G52), unusable, or known-buggy
+	// we fall back to per-frame allocated descriptor sets so Vulkan still runs.
+	m_use_push_descriptors = m_optional_extensions.vk_khr_push_descriptor;
+	if (m_use_push_descriptors && push_descriptor_properties.maxPushDescriptors < NUM_TFX_TEXTURES)
+	{
+		Console.Warning("VK: maxPushDescriptors (%u) below required (%u) - using descriptor-set fallback.",
+			push_descriptor_properties.maxPushDescriptors, NUM_TFX_TEXTURES);
+		m_use_push_descriptors = false;
+	}
+	// Arm's Mali blob crashes in vkCmdPushDescriptorSetKHR even where it advertises the extension, and
+	// an Adreno driver other than Qualcomm's or Turnip is untested with it. malisx2 is exempt from the
+	// Mali half in the rule (exempt_malisx2_push_descriptors).
+	if (m_use_push_descriptors && m_device_rules.avoid_push_descriptors)
+		m_use_push_descriptors = false;
+	if (!m_use_push_descriptors)
+		Console.Warning("VK: Using non-push-descriptor texture binding fallback.");
+
+	// Qualcomm's Adreno driver selects the wrong provoking vertex, so GSRendererHW's software
+	// provoking-vertex-first path runs instead. Turnip keeps the extension.
+	if (m_optional_extensions.vk_ext_provoking_vertex && m_device_rules.broken_provoking_vertex)
+		m_optional_extensions.vk_ext_provoking_vertex = false;
+
+	// gsrunner -no-provoking-vertex: the same outcome on a device that has the extension.
+	if (m_optional_extensions.vk_ext_provoking_vertex && g_gs_measurement_overrides.no_provoking_vertex)
+		m_optional_extensions.vk_ext_provoking_vertex = false;
+
+	if (m_optional_extensions.vk_ext_line_rasterization && !line_rasterization_feature.bresenhamLines)
+	{
+		Console.Warning("VK: bresenhamLines is not supported.");
+		m_optional_extensions.vk_ext_line_rasterization = false;
+	}
+
+	// VK_EXT_calibrated_timestamps checking
+	if (m_optional_extensions.vk_ext_calibrated_timestamps)
+	{
+		u32 count = 0;
+		vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(m_physical_device, &count, nullptr);
+		std::unique_ptr<VkTimeDomainEXT[]> time_domains = std::make_unique<VkTimeDomainEXT[]>(count);
+		vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(m_physical_device, &count, time_domains.get());
+		const VkTimeDomainEXT* begin = &time_domains[0];
+		const VkTimeDomainEXT* end = &time_domains[count];
+		if (std::find(begin, end, VK_TIME_DOMAIN_DEVICE_EXT) == end)
+			m_optional_extensions.vk_ext_calibrated_timestamps = false;
+		VkTimeDomainEXT preferred_types[] = {
+#ifdef _WIN32
+			VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_EXT,
+#else
+#ifdef CLOCK_MONOTONIC_RAW
+			VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_EXT,
+#endif
+			VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT,
+#endif
+		};
+		m_calibrated_timestamp_type = VK_TIME_DOMAIN_DEVICE_EXT;
+		for (VkTimeDomainEXT type : preferred_types)
+		{
+			if (std::find(begin, end, type) != end)
+			{
+				m_calibrated_timestamp_type = type;
+				break;
+			}
+		}
+		if (m_calibrated_timestamp_type == VK_TIME_DOMAIN_DEVICE_EXT)
+			m_optional_extensions.vk_ext_calibrated_timestamps = false;
+	}
+
+	m_optional_extensions.vk_swapchain_maintenance1 &= 
+		(swapchain_maintenance1_feature.swapchainMaintenance1 == VK_TRUE);
+
+	m_optional_extensions.vk_ext_fragment_shader_interlock &=
+		(fragment_shader_interlock_ext_feature.fragmentShaderPixelInterlock == VK_TRUE);
+
+	Console.WriteLn(
+		"VK_EXT_provoking_vertex is %s", m_optional_extensions.vk_ext_provoking_vertex ? "supported" : "NOT supported");
+	Console.WriteLn(
+		"VK_EXT_memory_budget is %s", m_optional_extensions.vk_ext_memory_budget ? "supported" : "NOT supported");
+	Console.WriteLn("VK_EXT_calibrated_timestamps is %s",
+		m_optional_extensions.vk_ext_calibrated_timestamps ? "supported" : "NOT supported");
+	Console.WriteLn("VK_EXT_rasterization_order_attachment_access is %s",
+		m_optional_extensions.vk_ext_rasterization_order_attachment_access ? "supported" : "NOT supported");
+	Console.WriteLn("VK_%s_swapchain_maintenance1 is %s",
+		m_optional_extensions.vk_swapchain_maintenance1_is_khr ? "KHR" : "EXT",
+		m_optional_extensions.vk_swapchain_maintenance1 ? "supported" : "NOT supported");
+	Console.WriteLn("VK_EXT_full_screen_exclusive is %s",
+		m_optional_extensions.vk_ext_full_screen_exclusive ? "supported" : "NOT supported");
+	Console.WriteLn("VK_KHR_driver_properties is %s",
+		m_optional_extensions.vk_khr_driver_properties ? "supported" : "NOT supported");
+	Console.WriteLn("VK_EXT_attachment_feedback_loop_layout is %s",
+		m_optional_extensions.vk_ext_attachment_feedback_loop_layout ? "supported" : "NOT supported");
+	Console.WriteLn("VK_EXT_fragment_shader_interlock is %s",
+		m_optional_extensions.vk_ext_fragment_shader_interlock ? "supported" : "NOT supported");
+
+	return true;
+}
+
+void GSDeviceVK::ResolveDeviceIdentity(u32 max_push_descriptors)
+{
+	// The driver context feeds the driver-bug database, ported from sashkinbro/EmuCoreX with his
+	// approval. Needs m_device_driver_properties, so it runs as soon as ProcessDeviceExtensions has them,
+	// which is after that function has reconciled the ROAA feature bits the context reads below.
+	// Resolved on every platform: the driver-bug database is keyed on the driver, and Turnip on an
+	// ARM Linux handheld is the same driver as Turnip on a phone. Resolution is pure data;
+	// PublishGPUProfile hands it to the device, and the rules act only where they are queried.
+	MobileDriverContext driver_context;
+	driver_context.api = MobileGpuApi::Vulkan;
+	driver_context.vendor_id = m_device_properties.vendorID;
+	driver_context.device_id = m_device_properties.deviceID;
+	driver_context.driver_version = m_device_properties.driverVersion;
+	driver_context.api_version = m_device_properties.apiVersion;
+	driver_context.max_draw_indirect_count = m_device_properties.limits.maxDrawIndirectCount;
+	// The extension, and its colour feature read back true before vkCreateDevice and again after it
+	// (CreateDevice's probe, ProcessDeviceExtensions' reconcile). Rows written for Arm's blob read
+	// this to decide whether to leave a malisx2 build alone.
+	driver_context.roaa_color_access = m_optional_extensions.vk_ext_rasterization_order_attachment_access;
+	driver_context.max_push_descriptors = max_push_descriptors;
+	if (m_optional_extensions.vk_khr_driver_properties)
+	{
+		driver_context.driver_id = static_cast<u32>(m_device_driver_properties.driverID);
+		driver_context.driver_name = m_device_driver_properties.driverName;
+		driver_context.driver_info = m_device_driver_properties.driverInfo;
+	}
+	m_gpu_profile = GpuProfileDetector::Resolve(
+		GSConfig.AndroidGpuProfileOverride, std::string_view(), m_device_properties.deviceName,
+		driver_context);
+	m_device_rules =
+		GpuProfileDetector::ResolveVulkanDeviceRules(m_gpu_profile, driver_context, m_device_properties.deviceName);
+}
+
+bool GSDeviceVK::CreateAllocator()
+{
+	VmaAllocatorCreateInfo ci = {};
+	ci.vulkanApiVersion = VK_API_VERSION_1_1;
+	ci.flags = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
+	ci.physicalDevice = m_physical_device;
+	ci.device = m_device;
+	ci.instance = m_instance;
+
+	if (m_optional_extensions.vk_ext_memory_budget)
+		ci.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+
+	// Limit usage of the DEVICE_LOCAL upload heap when we're using a debug device.
+	// On NVIDIA drivers, it results in frequently running out of device memory when trying to
+	// play back captures in RenderDoc, making life very painful. Re-BAR GPUs should be fine.
+	constexpr VkDeviceSize UPLOAD_HEAP_SIZE_THRESHOLD = 512 * 1024 * 1024;
+	constexpr VkMemoryPropertyFlags UPLOAD_HEAP_PROPERTIES =
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+	std::array<VkDeviceSize, VK_MAX_MEMORY_HEAPS> heap_size_limits;
+	if (GSConfig.UseDebugDevice)
+	{
+		VkPhysicalDeviceMemoryProperties memory_properties;
+		vkGetPhysicalDeviceMemoryProperties(m_physical_device, &memory_properties);
+
+		bool has_upload_heap = false;
+		heap_size_limits.fill(VK_WHOLE_SIZE);
+		for (u32 i = 0; i < memory_properties.memoryTypeCount; i++)
+		{
+			// Look for any memory types which are upload-like.
+			const VkMemoryType& type = memory_properties.memoryTypes[i];
+			if ((type.propertyFlags & UPLOAD_HEAP_PROPERTIES) != UPLOAD_HEAP_PROPERTIES)
+				continue;
+
+			const VkMemoryHeap& heap = memory_properties.memoryHeaps[type.heapIndex];
+			if (heap.size >= UPLOAD_HEAP_SIZE_THRESHOLD)
+				continue;
+
+			if (heap_size_limits[type.heapIndex] == VK_WHOLE_SIZE)
+			{
+				Console.Warning("VK: Disabling allocation from upload heap #%u (%.2f MB) due to debug device.",
+					type.heapIndex, static_cast<float>(heap.size) / 1048576.0f);
+				heap_size_limits[type.heapIndex] = 0;
+				has_upload_heap = true;
+			}
+		}
+
+		if (has_upload_heap)
+			ci.pHeapSizeLimit = heap_size_limits.data();
+	}
+
+	VkResult res = vmaCreateAllocator(&ci, &m_allocator);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vmaCreateAllocator failed: ");
+		return false;
+	}
+
+	return true;
+}
+
+bool GSDeviceVK::CreateCommandBuffers()
+{
+	VkResult res;
+
+	uint32_t frame_index = 0;
+	for (FrameResources& resources : m_frame_resources)
+	{
+		resources.needs_fence_wait = false;
+
+		VkCommandPoolCreateInfo pool_info = {
+			VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr, 0, m_graphics_queue_family_index};
+		res = vkCreateCommandPool(m_device, &pool_info, nullptr, &resources.command_pool);
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkCreateCommandPool failed: ");
+			return false;
+		}
+		Vulkan::SetObjectName(m_device, resources.command_pool, "Frame Command Pool %u", frame_index);
+
+		VkCommandBufferAllocateInfo buffer_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, nullptr,
+			resources.command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			static_cast<u32>(resources.command_buffers.size())};
+
+		res = vkAllocateCommandBuffers(m_device, &buffer_info, resources.command_buffers.data());
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkAllocateCommandBuffers failed: ");
+			return false;
+		}
+		for (u32 i = 0; i < resources.command_buffers.size(); i++)
+		{
+			Vulkan::SetObjectName(m_device, resources.command_buffers[i], "Frame %u %sCommand Buffer", frame_index,
+				(i == 0) ? "Init" : "");
+		}
+
+		VkFenceCreateInfo fence_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+
+		res = vkCreateFence(m_device, &fence_info, nullptr, &resources.fence);
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkCreateFence failed: ");
+			return false;
+		}
+		Vulkan::SetObjectName(m_device, resources.fence, "Frame Fence %u", frame_index);
+
+		// The frame's descriptor pools are NOT created here. They are a chain grown on demand by
+		// AllocateDescriptorSetFromFramePool, so a device that never allocates from it never has
+		// one, and a device that needs a thousand sets gets a thousand sets.
+
+		++frame_index;
+	}
+
+	ActivateCommandBuffer(0);
+	return true;
+}
+
+bool GSDeviceVK::CreateGlobalDescriptorPool()
+{
+	// The TFX UBO set holds two dynamic uniform buffers and up to two storage buffers, and up to
+	// MAX_TFX_UBO_DESCRIPTOR_SETS of it coexist while the vertex ring grows; the extra storage
+	// buffer is the spin set's.
+	static constexpr const VkDescriptorPoolSize pool_sizes[] = {
+		{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 2 * MAX_TFX_UBO_DESCRIPTOR_SETS},
+		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 * MAX_TFX_UBO_DESCRIPTOR_SETS + 1},
+	};
+
+	VkDescriptorPoolCreateInfo pool_create_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr,
+		VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+		1024, // TODO: tweak this
+		static_cast<u32>(std::size(pool_sizes)), pool_sizes};
+
+	VkResult res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &m_global_descriptor_pool);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkCreateDescriptorPool failed: ");
+		return false;
+	}
+	Vulkan::SetObjectName(m_device, m_global_descriptor_pool, "Global Descriptor Pool");
+
+	if (m_gpu_timing_supported)
+	{
+		const VkQueryPoolCreateInfo query_create_info = {
+			VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO, nullptr, 0, VK_QUERY_TYPE_TIMESTAMP, NUM_COMMAND_BUFFERS * 4, 0};
+		res = vkCreateQueryPool(m_device, &query_create_info, nullptr, &m_timestamp_query_pool);
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkCreateQueryPool failed: ");
+			m_gpu_timing_supported = false;
+			return false;
+		}
+	}
+
+	if (m_gpu_pipeline_statistics_supported)
+	{
+		const VkQueryPoolCreateInfo query_create_info = {
+			VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO, nullptr, 0, VK_QUERY_TYPE_PIPELINE_STATISTICS, NUM_COMMAND_BUFFERS,
+			VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT | VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT};
+		res = vkCreateQueryPool(m_device, &query_create_info, nullptr, &m_pipeline_statistics_query_pool);
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkCreateQueryPool failed: ");
+			m_gpu_pipeline_statistics_supported = false;
+			return false;
+		}
+	}
+
+	return true;
+}
+
+VkRenderPass GSDeviceVK::GetRenderPass(VkFormat color_format, VkFormat depth_format, VkAttachmentLoadOp color_load_op,
+	VkAttachmentStoreOp color_store_op, VkAttachmentLoadOp depth_load_op, VkAttachmentStoreOp depth_store_op,
+	VkAttachmentLoadOp stencil_load_op, VkAttachmentStoreOp stencil_store_op, bool color_feedback_loop,
+	bool depth_sampling)
+{
+	RenderPassCacheKey key = {};
+	key.color_format = color_format;
+	key.depth_format = depth_format;
+	key.color_load_op = color_load_op;
+	key.color_store_op = color_store_op;
+	key.depth_load_op = depth_load_op;
+	key.depth_store_op = depth_store_op;
+	key.stencil_load_op = stencil_load_op;
+	key.stencil_store_op = stencil_store_op;
+	key.color_feedback_loop = color_feedback_loop;
+	key.depth_sampling = depth_sampling;
+
+	// Mali driver bug (ported from PPSSPP): a packed depth/stencil attachment whose
+	// depth vs stencil load-ops MISMATCH corrupts on ARM Mali. PCSX2's GS uses one
+	// combined D24S8/D32S8 attachment whose aspects are normally loaded/cleared
+	// together, so this is a no-op in practice — normalize defensively (prefer the
+	// depth aspect's op) so a stray mismatch can't trip the bug. Mali-only.
+	if (IsDeviceMali() && key.stencil_load_op != key.depth_load_op)
+	{
+		key.stencil_load_op = key.depth_load_op;
+		key.stencil_store_op = key.depth_store_op;
+	}
+
+	auto it = m_render_pass_cache.find(key.key);
+	if (it != m_render_pass_cache.end())
+		return it->second;
+
+	return CreateCachedRenderPass(key);
+}
+
+VkRenderPass GSDeviceVK::GetRenderPassForRestarting(VkRenderPass pass)
+{
+	for (const auto& it : m_render_pass_cache)
+	{
+		if (it.second != pass)
+			continue;
+
+		// The restarted pass continues the one that was open, so it loads what that pass drew. A
+		// DONT_CARE kept from the first opening (an invalidated target) throws it away instead: on a
+		// tiler the pass then starts from undefined tile memory and stores it over everything drawn
+		// before the restart.
+		RenderPassCacheKey modified_key;
+		modified_key.key = it.first;
+		modified_key.color_load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+		modified_key.depth_load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+		modified_key.stencil_load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+
+		if (modified_key.key == it.first)
+			return pass;
+
+		auto fit = m_render_pass_cache.find(modified_key.key);
+		if (fit != m_render_pass_cache.end())
+			return fit->second;
+
+		return CreateCachedRenderPass(modified_key);
+	}
+
+	return pass;
+}
+
+VkCommandBuffer GSDeviceVK::GetCurrentInitCommandBuffer()
+{
+	FrameResources& res = m_frame_resources[m_current_frame];
+	VkCommandBuffer buf = res.command_buffers[0];
+	if (res.init_buffer_used)
+		return buf;
+
+	VkCommandBufferBeginInfo bi{
+		VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr};
+	vkBeginCommandBuffer(buf, &bi);
+	res.init_buffer_used = true;
+	return buf;
+}
+
+VkDescriptorSet GSDeviceVK::AllocatePersistentDescriptorSet(VkDescriptorSetLayout set_layout)
+{
+	VkDescriptorSetAllocateInfo allocate_info = {
+		VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr, m_global_descriptor_pool, 1, &set_layout};
+
+	VkDescriptorSet descriptor_set;
+	VkResult res = vkAllocateDescriptorSets(m_device, &allocate_info, &descriptor_set);
+	if (res != VK_SUCCESS)
+		return VK_NULL_HANDLE;
+
+	return descriptor_set;
+}
+
+void GSDeviceVK::FreePersistentDescriptorSet(VkDescriptorSet set)
+{
+	vkFreeDescriptorSets(m_device, m_global_descriptor_pool, 1, &set);
+}
+
+// One link of a frame's descriptor-pool chain. The size is deliberately a slice of a frame rather
+// than a frame's worst case: the chain grows on demand, so this constant decides how many links a
+// heavy frame ends up holding, never whether that frame renders. It is small enough that ordinary
+// frames grow the chain, and that is the point -- a growth path that only runs on hardware nobody
+// renders on locally is a path nobody has tested. Raising it is a memory/allocation trade, never a
+// correctness fix.
+static constexpr u32 FRAME_DESCRIPTOR_POOL_CHUNK_SETS = 256;
+
+VkDescriptorPool GSDeviceVK::CreateFrameDescriptorPool()
+{
+	// Per-set budgets: the largest single set of each type that a layout allocated from this pool
+	// declares, so an EMPTY link can serve one set of ANY of them. Five layouts reach this pool,
+	// all on the non-push-descriptor path -- utility, TFX texture, CAS, FSR1, SGSR -- and the
+	// per-set maxima across them are:
+	//
+	//   COMBINED_IMAGE_SAMPLER  1  utility (NUM_UTILITY_SAMPLERS), TFX TEXTURE, FSR1, SGSR
+	//   SAMPLED_IMAGE           4  TFX: PALETTE + PRIMID + RT + DEPTH, when the feedback descriptor
+	//                              type is SAMPLED_IMAGE (every vendor but Mali)
+	//   INPUT_ATTACHMENT        2  TFX: RT + DEPTH, when that type is INPUT_ATTACHMENT (Mali)
+	//   STORAGE_IMAGE           2  TFX: RT_ROV + DEPTH_ROV
+	//
+	// The two feedback rows are mutually exclusive per device and both are reserved anyway: which
+	// one applies is decided at layout-build time from the vendor ID, and a link that reserved only
+	// the other one would refuse every TFX set on that device rather than merely waste a few
+	// descriptors. The old fixed pool reserved 3 SAMPLED_IMAGE per set, one short of the TFX
+	// layout's 4, and only got away with it because it was sized for 8192 sets and the frame never
+	// came close.
+	const u32 sets = FRAME_DESCRIPTOR_POOL_CHUNK_SETS;
+	const VkDescriptorPoolSize pool_sizes[] = {
+		{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, sets * 1},
+		{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, sets * 4},
+		{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, sets * 2},
+		{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, sets * 2},
+	};
+	const VkDescriptorPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0, sets,
+		static_cast<u32>(std::size(pool_sizes)), pool_sizes};
+
+	VkDescriptorPool pool = VK_NULL_HANDLE;
+	const VkResult res = vkCreateDescriptorPool(m_device, &pool_info, nullptr, &pool);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkCreateDescriptorPool (frame) failed: ");
+		return VK_NULL_HANDLE;
+	}
+	return pool;
+}
+
+VkDescriptorSet GSDeviceVK::AllocateDescriptorSetFromFramePool(VkDescriptorSetLayout set_layout)
+{
+	FrameResources& resources = m_frame_resources[m_current_frame];
+
+	// Walk the frame's chain, appending a link when every existing one is full. A fixed pool makes
+	// the frame's set count a cliff -- and a cliff whose height is device-dependent, because what
+	// allocates from here is every texture set on the non-push path and nothing at all on the push
+	// one. So the frame gets as many links as it turns out to need; they live for the device's
+	// lifetime and are reset, not freed, when the frame is recycled, so the cost is paid once by
+	// the first heavy frame.
+	for (;;)
+	{
+		// A link is full once it has served the sets it was created for -- our count, not the
+		// driver's answer. A driver may serve past its pool's maxSets and one we test on does,
+		// handing out thousands of sets from a pool created for one; waiting to be refused would
+		// leave this path dead on every device we can run here and live only on the ones we ship
+		// to, which is the whole reason the fixed pool's ceiling went unnoticed.
+		if (resources.descriptor_pool_cursor < resources.descriptor_pools.size() &&
+			resources.descriptor_pool_cursor_sets >= FRAME_DESCRIPTOR_POOL_CHUNK_SETS)
+		{
+			resources.descriptor_pool_cursor++;
+			resources.descriptor_pool_cursor_sets = 0;
+		}
+
+		if (resources.descriptor_pool_cursor >= resources.descriptor_pools.size())
+		{
+			const VkDescriptorPool pool = CreateFrameDescriptorPool();
+			if (pool == VK_NULL_HANDLE)
+				return VK_NULL_HANDLE;
+
+			resources.descriptor_pools.push_back(pool);
+			resources.descriptor_pool_cursor_sets = 0;
+			Vulkan::SetObjectName(m_device, pool, "Frame Descriptor Pool %u.%u", m_current_frame,
+				static_cast<u32>(resources.descriptor_pools.size() - 1));
+			// At powers of two only. A heavy frame can need several thousand sets, and one line
+			// per link buries the log in a dozen identical messages per frame slot on the first
+			// lap. The doubling points still show the ceiling the chain settles at.
+			const u32 links = static_cast<u32>(resources.descriptor_pools.size());
+			if ((links & (links - 1)) == 0)
+			{
+				Console.WriteLn("VK: frame %u descriptor pool chain grew to %u pools of %u sets.", m_current_frame,
+					links, FRAME_DESCRIPTOR_POOL_CHUNK_SETS);
+			}
+		}
+
+		const VkDescriptorSetAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
+			resources.descriptor_pools[resources.descriptor_pool_cursor], 1, &set_layout};
+
+		VkDescriptorSet descriptor_set;
+		const VkResult res = vkAllocateDescriptorSets(m_device, &allocate_info, &descriptor_set);
+		if (res == VK_SUCCESS)
+		{
+			resources.descriptor_pool_cursor_sets++;
+			return descriptor_set;
+		}
+
+		if (res != VK_ERROR_OUT_OF_POOL_MEMORY && res != VK_ERROR_FRAGMENTED_POOL)
+		{
+			// Out of host or device memory. Nothing to grow into; the caller's loud road (flush,
+			// restart the render pass, re-apply state, and fail for real the second time) is the
+			// honest answer.
+			LOG_VULKAN_ERROR(res, "vkAllocateDescriptorSets (frame) failed: ");
+			return VK_NULL_HANDLE;
+		}
+
+		if (resources.descriptor_pool_cursor_sets == 0)
+		{
+			// A link that has served nothing since it was reset just refused this layout, so no
+			// link of this shape ever will -- growing for it would append pools forever. The pool
+			// shape in CreateFrameDescriptorPool is missing a descriptor type the layout declares.
+			if (!m_frame_pool_layout_refused_warned)
+			{
+				m_frame_pool_layout_refused_warned = true;
+				Console.Error("VK: an empty frame descriptor pool cannot serve a descriptor set layout -- the pool "
+							  "reserves no descriptors of some type the layout declares.");
+			}
+			return VK_NULL_HANDLE;
+		}
+
+		resources.descriptor_pool_cursor++;
+		resources.descriptor_pool_cursor_sets = 0;
+	}
+}
+
+void GSDeviceVK::WaitForFenceCounter(u64 fence_counter)
+{
+	if (m_completed_fence_counter >= fence_counter)
+		return;
+
+	// The GS thread is about to block on the GPU out of turn -- the ring's own recycle wait in
+	// ActivateCommandBuffer is not one of these. One per frame serializes the pipeline, which is
+	// why the count matters and the magnitude does not.
+	g_perfmon.Put(GSPerfMon::GpuBlockingWaits, 1);
+
+	// Find the first command buffer which covers this counter value.
+	u32 index = (m_current_frame + 1) % NUM_COMMAND_BUFFERS;
+	while (index != m_current_frame)
+	{
+		if (m_frame_resources[index].fence_counter >= fence_counter)
+			break;
+
+		index = (index + 1) % NUM_COMMAND_BUFFERS;
+	}
+
+	pxAssert(index != m_current_frame);
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	NativeGsWaitKindScope timing_reason(NativeGsCounter);
+#endif
+	WaitForCommandBufferCompletion(index);
+}
+
+void GSDeviceVK::WaitForGPUIdle()
+{
+	g_perfmon.Put(GSPerfMon::GpuBlockingWaits, 1);
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	Vulkan::NativeDrainSubmittedWork(m_device);
+	Vulkan::NativeRequireIdleEpoch(m_device);
+#else
+	if (!m_borrowed_device)
+	{
+		vkDeviceWaitIdle(m_device);
+		return;
+	}
+	const VkResult result = vkQueueWaitIdle(m_graphics_queue);
+	if (result != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(result, "GPU idle wait failed: ");
+		m_last_submit_failed = true;
+	}
+#endif
+}
+
+float GSDeviceVK::GetAndResetAccumulatedGPUTime()
+{
+	const float time = m_accumulated_gpu_time;
+	m_accumulated_gpu_time = 0.0f;
+	return time;
+}
+
+bool GSDeviceVK::SetGPUTimingEnabled(bool enabled)
+{
+	m_gpu_timing_enabled = enabled && m_gpu_timing_supported;
+	return (enabled == m_gpu_timing_enabled);
+}
+
+GPUPipelineStatistics GSDeviceVK::GetAndResetAccumulatedGPUPipelineStatistics()
+{
+	GPUPipelineStatistics stats = m_accumulated_gpu_pipeline_statistics;
+	m_accumulated_gpu_pipeline_statistics = {};
+	return stats;
+}
+
+bool GSDeviceVK::SetGPUPipelineStatisticsEnabled(bool enabled)
+{
+	m_gpu_pipeline_statistics_enabled = enabled && m_gpu_pipeline_statistics_supported;
+	return (enabled == m_gpu_pipeline_statistics_enabled);
+}
+
+void GSDeviceVK::EnableExtendedStats(bool enabled)
+{
+	VKSwapChain::SetPresentStatsEnabled(enabled);
+}
+
+std::vector<std::string> GSDeviceVK::GetExtendedStats() const
+{
+	std::vector<std::string> lines;
+	if (m_swap_chain)
+	{
+		const WindowInfo& wi = m_swap_chain->GetWindowInfo();
+		const char* wsi_name = "?";
+		switch (wi.type)
+		{
+			case WindowInfo::Type::Surfaceless: wsi_name = "Surfaceless"; break;
+			case WindowInfo::Type::Win32:       wsi_name = "Win32"; break;
+			case WindowInfo::Type::X11:         wsi_name = "X11"; break;
+			case WindowInfo::Type::Wayland:     wsi_name = "Wayland"; break;
+			case WindowInfo::Type::MacOS:       wsi_name = "MacOS"; break;
+			case WindowInfo::Type::VulkanDirect: wsi_name = "VulkanDirect"; break;
+		}
+		const char* present_name = "?";
+		switch (m_swap_chain->GetPresentMode())
+		{
+			case VK_PRESENT_MODE_IMMEDIATE_KHR:    present_name = "IMMEDIATE"; break;
+			case VK_PRESENT_MODE_MAILBOX_KHR:      present_name = "MAILBOX"; break;
+			case VK_PRESENT_MODE_FIFO_KHR:         present_name = "FIFO"; break;
+			case VK_PRESENT_MODE_FIFO_RELAXED_KHR: present_name = "FIFO_RELAXED"; break;
+			default: break;
+		}
+		lines.push_back(fmt::format(
+			"Swapchain: {}x{} (scale {:.2f}) fmt={} present={} images={} wsi={}",
+			m_swap_chain->GetWidth(), m_swap_chain->GetHeight(), wi.surface_scale,
+			static_cast<unsigned>(m_swap_chain->GetTextureFormat()),
+			present_name, m_swap_chain->GetImageCount(), wsi_name));
+	}
+
+	const VKSwapChain::PresentStats ps = VKSwapChain::GetPresentStats();
+	const double acquire_avg_ms = ps.acquire_count ? (ps.acquire_total_ms / ps.acquire_count) : 0.0;
+	const double present_avg_ms = ps.present_count ? (ps.present_total_ms / ps.present_count) : 0.0;
+	lines.push_back(fmt::format(
+		"vkAcquireNextImage: avg {:.3f} ms, max {:.3f} ms, n={}", acquire_avg_ms, ps.acquire_max_ms, ps.acquire_count));
+	lines.push_back(fmt::format(
+		"vkQueuePresent:     avg {:.3f} ms, max {:.3f} ms, n={}", present_avg_ms, ps.present_max_ms, ps.present_count));
+	lines.push_back(fmt::format(
+		"Suboptimal: {}, OutOfDate: {}", ps.suboptimal_count, ps.out_of_date_count));
+	return lines;
+}
+
+void GSDeviceVK::StartGPUTiming(u32 index)
+{
+	if (m_gpu_timing_enabled || m_spin_timer)
+	{
+		FrameResources& resources = m_frame_resources[index];
+		vkCmdResetQueryPool(resources.command_buffers[1], m_timestamp_query_pool, index * 2, 2);
+		vkCmdWriteTimestamp(
+			resources.command_buffers[1], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool, index * 2);
+		resources.timestamp_query_state = QueryState::Querying;
+	}
+}
+
+void GSDeviceVK::EndGPUTiming(u32 index)
+{
+	FrameResources& resources = m_frame_resources[index];
+
+	const bool wants_timestamp = m_gpu_timing_enabled || m_spin_timer;
+
+	if (wants_timestamp && resources.timestamp_query_state == QueryState::Querying)
+	{
+		vkCmdWriteTimestamp(m_current_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool,
+			m_current_frame * 2 + 1);
+		resources.timestamp_query_state = QueryState::Ready;
+	}
+}
+
+void GSDeviceVK::ReadGPUTiming(u32 index)
+{
+	FrameResources& resources = m_frame_resources[index];
+
+	const bool wants_timestamps = m_gpu_timing_enabled || resources.spin_id >= 0;
+
+	if (wants_timestamps && resources.timestamp_query_state == QueryState::Ready)
+	{
+		std::array<u64, 2> timestamps;
+		const VkResult res =
+			vkGetQueryPoolResults(m_device, m_timestamp_query_pool, index * 2, static_cast<u32>(timestamps.size()),
+				sizeof(u64) * timestamps.size(), timestamps.data(), sizeof(u64), VK_QUERY_RESULT_64_BIT);
+		if (res == VK_SUCCESS)
+		{
+			// if we didn't write the timestamp at the start of the cmdbuffer (just enabled timing), the first TS will be zero
+			if (timestamps[0] > 0 && m_gpu_timing_enabled)
+			{
+				const double ns_diff =
+					(timestamps[1] - timestamps[0]) * static_cast<double>(m_device_properties.limits.timestampPeriod);
+				m_accumulated_gpu_time += ns_diff / 1000000.0;
+			}
+			if (resources.spin_id >= 0)
+			{
+				if (m_optional_extensions.vk_ext_calibrated_timestamps && timestamps[1] > 0)
+				{
+					const u64 end = timestamps[1] * m_spin_timestamp_scale + m_spin_timestamp_offset;
+					m_spin_manager.DrawCompleted(resources.spin_id, resources.submit_timestamp, end);
+				}
+				else if (!m_optional_extensions.vk_ext_calibrated_timestamps && timestamps[0] > 0)
+				{
+					const u64 begin = timestamps[0] * m_spin_timestamp_scale;
+					const u64 end = timestamps[1] * m_spin_timestamp_scale;
+					m_spin_manager.DrawCompleted(resources.spin_id, begin, end);
+				}
+			}
+		}
+		else
+		{
+			LOG_VULKAN_ERROR(res, "vkGetQueryPoolResults failed: ");
+		}
+
+		resources.timestamp_query_state = QueryState::None;
+	}
+}
+
+void GSDeviceVK::ScanForCommandBufferCompletion()
+{
+	for (u32 check_index = (m_current_frame + 1) % NUM_COMMAND_BUFFERS; check_index != m_current_frame;
+	     check_index = (check_index + 1) % NUM_COMMAND_BUFFERS)
+	{
+		FrameResources& resources = m_frame_resources[check_index];
+		if (resources.fence_counter <= m_completed_fence_counter)
+			continue; // Already completed
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+		const VkResult status = Vulkan::NativePollFence(m_device, resources.fence);
+#else
+		const VkResult status = vkGetFenceStatus(m_device, resources.fence);
+#endif
+		if (status != VK_SUCCESS)
+		{
+			if (m_borrowed_device && status != VK_NOT_READY)
+			{
+				LOG_VULKAN_ERROR(status, "Borrowed frame fence query failed: ");
+				m_last_submit_failed = true;
+			}
+			break; // Fence not signaled, later fences won't be either
+		}
+		CommandBufferCompleted(check_index);
+		m_completed_fence_counter = resources.fence_counter;
+	}
+	for (SpinResources& resources : m_spin_resources)
+	{
+		if (!resources.in_progress)
+			continue;
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+		if (Vulkan::NativePollFence(m_device, resources.fence) != VK_SUCCESS)
+#else
+		if (vkGetFenceStatus(m_device, resources.fence) != VK_SUCCESS)
+#endif
+			continue;
+		SpinCommandCompleted(&resources - &m_spin_resources[0]);
+	}
+}
+
+// VK_EXT_device_fault post-mortem, called on VK_ERROR_DEVICE_LOST before the
+// deliberate exit: the structured fault records — page fault addresses, their
+// kind, vendor fault codes — are the difference between "the driver died,
+// ~1-in-60" and a diagnosis. The vendor binary blob is deliberately not pulled
+// (it can be megabytes and needs vendor tooling to read); the structured
+// records are what a human acts on.
+void GSDeviceVK::ReportDeviceFault()
+{
+	if (!m_optional_extensions.vk_ext_device_fault || !vkGetDeviceFaultInfoEXT)
+		return;
+
+	VkDeviceFaultCountsEXT counts = {VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT};
+	if (vkGetDeviceFaultInfoEXT(m_device, &counts, nullptr) != VK_SUCCESS)
+	{
+		Console.Error("VK: device fault info counts query failed.");
+		return;
+	}
+
+	std::vector<VkDeviceFaultAddressInfoEXT> addresses(counts.addressInfoCount);
+	std::vector<VkDeviceFaultVendorInfoEXT> vendors(counts.vendorInfoCount);
+	counts.vendorBinarySize = 0;
+	VkDeviceFaultInfoEXT info = {VK_STRUCTURE_TYPE_DEVICE_FAULT_INFO_EXT};
+	info.pAddressInfos = addresses.empty() ? nullptr : addresses.data();
+	info.pVendorInfos = vendors.empty() ? nullptr : vendors.data();
+	if (vkGetDeviceFaultInfoEXT(m_device, &counts, &info) < VK_SUCCESS)
+	{
+		Console.Error("VK: device fault info query failed.");
+		return;
+	}
+
+	Console.Error("VK: DEVICE LOST — driver fault report: \"%s\" (%u address record(s), %u vendor record(s))",
+		info.description, counts.addressInfoCount, counts.vendorInfoCount);
+	static constexpr const char* kAddressTypes[] = {"none", "read-invalid", "write-invalid", "execute-invalid",
+		"instruction-pointer-unknown", "instruction-pointer-invalid", "instruction-pointer-fault"};
+	for (u32 i = 0; i < counts.addressInfoCount; i++)
+	{
+		const VkDeviceFaultAddressInfoEXT& a = addresses[i];
+		const u32 type = static_cast<u32>(a.addressType);
+		Console.Error("VK:   address fault %u: %s at 0x%016llx (precision 0x%llx)", i,
+			(type < std::size(kAddressTypes)) ? kAddressTypes[type] : "unknown-type",
+			static_cast<unsigned long long>(a.reportedAddress), static_cast<unsigned long long>(a.addressPrecision));
+	}
+	for (u32 i = 0; i < counts.vendorInfoCount; i++)
+	{
+		const VkDeviceFaultVendorInfoEXT& v = vendors[i];
+		Console.Error("VK:   vendor fault %u: \"%s\" code 0x%llx data 0x%llx", i, v.description,
+			static_cast<unsigned long long>(v.vendorFaultCode), static_cast<unsigned long long>(v.vendorFaultData));
+	}
+}
+
+void GSDeviceVK::WaitForCommandBufferCompletion(u32 index)
+{
+	GSFieldProfile::Scope profile(GSFieldProfile::Phase::VulkanFenceWait);
+	// Wait for this command buffer to be completed.
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	const u32 timing_kind = s_native_gs_aggregate.wait_kind;
+	const u64 timing_started = NativeGsTimingBegin(timing_kind);
+	const VkResult res = Vulkan::NativeWaitForFence(m_device, m_frame_resources[index].fence);
+	NativeGsTimingEnd(timing_kind, timing_started);
+#else
+	const VkResult res = vkWaitForFences(m_device, 1, &m_frame_resources[index].fence, VK_TRUE, UINT64_MAX);
+#endif
+	if (res != VK_SUCCESS)
+	{
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+		ps2_hwgs_retain_ownership("own-GS-fence-wait", res);
+#endif
+		LOG_VULKAN_ERROR(res, "vkWaitForFences failed: ");
+		if (res == VK_ERROR_DEVICE_LOST)
+			ReportDeviceFault();
+		m_last_submit_failed = true;
+		return;
+	}
+
+	// Clean up any resources for command buffers between the last known completed buffer and this
+	// now-completed command buffer. If we use >2 buffers, this may be more than one buffer.
+	const u64 now_completed_counter = m_frame_resources[index].fence_counter;
+	u32 cleanup_index = (m_current_frame + 1) % NUM_COMMAND_BUFFERS;
+	while (cleanup_index != m_current_frame)
+	{
+		FrameResources& resources = m_frame_resources[cleanup_index];
+		if (resources.fence_counter > now_completed_counter)
+			break;
+
+		if (resources.fence_counter > m_completed_fence_counter)
+			CommandBufferCompleted(cleanup_index);
+
+		cleanup_index = (cleanup_index + 1) % NUM_COMMAND_BUFFERS;
+	}
+
+	m_completed_fence_counter = now_completed_counter;
+}
+
+#ifdef IZPS2_NATIVE_FATAL_RECORD
+extern "C" bool iz_ounce_native_trace_enabled(void);
+#endif
+
+void GSDeviceVK::SubmitCommandBuffer(VKSwapChain* present_swap_chain)
+{
+	GSFieldProfile::Scope profile(GSFieldProfile::Phase::VulkanSubmit);
+#ifdef IZPS2_NATIVE_FATAL_RECORD
+    const bool startup_trace = GetCurrentFenceCounter() <= 32 && iz_ounce_native_trace_enabled();
+    if (startup_trace)
+        Console.WriteLn("IZPS2_GS_STARTUP phase=submit_begin fence=%llu",
+            static_cast<unsigned long long>(GetCurrentFenceCounter()));
+#endif
+	m_render_passes_since_submit = 0;
+
+	FrameResources& resources = m_frame_resources[m_current_frame];
+
+	// End the current command buffer.
+	VkResult res;
+	if (resources.init_buffer_used)
+	{
+		res = vkEndCommandBuffer(resources.command_buffers[0]);
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
+			pxFailRel("Failed to end command buffer");
+		}
+	}
+
+	EndGPUTiming(m_current_frame);
+
+	if (resources.pipeline_statistics_query == QueryState::Querying)
+	{
+		// Didn't end query in DoBeginPresent() so end it here.
+		resources.pipeline_statistics_query = QueryState::Ready;
+		vkCmdEndQuery(m_current_command_buffer, m_pipeline_statistics_query_pool, m_current_frame);
+	}
+
+	res = vkEndCommandBuffer(resources.command_buffers[1]);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
+		pxFailRel("Failed to end command buffer");
+	}
+
+	// This command buffer now has commands, so can't be re-used without waiting.
+	resources.needs_fence_wait = true;
+
+	u32 spin_cycles = 0;
+	const bool spin_enabled = m_spin_timer;
+	if (spin_enabled)
+	{
+		ScanForCommandBufferCompletion();
+		auto draw = m_spin_manager.DrawSubmitted(m_command_buffer_render_passes);
+		u32 constant_offset =
+			400000 * m_spin_manager.SpinsPerUnitTime(); // 400us, just to be safe since going over gets really bad
+		if (m_optional_extensions.vk_ext_calibrated_timestamps)
+			constant_offset /=
+				2; // Safety factor isn't as important here, going over just hurts this one submission a bit
+		u32 minimum_spin = 200000 * m_spin_manager.SpinsPerUnitTime();
+		u32 maximum_spin = std::max<u32>(1024, 16000000 * m_spin_manager.SpinsPerUnitTime()); // 16ms
+		if (draw.recommended_spin > minimum_spin + constant_offset)
+			spin_cycles = std::min(draw.recommended_spin - constant_offset, maximum_spin);
+		resources.spin_id = draw.id;
+	}
+	else
+	{
+		resources.spin_id = -1;
+	}
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+    s_native_gs_aggregate.submit_pass_sum += m_command_buffer_render_passes;
+    s_native_gs_aggregate.submit_pass_max = std::max<u64>(
+        s_native_gs_aggregate.submit_pass_max, m_command_buffer_render_passes);
+#endif
+	m_command_buffer_render_passes = 0;
+
+	if (present_swap_chain != VK_NULL_HANDLE && m_spinning_supported)
+	{
+		m_spin_manager.NextFrame();
+		if (m_spin_timer)
+			m_spin_timer--;
+		// Calibrate a max of once per frame
+		m_wants_new_timestamp_calibration = m_optional_extensions.vk_ext_calibrated_timestamps;
+	}
+
+	if (spin_cycles != 0)
+		WaitForSpinCompletion(m_current_frame);
+
+	if (spin_enabled && m_optional_extensions.vk_ext_calibrated_timestamps)
+		resources.submit_timestamp = GetCPUTimestamp();
+
+	uint32_t wait_bits = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	VkSemaphore semas[2];
+	VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+	submit_info.commandBufferCount = resources.init_buffer_used ? 2u : 1u;
+	submit_info.pCommandBuffers =
+		resources.init_buffer_used ? resources.command_buffers.data() : &resources.command_buffers[1];
+
+	if (present_swap_chain)
+	{
+		submit_info.pWaitSemaphores = present_swap_chain->GetImageAvailableSemaphorePtr();
+		submit_info.waitSemaphoreCount = 1;
+		submit_info.pWaitDstStageMask = &wait_bits;
+
+		if (spin_cycles != 0)
+		{
+			semas[0] = present_swap_chain->GetRenderingFinishedSemaphore();
+			semas[1] = m_spin_resources[m_current_frame].semaphore;
+			submit_info.signalSemaphoreCount = 2;
+			submit_info.pSignalSemaphores = semas;
+		}
+		else
+		{
+			submit_info.pSignalSemaphores = present_swap_chain->GetRenderingFinishedSemaphorePtr();
+			submit_info.signalSemaphoreCount = 1;
+		}
+	}
+	else if (spin_cycles != 0)
+	{
+		submit_info.signalSemaphoreCount = 1;
+		submit_info.pSignalSemaphores = &m_spin_resources[m_current_frame].semaphore;
+	}
+
+	// The last point at which the CPU's writes into the six stream rings can still be made visible
+	// to the GPU: nothing recorded into a command buffer executes until it is submitted, so every
+	// draw, copy and descriptor read of a ring in this submission reads memory that is cleaned
+	// here first. On a coherent ring -- every device with a cached coherent type, and every device
+	// on the write-combined road -- each of these six calls returns on a compare.
+	FlushStreamRingWrites();
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	const u64 submit_timing_started = NativeGsTimingBegin(NativeGsSubmit);
+	res = Vulkan::NativeSubmitRecorded(m_graphics_queue, 1, &submit_info, resources.fence);
+	NativeGsTimingEnd(NativeGsSubmit, submit_timing_started);
+	if (res != VK_SUCCESS) ++s_native_gs_aggregate.submit_errors;
+#else
+#ifdef IZPS2_NATIVE_FATAL_RECORD
+    if (startup_trace)
+        Console.WriteLn("IZPS2_GS_STARTUP phase=queue_submit fence=%llu",
+            static_cast<unsigned long long>(GetCurrentFenceCounter()));
+#endif
+	res = vkQueueSubmit(m_graphics_queue, 1, &submit_info, resources.fence);
+#ifdef IZPS2_NATIVE_FATAL_RECORD
+    if (startup_trace)
+        Console.WriteLn("IZPS2_GS_STARTUP phase=submit_end fence=%llu result=%d",
+            static_cast<unsigned long long>(GetCurrentFenceCounter()), int(res));
+#endif
+#endif
+	if (res != VK_SUCCESS)
+	{
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+		ps2_hwgs_retain_ownership("own-GS-queue-submit", res);
+#endif
+		LOG_VULKAN_ERROR(res, "vkQueueSubmit failed: ");
+		if (res == VK_ERROR_DEVICE_LOST)
+			ReportDeviceFault();
+		m_last_submit_failed = true;
+		return;
+	}
+
+	if (spin_cycles != 0)
+		SubmitSpinCommand(m_current_frame, spin_cycles);
+
+	if (present_swap_chain)
+	{
+		// Consumed here rather than only reset in BeginPresent: RenderBlankFrame() presents
+		// without going through BeginPresent at all, so a flag left set by the last real frame
+		// would tell frame generation that a cleared image was fresh game output.
+		const bool has_new_frame = std::exchange(m_present_has_new_frame, false);
+
+		// Frame generation replaces this present entirely: it consumes the rendering-finished
+		// semaphore for its own copy, then presents the interpolated frames and the real one in
+		// order. It returns false without consuming anything if it cannot run this frame, which
+		// is the ordinary path on every build and device without it.
+		if (GSLsfg::IsActive() &&
+			GSLsfg::PresentWithGeneration(m_present_queue, present_swap_chain,
+				present_swap_chain->GetRenderingFinishedSemaphore(), has_new_frame))
+		{
+			present_swap_chain->AcquireNextImage();
+			return;
+		}
+
+		const VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, nullptr, 1,
+			present_swap_chain->GetRenderingFinishedSemaphorePtr(), 1, present_swap_chain->GetSwapChainPtr(),
+			present_swap_chain->GetCurrentImageIndexPtr(), nullptr};
+
+		present_swap_chain->ResetImageAcquireResult();
+
+		const bool stats = VKSwapChain::IsPresentStatsEnabled();
+		const Common::Timer::Value t_present_start = stats ? Common::Timer::GetCurrentValue() : 0;
+		res = vkQueuePresentKHR(m_present_queue, &present_info);
+		if (stats)
+		{
+			const double present_elapsed_ms =
+				Common::Timer::ConvertValueToMilliseconds(Common::Timer::GetCurrentValue() - t_present_start);
+			VKSwapChain::NotePresent(present_elapsed_ms, res);
+		}
+		if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
+		{
+			// VK_ERROR_OUT_OF_DATE_KHR is not fatal, just means we need to recreate our swap chain.
+			if (res == VK_ERROR_OUT_OF_DATE_KHR)
+				// Defer until next frame, otherwise resizing would invalidate swapchain before next present.
+				m_resize_requested = true;
+			else
+				LOG_VULKAN_ERROR(res, "vkQueuePresentKHR failed: ");
+
+			return;
+		}
+
+		// The surface turned (device rotated, window moved to a display mounted the other way):
+		// rebuild with the new pre-rotation next frame. Other SUBOPTIMALs keep the swap chain.
+		if (res == VK_SUBOPTIMAL_KHR && present_swap_chain->HasSurfaceRotationChanged())
+			m_resize_requested = true;
+
+		// Grab the next image as soon as possible, that way we spend less time blocked on the next
+		// submission. Don't care if it fails, we'll deal with that at the presentation call site.
+		// Credit to dxvk for the idea.
+		present_swap_chain->AcquireNextImage();
+	}
+}
+
+void GSDeviceVK::CommandBufferCompleted(u32 index)
+{
+	FrameResources& resources = m_frame_resources[index];
+
+	for (auto& it : resources.cleanup_resources)
+		it();
+	resources.cleanup_resources.clear();
+
+	ReadGPUTiming(index);
+}
+
+void GSDeviceVK::MoveToNextCommandBuffer()
+{
+	ActivateCommandBuffer((m_current_frame + 1) % NUM_COMMAND_BUFFERS);
+	InvalidateCachedState();
+	SetInitialState(m_current_command_buffer);
+}
+
+void GSDeviceVK::ActivateCommandBuffer(u32 index)
+{
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+    // Clear BEFORE any completion callback or command/descriptor-pool reset.
+    // Wrap is harmless because no entry survives an activation.
+    s_native_gs_texture_sets.Clear();
+    ++s_native_gs_activation_generation;
+#endif
+	FrameResources& resources = m_frame_resources[index];
+
+	// Wait for the GPU to finish with all resources for this command buffer. This one is the ring
+	// coming round -- the pipeline is full -- not a stall anybody asked for, so it is deliberately
+	// outside GSPerfMon::GpuBlockingWaits.
+	if (resources.fence_counter > m_completed_fence_counter)
+    {
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+        NativeGsWaitKindScope timing_reason(NativeGsRecycle);
+#endif
+		WaitForCommandBufferCompletion(index);
+    }
+
+	// Reset fence to unsignaled before starting.
+	VkResult res = vkResetFences(m_device, 1, &resources.fence);
+	if (res != VK_SUCCESS)
+		LOG_VULKAN_ERROR(res, "vkResetFences failed: ");
+
+	// Reset command pools to beginning since we can re-use the memory now
+	res = vkResetCommandPool(m_device, resources.command_pool, 0);
+	if (res != VK_SUCCESS)
+		LOG_VULKAN_ERROR(res, "vkResetCommandPool failed: ");
+
+	// The GPU is done with this frame, so recycle its descriptor sets wholesale: reset every link
+	// of the chain and allocate from the first again. Cheaper than per-set frees, matches the
+	// command-pool lifecycle, and keeps the links the frame grew -- a heavy frame pays for its
+	// chain once rather than on every pass through.
+	for (const VkDescriptorPool pool : resources.descriptor_pools)
+	{
+		res = vkResetDescriptorPool(m_device, pool, 0);
+		if (res != VK_SUCCESS)
+			LOG_VULKAN_ERROR(res, "vkResetDescriptorPool failed: ");
+	}
+	resources.descriptor_pool_cursor = 0;
+	resources.descriptor_pool_cursor_sets = 0;
+
+	// Enable commands to be recorded to the two buffers again.
+	VkCommandBufferBeginInfo begin_info = {
+		VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr};
+	res = vkBeginCommandBuffer(resources.command_buffers[1], &begin_info);
+	if (res != VK_SUCCESS)
+		LOG_VULKAN_ERROR(res, "vkBeginCommandBuffer failed: ");
+
+	StartGPUTiming(index);
+
+	if (resources.pipeline_statistics_query == QueryState::Ready)
+	{
+		// Collect the pipeline statistics from the last time this cmdbuffer was used.
+		resources.pipeline_statistics_query = QueryState::None;
+		GPUPipelineStatistics stats{};
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+		const VkResult ps_res = vkGetQueryPoolResults(m_device,
+			m_pipeline_statistics_query_pool, index, 1, sizeof(stats), &stats,
+			sizeof(u64), VK_QUERY_RESULT_64_BIT);
+		if (ps_res != VK_SUCCESS)
+			ps2_hwgs_retain_ownership("own-GS-statistics-query-unproved", ps_res);
+#else
+		VkResult ps_res =
+			vkGetQueryPoolResults(m_device, m_pipeline_statistics_query_pool, index, 1,
+				sizeof(stats), &stats, sizeof(u64), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+#endif
+		if (ps_res == VK_SUCCESS)
+		{
+			m_accumulated_gpu_pipeline_statistics.vs_invocations += stats.vs_invocations;
+			m_accumulated_gpu_pipeline_statistics.ps_invocations += stats.ps_invocations;
+		}
+		else
+		{
+			LOG_VULKAN_ERROR(ps_res, "vkGetQueryPoolResults failed: ");
+		}
+	}
+
+	if (m_gpu_pipeline_statistics_enabled)
+	{
+		pxAssert(resources.pipeline_statistics_query == QueryState::None);
+		resources.pipeline_statistics_query = QueryState::Querying;
+		vkCmdResetQueryPool(resources.command_buffers[1], m_pipeline_statistics_query_pool, index, 1);
+		vkCmdBeginQuery(resources.command_buffers[1], m_pipeline_statistics_query_pool, index, 0);
+	}
+
+	resources.fence_counter = m_next_fence_counter++;
+	resources.init_buffer_used = false;
+
+	m_current_frame = index;
+	m_current_command_buffer = resources.command_buffers[1];
+
+	// using the lower 32 bits of the fence index should be sufficient here, I hope...
+	vmaSetCurrentFrameIndex(m_allocator, static_cast<u32>(m_next_fence_counter));
+}
+
+void GSDeviceVK::ExecuteCommandBuffer(WaitType wait_for_completion)
+{
+	if (m_last_submit_failed)
+		return;
+
+	const u32 current_frame = m_current_frame;
+	SubmitCommandBuffer(nullptr);
+	MoveToNextCommandBuffer();
+
+	if (wait_for_completion != WaitType::None)
+	{
+		// Submit-and-wait: the GS thread is blocking out of turn, same population as
+		// WaitForFenceCounter's.
+		g_perfmon.Put(GSPerfMon::GpuBlockingWaits, 1);
+
+		// Calibrate while we wait
+		if (m_wants_new_timestamp_calibration)
+			CalibrateSpinTimestamp();
+#ifndef PS2_NATIVE_GSVK_EXTERNAL
+		if (wait_for_completion == WaitType::Spin)
+		{
+			while (vkGetFenceStatus(m_device, m_frame_resources[current_frame].fence) == VK_NOT_READY)
+				ShortSpin();
+		}
+#endif
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+		NativeGsWaitKindScope timing_reason(NativeGsSubmitWait);
+#endif
+		WaitForCommandBufferCompletion(current_frame);
+	}
+
+	// Push constants need to be refreshed each command buffer.
+	m_dirty_flags |= DIRTY_FLAG_VS_PUSH_CONSTANTS;
+}
+
+void GSDeviceVK::DeferBufferDestruction(VkBuffer object, VmaAllocation allocation)
+{
+	FrameResources& resources = m_frame_resources[m_current_frame];
+	resources.cleanup_resources.push_back(
+		[this, object, allocation]() { vmaDestroyBuffer(m_allocator, object, allocation); });
+}
+
+void GSDeviceVK::DeferFramebufferDestruction(VkFramebuffer object)
+{
+	FrameResources& resources = m_frame_resources[m_current_frame];
+	resources.cleanup_resources.push_back([this, object]() { vkDestroyFramebuffer(m_device, object, nullptr); });
+}
+
+void GSDeviceVK::DeferImageDestruction(VkImage object, VmaAllocation allocation)
+{
+	FrameResources& resources = m_frame_resources[m_current_frame];
+	resources.cleanup_resources.push_back(
+		[this, object, allocation]() { vmaDestroyImage(m_allocator, object, allocation); });
+}
+
+void GSDeviceVK::DeferImageViewDestruction(VkImageView object)
+{
+	FrameResources& resources = m_frame_resources[m_current_frame];
+	resources.cleanup_resources.push_back([this, object]() {
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+        // A deferred old-frame destroy can run while another frame is current.
+        s_native_gs_texture_sets.Clear();
+#endif
+        vkDestroyImageView(m_device, object, nullptr);
+    });
+}
+
+VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+	VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+	void* pUserData)
+{
+	if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+	{
+		Console.Error("VK: debug report: (%s) %s",
+			pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
+	}
+	else if (severity & (VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT))
+	{
+		Console.Warning("VK: debug report: (%s) %s",
+			pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
+	}
+	else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
+	{
+		Console.WriteLn("VK: debug report: (%s) %s",
+			pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
+	}
+	else
+	{
+		DevCon.WriteLn("VK: debug report: (%s) %s",
+			pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
+	}
+
+	return VK_FALSE;
+}
+
+bool GSDeviceVK::EnableDebugUtils()
+{
+	// Already enabled?
+	if (m_debug_messenger_callback != VK_NULL_HANDLE)
+		return true;
+
+	// Check for presence of the functions before calling
+	if (!vkCreateDebugUtilsMessengerEXT || !vkDestroyDebugUtilsMessengerEXT || !vkSubmitDebugUtilsMessageEXT)
+	{
+		return false;
+	}
+
+	VkDebugUtilsMessengerCreateInfoEXT messenger_info = {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+		nullptr, 0,
+		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+			VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
+		VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
+		DebugMessengerCallback, nullptr};
+
+	const VkResult res =
+		vkCreateDebugUtilsMessengerEXT(m_instance, &messenger_info, nullptr, &m_debug_messenger_callback);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkCreateDebugUtilsMessengerEXT failed: ");
+		return false;
+	}
+
+	return true;
+}
+
+void GSDeviceVK::DisableDebugUtils()
+{
+	if (m_debug_messenger_callback != VK_NULL_HANDLE)
+	{
+		vkDestroyDebugUtilsMessengerEXT(m_instance, m_debug_messenger_callback, nullptr);
+		m_debug_messenger_callback = VK_NULL_HANDLE;
+	}
+}
+
+VkRenderPass GSDeviceVK::CreateCachedRenderPass(RenderPassCacheKey key)
+{
+	VkAttachmentReference color_reference;
+	VkAttachmentReference* color_reference_ptr = nullptr;
+	VkAttachmentReference depth_reference;
+	VkAttachmentReference* depth_reference_ptr = nullptr;
+	std::array<VkAttachmentReference, 2> input_reference;
+	u32 num_subpass_inputs = 0;
+	// The framebuffer-local self-dependency is what makes a pipeline barrier inside the pass legal.
+	// The rasterization-order road issues none and needs none. The in-tile read WITHOUT the extension
+	// (PowerVR, VulkanDeviceRules::ordered_input_attachment_read) keeps it anyway. Nothing on that
+	// road is expected to issue an in-pass barrier (offset reads are copied, and the depth feedback
+	// loop stays off without rasterization-order depth access), so this is a no-cost guard that keeps
+	// any barrier that does reach SendHWDraw valid rather than undefined.
+	const bool self_dependency = !m_features.framebuffer_fetch ||
+	                             !m_optional_extensions.vk_ext_rasterization_order_attachment_access;
+	std::array<VkSubpassDependency, 3> subpass_dependency;
+	u32 num_subpass_dependencies = 0;
+	std::array<VkAttachmentDescription, 2> attachments;
+	u32 num_attachments = 0;
+	if (key.color_format != VK_FORMAT_UNDEFINED)
+	{
+		const VkImageLayout layout =
+			key.color_feedback_loop ? (UseFeedbackLoopLayout() ? VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT :
+																 VK_IMAGE_LAYOUT_GENERAL) :
+									  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		attachments[num_attachments] = {0, static_cast<VkFormat>(key.color_format), VK_SAMPLE_COUNT_1_BIT,
+			static_cast<VkAttachmentLoadOp>(key.color_load_op), static_cast<VkAttachmentStoreOp>(key.color_store_op),
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, layout, layout};
+		color_reference.attachment = num_attachments;
+		color_reference.layout = layout;
+		color_reference_ptr = &color_reference;
+
+		if (key.color_feedback_loop)
+		{
+			if (!UseFeedbackLoopLayout())
+			{
+				input_reference[num_subpass_inputs].attachment = num_attachments;
+				input_reference[num_subpass_inputs].layout = layout;
+				num_subpass_inputs++;
+			}
+
+			if (self_dependency)
+			{
+				// don't need the framebuffer-local dependency when we have rasterization order attachment access
+				subpass_dependency[num_subpass_dependencies].srcSubpass = 0;
+				subpass_dependency[num_subpass_dependencies].dstSubpass = 0;
+				subpass_dependency[num_subpass_dependencies].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+				subpass_dependency[num_subpass_dependencies].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				subpass_dependency[num_subpass_dependencies].srcAccessMask =
+					VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+				subpass_dependency[num_subpass_dependencies].dstAccessMask =
+					UseFeedbackLoopLayout() ? VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+				subpass_dependency[num_subpass_dependencies].dependencyFlags =
+					UseFeedbackLoopLayout() ? (VK_DEPENDENCY_BY_REGION_BIT | VK_DEPENDENCY_FEEDBACK_LOOP_BIT_EXT) :
+											  VK_DEPENDENCY_BY_REGION_BIT;
+				num_subpass_dependencies++;
+			}
+		}
+
+		num_attachments++;
+	}
+	if (key.depth_format != VK_FORMAT_UNDEFINED)
+	{
+		const VkImageLayout layout =
+			key.depth_sampling ?
+				((m_features.depth_feedback && UseFeedbackLoopLayout()) ?
+					VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT :
+					VK_IMAGE_LAYOUT_GENERAL) :
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachments[num_attachments] = {0, static_cast<VkFormat>(key.depth_format), VK_SAMPLE_COUNT_1_BIT,
+			static_cast<VkAttachmentLoadOp>(key.depth_load_op), static_cast<VkAttachmentStoreOp>(key.depth_store_op),
+			static_cast<VkAttachmentLoadOp>(key.stencil_load_op),
+			static_cast<VkAttachmentStoreOp>(key.stencil_store_op), layout, layout};
+		depth_reference.attachment = num_attachments;
+		depth_reference.layout = layout;
+		depth_reference_ptr = &depth_reference;
+
+		if (key.depth_sampling)
+		{
+			if (!UseFeedbackLoopLayout())
+			{
+				input_reference[num_subpass_inputs].attachment = num_attachments;
+				input_reference[num_subpass_inputs].layout = layout;
+				num_subpass_inputs++;
+			}
+
+			if (self_dependency)
+			{
+				// don't need the framebuffer-local dependency when we have rasterization order attachment access
+				subpass_dependency[num_subpass_dependencies].srcSubpass = 0;
+				subpass_dependency[num_subpass_dependencies].dstSubpass = 0;
+				subpass_dependency[num_subpass_dependencies].srcStageMask =
+					VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+				subpass_dependency[num_subpass_dependencies].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				subpass_dependency[num_subpass_dependencies].srcAccessMask =
+					VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+				subpass_dependency[num_subpass_dependencies].dstAccessMask =
+					UseFeedbackLoopLayout() ? VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+				subpass_dependency[num_subpass_dependencies].dependencyFlags =
+					UseFeedbackLoopLayout() ? (VK_DEPENDENCY_BY_REGION_BIT | VK_DEPENDENCY_FEEDBACK_LOOP_BIT_EXT) :
+											  VK_DEPENDENCY_BY_REGION_BIT;
+				num_subpass_dependencies++;
+			}
+		}
+
+		num_attachments++;
+	}
+
+	// The incoming edge. A render pass that declares no dependency from VK_SUBPASS_EXTERNAL gets an
+	// implicit one, and the implicit one's FIRST synchronization scope is srcStageMask =
+	// TOP_OF_PIPE, srcAccessMask = 0 -- it performs no availability operation, so nothing recorded
+	// before the pass is ordered ahead of the pass's attachment accesses.
+	//
+	// Almost everywhere that costs nothing, because the backend moves an attachment's LAYOUT before
+	// it binds it and the transition barrier carries the real scopes. It costs where the layout does
+	// NOT move: GSTextureVK::TransitionToLayout returns early when the layout is unchanged, so two
+	// render passes in a row that use the same image as the same kind of attachment emit no barrier
+	// of any kind, and the second pass's LOAD races the first pass's stores. TileGpu meets that on
+	// every byte-road seed -- the seed pass fills the target's pages and the geometry pass it was
+	// emitted for LOADs exactly those pages, ~94 times a frame on FlatOut 2 -- and the plain
+	// pass-to-pass split of one target's draws has the same shape.
+	//
+	// So declare what the implicit dependency only pretends to be: its destination scope unchanged,
+	// with a first scope that actually names the framebuffer-space stages the earlier pass wrote in.
+	// BY_REGION keeps it framebuffer-LOCAL, which is the point on a tiler -- the ordering wanted is
+	// per-tile (the seed writes pixel (x,y) and the pass loads pixel (x,y)), so an implementation is
+	// still free to keep the attachment resident in tile memory across the two passes instead of
+	// storing and reloading it. A blanket barrier between passes forbids exactly that.
+	//
+	// The outgoing (subpass -> EXTERNAL) direction is deliberately not declared: every consumer of
+	// an attachment outside a render pass -- a compute sample, a transfer copy, a fragment sample --
+	// reaches the image through a layout transition, and those carry their own scopes.
+	if (num_attachments > 0)
+	{
+		VkSubpassDependency& dep = subpass_dependency[num_subpass_dependencies++];
+		dep = {};
+		dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dep.dstSubpass = 0;
+		if (color_reference_ptr)
+		{
+			dep.srcStageMask |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			dep.dstStageMask |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			dep.srcAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			dep.dstAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		}
+		if (depth_reference_ptr)
+		{
+			constexpr VkPipelineStageFlags ds_stages =
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+			dep.srcStageMask |= ds_stages;
+			dep.dstStageMask |= ds_stages;
+			dep.srcAccessMask |=
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			dep.dstAccessMask |=
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		}
+		// subpassLoad reads the fragment's own coordinate, so this stays framebuffer-local too.
+		if (num_subpass_inputs > 0)
+		{
+			dep.dstStageMask |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dep.dstAccessMask |= VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+		}
+		// The other road to the same read. With VK_EXT_attachment_feedback_loop_layout the
+		// attachment is not a subpass input at all -- num_subpass_inputs is zero and the shader
+		// SAMPLES the attachment, which is VK_ACCESS_SHADER_READ in the fragment stage, not
+		// INPUT_ATTACHMENT_READ. So it needs naming separately, and the two are mutually
+		// exclusive by construction (the input reference above is only built when
+		// UseFeedbackLoopLayout() is false).
+		//
+		// The layout transition does not cover it. Both passes use the same image in the same
+		// FEEDBACK_LOOP_OPTIMAL layout, and TransitionToLayout returns early when the layout is
+		// unchanged, so two consecutive feedback passes on the same target -- any pass end that
+		// is not a target switch: a texture upload, a copy, DATE, colclip -- emit no barrier at
+		// all between the first pass's colour writes and the second pass's sampler reads of the
+		// same pixels. The framebuffer-local self-dependency built above only orders a pass
+		// against itself.
+		if (key.color_feedback_loop && UseFeedbackLoopLayout())
+		{
+			dep.dstStageMask |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dep.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT;
+		}
+		dep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+	}
+
+	// ⚠️ The `!UseFeedbackLoopLayout()` term is not redundant, and it is a no-op on every device
+	// that exists today. The rasterization-order subpass flag is legal only when every pipeline
+	// bound in the subpass carries the matching blend flag, and CreateTFXPipeline gates that one on
+	// m_features.framebuffer_fetch. Those two agree everywhere today because the layout road
+	// requires the rasterization-order extension to be ABSENT, so this condition already implies
+	// UseFeedbackLoopLayout() is false. The declared-loop road breaks that
+	// implication -- extension present, layout road forced, in-tile read off -- and without this
+	// term the subpass would declare rasterization-order access that no pipeline in it has.
+	// The declared-loop road that requests order per pipeline binds rasterization-order pipelines in
+	// this subpass, so the subpass declares it too.
+	VkSubpassDescriptionFlags subpass_flags =
+		(key.color_feedback_loop && m_optional_extensions.vk_ext_rasterization_order_attachment_access &&
+			(!UseFeedbackLoopLayout() || m_features.declared_loop_overlap_needs_raster_order)) ?
+			VK_SUBPASS_DESCRIPTION_RASTERIZATION_ORDER_ATTACHMENT_COLOR_ACCESS_BIT_EXT :
+			0;
+	// Mobile ordered depth feedback: on the framebuffer_fetch path the depth self-dependency above
+	// is skipped, so declare ordered depth access here to make the in-tile subpassLoad of depth
+	// coherent (mirror of the colour flag). Gated on depth_feedback (HWROV) so it never fires when
+	// the toggle is off; the pipeline built for this pass sets the matching depth-stencil flag.
+	if (key.depth_sampling && m_features.depth_feedback && m_features.framebuffer_fetch &&
+		m_optional_extensions.vk_ext_roaa_depth)
+		subpass_flags |= VK_SUBPASS_DESCRIPTION_RASTERIZATION_ORDER_ATTACHMENT_DEPTH_ACCESS_BIT_EXT;
+	const VkSubpassDescription subpass = {subpass_flags, VK_PIPELINE_BIND_POINT_GRAPHICS, num_subpass_inputs,
+		num_subpass_inputs ? input_reference.data() : nullptr, color_reference_ptr ? 1u : 0u,
+		color_reference_ptr ? color_reference_ptr : nullptr, nullptr, depth_reference_ptr, 0, nullptr};
+	const VkRenderPassCreateInfo pass_info = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, nullptr, 0u, num_attachments,
+		attachments.data(), 1u, &subpass, num_subpass_dependencies, num_subpass_dependencies ? subpass_dependency.data() : nullptr};
+
+	VkRenderPass pass;
+	const VkResult res = vkCreateRenderPass(m_device, &pass_info, nullptr, &pass);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkCreateRenderPass failed: ");
+		return VK_NULL_HANDLE;
+	}
+
+	m_render_pass_cache.emplace(key.key, pass);
+	return pass;
+}
+
+static constexpr std::string_view SPIN_SHADER = R"(
+#version 460 core
+
+layout(std430, set=0, binding=0) buffer SpinBuffer { uint spin[]; };
+layout(push_constant) uniform constants { uint cycles; };
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+void main()
+{
+	uint value = spin[0];
+	// The compiler doesn't know, but spin[0] == 0, so this loop won't actually go anywhere
+	for (uint i = 0; i < cycles; i++)
+		value = spin[value];
+	// Store the result back to the buffer so the compiler can't optimize it away
+	spin[0] = value;
+}
+)";
+
+bool GSDeviceVK::InitSpinResources()
+{
+	if (!m_spinning_supported)
+		return true;
+
+	// TODO: Move to safe destroy functions, use scoped guard.
+
+	VkResult res;
+#define CHECKED_CREATE(create_fn, create_struct, output_struct) \
+	do \
+	{ \
+		if ((res = create_fn(m_device, create_struct, nullptr, output_struct)) != VK_SUCCESS) \
+		{ \
+			LOG_VULKAN_ERROR(res, #create_fn " failed: "); \
+			return false; \
+		} \
+	} while (0)
+
+	VkDescriptorSetLayoutBinding set_layout_binding = {};
+	set_layout_binding.binding = 0;
+	set_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	set_layout_binding.descriptorCount = 1;
+	set_layout_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	VkDescriptorSetLayoutCreateInfo desc_set_layout_create = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+	desc_set_layout_create.bindingCount = 1;
+	desc_set_layout_create.pBindings = &set_layout_binding;
+	CHECKED_CREATE(vkCreateDescriptorSetLayout, &desc_set_layout_create, &m_spin_descriptor_set_layout);
+
+	const VkPushConstantRange push_constant_range = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(u32)};
+	VkPipelineLayoutCreateInfo pl_layout_create = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+	pl_layout_create.setLayoutCount = 1;
+	pl_layout_create.pSetLayouts = &m_spin_descriptor_set_layout;
+	pl_layout_create.pushConstantRangeCount = 1;
+	pl_layout_create.pPushConstantRanges = &push_constant_range;
+	CHECKED_CREATE(vkCreatePipelineLayout, &pl_layout_create, &m_spin_pipeline_layout);
+
+	VkShaderModule shader_module = g_vulkan_shader_cache->GetComputeShader(SPIN_SHADER);
+	if (shader_module == VK_NULL_HANDLE)
+		return false;
+
+	Vulkan::SetObjectName(m_device, shader_module, "Spin Shader");
+
+	VkComputePipelineCreateInfo pl_create = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+	pl_create.layout = m_spin_pipeline_layout;
+	pl_create.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	pl_create.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	pl_create.stage.pName = "main";
+	pl_create.stage.module = shader_module;
+	res = vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &pl_create, nullptr, &m_spin_pipeline);
+	vkDestroyShaderModule(m_device, shader_module, nullptr);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkCreateComputePipelines failed: ");
+		return false;
+	}
+	Vulkan::SetObjectName(m_device, m_spin_pipeline, "Spin Pipeline");
+
+	VmaAllocationCreateInfo buf_vma_create = {};
+	buf_vma_create.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	VkBufferCreateInfo buf_create = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+	buf_create.size = 4;
+	buf_create.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	if ((res = vmaCreateBuffer(m_allocator, &buf_create, &buf_vma_create, &m_spin_buffer, &m_spin_buffer_allocation,
+			 nullptr)) != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vmaCreateBuffer failed: ");
+		return false;
+	}
+	Vulkan::SetObjectName(m_device, m_spin_buffer, "Spin Buffer");
+
+	VkDescriptorSetAllocateInfo desc_set_allocate = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+	desc_set_allocate.descriptorPool = m_global_descriptor_pool;
+	desc_set_allocate.descriptorSetCount = 1;
+	desc_set_allocate.pSetLayouts = &m_spin_descriptor_set_layout;
+	if ((res = vkAllocateDescriptorSets(m_device, &desc_set_allocate, &m_spin_descriptor_set)) != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vkAllocateDescriptorSets failed: ");
+		return false;
+	}
+	const VkDescriptorBufferInfo desc_buffer_info = {m_spin_buffer, 0, VK_WHOLE_SIZE};
+	VkWriteDescriptorSet desc_set_write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+	desc_set_write.dstSet = m_spin_descriptor_set;
+	desc_set_write.dstBinding = 0;
+	desc_set_write.descriptorCount = 1;
+	desc_set_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	desc_set_write.pBufferInfo = &desc_buffer_info;
+	vkUpdateDescriptorSets(m_device, 1, &desc_set_write, 0, nullptr);
+
+	for (SpinResources& resources : m_spin_resources)
+	{
+		u32 index = &resources - &m_spin_resources[0];
+		VkCommandPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+		pool_info.queueFamilyIndex = m_spin_queue_family_index;
+		CHECKED_CREATE(vkCreateCommandPool, &pool_info, &resources.command_pool);
+		Vulkan::SetObjectName(m_device, resources.command_pool, "Spin Command Pool %u", index);
+
+		VkCommandBufferAllocateInfo buffer_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+		buffer_info.commandPool = resources.command_pool;
+		buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		buffer_info.commandBufferCount = 1;
+		res = vkAllocateCommandBuffers(m_device, &buffer_info, &resources.command_buffer);
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkAllocateCommandBuffers failed: ");
+			return false;
+		}
+		Vulkan::SetObjectName(m_device, resources.command_buffer, "Spin Command Buffer %u", index);
+
+		VkFenceCreateInfo fence_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+		fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+		CHECKED_CREATE(vkCreateFence, &fence_info, &resources.fence);
+		Vulkan::SetObjectName(m_device, resources.fence, "Spin Fence %u", index);
+
+		if (!m_spin_queue_is_graphics_queue)
+		{
+			VkSemaphoreCreateInfo sem_info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+			CHECKED_CREATE(vkCreateSemaphore, &sem_info, &resources.semaphore);
+			Vulkan::SetObjectName(m_device, resources.semaphore, "Draw to Spin Semaphore %u", index);
+		}
+	}
+
+#undef CHECKED_CREATE
+	return true;
+}
+
+void GSDeviceVK::DestroySpinResources()
+{
+#define CHECKED_DESTROY(destructor, obj) \
+	do \
+	{ \
+		if (obj != VK_NULL_HANDLE) \
+		{ \
+			destructor(m_device, obj, nullptr); \
+			obj = VK_NULL_HANDLE; \
+		} \
+	} while (0)
+
+	if (m_spin_buffer)
+	{
+		vmaDestroyBuffer(m_allocator, m_spin_buffer, m_spin_buffer_allocation);
+		m_spin_buffer = VK_NULL_HANDLE;
+		m_spin_buffer_allocation = VK_NULL_HANDLE;
+	}
+	CHECKED_DESTROY(vkDestroyPipeline, m_spin_pipeline);
+	CHECKED_DESTROY(vkDestroyPipelineLayout, m_spin_pipeline_layout);
+	CHECKED_DESTROY(vkDestroyDescriptorSetLayout, m_spin_descriptor_set_layout);
+	if (m_spin_descriptor_set != VK_NULL_HANDLE)
+	{
+		vkFreeDescriptorSets(m_device, m_global_descriptor_pool, 1, &m_spin_descriptor_set);
+		m_spin_descriptor_set = VK_NULL_HANDLE;
+	}
+	for (SpinResources& resources : m_spin_resources)
+	{
+		CHECKED_DESTROY(vkDestroySemaphore, resources.semaphore);
+		CHECKED_DESTROY(vkDestroyFence, resources.fence);
+		if (resources.command_buffer != VK_NULL_HANDLE)
+		{
+			vkFreeCommandBuffers(m_device, resources.command_pool, 1, &resources.command_buffer);
+			resources.command_buffer = VK_NULL_HANDLE;
+		}
+		CHECKED_DESTROY(vkDestroyCommandPool, resources.command_pool);
+	}
+#undef CHECKED_DESTROY
+}
+
+void GSDeviceVK::WaitForSpinCompletion(u32 index)
+{
+	SpinResources& resources = m_spin_resources[index];
+	if (!resources.in_progress)
+		return;
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	const VkResult res = Vulkan::NativeWaitForFence(m_device, resources.fence);
+#else
+	const VkResult res = vkWaitForFences(m_device, 1, &resources.fence, VK_TRUE, UINT64_MAX);
+#endif
+	if (res != VK_SUCCESS)
+	{
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+		ps2_hwgs_retain_ownership("own-GS-fence-wait", res);
+#endif
+		LOG_VULKAN_ERROR(res, "vkWaitForFences failed: ");
+		if (res == VK_ERROR_DEVICE_LOST)
+			ReportDeviceFault();
+		m_last_submit_failed = true;
+		return;
+	}
+	SpinCommandCompleted(index);
+}
+
+void GSDeviceVK::SpinCommandCompleted(u32 index)
+{
+	SpinResources& resources = m_spin_resources[index];
+	resources.in_progress = false;
+	const u32 timestamp_base = (index + NUM_COMMAND_BUFFERS) * 2;
+	std::array<u64, 2> timestamps;
+	const VkResult res =
+		vkGetQueryPoolResults(m_device, m_timestamp_query_pool, timestamp_base, static_cast<u32>(timestamps.size()),
+			sizeof(timestamps), timestamps.data(), sizeof(u64), VK_QUERY_RESULT_64_BIT);
+	if (res == VK_SUCCESS)
+	{
+		u64 begin, end;
+		if (m_optional_extensions.vk_ext_calibrated_timestamps)
+		{
+			begin = timestamps[0] * m_spin_timestamp_scale + m_spin_timestamp_offset;
+			end = timestamps[1] * m_spin_timestamp_scale + m_spin_timestamp_offset;
+		}
+		else
+		{
+			begin = timestamps[0] * m_spin_timestamp_scale;
+			end = timestamps[1] * m_spin_timestamp_scale;
+		}
+		m_spin_manager.SpinCompleted(resources.cycles, begin, end);
+	}
+	else
+	{
+		LOG_VULKAN_ERROR(res, "vkGetQueryPoolResults failed: ");
+	}
+}
+
+void GSDeviceVK::SubmitSpinCommand(u32 index, u32 cycles)
+{
+	SpinResources& resources = m_spin_resources[index];
+	VkResult res;
+
+	// Reset fence to unsignaled before starting.
+	if ((res = vkResetFences(m_device, 1, &resources.fence)) != VK_SUCCESS)
+		LOG_VULKAN_ERROR(res, "vkResetFences failed: ");
+
+	// Reset command pools to beginning since we can re-use the memory now
+	if ((res = vkResetCommandPool(m_device, resources.command_pool, 0)) != VK_SUCCESS)
+		LOG_VULKAN_ERROR(res, "vkResetCommandPool failed: ");
+
+	// Enable commands to be recorded to the two buffers again.
+	VkCommandBufferBeginInfo begin_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	if ((res = vkBeginCommandBuffer(resources.command_buffer, &begin_info)) != VK_SUCCESS)
+		LOG_VULKAN_ERROR(res, "vkBeginCommandBuffer failed: ");
+
+	if (!m_spin_buffer_initialized)
+	{
+		m_spin_buffer_initialized = true;
+		vkCmdFillBuffer(resources.command_buffer, m_spin_buffer, 0, VK_WHOLE_SIZE, 0);
+		VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		barrier.srcQueueFamilyIndex = m_spin_queue_family_index;
+		barrier.dstQueueFamilyIndex = m_spin_queue_family_index;
+		barrier.buffer = m_spin_buffer;
+		barrier.offset = 0;
+		barrier.size = VK_WHOLE_SIZE;
+		vkCmdPipelineBarrier(resources.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+	}
+
+	if (m_spin_queue_is_graphics_queue)
+		vkCmdPipelineBarrier(resources.command_buffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 0, nullptr);
+
+	const u32 timestamp_base = (index + NUM_COMMAND_BUFFERS) * 2;
+	vkCmdResetQueryPool(resources.command_buffer, m_timestamp_query_pool, timestamp_base, 2);
+	vkCmdWriteTimestamp(
+		resources.command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool, timestamp_base);
+	vkCmdPushConstants(
+		resources.command_buffer, m_spin_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(u32), &cycles);
+	vkCmdBindPipeline(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_spin_pipeline);
+	vkCmdBindDescriptorSets(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_spin_pipeline_layout, 0, 1,
+		&m_spin_descriptor_set, 0, nullptr);
+	vkCmdDispatch(resources.command_buffer, 1, 1, 1);
+	vkCmdWriteTimestamp(
+		resources.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_timestamp_query_pool, timestamp_base + 1);
+
+	if ((res = vkEndCommandBuffer(resources.command_buffer)) != VK_SUCCESS)
+		LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
+
+	VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &resources.command_buffer;
+	VkPipelineStageFlags sema_waits[] = {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT};
+	if (!m_spin_queue_is_graphics_queue)
+	{
+		submit_info.waitSemaphoreCount = 1;
+		submit_info.pWaitSemaphores = &resources.semaphore;
+		submit_info.pWaitDstStageMask = sema_waits;
+	}
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	res = Vulkan::NativeSubmitRecorded(m_spin_queue, 1, &submit_info, resources.fence);
+#else
+	vkQueueSubmit(m_spin_queue, 1, &submit_info, resources.fence);
+#endif
+	resources.in_progress = true;
+	resources.cycles = cycles;
+}
+
+void GSDeviceVK::CalibrateSpinTimestamp()
+{
+	if (!m_optional_extensions.vk_ext_calibrated_timestamps)
+		return;
+	VkCalibratedTimestampInfoEXT infos[2] = {
+		{VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr, VK_TIME_DOMAIN_DEVICE_EXT},
+		{VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr, m_calibrated_timestamp_type},
+	};
+	u64 timestamps[2];
+	u64 maxDeviation;
+	constexpr u64 MAX_MAX_DEVIATION = 100000; // 100us
+	for (int i = 0; i < 4; i++) // 4 tries to get under MAX_MAX_DEVIATION
+	{
+		const VkResult res = vkGetCalibratedTimestampsEXT(m_device, std::size(infos), infos, timestamps, &maxDeviation);
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkGetCalibratedTimestampsEXT failed: ");
+			return;
+		}
+		if (maxDeviation < MAX_MAX_DEVIATION)
+			break;
+	}
+	if (maxDeviation >= MAX_MAX_DEVIATION)
+		Console.Warning("vkGetCalibratedTimestampsEXT returned high max deviation of %lluus", maxDeviation / 1000);
+	const double gpu_time = timestamps[0] * m_spin_timestamp_scale;
+#ifdef _WIN32
+	const double cpu_time = timestamps[1] * m_queryperfcounter_to_ns;
+#else
+	const double cpu_time = timestamps[1];
+#endif
+	m_spin_timestamp_offset = cpu_time - gpu_time;
+}
+
+u64 GSDeviceVK::GetCPUTimestamp()
+{
+#ifdef _WIN32
+	LARGE_INTEGER value = {};
+	QueryPerformanceCounter(&value);
+	return static_cast<u64>(static_cast<double>(value.QuadPart) * m_queryperfcounter_to_ns);
+#else
+#ifdef CLOCK_MONOTONIC_RAW
+	const bool use_raw = m_calibrated_timestamp_type == VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_EXT;
+	const clockid_t clock = use_raw ? CLOCK_MONOTONIC_RAW : CLOCK_MONOTONIC;
+#else
+	const clockid_t clock = CLOCK_MONOTONIC;
+#endif
+	timespec ts = {};
+	clock_gettime(clock, &ts);
+	return static_cast<u64>(ts.tv_sec) * 1000000000 + ts.tv_nsec;
+#endif
+}
+
+bool GSDeviceVK::AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
+	VkBufferUsageFlags gpu_usage, const std::function<void(void*)>& fill_callback)
+{
+	// Try to place the fixed index buffer in GPU local memory.
+	// Use the staging buffer to copy into it.
+
+	const VkBufferCreateInfo cpu_bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, 0, size,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE};
+	const VmaAllocationCreateInfo cpu_aci = {VMA_ALLOCATION_CREATE_MAPPED_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, 0};
+	VkBuffer cpu_buffer;
+	VmaAllocation cpu_allocation;
+	VmaAllocationInfo cpu_ai;
+	VkResult res = vmaCreateBuffer(m_allocator, &cpu_bci, &cpu_aci, &cpu_buffer, &cpu_allocation, &cpu_ai);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vmaCreateBuffer() for CPU expand buffer failed: ");
+		return false;
+	}
+
+	const VkBufferCreateInfo gpu_bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, 0, size,
+		VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_SHARING_MODE_EXCLUSIVE};
+	const VmaAllocationCreateInfo gpu_aci = {0, VMA_MEMORY_USAGE_GPU_ONLY, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
+	VmaAllocationInfo ai;
+	res = vmaCreateBuffer(m_allocator, &gpu_bci, &gpu_aci, gpu_buffer, gpu_allocation, &ai);
+	if (res != VK_SUCCESS)
+	{
+		LOG_VULKAN_ERROR(res, "vmaCreateBuffer() for expand buffer failed: ");
+		vmaDestroyBuffer(m_allocator, cpu_buffer, cpu_allocation);
+		return false;
+	}
+
+	const VkBufferCopy buf_copy = {0u, 0u, size};
+	fill_callback(cpu_ai.pMappedData);
+	vmaFlushAllocation(m_allocator, cpu_allocation, 0, size);
+	const VkCommandBuffer cmdbuf = GetCurrentInitCommandBuffer();
+	vkCmdCopyBuffer(cmdbuf, cpu_buffer, *gpu_buffer, 1, &buf_copy);
+
+	// The init buffer is submitted ahead of the draw buffer in the same vkQueueSubmit, which orders
+	// nothing on its own: the first draw that binds this index buffer could read it before the copy
+	// lands. Synchronization validation reports it on the first frame.
+	const VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr,
+		VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+		*gpu_buffer, 0, size};
+	vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr,
+		1, &barrier, 0, nullptr);
+	DeferBufferDestruction(cpu_buffer, cpu_allocation);
+	return true;
+}
+
+
+std::vector<GSAdapterInfo> GSDeviceVK::GetAdapterInfo()
+{
+	GPUList gpus = EnumerateGPUs();
+	std::vector<GSAdapterInfo> ret;
+	ret.reserve(gpus.size());
+	for (auto& [physical_device, ai] : gpus)
+		ret.push_back(std::move(ai));
+	return ret;
+}
+
+bool GSDeviceVK::IsSuitableDefaultRenderer()
+{
+	GPUList gpus = EnumerateGPUs();
+	if (gpus.empty())
+	{
+		// No adapters, not gonna be able to use VK.
+		return false;
+	}
+
+	// Check the first GPU, should be enough.
+	const std::string& name = gpus.front().second.name;
+	INFO_LOG("Using Vulkan GPU '{}' for automatic renderer check.", name);
+
+	// Any software rendering (LLVMpipe, SwiftShader).
+	if (StringUtil::StartsWithNoCase(name, "llvmpipe") || StringUtil::StartsWithNoCase(name, "SwiftShader"))
+	{
+		Console.WriteLn(Color_StrongOrange, "Not using Vulkan for software renderer.");
+		return false;
+	}
+
+	// For Intel, OpenGL usually ends up faster on Linux, because of fbfetch.
+	// Plus, the Ivy Bridge and Haswell drivers are incomplete.
+	if (StringUtil::StartsWithNoCase(name, "Intel"))
+	{
+		Console.WriteLn(Color_StrongOrange, "Not using Vulkan for Intel GPU.");
+		return false;
+	}
+
+	Console.WriteLn(Color_StrongGreen, "Allowing Vulkan as default renderer.");
+	return true;
+}
+
+RenderAPI GSDeviceVK::GetRenderAPI() const
+{
+	return RenderAPI::Vulkan;
+}
+
+bool GSDeviceVK::HasSurface() const
+{
+	return static_cast<bool>(m_swap_chain);
+}
+
+bool GSDeviceVK::Create(GSVSyncMode vsync_mode, bool allow_present_throttle)
+{
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	NativeGsAggregateInit();
+#endif
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+    ps2_hwgs_av_gs_entered_v1(); // Actual GS owner BEFORE any device-create work.
+#endif
+	if (!GSDevice::Create(vsync_mode, allow_present_throttle))
+		return false;
+
+	if (!CreateDeviceAndSwapChain())
+		return false;
+
+	if (!CheckFeatures())
+	{
+		Host::ReportErrorAsync("GS", TRANSLATE_SV("GSDeviceVK", "Your GPU does not support the required Vulkan features."));
+		return false;
+	}
+
+	if (!CreateNullTexture())
+	{
+		Host::ReportErrorAsync("GS", "Failed to create dummy texture");
+		return false;
+	}
+
+	if ((m_null_framebuffer = GSTextureVK::CreateNullFramebuffer(m_max_framebuffer_width, m_max_framebuffer_height)) == VK_NULL_HANDLE)
+	{
+		Host::ReportErrorAsync("GS", "Failed to create dummy framebuffer");
+		return false;
+	}
+
+	{
+		std::optional<std::string> shader = ReadShaderSource("shaders/vulkan/tfx.glsl");
+		if (!shader.has_value())
+		{
+			Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/tfx.glsl.");
+			return false;
+		}
+
+		m_tfx_source = std::move(*shader);
+	}
+
+	if (!CreatePipelineLayouts())
+	{
+		Host::ReportErrorAsync("GS", "Failed to create pipeline layouts");
+		return false;
+	}
+
+	if (!CreateRenderPasses())
+	{
+		Host::ReportErrorAsync("GS", "Failed to create render passes");
+		return false;
+	}
+
+	if (!CreateBuffers())
+		return false;
+
+	if (!CompileConvertPipelines() || !CompilePresentPipelines() || !CompileInterlacePipelines() ||
+		!CompileMergePipelines() || !CompilePostProcessingPipelines() || !InitSpinResources())
+	{
+		Host::ReportErrorAsync("GS", "Failed to compile utility pipelines");
+		return false;
+	}
+
+	if (!CreatePersistentDescriptorSets())
+	{
+		Host::ReportErrorAsync("GS", "Failed to create persistent descriptor sets");
+		return false;
+	}
+
+	// CAS uses a compute pipeline; some Android drivers (older Adreno ES compilers — see the
+	// Adreno-650 CAS crash) reject it. Don't fail device init over it — disable CAS and carry on,
+	// mirroring how the GL backend gates CAS to desktop only.
+	if (!CompileCASPipelines())
+	{
+		Console.Warning("VK: CAS pipeline compilation failed - disabling CAS sharpening.");
+		m_features.cas_sharpening = false;
+	}
+
+	// Same non-fatal treatment as CAS above, and for the same reason: FSR1 is two more compute
+	// pipelines, so a driver that chokes on CAS's will likely choke on these too. Leaving
+	// Features().fsr1 false makes GSRenderer fall back to the plain bilinear present.
+	if (!CompileSGSRPipeline())
+	{
+		Console.Warning("VK: SGSR pipeline compilation failed - disabling SGSR upscaling.");
+		m_features.sgsr = false;
+	}
+
+	if (!CompileFSR1Pipelines())
+	{
+		Console.Warning("VK: FSR1 pipeline compilation failed - disabling FSR1 upscaling.");
+		m_features.fsr1 = false;
+	}
+
+	if (!CompileImGuiPipeline())
+		return false;
+
+	InitializeState();
+#ifdef __ANDROID__
+	GSRemotePlay::g_renderer_captures.store(true, std::memory_order_release);
+#endif
+	#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	ps2_hwgs_av_gs_ready_v1();
+	#endif
+	return true;
+}
+
+void GSDeviceVK::Destroy()
+{
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	// Submit still-recording work BEFORE any backbuffer/texture/allocator free.
+	// The real GS owner is serial; the fenced queue snapshot excludes new draws.
+	if (m_device != VK_NULL_HANDLE)
+	{
+		EndRenderPass();
+		if (GetCurrentCommandBuffer() != VK_NULL_HANDLE)
+			ExecuteCommandBuffer(WaitType::None);
+	}
+	Vulkan::NativeBeforeDestroy();
+#endif
+#ifdef __ANDROID__
+	GSRemotePlay::g_renderer_captures.store(false, std::memory_order_release);
+#endif
+
+	// Free the libretro backbuffers while the device is still alive; the
+	// frontend stopped sampling at context_destroy.
+	if (VKLibretro::Active || GSHeadless::IsEnabled())
+	{
+#ifdef __SWITCH2__
+		GSBackClose::Vulkan.store(GSBackClose::VulkanPhase::InitialIdle, std::memory_order_release);
+#endif
+		if (m_device != VK_NULL_HANDLE)
+			WaitForGPUIdle();
+#ifdef __SWITCH2__
+		GSBackClose::Vulkan.store(GSBackClose::VulkanPhase::DestroyingBackbuffers, std::memory_order_release);
+#endif
+		for (BorrowedReadback& slot : m_borrowed_readbacks)
+			slot.texture.reset();
+		for (std::unique_ptr<GSTextureVK>& bb : s_libretro_bb)
+			bb.reset();
+		s_libretro_bb_retired.clear();
+		s_libretro_bb_idx = 0;
+		s_libretro_present_count = 0;
+	}
+
+#ifdef __SWITCH2__
+	GSBackClose::Vulkan.store(GSBackClose::VulkanPhase::AcquiringInstanceLock, std::memory_order_release);
+#endif
+	std::unique_lock lock(s_instance_mutex);
+
+#ifdef __SWITCH2__
+	GSBackClose::Vulkan.store(GSBackClose::VulkanPhase::DestroyingBaseResources, std::memory_order_release);
+#endif
+	GSDriverReport::ClearActiveVulkanDriver();
+
+	GSDevice::Destroy();
+
+	// Free the filter chain before the device goes away — it owns Vulkan objects created
+	// against m_device, so tearing the device down first would leak/UB them.
+	DestroyShaderChain();
+
+	// Same reasoning for frame generation, which additionally holds AHardwareBuffers shared
+	// with a second VkDevice it owns; its Shutdown idles both before releasing anything.
+	GSLsfg::Shutdown();
+
+	EndRenderPass();
+	if (GetCurrentCommandBuffer() != VK_NULL_HANDLE)
+	{
+#ifdef __SWITCH2__
+		GSBackClose::Vulkan.store(GSBackClose::VulkanPhase::SubmittingFinalCommands, std::memory_order_release);
+#endif
+		ExecuteCommandBuffer(false);
+#ifdef __SWITCH2__
+		GSBackClose::Vulkan.store(GSBackClose::VulkanPhase::FinalIdle, std::memory_order_release);
+#endif
+		WaitForGPUIdle();
+	}
+
+#ifdef __ANDROID__
+	// The GPU is idle, so remote play's buffers can go at once, ahead of the allocator.
+	if (m_device != VK_NULL_HANDLE)
+		RemotePlayRelease(true);
+#endif
+
+#ifdef __SWITCH2__
+	GSBackClose::Vulkan.store(GSBackClose::VulkanPhase::DestroyingVulkanResources, std::memory_order_release);
+#endif
+	m_swap_chain.reset();
+
+	if (m_device != VK_NULL_HANDLE)
+	{
+		DestroySpinResources();
+		DestroyResources();
+	}
+
+	VKShaderCache::Destroy();
+
+	// The negotiated device belongs to the libretro frontend (it made the
+	// vkCreateDevice call) and it destroys it after context_destroy —
+	// destroying it here would leave the frontend tearing down a dead device.
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	if (m_device != VK_NULL_HANDLE)
+	{
+		Vulkan::NativeBeforeDestroy();
+		vkDestroyDevice(m_device, nullptr);
+		Vulkan::NativeNoteDeviceDestroyed(m_device);
+	}
+#else
+	if (m_device != VK_NULL_HANDLE && !m_borrowed_device)
+		if (!(VKLibretro::Active && VKLibretro::Init.device == m_device))
+			vkDestroyDevice(m_device, nullptr);
+#endif
+
+	if (m_debug_messenger_callback != VK_NULL_HANDLE)
+		DisableDebugUtils();
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	if (m_instance != VK_NULL_HANDLE)
+	{
+		vkDestroyInstance(m_instance, nullptr);
+		Vulkan::NativeNoteInstanceDestroyed(m_instance);
+	}
+#else
+	if (m_instance != VK_NULL_HANDLE && !m_borrowed_device)
+		if (!(VKLibretro::Active && VKLibretro::Init.instance == m_instance))
+			vkDestroyInstance(m_instance, nullptr);
+#endif
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+    // Proposed strong hook: exact GS owner copies its own immutable creation
+    // and final-lifetime receipts into AV BSS BEFORE PFN unbinding/GS join.
+    ps2_hwgs_av_publish_closed_from_gs_v1();
+    NativeGsAggregatePrintClosed();
+#endif
+#ifdef __SWITCH2__
+	GSBackClose::Vulkan.store(GSBackClose::VulkanPhase::ReleasingLoader, std::memory_order_release);
+#endif
+	Vulkan::UnloadVulkanLibrary();
+}
+
+bool GSDeviceVK::UpdateWindow()
+{
+	DestroySurface();
+
+	if (!AcquireWindow(false))
+		return false;
+
+	if (m_window_info.type == WindowInfo::Type::Surfaceless)
+		return true;
+
+	// make sure previous frames are presented
+	ExecuteCommandBuffer(false);
+	WaitForGPUIdle();
+
+	// recreate surface in existing swap chain if it already exists
+	if (m_swap_chain)
+	{
+		if (m_swap_chain->RecreateSurface(m_window_info))
+		{
+			m_window_info = m_swap_chain->GetWindowInfo();
+			return true;
+		}
+
+		m_swap_chain.reset();
+	}
+
+	VkSurfaceKHR surface = VKSwapChain::CreateVulkanSurface(m_instance, m_physical_device, &m_window_info);
+	if (surface == VK_NULL_HANDLE)
+	{
+		Console.Error("VK: Failed to create new surface for swap chain");
+		return false;
+	}
+
+	VkPresentModeKHR present_mode;
+	if (!VKSwapChain::SelectPresentMode(surface, &m_vsync_mode, &present_mode) ||
+		!(m_swap_chain = VKSwapChain::Create(m_window_info, surface, present_mode,
+			  Pcsx2Config::GSOptions::TriStateToOptionalBoolean(GSConfig.ExclusiveFullscreenControl))))
+	{
+		Console.Error("VK: Failed to create swap chain");
+		VKSwapChain::DestroyVulkanSurface(m_instance, &m_window_info, surface);
+		return false;
+	}
+
+	m_window_info = m_swap_chain->GetWindowInfo();
+	RenderBlankFrame();
+	InvalidateCachedState();
+	SetInitialState(m_current_command_buffer);
+	return true;
+}
+
+void GSDeviceVK::ResizeWindow(u32 new_window_width, u32 new_window_height, float new_window_scale)
+{
+	m_resize_requested = false;
+
+	if (!m_swap_chain)
+	{
+		// Surfaceless (libretro): the "window" is the backbuffer rendered for
+		// the frontend, so just adopt the new size — DoBeginPresent recreates
+		// the backbuffer to match on the next frame.
+		m_window_info.surface_width = new_window_width;
+		m_window_info.surface_height = new_window_height;
+		m_window_info.surface_scale = new_window_scale;
+		return;
+	}
+
+	if (m_swap_chain->GetWidth() == new_window_width && m_swap_chain->GetHeight() == new_window_height)
+	{
+		// skip unnecessary resizes
+		m_window_info.surface_scale = new_window_scale;
+		return;
+	}
+
+	// make sure previous frames are presented
+	WaitForGPUIdle();
+
+	if (!m_swap_chain->ResizeSwapChain(new_window_width, new_window_height, new_window_scale))
+	{
+		// AcquireNextImage() will fail, and we'll recreate the surface.
+		Console.Error("VK: Failed to resize swap chain. Next present will fail.");
+		return;
+	}
+
+	m_window_info = m_swap_chain->GetWindowInfo();
+}
+
+bool GSDeviceVK::SupportsExclusiveFullscreen() const
+{
+	return false;
+}
+
+DisplayRotation GSDeviceVK::GetSurfacePreRotation() const
+{
+	return m_swap_chain ? m_swap_chain->GetPreRotation() : DisplayRotation::Rot0;
+}
+
+void GSDeviceVK::DestroySurface()
+{
+	WaitForGPUIdle();
+	m_swap_chain.reset();
+}
+
+std::string GSDeviceVK::GetDriverInfo() const
+{
+	std::string ret;
+	const u32 api_version = m_device_properties.apiVersion;
+	const u32 driver_version = m_device_properties.driverVersion;
+	if (m_optional_extensions.vk_khr_driver_properties)
+	{
+		const VkPhysicalDeviceDriverProperties& props = m_device_driver_properties;
+		ret = StringUtil::StdStringFromFormat(
+			"Driver %u.%u.%u\nVulkan %u.%u.%u\nConformance Version %u.%u.%u.%u\n%s\n%s\n%s",
+			VK_VERSION_MAJOR(driver_version), VK_VERSION_MINOR(driver_version), VK_VERSION_PATCH(driver_version),
+			VK_API_VERSION_MAJOR(api_version), VK_API_VERSION_MINOR(api_version), VK_API_VERSION_PATCH(api_version),
+			props.conformanceVersion.major, props.conformanceVersion.minor, props.conformanceVersion.subminor,
+			props.conformanceVersion.patch, props.driverInfo, props.driverName, m_device_properties.deviceName);
+	}
+	else
+	{
+		ret = StringUtil::StdStringFromFormat("Driver %u.%u.%u\nVulkan %u.%u.%u\n%s", VK_VERSION_MAJOR(driver_version),
+			VK_VERSION_MINOR(driver_version), VK_VERSION_PATCH(driver_version), VK_API_VERSION_MAJOR(api_version),
+			VK_API_VERSION_MINOR(api_version), VK_API_VERSION_PATCH(api_version), m_device_properties.deviceName);
+	}
+
+	return ret;
+}
+
+void GSDeviceVK::SetVSyncMode(GSVSyncMode mode, bool allow_present_throttle)
+{
+	m_allow_present_throttle = allow_present_throttle;
+	if (!m_swap_chain)
+	{
+		// For when it is re-created.
+		m_vsync_mode = mode;
+		return;
+	}
+
+	VkPresentModeKHR present_mode;
+	if (!VKSwapChain::SelectPresentMode(m_swap_chain->GetSurface(), &mode, &present_mode))
+	{
+		ERROR_LOG("Ignoring vsync mode change.");
+		return;
+	}
+
+	// Actually changed? If using a fallback, it might not have.
+	if (m_vsync_mode == mode)
+		return;
+
+	m_vsync_mode = mode;
+
+	// This swap chain should not be used by the current buffer, thus safe to destroy.
+	WaitForGPUIdle();
+	if (!m_swap_chain->SetPresentMode(present_mode))
+	{
+		pxFailRel("Failed to update swap chain present mode.");
+		m_swap_chain.reset();
+	}
+}
+
+GSDevice::PresentResult GSDeviceVK::DoBeginPresent(bool frame_skip)
+{
+	GSFieldProfile::Scope profile(GSFieldProfile::Phase::VulkanPresent);
+	EndRenderPass();
+
+	// Check if the device was lost.
+	if (m_last_submit_failed)
+		return PresentResult::DeviceLost;
+
+	if (frame_skip)
+		return PresentResult::FrameSkipped;
+
+	// If we're running surfaceless, kick the command buffer so we don't run out of descriptors.
+	if (!m_swap_chain)
+	{
+		// Libretro: run a REAL present targeting a dedicated backbuffer, so
+		// the whole normal path (PresentRect aspect-correct draw, TV shaders,
+		// FullscreenUI, ImGui OSD in EndPresent) works unchanged; EndPresent
+		// then hands the finished image to the frontend. The backbuffers are
+		// owned outside the texture pool because the frontend keeps sampling
+		// the published view for cached-frame replays.
+		// Headless (GSHeadless) takes the same path with no frontend: the backbuffer is read back.
+		if (VKLibretro::Active || GSHeadless::IsEnabled())
+		{
+			// Reclaim backbuffers retired long enough ago that the frontend's
+			// replay window has moved past them (see kLibretroRetireFrames).
+			const u64 now = ++s_libretro_present_count;
+			std::erase_if(s_libretro_bb_retired, [now](const RetiredBackbuffer& r) {
+				return now - r.retired_at >= kLibretroRetireFrames;
+			});
+
+			const GSVector2i pres = GetPresentationSize();
+			std::unique_ptr<GSTextureVK>& bb = s_libretro_bb[s_libretro_bb_idx];
+			if (!bb || bb->GetWidth() != pres.x || bb->GetHeight() != pres.y)
+			{
+				// The frontend may still replay the displaced image for a few
+				// frames -- retire (freed later above), don't destroy now.
+				if (bb)
+					s_libretro_bb_retired.push_back({std::move(bb), now});
+				bb = GSTextureVK::Create(GSTexture::RenderTarget, GSTexture::Format::Color,
+					pres.x, pres.y, 1);
+			}
+			if (bb)
+			{
+				VkCommandBuffer cmdbuffer = GetCurrentCommandBuffer();
+				if (!frame_skip && m_current)
+					static_cast<GSTextureVK*>(m_current)->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+				bb->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::ColorAttachment);
+
+				const VkFramebuffer fb = bb->GetFramebuffer(false);
+				if (fb != VK_NULL_HANDLE)
+				{
+					const VkRenderPassBeginInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, nullptr,
+						GetRenderPass(bb->GetVkFormat(), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_CLEAR,
+							VK_ATTACHMENT_STORE_OP_STORE),
+						fb, {{0, 0}, {static_cast<u32>(bb->GetWidth()), static_cast<u32>(bb->GetHeight())}},
+						1u, &s_present_clear_color};
+					vkCmdBeginRenderPass(cmdbuffer, &rp, VK_SUBPASS_CONTENTS_INLINE);
+
+					const VkViewport vp{0.0f, 0.0f, static_cast<float>(bb->GetWidth()),
+						static_cast<float>(bb->GetHeight()), 0.0f, 1.0f};
+					const VkRect2D scissor{
+						{0, 0}, {static_cast<u32>(bb->GetWidth()), static_cast<u32>(bb->GetHeight())}};
+					vkCmdSetViewport(cmdbuffer, 0, 1, &vp);
+					vkCmdSetScissor(cmdbuffer, 0, 1, &scissor);
+					m_is_presenting = true;
+					return PresentResult::OK;
+				}
+			}
+		}
+
+		ExecuteCommandBuffer(false);
+		return PresentResult::FrameSkipped;
+	}
+
+	// End the pipeline statistics for this cmdbuffer before postprocessing.
+	FrameResources& resources = m_frame_resources[m_current_frame];
+	if (resources.pipeline_statistics_query == QueryState::Querying)
+	{
+		resources.pipeline_statistics_query = QueryState::Ready;
+		vkCmdEndQuery(m_current_command_buffer, m_pipeline_statistics_query_pool, m_current_frame);
+	}
+
+	// SUBOPTIMAL is a success: the image is acquired and presentable. Adreno returns it when the
+	// compositor changes state (the touch overlay redrawing), and rebuilding the swap chain for it
+	// blanks the window, so it is rebuilt only when the surface's rotation changed (the swap chain
+	// is pre-rotated to it; see VKSwapChain::GetPreRotation). Real size changes arrive as a host
+	// resize, an Android surface change, or OUT_OF_DATE.
+	VkResult res = m_resize_requested ? VK_ERROR_OUT_OF_DATE_KHR : m_swap_chain->AcquireNextImage();
+	if (res == VK_SUBOPTIMAL_KHR && m_swap_chain->HasSurfaceRotationChanged())
+		m_resize_requested = true;
+	if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
+	{
+		m_swap_chain->ReleaseCurrentImage();
+
+		if (res == VK_ERROR_OUT_OF_DATE_KHR)
+		{
+			ResizeWindow(0, 0, m_window_info.surface_scale);
+			ImGuiManager::WindowResized();
+			res = m_swap_chain->AcquireNextImage();
+		}
+		else if (res == VK_ERROR_SURFACE_LOST_KHR)
+		{
+			Console.Warning("VK: Surface lost, attempting to recreate");
+			// Android: the surface dies when the activity is backgrounded or the
+			// SurfaceView is torn down, and the handle cached in m_window_info is
+			// stale — vkCreateAndroidSurfaceKHR on it crashes inside the loader.
+			// Re-acquire the window first; if we're surfaceless now, drop the
+			// swapchain and skip frames until the next surfaceChanged posts an
+			// UpdateWindow with the new surface.
+			if (!AcquireWindow(false) || m_window_info.type == WindowInfo::Type::Surfaceless)
+			{
+				Console.WriteLn("VK: Window is gone, dropping swap chain until it returns");
+				DestroySurface();
+				ExecuteCommandBuffer(false);
+				return PresentResult::FrameSkipped;
+			}
+			if (!m_swap_chain->RecreateSurface(m_window_info))
+			{
+				Console.Error("VK: Failed to recreate surface after loss");
+				// Do NOT keep the half-dead swap chain and retry the inline recreate:
+				// after a surface loss the native window can still be held by the old
+				// surface (stock Qualcomm Adreno returns NATIVE_WINDOW_IN_USE from
+				// vkCreateSwapchainKHR on the same ANativeWindow), so RecreateSurface
+				// fails again every frame and the game relaunch stays black forever
+				// (#380 / #374; Turnip tolerates it and recovers, stock Adreno does
+				// not). Drop the swap chain entirely so the next onNativeSurfaceChanged
+				// -> MTGS::UpdateDisplayWindow -> UpdateWindow rebuilds from the genuinely
+				// fresh surface instead of hammering the in-use one.
+				DestroySurface();
+				ExecuteCommandBuffer(false);
+				return PresentResult::FrameSkipped;
+			}
+
+			res = m_swap_chain->AcquireNextImage();
+		}
+		else
+			LOG_VULKAN_ERROR(res, "vkAcquireNextImageKHR() failed: ");
+
+		// This can happen when multiple resize events happen in quick succession.
+		// In this case, just wait until the next frame to try again.
+		if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
+		{
+			// Still submit the command buffer, otherwise we'll end up with several frames waiting.
+			ExecuteCommandBuffer(false);
+			return PresentResult::FrameSkipped;
+		}
+	}
+
+	VkCommandBuffer cmdbuffer = GetCurrentCommandBuffer();
+
+	// Swap chain images start in undefined
+	GSTextureVK* swap_chain_texture = m_swap_chain->GetCurrentTexture();
+	swap_chain_texture->OverrideImageLayout(GSTextureVK::Layout::Undefined);
+	swap_chain_texture->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::ColorAttachment);
+
+	// Present render pass gets started out here, so we can't transition source textures in DoStretchRect
+	// Make sure they're ready now
+	if (!frame_skip && m_current)
+		static_cast<GSTextureVK*>(m_current)->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+
+	const VkFramebuffer fb = swap_chain_texture->GetFramebuffer(false);
+	if (fb == VK_NULL_HANDLE)
+		return GSDevice::PresentResult::FrameSkipped;
+
+	const VkRenderPassBeginInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, nullptr,
+		GetRenderPass(swap_chain_texture->GetVkFormat(), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_CLEAR,
+			VK_ATTACHMENT_STORE_OP_STORE),
+		fb,
+		{{0, 0}, {static_cast<u32>(swap_chain_texture->GetWidth()), static_cast<u32>(swap_chain_texture->GetHeight())}},
+		1u, &s_present_clear_color};
+	vkCmdBeginRenderPass(GetCurrentCommandBuffer(), &rp, VK_SUBPASS_CONTENTS_INLINE);
+
+	const VkViewport vp{0.0f, 0.0f, static_cast<float>(swap_chain_texture->GetWidth()),
+		static_cast<float>(swap_chain_texture->GetHeight()), 0.0f, 1.0f};
+	const VkRect2D scissor{
+		{0, 0}, {static_cast<u32>(swap_chain_texture->GetWidth()), static_cast<u32>(swap_chain_texture->GetHeight())}};
+	vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &vp);
+	vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
+	m_is_presenting = true;
+	return PresentResult::OK;
+}
+
+void GSDeviceVK::InvalidateBorrowedFrames()
+{
+	if (!m_borrowed_device)
+		return;
+	m_borrowed_first_serial = GSHeadless::PresentCount() + 1;
+	m_borrowed_frame_delivered = false;
+}
+
+void GSDeviceVK::QueueBorrowedFrame(GSTextureVK& backbuffer)
+{
+	if (m_borrowed_readback_failed)
+		return;
+	const auto slot = std::find_if(m_borrowed_readbacks.begin(), m_borrowed_readbacks.end(),
+		[](const BorrowedReadback& readback) { return readback.serial == 0; });
+	if (slot == m_borrowed_readbacks.end())
+		return;
+
+	const u32 width = backbuffer.GetWidth();
+	const u32 height = backbuffer.GetHeight();
+	if (!slot->texture || slot->texture->GetWidth() != width || slot->texture->GetHeight() != height)
+	{
+		slot->texture = GSDownloadTextureVK::Create(width, height, GSTexture::Format::Color);
+		if (!slot->texture)
+		{
+			m_borrowed_readback_failed = true;
+			return;
+		}
+	}
+	const GSVector4i rect(0, 0, width, height);
+	const u64 fence = GetCurrentFenceCounter();
+	slot->texture->CopyFromTexture(rect, &backbuffer, rect, 0);
+	const u64 serial = GSHeadless::PresentCount() + 1;
+	if (!serial || !fence || fence != GetCurrentFenceCounter())
+	{
+		m_borrowed_readback_failed = true;
+		return;
+	}
+	slot->serial = serial;
+	slot->fence = fence;
+}
+
+GSDeviceVK::BorrowedFrameResult GSDeviceVK::PollBorrowedFrame(BorrowedFrame& frame)
+{
+	frame = {};
+	if (!m_borrowed_device || m_borrowed_readback_failed || m_last_submit_failed)
+		return BorrowedFrameResult::Failed;
+
+	ScanForCommandBufferCompletion();
+	if (m_last_submit_failed)
+		return BorrowedFrameResult::Failed;
+
+	BorrowedReadback* oldest = nullptr;
+	BorrowedReadback* newest_ready = nullptr;
+	for (BorrowedReadback& slot : m_borrowed_readbacks)
+	{
+		if (!slot.serial)
+			continue;
+		if (slot.serial > GSHeadless::PresentCount() || slot.fence >= GetCurrentFenceCounter())
+			return BorrowedFrameResult::Failed;
+		const bool ready = slot.texture->Poll();
+		if (slot.serial < m_borrowed_first_serial)
+		{
+			// Reset makes the pixels obsolete. The buffer still belongs to its copy until the fence signals.
+			if (ready)
+				slot.serial = 0;
+			continue;
+		}
+		if (!oldest || slot.serial < oldest->serial)
+			oldest = &slot;
+		if (ready && (!newest_ready || slot.serial > newest_ready->serial))
+			newest_ready = &slot;
+	}
+	if (!newest_ready)
+	{
+		// The first image must survive a pause before the next GS frame.
+		if (!oldest || m_borrowed_frame_delivered)
+			return BorrowedFrameResult::Pending;
+		WaitForFenceCounter(oldest->fence);
+		if (m_last_submit_failed || !oldest->texture->Poll())
+			return BorrowedFrameResult::Failed;
+		newest_ready = oldest;
+	}
+
+	GSDownloadTextureVK& texture = *newest_ready->texture;
+	const u32 width = texture.GetWidth();
+	const u32 height = texture.GetHeight();
+	const GSVector4i rect(0, 0, width, height);
+	if (!texture.Map(rect) || !texture.GetMapPointer())
+		return BorrowedFrameResult::Failed;
+
+	const u32 pitch = texture.GetMapPitch();
+	const u32 bytes = GSDownloadTexture::GetTransferRegionSize(pitch, width * sizeof(u32), height);
+	frame = {texture.GetMapPointer(), bytes, width, height, pitch, newest_ready->serial};
+	for (BorrowedReadback& slot : m_borrowed_readbacks)
+		if (slot.serial <= frame.serial)
+			slot.serial = 0;
+	m_borrowed_frame_delivered = true;
+	return BorrowedFrameResult::Ready;
+}
+
+void GSDeviceVK::EndPresent()
+{
+	GSFieldProfile::Scope profile(GSFieldProfile::Phase::VulkanPresent);
+	RenderImGui();
+
+	VkCommandBuffer cmdbuffer = GetCurrentCommandBuffer();
+	vkCmdEndRenderPass(cmdbuffer);
+	m_is_presenting = false;
+
+	if ((VKLibretro::Active || GSHeadless::IsEnabled()) && !m_swap_chain)
+	{
+		// Libretro: finish the backbuffer, submit without any swapchain
+		// semantics, and hand the image to the frontend.
+		GSTextureVK* bb = s_libretro_bb[s_libretro_bb_idx].get();
+		if (m_borrowed_device)
+		{
+			bb->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::TransferSrc);
+			const auto record_frame = Vulkan::GetBorrowedDevice()->record_frame;
+			if (record_frame)
+			{
+				record_frame(cmdbuffer, bb->GetImage(), bb->GetVkFormat(), bb->GetWidth(), bb->GetHeight(),
+					GSHeadless::PresentCount() + 1);
+			}
+			else
+			{
+				QueueBorrowedFrame(*bb);
+			}
+		}
+		else
+		{
+			bb->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::ShaderReadOnly);
+		}
+		g_perfmon.Put(GSPerfMon::RenderPasses, 1);
+
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+        ++s_native_gs_aggregate.present_calls;
+#endif
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+		if (!VKLibretro::Active)
+			GSHeadless::NativePreparePresentedReadback(bb);
+#endif
+		SubmitCommandBuffer(static_cast<VKSwapChain*>(nullptr));
+		MoveToNextCommandBuffer();
+		InvalidateCachedState();
+
+		if (!VKLibretro::Active)
+		{
+			if (m_borrowed_device && m_last_submit_failed)
+				return;
+			GSHeadless::NotePresented(bb);
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+			// Publish a ticket only after the native accepted same submission
+			// and its real serial, before the existing backbuffer ring rotates.
+			GSHeadless::NativeAcceptPresentedReadback(bb);
+			// Keep the published image stable while its fenced readback is
+			// captured in this accepted submit, or the unchanged full-slot fallback. All three
+			// existing targets retain their queue/barrier/deferred lifetime.
+			s_libretro_bb_idx = (s_libretro_bb_idx + 1) % kLibretroBackbuffers;
+#endif
+			return;
+		}
+
+		VKLibretro::Frame frame;
+		frame.image = bb->GetImage();
+		frame.view = bb->GetView();
+		frame.format = bb->GetVkFormat();
+		frame.width = static_cast<u32>(bb->GetWidth());
+		frame.height = static_cast<u32>(bb->GetHeight());
+		s_libretro_bb_idx = (s_libretro_bb_idx + 1) % kLibretroBackbuffers;
+		VKLibretro::PublishFrame(frame);
+		return;
+	}
+
+	m_swap_chain->GetCurrentTexture()->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::PresentSrc);
+	g_perfmon.Put(GSPerfMon::RenderPasses, 1);
+
+	// Bring frame generation up or down to match the settings, once per frame and immediately
+	// before the present it hooks. Both calls are cheap no-ops in the steady state; the work
+	// happens only when the toggle, the multiplier, or the swapchain geometry actually changed.
+	// The path goes in first because availability is partly a question about that file.
+	GSLsfg::SetDllPath(GSConfig.LsfgDllPath);
+	if (GSConfig.LsfgEnabled && GSLsfg::IsAvailable())
+		GSLsfg::Initialize(m_swap_chain.get(), GSConfig.LsfgMultiplier);
+	else if (GSLsfg::IsActive())
+		GSLsfg::Shutdown();
+
+	// Frame generation takes the game's own image instead of the finished screen when the present
+	// was only the plain scaled blit, which it can repeat for each generated frame (the ImGui overlay
+	// is drawn onto those afresh). This runs after Initialize/Shutdown, which may replace the image
+	// copied into, and in this frame's command buffer, where the game texture's layout is tracked.
+	if (GSLsfg::IsActive())
+	{
+		GSTextureVK* const current = static_cast<GSTextureVK*>(GetCurrent());
+		if (m_present_has_new_frame && m_present_geometry.plain && current)
+		{
+			current->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::TransferSrc);
+			GSLsfg::GameFrame frame;
+			frame.image = current->GetImage();
+			const GSVector4i& src = m_present_geometry.src_rect;
+			const GSVector4& draw = m_present_geometry.draw_rect;
+			frame.src[0] = src.x;
+			frame.src[1] = src.y;
+			frame.src[2] = src.z;
+			frame.src[3] = src.w;
+			frame.draw[0] = draw.x;
+			frame.draw[1] = draw.y;
+			frame.draw[2] = draw.z;
+			frame.draw[3] = draw.w;
+			frame.linear = m_present_geometry.linear;
+			GSLsfg::CaptureGameFrame(cmdbuffer, &frame);
+		}
+		else
+		{
+			GSLsfg::CaptureGameFrame(cmdbuffer, nullptr);
+		}
+	}
+
+	SubmitCommandBuffer(m_swap_chain.get());
+	MoveToNextCommandBuffer();
+
+	InvalidateCachedState();
+}
+
+bool GSDeviceVK::IsPresenting() const
+{
+	return m_is_presenting;
+}
+
+#ifdef ENABLE_OGL_DEBUG
+static std::array<float, 3> Palette(float phase, const std::array<float, 3>& a, const std::array<float, 3>& b,
+	const std::array<float, 3>& c, const std::array<float, 3>& d)
+{
+	std::array<float, 3> result;
+	result[0] = a[0] + b[0] * std::cos(6.28318f * (c[0] * phase + d[0]));
+	result[1] = a[1] + b[1] * std::cos(6.28318f * (c[1] * phase + d[1]));
+	result[2] = a[2] + b[2] * std::cos(6.28318f * (c[2] * phase + d[2]));
+	return result;
+}
+#endif
+
+void GSDeviceVK::PushDebugGroup(const char* fmt, ...)
+{
+#ifdef ENABLE_OGL_DEBUG
+	if (!vkCmdBeginDebugUtilsLabelEXT || !GSConfig.UseDebugDevice)
+		return;
+
+	std::va_list ap;
+	va_start(ap, fmt);
+	const std::string buf(StringUtil::StdStringFromFormatV(fmt, ap));
+	va_end(ap);
+
+	const std::array<float, 3> color = Palette(
+		++s_debug_scope_depth, {0.5f, 0.5f, 0.5f}, {0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 0.5f}, {0.8f, 0.90f, 0.30f});
+
+	const VkDebugUtilsLabelEXT label = {
+		VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+		nullptr,
+		buf.c_str(),
+		{color[0], color[1], color[2], 1.0f},
+	};
+	vkCmdBeginDebugUtilsLabelEXT(GetCurrentCommandBuffer(), &label);
+#endif
+}
+
+void GSDeviceVK::PushDrawLabel(const std::string_view label)
+{
+	// Compiled into every build; see the base-class comment. Requires only the
+	// debug-utils entry points, which are present whenever the loader exposes the
+	// extension -- notably without the validation layer UseDebugDevice would install.
+	if (!vkCmdBeginDebugUtilsLabelEXT || !GSConfig.DebugLabels)
+		return;
+
+	const std::string buf(label);
+	const VkDebugUtilsLabelEXT vk_label = {
+		VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+		nullptr,
+		buf.c_str(),
+		{0.6f, 0.8f, 1.0f, 1.0f},
+	};
+	vkCmdBeginDebugUtilsLabelEXT(GetCurrentCommandBuffer(), &vk_label);
+}
+
+void GSDeviceVK::PopDrawLabel()
+{
+	if (!vkCmdEndDebugUtilsLabelEXT || !GSConfig.DebugLabels)
+		return;
+
+	vkCmdEndDebugUtilsLabelEXT(GetCurrentCommandBuffer());
+}
+
+void GSDeviceVK::PopDebugGroup()
+{
+#ifdef ENABLE_OGL_DEBUG
+	if (!vkCmdEndDebugUtilsLabelEXT || !GSConfig.UseDebugDevice)
+		return;
+
+	s_debug_scope_depth = (s_debug_scope_depth == 0) ? 0 : (s_debug_scope_depth - 1u);
+
+	vkCmdEndDebugUtilsLabelEXT(GetCurrentCommandBuffer());
+#endif
+}
+
+void GSDeviceVK::InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...)
+{
+#ifdef ENABLE_OGL_DEBUG
+	if (!vkCmdInsertDebugUtilsLabelEXT || !GSConfig.UseDebugDevice)
+		return;
+
+	std::va_list ap;
+	va_start(ap, fmt);
+	const std::string buf(StringUtil::StdStringFromFormatV(fmt, ap));
+	va_end(ap);
+
+	if (buf.empty())
+		return;
+
+	static constexpr float colors[][3] = {
+		{0.1f, 0.1f, 0.0f}, // Cache
+		{0.1f, 0.1f, 0.0f}, // Reg
+		{0.5f, 0.0f, 0.5f}, // Debug
+		{0.0f, 0.5f, 0.5f}, // Message
+		{0.0f, 0.2f, 0.0f} // Performance
+	};
+
+	const VkDebugUtilsLabelEXT label = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, buf.c_str(),
+		{colors[static_cast<int>(category)][0], colors[static_cast<int>(category)][1],
+			colors[static_cast<int>(category)][2], 1.0f}};
+	vkCmdInsertDebugUtilsLabelEXT(GetCurrentCommandBuffer(), &label);
+#endif
+}
+
+static void NormalizeVulkanDeviceLimits(VkPhysicalDeviceLimits& limits)
+{
+	// Keep the same alignment guarantees when the device is supplied by the host.
+	limits.minUniformBufferOffsetAlignment = std::max<VkDeviceSize>(limits.minUniformBufferOffsetAlignment, 32);
+	limits.minTexelBufferOffsetAlignment = std::max<VkDeviceSize>(limits.minTexelBufferOffsetAlignment, 32);
+	limits.optimalBufferCopyOffsetAlignment = std::max<VkDeviceSize>(limits.optimalBufferCopyOffsetAlignment, 32);
+	limits.optimalBufferCopyRowPitchAlignment =
+		std::bit_ceil(std::max<VkDeviceSize>(limits.optimalBufferCopyRowPitchAlignment, 32));
+	limits.bufferImageGranularity = std::max<VkDeviceSize>(limits.bufferImageGranularity, 32);
+}
+
+bool GSDeviceVK::CreateDeviceAndSwapChain()
+{
+	std::unique_lock lock(s_instance_mutex);
+#ifndef PS2_NATIVE_GSVK_EXTERNAL
+	if (const auto* borrowed = Vulkan::GetBorrowedDevice())
+		return AdoptBorrowedDevice(*borrowed);
+#endif
+	// The debug-utils instance extension is what makes vkCmdBeginDebugUtilsLabelEXT
+	// resolvable, so per-draw labels need it. The validation layer stays tied to
+	// UseDebugDevice alone -- that is the part that makes a capture useless for timing.
+	bool enable_debug_utils = GSConfig.UseDebugDevice || GSConfig.DebugLabels;
+	bool enable_validation_layer = GSConfig.UseDebugDevice;
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	Vulkan::NativeRequireInitialProfile(GSConfig.DisableShaderCache,
+		!GSConfig.PrecompilePipelines, !VKLibretro::Active);
+#endif
+	Error error;
+	// The libretro frontend loads the library (and installs the negotiation
+	// wraps) before GS opens; loading twice trips the loader's assert.
+	if (!Vulkan::IsVulkanLibraryLoaded() && !Vulkan::LoadVulkanLibrary(&error))
+	{
+		Error::AddPrefix(&error, "Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?\nThe error was:\n");
+		Host::ReportErrorAsync("Error", error.GetDescription());
+		return false;
+	}
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	if (VKLibretro::Active || !GSHeadless::IsEnabled() || !Vulkan::NativeLoaderBound())
+		return false;
+	enable_debug_utils = false; enable_validation_layer = false;
+	m_window_info = WindowInfo{};
+	m_window_info.type = WindowInfo::Type::Surfaceless;
+	m_window_info.surface_width = 960; m_window_info.surface_height = 540;
+	m_window_info.surface_scale = 1.0f;
+#else
+	if (!AcquireWindow(true))
+		return false;
+#endif
+
+	// Libretro context sharing: the VkInstance comes from the frontend's
+	// negotiation interface. Function loading still goes through the wrapped
+	// vkGetInstanceProcAddr so vkCreateDevice/vkQueueSubmit get intercepted.
+	if (VKLibretro::Active && VKLibretro::Init.instance != VK_NULL_HANDLE)
+		m_instance = VKLibretro::Init.instance;
+	else
+		m_instance = CreateVulkanInstance(m_window_info, &m_optional_extensions, enable_debug_utils, enable_validation_layer);
+	if (m_instance == VK_NULL_HANDLE)
+	{
+		if (enable_debug_utils || enable_validation_layer)
+		{
+			// Try again without the validation layer.
+			enable_debug_utils = false;
+			enable_validation_layer = false;
+			m_instance = CreateVulkanInstance(m_window_info, &m_optional_extensions, enable_debug_utils, enable_validation_layer);
+			if (m_instance == VK_NULL_HANDLE)
+			{
+				Host::ReportErrorAsync("Error", "Failed to create Vulkan instance. Does your GPU and/or driver support Vulkan?");
+				return false;
+			}
+
+			ERROR_LOG("VK: validation/debug layers requested but are unavailable. Creating non-debug device.");
+		}
+	}
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	// Native debug retry is disabled; preserve null-output create failure.
+	if (m_instance == VK_NULL_HANDLE) return false;
+#endif
+	if (!Vulkan::LoadVulkanInstanceFunctions(m_instance))
+	{
+		ERROR_LOG("Failed to load Vulkan instance functions");
+		return false;
+	}
+
+	GPUList gpus = EnumerateGPUs(m_instance);
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	// No old-instance physical handle is transplanted into our instance.
+	// Multi-device identity matching needs a separate actual UUID receipt.
+	if (gpus.size() != 1) return false;
+#endif
+	if (gpus.empty())
+	{
+		Host::ReportErrorAsync("Error", "No physical devices found. Does your GPU and/or driver support Vulkan?");
+		return false;
+	}
+
+	if (VKLibretro::Active && VKLibretro::Init.gpu != VK_NULL_HANDLE)
+	{
+		// Frontend picked the physical device during negotiation.
+		m_physical_device = VKLibretro::Init.gpu;
+		vkGetPhysicalDeviceProperties(m_physical_device, &m_device_properties);
+		m_name = m_device_properties.deviceName;
+	}
+	else
+	{
+	const bool is_default_gpu = GSConfig.Adapter == GetDefaultAdapter();
+	if (!(GSConfig.Adapter.empty() || is_default_gpu))
+	{
+		u32 gpu_index = 0;
+		for (; gpu_index < static_cast<u32>(gpus.size()); gpu_index++)
+		{
+			DEV_LOG("GPU {}: {}", gpu_index, gpus[gpu_index].second.name);
+			if (gpus[gpu_index].second.name == GSConfig.Adapter)
+			{
+				m_physical_device = gpus[gpu_index].first;
+				break;
+			}
+		}
+
+		if (gpu_index == static_cast<u32>(gpus.size()))
+		{
+			WARNING_LOG("Requested GPU '{}' not found, using first ({})", GSConfig.Adapter, gpus[0].second.name);
+			m_physical_device = gpus[0].first;
+		}
+	}
+	else
+	{
+		INFO_LOG("{} GPU requested, using first ({})", is_default_gpu ? "Default" : "No", gpus[0].second.name);
+		m_physical_device = gpus[0].first;
+	}
+
+	// Read device physical memory properties, we need it for allocating buffers
+	vkGetPhysicalDeviceProperties(m_physical_device, &m_device_properties);
+
+	// Stores the GPU name
+	m_name = m_device_properties.deviceName;
+	} // !VKLibretro gpu adoption
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	Vulkan::NativeRecordPhysicalSelection(m_instance, static_cast<u32>(gpus.size()),
+		m_physical_device, &m_device_properties);
+#endif
+
+	// We need this to be at least 32 byte aligned for AVX2 stores.
+	NormalizeVulkanDeviceLimits(m_device_properties.limits);
+
+	// Only the messenger, which is a debug-device concern. Draw labels need the
+	// extension enabled above, not this.
+	if (GSConfig.UseDebugDevice)
+		EnableDebugUtils();
+
+	VkSurfaceKHR surface = VK_NULL_HANDLE;
+	ScopedGuard surface_cleanup = [this, &surface]() {
+		if (surface != VK_NULL_HANDLE)
+			vkDestroySurfaceKHR(m_instance, surface, nullptr);
+	};
+	if (m_window_info.type != WindowInfo::Type::Surfaceless)
+	{
+		surface = VKSwapChain::CreateVulkanSurface(m_instance, m_physical_device, &m_window_info);
+		if (surface == VK_NULL_HANDLE)
+			return false;
+	}
+
+	// Attempt to create the device.
+	if (!CreateDevice(surface, enable_validation_layer))
+		return false;
+
+	// And critical resources.
+	if (!CreateAllocator() || !CreateGlobalDescriptorPool() || !CreateCommandBuffers())
+		return false;
+
+	VKShaderCache::Create();
+
+	if (surface != VK_NULL_HANDLE)
+	{
+		VkPresentModeKHR present_mode;
+		if (!VKSwapChain::SelectPresentMode(surface, &m_vsync_mode, &present_mode) ||
+			!(m_swap_chain = VKSwapChain::Create(m_window_info, surface, present_mode,
+				  Pcsx2Config::GSOptions::TriStateToOptionalBoolean(GSConfig.ExclusiveFullscreenControl))))
+		{
+			ERROR_LOG("Failed to create swap chain");
+			return false;
+		}
+
+		// NOTE: This is assigned afterwards, because some platforms can modify the window info (e.g. Metal).
+		m_window_info = m_swap_chain->GetWindowInfo();
+	}
+
+	surface_cleanup.Cancel();
+
+	// Render a frame as soon as possible to clear out whatever was previously being displayed.
+	if (m_window_info.type != WindowInfo::Type::Surfaceless)
+		RenderBlankFrame();
+
+	return true;
+}
+
+bool GSDeviceVK::AdoptBorrowedDevice(const Vulkan::BorrowedDevice& device)
+{
+	if (!device.queue || !device.physical_device || !GSHeadless::IsEnabled() || VKLibretro::Active ||
+		GSConfig.UseDebugDevice || GSConfig.DebugLabels || !AcquireWindow(true) ||
+		m_window_info.type != WindowInfo::Type::Surfaceless)
+	{
+		return false;
+	}
+	if (!Vulkan::LoadVulkanBorrowedFunctions(device.instance, device.device, device.lookup))
+		return false;
+
+	m_borrowed_device = true;
+	m_instance = device.instance;
+	m_physical_device = device.physical_device;
+	m_device = device.device;
+	m_graphics_queue = device.queue;
+	m_graphics_queue_family_index = device.queue_family_index;
+	m_device_features = device.features;
+	m_optional_extensions = {};
+	vkGetPhysicalDeviceProperties(m_physical_device, &m_device_properties);
+	NormalizeVulkanDeviceLimits(m_device_properties.limits);
+	m_name = m_device_properties.deviceName;
+
+#ifdef IZPS2_WRAPPER_AUDIT
+	u32 queue_count = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_count, nullptr);
+	std::vector<VkQueueFamilyProperties> queues(queue_count);
+	vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_count, queues.data());
+	m_gpu_timing_supported = m_graphics_queue_family_index < queue_count &&
+		queues[m_graphics_queue_family_index].timestampValidBits != 0 &&
+		m_device_properties.limits.timestampComputeAndGraphics && m_device_properties.limits.timestampPeriod > 0;
+	std::fprintf(stderr, "IZPS2_VULKAN_TIMESTAMPS supported=%u\n", unsigned(m_gpu_timing_supported));
+#endif
+
+	// The extension command is resolved for the logical device that enabled it.
+	m_optional_extensions.vk_khr_push_descriptor = vkCmdPushDescriptorSetKHR != nullptr;
+	if (!ProcessDeviceExtensions() || !CreateAllocator() || !CreateGlobalDescriptorPool() || !CreateCommandBuffers())
+		return false;
+	VKShaderCache::Create();
+	return true;
+}
+
+bool GSDeviceVK::CheckFeatures()
+{
+	PublishGPUProfile();
+	const GSSelfReadRoadDecision road = ResolveSelfReadRoad();
+	ResolveFeatureTable();
+	ResolveFeedbackConsumers(road);
+	const bool declare_depth_loop = ResolveDepthFeedback(road);
+	ResolveStreamRingMemory();
+	LogResolvedFeatures(road, declare_depth_loop);
+	m_report_self_read_road = GSSelfReadRoadName(road);
+	m_report_declare_depth_loop = declare_depth_loop;
+	return CheckFormatSupport();
+}
+
+void GSDeviceVK::PublishGPUProfile()
+{
+	// The runtime profile does not raise blending accuracy on Mali: without dualSrcBlend, GSRendererHW
+	// blends only the SRC1 draws in the shader (dual_source_blend, below).
+
+	// The mobile-specific consequences stay Android-only: off Android the GL detector classifies
+	// every non-Mali GPU as Adreno, so the runtime profile would be a wrong answer there, and the
+	// GS tuning and GPU identity have only Android consumers.
+	const GpuProfileSelection& mobile_profile = m_gpu_profile;
+	SetMobileDriverProfile(mobile_profile.driver);
+#if defined(__ANDROID__)
+	// Remote play's buffer handoff, turned off for a driver whose profile says so. The profile is
+	// only known now, after the device was created with the extensions, so it is their use that
+	// goes: frames are read back instead.
+	if (m_optional_extensions.vk_android_external_memory_ahb &&
+		GetMobileDriverProfile().UsesWorkaround(DriverWorkaround::ReadBackRemotePlayFrames))
+	{
+		Console.WriteLn("VK: remote play reads frames back on this driver (driver profile).");
+		m_optional_extensions.vk_android_external_memory_ahb = false;
+	}
+	// So that IsMaliGPUProfile() and IsAdrenoGPUProfile() answer for the Vulkan device too.
+	SetRuntimeGPUProfile(mobile_profile.runtime_profile);
+	// Per-model pool sizes and ages, which drive GSDevice's pool sizing. From sashkinbro/EmuCoreX.
+	SetMobileGPUIdentity(mobile_profile.gpu);
+	SetMobileGSTuning(mobile_profile.gs_tuning);
+
+	// Hand the resolved architecture to frame generation, which needs Adreno 7xx or newer, or a
+	// 6xx on Turnip. Done here rather than asked for on demand so the settings screen can still
+	// say WHY the row is unavailable after the game stops and the device is gone.
+	{
+		u32 adreno_generation = 0;
+		switch (mobile_profile.gpu.architecture)
+		{
+			// Adreno 6xx only under Turnip, which is where frame generation already runs on these
+			// GPUs (Winlator, GameHub). Nothing shows the Qualcomm driver on 6xx doing it (#626).
+			// Either way Initialize() still checks the features the shaders need.
+			case MobileGpuArchitecture::Adreno6xx:
+				if (mobile_profile.driver.driver == MobileGpuDriver::MesaTurnip)
+					adreno_generation = 6;
+				break;
+			case MobileGpuArchitecture::Adreno7xx: adreno_generation = 7; break;
+			case MobileGpuArchitecture::Adreno8xx: adreno_generation = 8; break;
+			// Adreno X (X1-85 and up) postdates 7xx and carries the same feature set.
+			case MobileGpuArchitecture::AdrenoX: adreno_generation = 9; break;
+			default: break;
+		}
+		GSLsfg::NoteRendererCapability(true, adreno_generation);
+	}
+#endif
+	Console.WriteLn("VK: GPU profile override='%s' resolved='%s' driver='%s' version=%u.%u.%u "
+					"raw=%08x rules=%u bugs=%016llx workarounds=%016llx.",
+		GpuProfileDetector::OverrideToConfigString(mobile_profile.override_mode),
+		GpuProfileDetector::RuntimeProfileToString(mobile_profile.runtime_profile),
+		GpuProfileDetector::DriverToString(mobile_profile.driver.driver),
+		static_cast<unsigned>(mobile_profile.driver.version.major),
+		static_cast<unsigned>(mobile_profile.driver.version.minor),
+		static_cast<unsigned>(mobile_profile.driver.version.patch),
+		static_cast<unsigned>(mobile_profile.driver.version.raw),
+		static_cast<unsigned>(mobile_profile.driver.matched_rule_count),
+		static_cast<unsigned long long>(mobile_profile.driver.bugs),
+		static_cast<unsigned long long>(mobile_profile.driver.workarounds));
+	Console.WriteLn("VK: GPU profile rules matched: %s",
+		GpuProfileDetector::DescribeMatchedRules(mobile_profile.driver).c_str());
+	Console.WriteLn("VK: GPU profile bugs: %s", GpuProfileDetector::DescribeBugs(mobile_profile.driver.bugs).c_str());
+	Console.WriteLn("VK: GPU profile workarounds: %s",
+		GpuProfileDetector::DescribeWorkarounds(mobile_profile.driver.workarounds).c_str());
+	Console.WriteLn("VK: device rules: %s", GpuProfileDetector::DescribeDeviceRules(m_device_rules).c_str());
+	if (IsDeviceMaliSX2())
+	{
+		Console.WriteLn("VK: driver is malisx2 (driverInfo \"%s\")", m_device_driver_properties.driverInfo);
+	}
+	else if (IsDeviceMali())
+	{
+		// The Android app tells a Mali user on this to get malisx2, for the GPUs it offers it for.
+		Console.WriteLn("VK: %s is a Mali GPU not running malisx2 (driverName \"%s\", driverInfo \"%s\")",
+			m_device_properties.deviceName, m_device_driver_properties.driverName,
+			m_device_driver_properties.driverInfo);
+	}
+	GSDriverReport::NoteActiveVulkanDriver(m_device_driver_properties.driverInfo);
+	DevCon.WriteLn("VK: GPU profile hints: %s", mobile_profile.hints.c_str());
+}
+
+GSSelfReadRoadDecision GSDeviceVK::ResolveSelfReadRoad()
+{
+	// A forced Xclipse profile (Android settings) counts as an Xclipse device.
+	bool force_xclipse_profile = false;
+#if defined(__ANDROID__)
+	force_xclipse_profile = (m_gpu_profile.override_mode == GpuProfileOverride::Xclipse) ||
+		(m_gpu_profile.runtime_profile == RuntimeGpuProfile::Xclipse);
+#endif
+
+	// UseRenderTargetCopyForFeedback: on these drivers an in-pass render-target self-read returns the
+	// content from the start of the pass, stale across earlier draws and across earlier primitives of
+	// the same draw, in both in-pass shapes (subpassLoad and the feedback-loop layout sampler). Only a
+	// separate copy of the target reads correctly. It affects every draw that reads the target,
+	// including destination-alpha tests and write masks, not only draws that sample it.
+	//
+	// ⚠️ Breaking the pass instead of copying is exact but slower: on Turnip the copy road keeps the
+	// untiled sysmem mode these passes run fastest in, and every in-pass alternative leaves it. One copy
+	// cannot serve several draws either, because each feedback draw reads what the previous one wrote.
+	//
+	// OverrideTextureBarriers = 1 still reaches the in-pass read.
+	const bool rt_self_read_is_broken =
+		GetMobileDriverProfile().UsesWorkaround(DriverWorkaround::UseRenderTargetCopyForFeedback);
+
+	// framebuffer_fetch: the ordered in-tile read of the destination (rasterization-order attachment
+	// access). It lets DetermineBarriers drop the per-primitive barriers, and turns ROV off.
+	//   Mali: on wherever the extension is. Mali forces software blending, and without fetch its only
+	//     destination read is a barrier per primitive.
+	//   Adreno: on wherever the extension is, on every OS, except the parts the database denies and
+	//     the Adreno 8xx Qualcomm driver.
+	//   Other vendors: trusted on Android builds only.
+	const bool is_mali_vk = IsDeviceMali();
+	const bool is_adreno = IsDeviceAdreno();
+	// Moot on Adreno today: the copy workaround turns barriers off, and fetch needs them. A driver that
+	// loses the bug gets the fast road back with no change here.
+	// Xclipse has no working rasterization-order fetch.
+	const bool is_xclipse_vk = IsDeviceXclipse() || force_xclipse_profile;
+	// Parts that return zero or stale destination colour through rasterization-order access are denied
+	// by the driver-bug database (vk-mediatek-mali-roaa-destination-read,
+	// vk-arm-g57-roaa-destination-read), which also holds the MT6897 exemption.
+	//
+	// ForceMaliFramebufferFetch (off by default) lifts that deny on Mali only, so a user can test
+	// whether their driver really has the defect; where the deny is wrong it costs a barrier per
+	// primitive on every software-blended draw. It never lifts the Xclipse gate, and the policy function
+	// keeps it Mali-only so it cannot put an Adreno part the database denies on the in-tile road.
+	const bool roaa_destination_read_is_broken =
+		GetMobileDriverProfile().HasBug(DriverBug::BrokenRoaaDestinationRead);
+	// Adreno is listed as a vendor, not only Turnip, so the Qualcomm driver keeps fetch by default and
+	// DisableFramebufferFetch still turns it off. On Android the vendor terms are a deny list: any GPU
+	// with the extension takes fetch unless the database, Xclipse or the Adreno 8xx gate says otherwise.
+	// Add a vendor that returns stale reads beside Xclipse rather than narrowing this to an allow list.
+	//
+	// The Qualcomm driver on Adreno 8xx returns stale rasterization-order reads above Basic blending;
+	// Turnip on the same parts does not. A hard gate, like Xclipse.
+	const bool is_adreno8xx_proprietary = m_device_rules.adreno8xx_proprietary;
+	// Every term above, in one place, in GSFramebufferFetchPolicy.h beside the OpenGL decision. The
+	// facts are collected here; which of them wins is pinned there and in gs_vertex_tests.
+	GSVulkanFramebufferFetchInputs fetch_inputs;
+	fetch_inputs.roaa_available = m_optional_extensions.vk_ext_rasterization_order_attachment_access;
+	fetch_inputs.user_disabled = GSConfig.DisableFramebufferFetch;
+	fetch_inputs.is_mali = is_mali_vk;
+	fetch_inputs.is_adreno = is_adreno;
+	fetch_inputs.is_xclipse = is_xclipse_vk;
+	fetch_inputs.is_adreno8xx_proprietary = is_adreno8xx_proprietary;
+	fetch_inputs.broken_destination_read = roaa_destination_read_is_broken;
+	fetch_inputs.force_mali_fetch_key = GSConfig.ForceMaliFramebufferFetch;
+#ifdef __ANDROID__
+	fetch_inputs.any_vendor_trusted = true;
+#endif
+	// PowerVR on Imagination's driver orders a single-sample subpassLoad in tile memory without the
+	// extension (VulkanDeviceRules::ordered_input_attachment_read). Only where the layout extension
+	// is off, so the read is spelled subpassLoad: the ordering says nothing about a sampler read.
+	fetch_inputs.ordered_without_roaa = m_device_rules.ordered_input_attachment_read &&
+	                                    !m_optional_extensions.vk_ext_attachment_feedback_loop_layout;
+	const GSVulkanFramebufferFetchDecision fetch_decision = DecideVulkanFramebufferFetch(fetch_inputs);
+	if (fetch_decision.force_key_ignored)
+	{
+		// Said once, because the banner below cannot say it: a setting that changed nothing looks
+		// exactly like a setting that was never read.
+		Console.WriteLn("VK: ForceMaliFramebufferFetch ignored — '%s' (vendor=0x%04X) is not Mali, and the "
+						"key only lifts the Mali destination-read deny. Framebuffer fetch is unchanged.",
+			m_device_properties.deviceName, m_device_properties.vendorID);
+	}
+	// Which self-read road this device takes, and what that implies for barriers, the in-tile read, the
+	// layout spelling and primitive ordering. See GSSelfReadRoadPolicy.h.
+	GSSelfReadRoadInputs road_inputs;
+	road_inputs.in_tile_read_available = fetch_decision.enabled;
+	road_inputs.layout_road_available = m_optional_extensions.vk_ext_attachment_feedback_loop_layout;
+	road_inputs.roaa_available = m_optional_extensions.vk_ext_rasterization_order_attachment_access;
+	road_inputs.rt_self_read_is_broken = rt_self_read_is_broken;
+	// A driverInfo tag saying this build orders overlapping self-reads inside a declared loop. It puts
+	// a user of our Turnip builds on the declared road with no setting touched.
+	// Where the driver orders overlapping primitives only on request, the request is a pipeline flag
+	// from VK_EXT_rasterization_order_attachment_access; without it the ordering cannot be asked for.
+	const bool order_on_request = GetMobileDriverProfile().declared_loop_orders_overlap_on_request;
+	road_inputs.driver_orders_declared_loop = GetMobileDriverProfile().orders_declared_feedback_loop &&
+		(!order_on_request || m_optional_extensions.vk_ext_rasterization_order_attachment_access);
+	// The database saying this part belongs on the declared loop with our own barriers kept: Turnip on
+	// Adreno 730 and up and on the 722, where the copy road renders wrong.
+	road_inputs.driver_prefers_declared_loop_with_barriers =
+		GetMobileDriverProfile().prefers_declared_loop_with_barriers;
+	road_inputs.override_texture_barriers = GSConfig.OverrideTextureBarriers;
+	// Harness-only (gsrunner -declare-feedback-loop); Off on every other run.
+	road_inputs.arm = static_cast<u8>(g_gs_measurement_overrides.self_read_arm);
+	const GSSelfReadRoadDecision road = DecideSelfReadRoad(road_inputs);
+
+	// Before anything that can create an image, a descriptor layout or a render pass, because each
+	// of those bakes the spelling in permanently.
+	m_force_feedback_loop_layout = road.force_feedback_loop_layout;
+
+	// Which spelling the loop is declared in: per draw (the default on Turnip and Honeykrisp) or
+	// with the pipeline create flag (every other driver, as before). Resolved here for the same
+	// reason as the line above -- a pipeline's dynamic-state list is fixed at creation, so this
+	// has to be final before the first one exists.
+	const GSDynamicFeedbackLoopInputs dynamic_loop_inputs = {
+		.spelling = g_gs_measurement_overrides.LoopSpelling(),
+		.layout_road_live = UseFeedbackLoopLayout(),
+		.dynamic_state_available = m_optional_extensions.vk_ext_attachment_feedback_loop_dynamic_state,
+		.device_measured = m_device_rules.self_read_costs_measured};
+	m_declare_loop_per_draw = GSDeclaresLoopPerDraw(dynamic_loop_inputs);
+	if (GSLoopSpellingFallsBackToCreateFlag(dynamic_loop_inputs))
+	{
+		// The loop is declared, but in the spelling that costs on Turnip. Say so.
+		Console.Warning("VK: no VK_EXT_attachment_feedback_loop_dynamic_state here, so the feedback "
+						"loop is declared with the PIPELINE CREATE FLAG rather than per draw. "
+						"Measured on Turnip only: that spelling costs up to 2.8x on a self-read-heavy "
+						"title (wrc3@1x, SD865).");
+	}
+
+	// With the copy workaround in effect, texture barriers are off: GSRendererHW reads the destination
+	// from a copy of the target, and the in-tile read goes with the barriers. tfx.glsl picks the read
+	// from DISABLE_TEXTURE_BARRIER or HAS_FEEDBACK_LOOP_LAYOUT; turning framebuffer_fetch off alone would
+	// leave subpassLoad in place, which is just as broken.
+	//
+	// The workaround applies on auto only (OverrideTextureBarriers = -1). The declared-loop driver facts
+	// are auto answers too, and outrank the copy on the parts the database names: the workaround was
+	// measured on the tiled in-pass read, and Turnip does not tile a declared loop.
+	m_features.framebuffer_fetch = road.in_tile_read;
+	m_features.texture_barrier = road.texture_barrier;
+	m_features.declared_feedback_loop_orders_overlap = road.orders_overlapping_prims;
+	// Our generation-2 Turnip on Adreno 7xx: the driver orders the draw against earlier ones with a
+	// wait for idle, and orders overlapping primitives within it only on request.
+	const bool declared_ordered = road.orders_overlapping_prims && !road.in_tile_read && order_on_request;
+	m_features.declared_loop_overlap_needs_raster_order = declared_ordered;
+	m_features.ordered_read_costs_per_draw = declared_ordered;
+	// Turnip and Honeykrisp, where a per-draw barrier costs about what a copy does. Read only by
+	// GSCopyRoadBlendingPolicy.h; every other driver treats the barrier as cheap.
+	m_features.barrier_read_costs_per_draw = m_device_rules.self_read_costs_measured;
+	if (rt_self_read_is_broken && GSConfig.OverrideTextureBarriers < 0 && !m_features.texture_barrier)
+	{
+		Console.WriteLn("VK: driver has an unreliable in-pass render-target self-read — forcing the "
+						"RT-copy blend path.");
+	}
+	if (road.arm_unavailable)
+	{
+		// A silently inert arm is a device measurement that runs base twice and calls it an A/B.
+		Console.Error("VK: -declare-feedback-loop %u was requested and CANNOT be applied "
+					  "(VK_EXT_attachment_feedback_loop_layout %s, OverrideTextureBarriers=%d). "
+					  "This build is running the device's own self-read road.",
+			static_cast<unsigned>(g_gs_measurement_overrides.self_read_arm),
+			m_optional_extensions.vk_ext_attachment_feedback_loop_layout ? "present" : "ABSENT",
+			static_cast<int>(GSConfig.OverrideTextureBarriers));
+	}
+
+	return road;
+}
+
+void GSDeviceVK::ResolveFeatureTable()
+{
+	m_features.multidraw_fb_copy = false;
+	m_features.broken_point_sampler = false;
+
+	// geometryShader is needed because gl_PrimitiveID is part of the Geometry SPIR-V Execution Model.
+	m_features.primitive_id = m_device_features.geometryShader;
+
+	m_features.prefer_new_textures = true;
+#if defined(__ANDROID__)
+	// Weak mobile parts would rather reuse than grow the pool; from the resolved GPU profile.
+	// sashkinbro/EmuCoreX.
+	m_features.prefer_new_textures = GetMobileGSTuning().prefer_new_textures;
+	// The profile leaves Texture Preloading alone: the user's setting outranks a pool-size heuristic.
+#endif
+	m_features.provoking_vertex_last = m_optional_extensions.vk_ext_provoking_vertex;
+	m_features.vs_expand = !GSConfig.DisableVertexShaderExpand;
+	m_features.sprite_edge_clamp = true;
+
+	if (!m_features.texture_barrier)
+		Console.Warning("VK: Texture buffers are disabled. This may break some graphical effects.");
+
+	// Test for D32S8 support.
+	{
+		VkFormatProperties props = {};
+		vkGetPhysicalDeviceFormatProperties(m_physical_device, VK_FORMAT_D32_SFLOAT_S8_UINT, &props);
+		m_features.stencil_buffer =
+			((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
+	}
+
+	// Fbfetch is useless if we don't have barriers enabled. DecideSelfReadRoad already folds this
+	// in -- the in-tile read IS the in-pass read, so it cannot outlive the bit that permits one --
+	// and this is here to catch a future edit to that function that forgets it.
+	pxAssert(!m_features.framebuffer_fetch || m_features.texture_barrier);
+	// The in-tile read without the rasterization-order extension is only ordered as subpassLoad.
+	pxAssert(!m_features.framebuffer_fetch || m_optional_extensions.vk_ext_rasterization_order_attachment_access ||
+			 !UseFeedbackLoopLayout());
+
+	// Which spelling of the in-pass self-read this backend uses, published so GSRendererHW can tell
+	// the two apart without knowing about Vulkan extensions. The layout road samples the attachment
+	// through an ordinary sampler in ATTACHMENT_FEEDBACK_LOOP_OPTIMAL; the fetch road reads it in
+	// tile memory through subpassLoad. UseFeedbackLoopLayout() requires the rasterization-order
+	// extension to be ABSENT, so the two are mutually exclusive -- the renderer is told anyway
+	// rather than being left to rely on that.
+	m_features.feedback_loop_layout = UseFeedbackLoopLayout();
+
+	// Vulkan's framebuffer fetch is rasterization-order attachment access, which orders overlapping
+	// fragments within a draw, so a full barrier would add only pass breaks. Derived after the last
+	// write to framebuffer_fetch so the two bits cannot disagree.
+	//
+	// ⚠️ Ordering is not visibility. On Turnip a tiled in-pass self-read does not see unresolved tile
+	// writes even with rasterization-order access. Adreno never reaches here with fetch enabled.
+	m_features.framebuffer_fetch_orders_overlap = m_features.framebuffer_fetch;
+
+	// Without dualSrcBlend (common on Mali), GSRendererHW blends the SRC1 draws in the shader.
+	// Ported from sashkinbro/EmuCoreX.
+	// gsrunner -no-dual-source reports the feature absent to the renderer while the device keeps it
+	// enabled, which is what a driver without it looks like from GSRendererHW's side.
+	m_features.dual_source_blend = m_device_features.dualSrcBlend && !g_gs_measurement_overrides.no_dual_source;
+
+	// A driver that ignores the blend constant cannot be asked for a constant-colour blend factor at
+	// all, so a fixed (AFIX) factor travels through the second fragment output instead. Read from the
+	// driver-bug database rather than tested for: the defect is conditional on run history, so no
+	// start-up probe would see it. A harness reaching this road on a machine whose driver is fine
+	// does it through GpuProfileDetector::SetForcedBugs, which is already folded into the profile
+	// by the time this reads it.
+	m_features.broken_blend_constant = GetMobileDriverProfile().HasBug(DriverBug::BrokenBlendConstant);
+
+	m_features.native_counter_draws = true;
+
+	// Use D32F depth instead of D32S8 when we have framebuffer fetch.
+	m_features.stencil_buffer &= !m_features.framebuffer_fetch;
+
+	// Turnip before Mesa 26.2 hangs on EARLY_Z_LATE_Z with a D32S8 attachment and a discarding shader,
+	// which is SetupDATE's stencil pre-pass (rule vk-turnip-d32s8-early-z-late-z-hang). Without a stencil
+	// buffer depth is plain D32_SFLOAT, and DATE falls back to primitive-ID tracking, then Full, then Off.
+	if (UsesMobileDriverWorkaround(DriverWorkaround::DisableStencilBuffer) ||
+		g_gs_measurement_overrides.disable_stencil_buffer)
+		m_features.stencil_buffer = false;
+
+	// Mali-G57 drivers can return stale FastMAD history; GSRenderer::Merge then weaves and blends.
+	// Ported from sashkinbro/EmuCoreX.
+	m_features.broken_mad_deinterlace = m_device_rules.broken_mad_deinterlace;
+
+	// Adreno 5xx and old Qualcomm drivers ignore colorWriteMask while a depth test is active (PPSSPP
+	// #10421). CreateTFXPipeline emulates the one case blending can express: RGB fully masked, alpha
+	// independent.
+	m_broken_colormask_with_depth = m_device_rules.broken_colormask_with_depth;
+	if (m_broken_colormask_with_depth)
+		Console.WriteLn("VK: Adreno colorWriteMask-with-depthtest workaround active (deviceID=0x%08X driver=0x%08X)",
+			m_device_properties.deviceID, m_device_properties.driverVersion);
+
+	// Declaring gl_FragDepth for PS2 Z quantization makes the pipeline DepthReplacing, which turns early
+	// depth off on a tiler, so Mali skips it. Apple GPUs skip it for correctness: depth written from the
+	// shader does not bit-match the fixed-function depth a later pass tests against, and a GEQUAL retest
+	// of the same geometry drops pixels along shared edges.
+	m_features.no_ps2_z_quantization = IsDeviceMali() || IsDeviceAppleGPU();
+
+	const VkPhysicalDeviceLimits& limits = m_device_properties.limits;
+	// whether we can do point/line expand depends on the range of the device
+	const float f_upscale = static_cast<float>(GSConfig.UpscaleMultiplier);
+	m_features.point_expand = (m_device_features.largePoints && limits.pointSizeRange[0] <= f_upscale &&
+							   limits.pointSizeRange[1] >= f_upscale);
+	m_features.line_expand =
+		(m_device_features.wideLines && limits.lineWidthRange[0] <= f_upscale && limits.lineWidthRange[1] >= f_upscale);
+}
+
+void GSDeviceVK::ResolveFeedbackConsumers(const GSSelfReadRoadDecision& road)
+{
+	// The alpha stencil counter through the blend unit (GSFastStencilShadow.h). It keys on the road, not
+	// on texture_barrier: declaring the feedback loop turns texture_barrier on, and the counter is most
+	// of what keeps the declared road cheap. loop_declared rather than arm_applied, because a driver
+	// fact reaches the same road without the experiment key.
+	m_features.fast_stencil_shadow = GSFastStencilShadow::DeviceQualifies(
+		{.api = GetRenderAPI(),
+			.dual_source_blend = m_features.dual_source_blend,
+			.road = road.road,
+			.loop_declared = road.loop_declared,
+			// The barrier road's counter was timed on the M2 only; desktop Vulkan on the same road
+			// keeps the answer it had before the road existed.
+			.barrier_road_measured = m_device_rules.barrier_road_measured});
+
+	// Alpha bit 7 through a logic op (GSAlphaBitLogicOp.h), where the read it replaces waits for the
+	// GPU to drain. gsrunner -alpha-bit-logic-op forces the road question to yes, so a desktop GPU on
+	// its own road can check the pictures against the read.
+	m_features.alpha_bit_logic_op = GSAlphaBitLogicOp::DeviceQualifies(m_device_features.logicOp != 0,
+		m_features.ordered_read_costs_per_draw || g_gs_measurement_overrides.alpha_bit_logic_op,
+		m_broken_colormask_with_depth);
+
+	// The device half of the feedback-loop carry (GSDrawRoad.h). Every input is final here; the
+	// renderer adds the per-draw terms.
+	GSFeedbackLoopCarryInputs carry;
+	carry.device_always_carries = IsDeviceBroadcom();
+	// PowerVR on its in-tile road (VulkanDeviceRules::ordered_input_attachment_read) is the same
+	// shape as Mali's: a pass declared self-reading by a draw that never reads is the same pass with
+	// one unused input attachment. Without the carry every switch between a destination-reading draw
+	// and a plain one ends the pass: 588 passes for ~1150 draws in NFS Underground at Full blending
+	// on a Pixel 11 Pro, against 151 at Basic, each one a tile store and reload at the upscaled size.
+	carry.device_is_measured_vendor = IsDeviceMali() || m_device_rules.ordered_input_attachment_read;
+	carry.device_is_layout_road_vendor = IsDeviceAdreno();
+	// texture_barrier is what makes SendHWDraw issue the reader's feedback barrier at all. With it
+	// off there is no ordering, so the layout road carries nothing. Consulted only on the layout
+	// road; framebuffer_fetch is itself masked by texture_barrier.
+	carry.barriers_order_reads = m_features.texture_barrier;
+	carry.device_is_barrier_road_vendor = m_device_rules.barrier_road_measured;
+	carry.framebuffer_fetch = m_features.framebuffer_fetch;
+	carry.feedback_loop_layout = UseFeedbackLoopLayout();
+	m_features.feedback_carry = GSFeedbackCarryForDevice(carry);
+}
+
+bool GSDeviceVK::ResolveDepthFeedback(const GSSelfReadRoadDecision& road)
+{
+	// Testing and sampling the same depth buffer rides the texture barrier. Adreno hangs the tiler
+	// sampling the live depth buffer while it is also the attachment, so tex == ds takes a copy there.
+	m_features.test_and_sample_depth = m_features.texture_barrier && !IsDeviceAdreno();
+
+	// The depth probe (gsrunner -declare-depth-feedback-loop). No in-pass depth read has been run on
+	// Adreno; the exclusion above is for a hang. The probe asks whether a declared loop, which Turnip
+	// never tiles, avoids it. ⚠️ It may lock up the device.
+	//
+	// On any declared colour loop, from the key or from a driver fact, the depth read stays off unless
+	// the probe asks for it: turning barriers on for colour must not enable an unmeasured depth road.
+	const bool declare_depth_loop = road.loop_declared && g_gs_measurement_overrides.declare_depth_loop;
+	if (declare_depth_loop)
+		m_features.test_and_sample_depth = true;
+	else if (road.loop_declared)
+	{
+		// Barriers are on for the colour loop; that alone must not enable the depth road.
+		m_features.test_and_sample_depth = false;
+	}
+	if (g_gs_measurement_overrides.declare_depth_loop && !road.loop_declared)
+	{
+		Console.Error("VK: -declare-depth-feedback-loop needs a declared colour feedback loop, and this "
+					  "device is not on that road. The depth probe is NOT running.");
+	}
+
+	// Android: depth feedback reads the depth buffer in the pass (a depth input attachment) instead of
+	// copying it to a colour target, opt-in through HWROV. It needs an ordered in-pass depth read:
+	// rasterization-order depth access on the fetch road, or the pass self-dependency on the barrier
+	// road. HWROV off keeps the copy. Read at device creation, so it applies on game restart.
+#if defined(__ANDROID__)
+	const bool depth_feedback_ordered =
+		m_features.framebuffer_fetch ? m_optional_extensions.vk_ext_roaa_depth : m_features.texture_barrier;
+	m_features.depth_feedback = GSConfig.HWROV && m_features.feedback_loops() && depth_feedback_ordered;
+	Console.WriteLn("Mobile depth feedback (ROV): %s [HWROV=%s fbfetch=%s roaa_depth=%s texbarrier=%s]",
+		m_features.depth_feedback ? "ENABLED" : "disabled", GSConfig.HWROV ? "on" : "off",
+		m_features.framebuffer_fetch ? "yes" : "no", m_optional_extensions.vk_ext_roaa_depth ? "yes" : "no",
+		m_features.texture_barrier ? "yes" : "no");
+#else
+	m_features.depth_feedback = m_features.feedback_loops();
+#endif
+	// On a declared loop, depth_feedback would follow texture_barrier on by itself; it is on only when
+	// the depth probe asks for it.
+	if (road.loop_declared)
+		m_features.depth_feedback = declare_depth_loop;
+	m_features.aa1 = GSConfig.HWAA1 && m_features.vs_expand && m_features.feedback_loops();
+
+	return declare_depth_loop;
+}
+
+void GSDeviceVK::ResolveStreamRingMemory()
+{
+	// The rings are allocated once at device creation, so their memory type is chosen here and never
+	// revisited. GSStreamRingMemoryPolicy.h has the reasoning. With no driver rule the answer is the
+	// write-combined type VMA would pick.
+	VkPhysicalDeviceMemoryProperties memory_properties = {};
+	vkGetPhysicalDeviceMemoryProperties(m_physical_device, &memory_properties);
+
+	// The policy mirrors the Vulkan property bits so it stays backend-neutral and testable.
+	// If Vulkan ever renumbers them this is where it breaks, loudly, at compile time.
+	static_assert(GS_MEMORY_PROPERTY_DEVICE_LOCAL == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	static_assert(GS_MEMORY_PROPERTY_HOST_VISIBLE == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+	static_assert(GS_MEMORY_PROPERTY_HOST_COHERENT == VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	static_assert(GS_MEMORY_PROPERTY_HOST_CACHED == VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+
+	u32 type_flags[VK_MAX_MEMORY_TYPES] = {};
+	for (u32 i = 0; i < memory_properties.memoryTypeCount; i++)
+		type_flags[i] = static_cast<u32>(memory_properties.memoryTypes[i].propertyFlags);
+
+	GSStreamRingMemoryInputs inputs;
+	inputs.type_flags = type_flags;
+	inputs.type_count = memory_properties.memoryTypeCount;
+	inputs.prefer_cached_over_write_combined =
+		UsesMobileDriverWorkaround(DriverWorkaround::PreferCachedStreamRingMemory) ||
+		g_gs_measurement_overrides.stream_rings_cached;
+	m_stream_ring_memory = GSDecideStreamRingMemory(inputs);
+}
+
+void GSDeviceVK::LogResolvedFeatures(const GSSelfReadRoadDecision& road, bool declare_depth_loop)
+{
+	// One line naming the GPU, the driver and the blend road it resolved to, so a field report says
+	// which path the device is on. ROAA=yes with fbfetch=NO means the per-primitive barrier path.
+	Console.WriteLn("VK: GPU '%s' vendor=0x%04X driver='%s' (%s) | ROAA=%s fbfetch=%s texbarrier=%s "
+					"inpAttFB=%s dualSrc=%s blendConst=%s fastShadow=%s testSampleDepth=%s madFallback=%s pushdesc=%s "
+					"streamRings=%s(type %u)",
+		m_device_properties.deviceName,
+		m_device_properties.vendorID,
+		m_device_driver_properties.driverName,
+		m_device_driver_properties.driverInfo,
+		m_optional_extensions.vk_ext_rasterization_order_attachment_access ? "yes" : "NO",
+		m_features.framebuffer_fetch ? "yes(in-tile)" : "NO(barrier-fallback)",
+		m_features.texture_barrier ? "on" : "off",
+		// The input-attachment descriptor path: barriers on and no feedback-loop layout (Mali), the
+		// path sashkinbro's stale-tile descriptor fix targets.
+		(m_features.texture_barrier && !UseFeedbackLoopLayout()) ? "yes" : "NO",
+		m_features.dual_source_blend ? "yes" : "NO(sw-blend-fallback)",
+		m_features.broken_blend_constant ? "BROKEN(afix-via-src1)" : "ok",
+		m_features.fast_stencil_shadow ? "yes(blend)" : "NO(rt-read)",
+		m_features.test_and_sample_depth ? "on" : "off",
+		m_features.broken_mad_deinterlace ? "weave+blend(G57)" : "motion-adaptive",
+		m_use_push_descriptors ? "on" : "off",
+		GSStreamRingMemoryRoadName(m_stream_ring_memory.road), m_stream_ring_memory.type_index);
+
+	// The self-read road and what selected it (the road name carries the experiment key or the driver
+	// fact), and on the declared road which Vulkan declarations are made. After the banner because
+	// depth_feedback is final only now.
+	Console.WriteLn("VK: self-read road = %s [texbarrier=%s intile=%s layout=%s ordersOverlap=%s]",
+		GSSelfReadRoadName(road), m_features.texture_barrier ? "on" : "off",
+		m_features.framebuffer_fetch ? "on" : "off", UseFeedbackLoopLayout() ? "on" : "off",
+		m_features.declared_feedback_loop_orders_overlap ? "claimed" : "no");
+	// Printed whenever a driver claims the fix, including when the part disqualifies it, so a user who
+	// installed the driver pack can see the tag was read.
+	if (const u32 fix_generation = GetMobileDriverProfile().declared_loop_fix_generation;
+		fix_generation != 0)
+	{
+		Console.WriteLn("VK: driver claims feedback-loop fix generation %u (driverInfo '%s'); "
+						"declared-loop ordering %s.",
+			fix_generation, m_device_driver_properties.driverInfo,
+			GetMobileDriverProfile().orders_declared_feedback_loop ?
+				"TRUSTED" :
+				"NOT trusted on this part -- generation 1 covers Turnip on Adreno 650-699, "
+				"generation 2 adds Adreno 730 and up");
+	}
+	// Printed whenever the profile carries the rule, in effect or not.
+	if (GetMobileDriverProfile().prefers_declared_loop_with_barriers)
+	{
+		const bool in_effect = road.selected_by_driver_fact && road.road == GSSelfReadRoad::InPassBarrier;
+		Console.WriteLn("VK: driver rule: Turnip a7xx -- declared feedback loop with the per-draw "
+						"barriers KEPT; %s.",
+			in_effect ? "in effect" : "NOT in effect, overridden here");
+	}
+	if (UseFeedbackLoopLayout() && m_features.texture_barrier)
+	{
+		Console.WriteLn("VK: declares COLOR_ATTACHMENT_FEEDBACK_LOOP %s + "
+						"ATTACHMENT_FEEDBACK_LOOP_OPTIMAL layout + pass-to-pass sampler ordering; "
+						"depth loop %s (test_and_sample_depth=%s depth_feedback=%s).",
+			m_declare_loop_per_draw ? "per draw" : "pipeline create flag",
+			declare_depth_loop ? "DECLARED" : "not declared",
+			m_features.test_and_sample_depth ? "on" : "off", m_features.depth_feedback ? "on" : "off");
+	}
+
+	// The gsrunner flags that move a road for an A/B. Printed only when one is set, so a device
+	// measurement's log says which arm it is while an ordinary run says nothing.
+	if (g_gs_measurement_overrides.Any())
+	{
+		Console.WriteLn("VK: measurement overrides: loop-spelling=%s(%s; %s) declare-arm=%u depth-loop=%s "
+						"stencil-buffer=%s alpha-bit-logic-op=%s provoking-vertex=%s dual-source=%s",
+			g_gs_measurement_overrides.loop_create_flag ? "pipeline create flag" : "dynamic per draw",
+			g_gs_measurement_overrides.loop_create_flag ? "forced" : "default",
+			m_declare_loop_per_draw ? "applied" : "pipeline create flag in effect",
+			static_cast<unsigned>(g_gs_measurement_overrides.self_read_arm),
+			g_gs_measurement_overrides.declare_depth_loop ? "DECLARED" : "off",
+			g_gs_measurement_overrides.disable_stencil_buffer ? "FORCED OFF" : "device",
+			g_gs_measurement_overrides.alpha_bit_logic_op ? (m_features.alpha_bit_logic_op ? "FORCED ON" : "FORCED but no logicOp") : "device",
+			g_gs_measurement_overrides.no_provoking_vertex ? "FORCED OFF" : "device",
+			g_gs_measurement_overrides.no_dual_source ? "FORCED OFF" : "device");
+	}
+	if (m_features.alpha_bit_logic_op)
+		Console.WriteLn("VK: alpha bit 7 marks through a logic op (no target read).");
+
+	DevCon.WriteLn("Optional features:%s%s%s%s%s%s", m_features.primitive_id ? " primitive_id" : "",
+		m_features.texture_barrier ? " texture_barrier" : "", m_features.framebuffer_fetch ? " framebuffer_fetch" : "",
+		m_features.provoking_vertex_last ? " provoking_vertex_last" : "", m_features.vs_expand ? " vs_expand" : "",
+		m_features.no_ps2_z_quantization ? " no_ps2_z_quantization" : "");
+
+	DevCon.WriteLn("Using %s for point expansion and %s for line expansion.",
+		m_features.point_expand ? "hardware" : "vertex expanding",
+		m_features.line_expand ? "hardware" : "vertex expanding");
+}
+
+bool GSDeviceVK::CheckFormatSupport()
+{
+	bool has_rov_storage_flags = true;
+
+	// Check texture format support before we try to create them.
+	for (u32 fmt = static_cast<u32>(GSTexture::Format::Color); fmt < static_cast<u32>(GSTexture::Format::PrimID); fmt++)
+	{
+		const VkFormat vkfmt = LookupNativeFormat(static_cast<GSTexture::Format>(fmt));
+		VkFormatFeatureFlags bits = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
+
+		if (static_cast<GSTexture::Format>(fmt) == GSTexture::Format::DepthStencil)
+			bits |= VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		else
+			bits |= VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT;
+
+		VkFormatProperties props = {};
+		vkGetPhysicalDeviceFormatProperties(m_physical_device, vkfmt, &props);
+		if ((props.optimalTilingFeatures & bits) != bits)
+		{
+			// ColorClip (R16G16B16A16_UNORM) may not be supported as a render target on some GPUs
+			// (e.g. Broadcom V3D). Fall back to ColorHDR (R16G16B16A16_SFLOAT) which provides
+			// equivalent precision for color clamping emulation.
+			if (static_cast<GSTexture::Format>(fmt) == GSTexture::Format::ColorClip)
+			{
+				Console.Warning("VK: ColorClip format (R16G16B16A16_UNORM) not supported as render target, falling back to ColorHDR (R16G16B16A16_SFLOAT).");
+				m_colorclip_fallback_to_hdr = true;
+				continue;
+			}
+
+			Host::ReportFormattedErrorAsync("VK: Renderer Unavailable",
+				"Required format %u is missing bits, you may need to update your driver. (vk:%u, has:0x%x, needs:0x%x)",
+				fmt, static_cast<unsigned>(vkfmt), props.optimalTilingFeatures, bits);
+			return false;
+		}
+
+		if (GSTexture::IsShaderWriteFormat(static_cast<GSTexture::Format>(fmt)))
+			has_rov_storage_flags &= ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) != 0);
+	}
+
+	m_features.dxt_textures = m_device_features.textureCompressionBC;
+	m_features.bptc_textures = m_device_features.textureCompressionBC;
+
+	// ASTC LDR: the device feature must be enabled (SelectDeviceFeatures) AND every
+	// footprint the loader accepts must be sampleable with optimal tiling. All-or-nothing,
+	// because the loader is format-agnostic once a pack is installed.
+	m_features.astc_textures = false;
+	if (m_device_features.textureCompressionASTC_LDR)
+	{
+		static constexpr std::array<VkFormat, 14> s_astc_formats = {{
+			VK_FORMAT_ASTC_4x4_UNORM_BLOCK, VK_FORMAT_ASTC_5x4_UNORM_BLOCK, VK_FORMAT_ASTC_5x5_UNORM_BLOCK,
+			VK_FORMAT_ASTC_6x5_UNORM_BLOCK, VK_FORMAT_ASTC_6x6_UNORM_BLOCK, VK_FORMAT_ASTC_8x5_UNORM_BLOCK,
+			VK_FORMAT_ASTC_8x6_UNORM_BLOCK, VK_FORMAT_ASTC_8x8_UNORM_BLOCK, VK_FORMAT_ASTC_10x5_UNORM_BLOCK,
+			VK_FORMAT_ASTC_10x6_UNORM_BLOCK, VK_FORMAT_ASTC_10x8_UNORM_BLOCK, VK_FORMAT_ASTC_10x10_UNORM_BLOCK,
+			VK_FORMAT_ASTC_12x10_UNORM_BLOCK, VK_FORMAT_ASTC_12x12_UNORM_BLOCK,
+		}};
+
+		bool all_ok = true;
+		for (const VkFormat fmt : s_astc_formats)
+		{
+			VkFormatProperties props = {};
+			vkGetPhysicalDeviceFormatProperties(m_physical_device, fmt, &props);
+			if (!(props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) ||
+				!(props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_DST_BIT))
+			{
+				all_ok = false;
+				break;
+			}
+		}
+		m_features.astc_textures = all_ok;
+	}
+
+	DevCon.WriteLn("Vulkan: ASTC LDR texture replacements %s.",
+		m_features.astc_textures ? "active" : "not supported by this device/driver");
+
+	// The "no stencil buffer or texture barrier" warning is deliberately NOT shown on Android.
+	// UseRenderTargetCopyForFeedback turns texture barriers off by design on the mobile drivers
+	// this ships to (see the feedback notes above), so the condition is the NORMAL configuration
+	// here rather than a fault — every affected user got a scary "this will break some graphical
+	// effects" toast on every boot about a path we chose on purpose. It stays on desktop, where it
+	// really does indicate a deficient driver.
+#ifndef __ANDROID__
+	if (!m_features.texture_barrier && !m_features.stencil_buffer)
+	{
+		Host::AddKeyedOSDMessage("GSDeviceVK_NoTextureBarrierOrStencilBuffer",
+			TRANSLATE_STR("GS",
+				"Stencil buffers and texture barriers are both unavailable, this will break some graphical effects."),
+			Host::OSD_WARNING_DURATION);
+	}
+#endif
+
+	m_max_texture_size = m_device_properties.limits.maxImageDimension2D;
+	m_max_framebuffer_width = m_device_properties.limits.maxFramebufferWidth;
+	m_max_framebuffer_height = m_device_properties.limits.maxFramebufferHeight;
+
+#if defined(_WIN32)
+	// ROV (fragment_shader_interlock) is only correct on immediate-mode desktop GPUs.
+	// Gate it on a positive vendor allowlist rather than blocklisting known-bad tilers:
+	// tilers order fragments per-tile, so pixel_interlock_ordered is either wrong or hangs
+	// (Adreno/turnip A6xx hangcheck, PowerVR, Apple, Broadcom). WoA Adreno fails this for free.
+	const bool rov_vendor_ok = IsDeviceNVIDIA() || IsDeviceAMD() || IsDeviceIntel();
+	m_features.rov = m_optional_extensions.vk_ext_fragment_shader_interlock &&
+	                 m_device_features.fragmentStoresAndAtomics &&
+	                 has_rov_storage_flags &&
+	                 !m_features.framebuffer_fetch &&
+	                 rov_vendor_ok;
+#elif defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GSVK_HEADLESS)
+	// The native NVIDIA device is immediate-mode. Reuse the existing ROV shader,
+	// descriptors and NVIDIA render-pass handling, with every capability gate intact.
+	// Other native vendors keep the conservative non-Windows policy.
+	m_features.rov = m_optional_extensions.vk_ext_fragment_shader_interlock &&
+	                 m_device_features.fragmentStoresAndAtomics &&
+	                 has_rov_storage_flags &&
+	                 !m_features.framebuffer_fetch &&
+	                 IsDeviceNVIDIA();
+#else
+	// Preserve the conservative policy on other non-Windows platforms.
+	m_features.rov = false;
+#endif
+
+	return true;
+}
+
+void GSDeviceVK::DrawPrimitive()
+{
+	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
+	vkCmdDraw(GetCurrentCommandBuffer(), m_vertex.count, 1, m_vertex.start, 0);
+}
+
+void GSDeviceVK::DrawIndexedPrimitive()
+{
+	DrawIndexedPrimitive(0, m_index.count);
+}
+
+void GSDeviceVK::DrawIndexedPrimitive(int offset, int count)
+{
+	pxAssert(offset + count <= (int)m_index.count);
+	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
+	vkCmdDrawIndexed(GetCurrentCommandBuffer(), count, 1, m_index.start + offset, m_vertex.start, 0);
+}
+
+void GSDeviceVK::DrawIndexedPrimitiveVSExpand(int offset, int count, bool vs_indexing, int vs_indexing_expansion)
+{
+	pxAssert(offset + count <= (int)m_index.count);
+
+	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
+	if (vs_indexing)
+	{
+		SetVSPushConstants(m_vertex.start, m_index.start + offset);
+		vkCmdDraw(GetCurrentCommandBuffer(), count * vs_indexing_expansion, 1, 0, 0);
+	}
+	else
+	{
+		SetVSPushConstants(m_vertex.start);
+		vkCmdDrawIndexed(GetCurrentCommandBuffer(), count, 1, m_index.start + offset, 0, 0);
+	}
+}
+
+void GSDeviceVK::Draw(const GSHWDrawConfig& config, int offset, int count)
+{
+	if (config.vs.expand != GSHWDrawConfig::VSExpand::None)
+	{
+		const bool vs_indexing = config.vs.UseVSExpandIndexBuffer();
+		const u32 vs_indexing_expansion = GetExpansionFactor(config.vs.expand);
+		DrawIndexedPrimitiveVSExpand(offset, count, vs_indexing, vs_indexing_expansion);
+	}
+	else
+	{
+		DrawIndexedPrimitive(offset, count);
+	}
+}
+
+void GSDeviceVK::Draw(const GSHWDrawConfig& config)
+{
+	Draw(config, 0, m_index.count);
+}
+
+VkFormat GSDeviceVK::LookupNativeFormat(GSTexture::Format format) const
+{
+	static constexpr std::array<VkFormat, static_cast<int>(GSTexture::Format::Last) + 1> s_format_mapping = {{
+		VK_FORMAT_UNDEFINED, // Invalid
+		VK_FORMAT_R8G8B8A8_UNORM, // Color
+		VK_FORMAT_A2B10G10R10_UNORM_PACK32, // ColorHQ
+		VK_FORMAT_R16G16B16A16_SFLOAT, // ColorHDR
+		VK_FORMAT_R16G16B16A16_UNORM, // ColorClip
+		VK_FORMAT_D32_SFLOAT_S8_UINT, // DepthStencil
+		VK_FORMAT_R32_SFLOAT, // DepthColor
+		VK_FORMAT_R8_UNORM, // UNorm8
+		VK_FORMAT_R16_UINT, // UInt16
+		VK_FORMAT_R32_UINT, // UInt32
+		VK_FORMAT_R32_SFLOAT, // PrimID
+		VK_FORMAT_BC1_RGBA_UNORM_BLOCK, // BC1
+		VK_FORMAT_BC2_UNORM_BLOCK, // BC2
+		VK_FORMAT_BC3_UNORM_BLOCK, // BC3
+		VK_FORMAT_BC7_UNORM_BLOCK, // BC7
+		VK_FORMAT_ASTC_4x4_UNORM_BLOCK, // ASTC4x4
+		VK_FORMAT_ASTC_5x4_UNORM_BLOCK, // ASTC5x4
+		VK_FORMAT_ASTC_5x5_UNORM_BLOCK, // ASTC5x5
+		VK_FORMAT_ASTC_6x5_UNORM_BLOCK, // ASTC6x5
+		VK_FORMAT_ASTC_6x6_UNORM_BLOCK, // ASTC6x6
+		VK_FORMAT_ASTC_8x5_UNORM_BLOCK, // ASTC8x5
+		VK_FORMAT_ASTC_8x6_UNORM_BLOCK, // ASTC8x6
+		VK_FORMAT_ASTC_8x8_UNORM_BLOCK, // ASTC8x8
+		VK_FORMAT_ASTC_10x5_UNORM_BLOCK, // ASTC10x5
+		VK_FORMAT_ASTC_10x6_UNORM_BLOCK, // ASTC10x6
+		VK_FORMAT_ASTC_10x8_UNORM_BLOCK, // ASTC10x8
+		VK_FORMAT_ASTC_10x10_UNORM_BLOCK, // ASTC10x10
+		VK_FORMAT_ASTC_12x10_UNORM_BLOCK, // ASTC12x10
+		VK_FORMAT_ASTC_12x12_UNORM_BLOCK, // ASTC12x12
+	}};
+
+	if (format == GSTexture::Format::ColorClip && m_colorclip_fallback_to_hdr)
+		return VK_FORMAT_R16G16B16A16_SFLOAT;
+
+	return (format != GSTexture::Format::DepthStencil || m_features.stencil_buffer) ?
+		s_format_mapping[static_cast<int>(format)] :
+		VK_FORMAT_D32_SFLOAT;
+}
+
+GSTexture* GSDeviceVK::CreateSurface(GSTexture::Usage usage, int width, int height, int levels, GSTexture::Format format)
+{
+	std::unique_ptr<GSTexture> tex = GSTextureVK::Create(usage, format, width, height, levels);
+	if (!tex)
+	{
+		// We're probably out of vram, try flushing the command buffer to release pending textures.
+		PurgePool();
+		ExecuteCommandBufferAndRestartRenderPass(
+			true, "Couldn't allocate texture.");
+		tex = GSTextureVK::Create(usage, format, width, height, levels);
+	}
+
+	return tex.release();
+}
+
+std::unique_ptr<GSDownloadTexture> GSDeviceVK::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
+{
+	return GSDownloadTextureVK::Create(width, height, format);
+}
+
+void GSDeviceVK::DoCopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
+{
+	// Empty rect, abort copy.
+	if (r.rempty())
+	{
+		GL_INS("VK: DoCopyRect rect empty.");
+		return;
+	}
+
+	GSTextureVK* const sTexVK = static_cast<GSTextureVK*>(sTex);
+	GSTextureVK* const dTexVK = static_cast<GSTextureVK*>(dTex);
+	const GSVector4i dst_rect(0, 0, dTexVK->GetWidth(), dTexVK->GetHeight());
+	const bool full_draw_copy = dst_rect.eq(r);
+
+	// Source is cleared, if destination is a render target, we can carry the clear forward.
+	if (sTexVK->GetState() == GSTexture::State::Cleared)
+	{
+		if (dTexVK->IsRenderTargetOrDepthStencil())
+		{
+			if (ProcessClearsBeforeCopy(sTex, dTex, full_draw_copy))
+				return;
+
+			// Do an attachment clear.
+			const bool depth = dTexVK->IsDepthStencil();
+			OMSetRenderTargets(depth ? nullptr : dTexVK, depth ? dTexVK : nullptr, dst_rect);
+			BeginRenderPassForStretchRect(
+				dTexVK, dst_rect, GSVector4i(destX, destY, destX + r.width(), destY + r.height()));
+
+			// so use an attachment clear. VkClearValue is a union, so only the aspect we are
+			// actually clearing may be written -- filling both destroys the colour's red and
+			// green with the depth and the stencil.
+			VkClearAttachment ca;
+			ca.aspectMask = depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+			ca.colorAttachment = 0;
+			if (depth)
+			{
+				ca.clearValue.depthStencil.depth = sTexVK->GetClearDepth();
+				ca.clearValue.depthStencil.stencil = 0;
+			}
+			else
+			{
+				GSVector4::store<false>(ca.clearValue.color.float32, sTexVK->GetClearForFormat());
+			}
+
+			// The clear rect is in framebuffer coordinates and the framebuffer is the whole
+			// destination, so it has to carry the copy's destination offset.
+			const VkClearRect cr = {{{static_cast<s32>(destX), static_cast<s32>(destY)},
+										{static_cast<u32>(r.width()), static_cast<u32>(r.height())}},
+				0u, 1u};
+			vkCmdClearAttachments(GetCurrentCommandBuffer(), 1, &ca, 1, &cr);
+			m_date_copy.valid = false; // see OMSetRenderTargets
+
+			return;
+		}
+
+		// commit the clear to the source first, then do normal copy
+		sTexVK->CommitClear();
+	}
+
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
+	// if the destination has been cleared, and we're not overwriting the whole thing, commit the clear first
+	// (the area outside of where we're copying to)
+	if (dTexVK->GetState() == GSTexture::State::Cleared && !full_draw_copy)
+		dTexVK->CommitClear();
+
+	// *now* we can do a normal image copy.
+	const VkImageAspectFlags src_aspect =
+		(sTexVK->IsDepthStencil()) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+	const VkImageAspectFlags dst_aspect =
+		(dTexVK->IsDepthStencil()) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+	const VkImageCopy ic = {{src_aspect, 0u, 0u, 1u}, {r.left, r.top, 0u}, {dst_aspect, 0u, 0u, 1u},
+		{static_cast<s32>(destX), static_cast<s32>(destY), 0u},
+		{static_cast<u32>(r.width()), static_cast<u32>(r.height()), 1u}};
+
+	EndRenderPass();
+
+	sTexVK->SetUseFenceCounter(GetCurrentFenceCounter());
+	dTexVK->SetUseFenceCounter(GetCurrentFenceCounter());
+	sTexVK->TransitionToLayout(
+		(dTexVK == sTexVK) ? GSTextureVK::Layout::TransferSelf : GSTextureVK::Layout::TransferSrc);
+	dTexVK->TransitionToLayout(
+		(dTexVK == sTexVK) ? GSTextureVK::Layout::TransferSelf : GSTextureVK::Layout::TransferDst);
+
+	vkCmdCopyImage(GetCurrentCommandBuffer(), sTexVK->GetImage(), sTexVK->GetVkLayout(), dTexVK->GetImage(),
+		dTexVK->GetVkLayout(), 1, &ic);
+
+	dTexVK->SetState(GSTexture::State::Dirty);
+}
+
+void GSDeviceVK::DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
+	ShaderConvertSelector shader, Filter filter)
+{
+	pxAssert(dTex);
+	filter = shader.SupportsBilinear() ? Nearest : filter; // Don't allow HW bilinear if SW bilinear is needed.
+	const bool allow_discard = (shader.Mask() == 0xf);
+	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
+		GetConvertPipeline(shader), filter, allow_discard);
+}
+
+void GSDeviceVK::DoStretchRect(GSTexture* sTex, const GSVector4& sRect, const GSVector4& dRect,
+	PresentShader shader, Filter filter)
+{
+	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, nullptr, dRect,
+		m_present.at(static_cast<u32>(shader)), filter, true);
+}
+
+void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
+	PresentShader shader, float shaderTime, Filter filter)
+{
+	DisplayConstantBuffer cb;
+	cb.SetSource(sRect, sTex->GetSize());
+	cb.SetTarget(dRect, dTex ? dTex->GetSize() : GetPresentationSize());
+	cb.SetTime(shaderTime);
+	SetUtilityPushConstants(&cb, sizeof(cb));
+
+	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
+		m_present[static_cast<int>(shader)], filter, true);
+}
+
+void GSDeviceVK::DoDrawMultiStretchRects(
+	const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvertSelector shader)
+{
+	GSTexture* last_tex = rects[0].src;
+	Filter last_filter = rects[0].filter;
+	u8 last_wmask = rects[0].wmask.wrgba;
+
+	u32 first = 0;
+	u32 count = 1;
+
+	// Make sure all textures are in shader read only layout, so we don't need to break
+	// the render pass to transition.
+	for (u32 i = 0; i < num_rects; i++)
+	{
+		GSTextureVK* const stex = static_cast<GSTextureVK*>(rects[i].src);
+		stex->CommitClear();
+		if (stex->GetLayout() != GSTextureVK::Layout::ShaderReadOnly)
+		{
+			EndRenderPass();
+			stex->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+		}
+	}
+
+	for (u32 i = 1; i < num_rects; i++)
+	{
+		if (rects[i].src == last_tex && rects[i].filter == last_filter && rects[i].wmask.wrgba == last_wmask)
+		{
+			count++;
+			continue;
+		}
+
+		DoMultiStretchRects(rects + first, count, static_cast<GSTextureVK*>(dTex), shader);
+		last_tex = rects[i].src;
+		last_filter = rects[i].filter;
+		last_wmask = rects[i].wmask.wrgba;
+		first += count;
+		count = 1;
+	}
+
+	DoMultiStretchRects(rects + first, count, static_cast<GSTextureVK*>(dTex), shader);
+}
+
+void GSDeviceVK::DoMultiStretchRects(
+	const MultiStretchRect* rects, u32 num_rects, GSTextureVK* dTex, ShaderConvertSelector shader)
+{
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+	
+	// Set up vertices first.
+	const u32 vertex_reserve_size = num_rects * 4 * sizeof(GSVertexPT1);
+	const u32 index_reserve_size = num_rects * 6 * sizeof(u16);
+	if (!m_vertex_stream_buffer.ReserveMemory(vertex_reserve_size, sizeof(GSVertexPT1)) ||
+		!m_index_stream_buffer.ReserveMemory(index_reserve_size, sizeof(u16)))
+	{
+		ExecuteCommandBufferAndRestartRenderPass(false, "Uploading bytes to vertex buffer");
+		if (!m_vertex_stream_buffer.ReserveMemory(vertex_reserve_size, sizeof(GSVertexPT1)) ||
+			!m_index_stream_buffer.ReserveMemory(index_reserve_size, sizeof(u16)))
+		{
+			pxFailRel("Failed to reserve space for vertices");
+		}
+	}
+
+	// Pain in the arse because the primitive topology for the pipelines is all triangle strips.
+	// Don't use primitive restart here, it ends up slower on some drivers.
+	const GSVector2 ds(static_cast<float>(dTex->GetWidth()), static_cast<float>(dTex->GetHeight()));
+	GSVertexPT1* verts = reinterpret_cast<GSVertexPT1*>(m_vertex_stream_buffer.GetCurrentHostPointer());
+	u16* idx = reinterpret_cast<u16*>(m_index_stream_buffer.GetCurrentHostPointer());
+	u32 icount = 0;
+	u32 vcount = 0;
+	for (u32 i = 0; i < num_rects; i++)
+	{
+		const GSVector4& sRect = rects[i].src_rect;
+		const GSVector4& dRect = rects[i].dst_rect;
+
+		const float inv_x = 2.0f / ds.x;
+		const float inv_y = 2.0f / ds.y;
+
+		const float left = dRect.x * inv_x - 1.0f;
+		const float right = dRect.z * inv_x - 1.0f;
+		const float top = 1.0f - dRect.y * inv_y;
+		const float bottom = 1.0f - dRect.w * inv_y;
+
+		const u32 vstart = vcount;
+		verts[vcount++] = {GSVector4(left, top, 0.5f, 1.0f), GSVector2(sRect.x, sRect.y)};
+		verts[vcount++] = {GSVector4(right, top, 0.5f, 1.0f), GSVector2(sRect.z, sRect.y)};
+		verts[vcount++] = {GSVector4(left, bottom, 0.5f, 1.0f), GSVector2(sRect.x, sRect.w)};
+		verts[vcount++] = {GSVector4(right, bottom, 0.5f, 1.0f), GSVector2(sRect.z, sRect.w)};
+
+		if (i > 0)
+			idx[icount++] = vstart;
+
+		idx[icount++] = vstart;
+		idx[icount++] = vstart + 1;
+		idx[icount++] = vstart + 2;
+		idx[icount++] = vstart + 3;
+		idx[icount++] = vstart + 3;
+	};
+
+	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / sizeof(GSVertexPT1);
+	m_vertex.count = vcount;
+	m_index.start = m_index_stream_buffer.GetCurrentOffset() / sizeof(u16);
+	m_index.count = icount;
+	m_vertex_stream_buffer.CommitMemory(vcount * sizeof(GSVertexPT1));
+	m_index_stream_buffer.CommitMemory(icount * sizeof(u16));
+	SetIndexBuffer(m_index_stream_buffer.GetBuffer());
+
+	// Even though we're batching, a cmdbuffer submit could've messed this up.
+	const GSVector4i rc(dTex->GetRect());
+	OMSetRenderTargets(dTex->IsRenderTarget() ? dTex : nullptr, dTex->IsDepthStencil() ? dTex : nullptr, rc);
+	if (!InRenderPass())
+		BeginRenderPassForStretchRect(dTex, rc, rc, false);
+	SetUtilityTexture(rects[0].src, rects[0].filter == Biln ? m_linear_sampler : m_point_sampler);
+
+	SetPipeline(GetConvertPipeline(shader.SetMask(rects[0].wmask.wrgba)));
+
+	if (ApplyUtilityState())
+		DrawIndexedPrimitive();
+}
+
+void GSDeviceVK::BeginRenderPassForStretchRect(
+	GSTextureVK* dTex, const GSVector4i& dtex_rc, const GSVector4i& dst_rc, bool allow_discard)
+{
+	pxAssert(dst_rc.x >= 0 && dst_rc.y >= 0 && dst_rc.z <= dTex->GetWidth() && dst_rc.w <= dTex->GetHeight());
+
+	const VkAttachmentLoadOp load_op =
+		(allow_discard && dst_rc.eq(dtex_rc)) ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : GetLoadOpForTexture(dTex);
+	dTex->SetState(GSTexture::State::Dirty);
+
+	if (dTex->IsDepthStencil())
+	{
+		if (load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
+			BeginClearRenderPass(m_utility_depth_render_pass_clear, dtex_rc, dTex->GetClearDepth(), 0);
+		else
+			BeginRenderPass((load_op == VK_ATTACHMENT_LOAD_OP_DONT_CARE) ? m_utility_depth_render_pass_discard :
+			                                                               m_utility_depth_render_pass_load, dtex_rc);
+	}
+	else if (dTex->GetFormat() == GSTexture::Format::Color)
+	{
+		if (load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
+			BeginClearRenderPass(m_utility_color_render_pass_clear, dtex_rc, dTex->GetClearColor());
+		else
+			BeginRenderPass((load_op == VK_ATTACHMENT_LOAD_OP_DONT_CARE) ? m_utility_color_render_pass_discard :
+			                                                               m_utility_color_render_pass_load, dtex_rc);
+	}
+	else
+	{
+		// integer formats, etc
+		const VkRenderPass rp = GetRenderPass(dTex->GetVkFormat(), VK_FORMAT_UNDEFINED, load_op,
+			VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+		if (load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
+		{
+			BeginClearRenderPass(rp, dtex_rc, dTex->GetClearColor());
+		}
+		else
+		{
+			BeginRenderPass(rp, dtex_rc);
+		}
+	}
+}
+
+void GSDeviceVK::DoStretchRect(GSTextureVK* sTex, const GSVector4& sRect, GSTextureVK* dTex, const GSVector4& dRect,
+	VkPipeline pipeline, Filter filter, bool allow_discard)
+{
+	if (sTex->GetLayout() != GSTextureVK::Layout::ShaderReadOnly)
+	{
+		// can't transition in a render pass
+		EndRenderPass();
+		sTex->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+	}
+
+	SetUtilityTexture(sTex, filter == Biln ? m_linear_sampler : m_point_sampler);
+	SetPipeline(pipeline);
+
+	const bool is_present = (!dTex);
+	const bool depth = (dTex && dTex->IsDepthStencil());
+	const GSVector2i size(is_present ? GetPresentationSize() : dTex->GetSize());
+	const GSVector4i dtex_rc(0, 0, size.x, size.y);
+	const GSVector4i dst_rc(GSVector4i(dRect).rintersect(dtex_rc));
+
+	// switch rts (which might not end the render pass), so check the bounds
+	if (!is_present)
+	{
+		OMSetRenderTargets(depth ? nullptr : dTex, depth ? dTex : nullptr, dst_rc);
+		if (InRenderPass() && dTex->GetState() == GSTexture::State::Cleared)
+			EndRenderPass();
+	}
+	else
+	{
+		// this is for presenting, we don't want to screw with the viewport/scissor set by display
+		m_dirty_flags &= ~(DIRTY_FLAG_VIEWPORT | DIRTY_FLAG_SCISSOR);
+	}
+
+	if (!is_present && !InRenderPass())
+		BeginRenderPassForStretchRect(dTex, dtex_rc, dst_rc, allow_discard);
+
+	DrawStretchRect(sRect, dRect, size);
+}
+
+// Rotate a logical-NDC point (x, y) into physical-NDC by `rotation`, the present rotation
+// (the user's DisplayRotation plus the swap chain pre-rotation, GSDevice::GetPresentRotation).
+// Used by the present pass to map a quad laid out for the logical window onto the swap chain
+// image.
+//   Rot0:   (x,  y)
+//   Rot90:  (y, -x)   (image rotates 90° CW on the panel)
+//   Rot180: (-x,-y)
+//   Rot270: (-y, x)   (image rotates 90° CCW on the panel)
+static void RotateNDCForPresent(DisplayRotation rotation, float& x, float& y)
+{
+	switch (rotation)
+	{
+		case DisplayRotation::Rot90:
+		{
+			const float nx = y;
+			const float ny = -x;
+			x = nx;
+			y = ny;
+			break;
+		}
+		case DisplayRotation::Rot180:
+			x = -x;
+			y = -y;
+			break;
+		case DisplayRotation::Rot270:
+		{
+			const float nx = -y;
+			const float ny = x;
+			x = nx;
+			y = ny;
+			break;
+		}
+		case DisplayRotation::Rot0:
+		default:
+			break;
+	}
+}
+
+void GSDeviceVK::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect, const GSVector2i& ds)
+{
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
+	// ia
+	const float inv_x = 2.0f / ds.x;
+	const float inv_y = 2.0f / ds.y;
+
+	float left = dRect.x * inv_x - 1.0f;
+	float right = dRect.z * inv_x - 1.0f;
+	float top = 1.0f - dRect.y * inv_y;
+	float bottom = 1.0f - dRect.w * inv_y;
+
+	// Present pass: map logical-NDC (computed against the rotated window) onto
+	// the unrotated physical swapchain viewport. Non-present passes pass the
+	// real dst-texture size in `ds` and must not rotate.
+	const DisplayRotation rotation = m_is_presenting ? GetPresentRotation() : DisplayRotation::Rot0;
+	if (rotation != DisplayRotation::Rot0)
+	{
+		float tlx = left, tly = top;
+		float trx = right, try_ = top;
+		float blx = left, bly = bottom;
+		float brx = right, bry = bottom;
+		RotateNDCForPresent(rotation, tlx, tly);
+		RotateNDCForPresent(rotation, trx, try_);
+		RotateNDCForPresent(rotation, blx, bly);
+		RotateNDCForPresent(rotation, brx, bry);
+
+		const GSVertexPT1 vertices[] = {
+			{GSVector4(tlx, tly, 0.5f, 1.0f), GSVector2(sRect.x, sRect.y)},
+			{GSVector4(trx, try_, 0.5f, 1.0f), GSVector2(sRect.z, sRect.y)},
+			{GSVector4(blx, bly, 0.5f, 1.0f), GSVector2(sRect.x, sRect.w)},
+			{GSVector4(brx, bry, 0.5f, 1.0f), GSVector2(sRect.z, sRect.w)},
+		};
+		IASetVertexBuffer(vertices, sizeof(vertices[0]), std::size(vertices));
+	}
+	else
+	{
+		const GSVertexPT1 vertices[] = {
+			{GSVector4(left, top, 0.5f, 1.0f), GSVector2(sRect.x, sRect.y)},
+			{GSVector4(right, top, 0.5f, 1.0f), GSVector2(sRect.z, sRect.y)},
+			{GSVector4(left, bottom, 0.5f, 1.0f), GSVector2(sRect.x, sRect.w)},
+			{GSVector4(right, bottom, 0.5f, 1.0f), GSVector2(sRect.z, sRect.w)},
+		};
+		IASetVertexBuffer(vertices, sizeof(vertices[0]), std::size(vertices));
+	}
+
+	if (ApplyUtilityState())
+		DrawPrimitive();
+}
+
+void GSDeviceVK::BlitRect(GSTexture* sTex, const GSVector4i& sRect, u32 sLevel, GSTexture* dTex,
+	const GSVector4i& dRect, u32 dLevel, Filter filter)
+{
+	GSTextureVK* sTexVK = static_cast<GSTextureVK*>(sTex);
+	GSTextureVK* dTexVK = static_cast<GSTextureVK*>(dTex);
+
+	EndRenderPass();
+
+	sTexVK->TransitionToLayout(GSTextureVK::Layout::TransferSrc);
+	dTexVK->TransitionToLayout(GSTextureVK::Layout::TransferDst);
+
+	// ensure we don't leave this bound later on
+	if (m_tfx_textures[0] == sTexVK)
+		PSSetShaderResource(0, nullptr, false);
+
+	pxAssert(sTexVK->IsDepthStencil() == dTexVK->IsDepthStencil());
+	const VkImageAspectFlags aspect =
+		sTexVK->IsDepthStencil() ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+	const VkImageBlit ib{{aspect, sLevel, 0u, 1u}, {{sRect.left, sRect.top, 0}, {sRect.right, sRect.bottom, 1}},
+		{aspect, dLevel, 0u, 1u}, {{dRect.left, dRect.top, 0}, {dRect.right, dRect.bottom, 1}}};
+
+	vkCmdBlitImage(GetCurrentCommandBuffer(), sTexVK->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		dTexVK->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &ib,
+		filter == Biln ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+}
+
+void GSDeviceVK::DoUpdateCLUTTexture(
+	GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize)
+{
+	// Super annoying, but apparently NVIDIA doesn't like floats/ints packed together in the same vec4?
+	struct alignas(16) Uniforms
+	{
+		u32 offsetX, offsetY, dOffset, pad1;
+		float scale;
+		float pad2[3];
+	};
+
+	const Uniforms uniforms = {offsetX, offsetY, dOffset, 0, sScale, {}};
+	SetUtilityPushConstants(&uniforms, sizeof(uniforms));
+
+	const GSVector4 dRect(0, 0, dSize, 1);
+	const ShaderConvert shader = (dSize == 16) ? ShaderConvert::CLUT_4 : ShaderConvert::CLUT_8;
+	DoStretchRect(static_cast<GSTextureVK*>(sTex), GSVector4::zero(), static_cast<GSTextureVK*>(dTex), dRect,
+		GetConvertPipeline(shader), Nearest, true);
+}
+
+void GSDeviceVK::DoConvertToIndexedTexture(
+	GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM)
+{
+	struct alignas(16) Uniforms
+	{
+		u32 SBW;
+		u32 DBW;
+		u32 PSM;
+		u32 pad1[1];
+		float ScaleFactor;
+		float pad2[3];
+	};
+
+	const Uniforms uniforms = {SBW, DBW, SPSM, {}, sScale, {}};
+	SetUtilityPushConstants(&uniforms, sizeof(uniforms));
+
+	const ShaderConvert shader = ((SPSM & 0xE) == 0) ? ShaderConvert::RGBA_TO_8I : ShaderConvert::RGB5A1_TO_8I;
+	const GSVector4 dRect(0, 0, dTex->GetWidth(), dTex->GetHeight());
+	DoStretchRect(static_cast<GSTextureVK*>(sTex), GSVector4::zero(), static_cast<GSTextureVK*>(dTex), dRect,
+		GetConvertPipeline(shader), Nearest, true);
+}
+
+void GSDeviceVK::DoFilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i& clamp_min, const GSVector4& dRect)
+{
+	struct alignas(16) Uniforms
+	{
+		GSVector2i clamp_min;
+		int downsample_factor;
+		int pad0;
+		float weight;
+		float step_multiplier;
+		float pad1[2];
+	};
+
+	const Uniforms uniforms = {
+		clamp_min, static_cast<int>(downsample_factor), 0, static_cast<float>(downsample_factor * downsample_factor), (GSConfig.UserHacks_NativeScaling > GSNativeScaling::Aggressive) ? 2.0f : 1.0f};
+	SetUtilityPushConstants(&uniforms, sizeof(uniforms));
+
+	const ShaderConvert shader = ShaderConvert::DOWNSAMPLE_COPY;
+	//const GSVector4 dRect = GSVector4(dTex->GetRect());
+	DoStretchRect(static_cast<GSTextureVK*>(sTex), GSVector4::zero(), static_cast<GSTextureVK*>(dTex), dRect,
+		GetConvertPipeline(shader), Nearest, true);
+}
+
+void GSDeviceVK::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect,
+	const MergeTopBand* top_band, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const Filter filter)
+{
+	GL_PUSH("DoMerge");
+
+	const GSVector4 full_r(0.0f, 0.0f, 1.0f, 1.0f);
+	const u32 yuv_constants[4] = {EXTBUF.EMODA, EXTBUF.EMODC};
+	const GSVector4 bg_color = GSVector4::unorm8(c);
+	const bool feedback_write_2 = PMODE.EN2 && sTex[2] != nullptr && EXTBUF.FBIN == 1;
+	const bool feedback_write_1 = PMODE.EN1 && sTex[2] != nullptr && EXTBUF.FBIN == 0;
+	const bool feedback_write_2_but_blend_bg = feedback_write_2 && PMODE.SLBG == 1;
+	const VkSampler& sampler = filter == Biln ? m_linear_sampler : m_point_sampler;
+	// Merge the 2 source textures (sTex[0],sTex[1]). Final results go to dTex. Feedback write will go to sTex[2].
+	// If either 2nd output is disabled or SLBG is 1, a background color will be used.
+	// Note: background color is also used when outside of the unit rectangle area
+	EndRenderPass();
+
+	// transition everything before starting the new render pass
+	const bool has_input_0 = (sTex[0] &&
+		(sTex[0]->GetState() == GSTexture::State::Dirty || (sTex[0]->GetState() == GSTexture::State::Cleared || sTex[0]->GetClearColor() != 0)));
+	const bool has_input_1 = (PMODE.SLBG == 0 || feedback_write_2_but_blend_bg) && sTex[1] &&
+		(sTex[1]->GetState() == GSTexture::State::Dirty || (sTex[1]->GetState() == GSTexture::State::Cleared || sTex[1]->GetClearColor() != 0));
+	if (has_input_0)
+	{
+		static_cast<GSTextureVK*>(sTex[0])->CommitClear();
+		static_cast<GSTextureVK*>(sTex[0])->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+	}
+	if (has_input_1)
+	{
+		static_cast<GSTextureVK*>(sTex[1])->CommitClear();
+		static_cast<GSTextureVK*>(sTex[1])->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+	}
+	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(GSTextureVK::Layout::ColorAttachment);
+
+	const GSVector2i dsize(dTex->GetSize());
+	const GSVector4i darea(0, 0, dsize.x, dsize.y);
+	bool dcleared = false;
+	if (sTex[1] && (PMODE.SLBG == 0 || feedback_write_2_but_blend_bg))
+	{
+		// 2nd output is enabled and selected. Copy it to destination so we can blend it with 1st output
+		// Note: value outside of dRect must contains the background color (c)
+		if (sTex[1]->GetState() == GSTexture::State::Dirty)
+		{
+			static_cast<GSTextureVK*>(sTex[1])->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+			OMSetRenderTargets(dTex, nullptr, darea);
+			SetUtilityTexture(sTex[1], sampler);
+			BeginClearRenderPass(m_utility_color_render_pass_clear, darea, c);
+			SetPipeline(GetConvertPipeline(ShaderConvert::COPY));
+			DrawStretchRect(sRect[1], PMODE.SLBG ? dRect[2] : dRect[1], dsize);
+			if (top_band[1].enabled)
+				DrawStretchRect(top_band[1].src, top_band[1].dst, dsize);
+			dTex->SetState(GSTexture::State::Dirty);
+			dcleared = true;
+		}
+	}
+
+	// Upload constant to select YUV algo
+	const GSVector2i fbsize(sTex[2] ? sTex[2]->GetSize() : GSVector2i(0, 0));
+	const GSVector4i fbarea(0, 0, fbsize.x, fbsize.y);
+	if (feedback_write_2)
+	{
+		EndRenderPass();
+		OMSetRenderTargets(sTex[2], nullptr, fbarea);
+		if (dcleared)
+			SetUtilityTexture(dTex, sampler);
+		// sTex[2] can be sTex[0], in which case it might be cleared (e.g. Xenosaga).
+		BeginRenderPassForStretchRect(static_cast<GSTextureVK*>(sTex[2]), fbarea, GSVector4i(dRect[2]));
+		if (dcleared)
+		{
+			SetPipeline(GetConvertPipeline(ShaderConvert::YUV));
+			SetUtilityPushConstants(yuv_constants, sizeof(yuv_constants));
+			DrawStretchRect(full_r, dRect[2], fbsize);
+		}
+		EndRenderPass();
+
+		if (sTex[0] == sTex[2])
+		{
+			// need a barrier here because of the render pass
+			static_cast<GSTextureVK*>(sTex[2])->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+		}
+	}
+
+	// Restore background color to process the normal merge
+	if (feedback_write_2_but_blend_bg || !dcleared)
+	{
+		EndRenderPass();
+		OMSetRenderTargets(dTex, nullptr, darea);
+		BeginClearRenderPass(m_utility_color_render_pass_clear, darea, c);
+		dTex->SetState(GSTexture::State::Dirty);
+	}
+	else if (!InRenderPass())
+	{
+		OMSetRenderTargets(dTex, nullptr, darea);
+		BeginRenderPass(m_utility_color_render_pass_load, darea);
+	}
+
+	if (sTex[0] && sTex[0]->GetState() == GSTexture::State::Dirty)
+	{
+		// 1st output is enabled. It must be blended
+		SetUtilityTexture(sTex[0], sampler);
+		SetPipeline(m_merge[PMODE.MMOD]);
+		SetUtilityPushConstants(&bg_color, sizeof(bg_color));
+		DrawStretchRect(sRect[0], dRect[0], dTex->GetSize());
+		if (top_band[0].enabled)
+			DrawStretchRect(top_band[0].src, top_band[0].dst, dTex->GetSize());
+	}
+
+	if (feedback_write_1)
+	{
+		EndRenderPass();
+		SetPipeline(GetConvertPipeline(ShaderConvert::YUV));
+		SetUtilityTexture(dTex, sampler);
+		SetUtilityPushConstants(yuv_constants, sizeof(yuv_constants));
+		OMSetRenderTargets(sTex[2], nullptr, fbarea);
+		BeginRenderPass(m_utility_color_render_pass_load, fbarea);
+		DrawStretchRect(full_r, dRect[2], dsize);
+	}
+
+	EndRenderPass();
+
+	// this texture is going to get used as an input, so make sure we don't read undefined data
+	static_cast<GSTextureVK*>(dTex)->CommitClear();
+	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+}
+
+void GSDeviceVK::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
+	ShaderInterlace shader, Filter filter, const InterlaceConstantBuffer& cb)
+{
+	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(GSTextureVK::Layout::ColorAttachment);
+
+	const GSVector4i rc = GSVector4i(dRect);
+	const GSVector4i dtex_rc = dTex->GetRect();
+	const GSVector4i clamped_rc = rc.rintersect(dtex_rc);
+	EndRenderPass();
+	OMSetRenderTargets(dTex, nullptr, clamped_rc);
+	SetUtilityTexture(sTex, filter == Biln ? m_linear_sampler : m_point_sampler);
+	BeginRenderPassForStretchRect(static_cast<GSTextureVK*>(dTex), dTex->GetRect(), clamped_rc, false);
+	SetPipeline(m_interlace[static_cast<int>(shader)]);
+	SetUtilityPushConstants(&cb, sizeof(cb));
+	DrawStretchRect(sRect, dRect, dTex->GetSize());
+	EndRenderPass();
+
+	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+}
+
+void GSDeviceVK::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
+{
+	const GSVector4 sRect = GSVector4(0.0f, 0.0f, 1.0f, 1.0f);
+	const GSVector4i dRect = dTex->GetRect();
+	EndRenderPass();
+	OMSetRenderTargets(dTex, nullptr, dRect);
+	SetUtilityTexture(sTex, m_point_sampler);
+	BeginRenderPass(m_utility_color_render_pass_discard, dRect);
+	dTex->SetState(GSTexture::State::Dirty);
+	SetPipeline(m_shadeboost_pipeline);
+	SetUtilityPushConstants(params, sizeof(float) * 4);
+	DrawStretchRect(sRect, GSVector4(dRect), dTex->GetSize());
+	EndRenderPass();
+
+	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+}
+
+void GSDeviceVK::DoFXAA(GSTexture* sTex, GSTexture* dTex)
+{
+	const GSVector4 sRect = GSVector4(0.0f, 0.0f, 1.0f, 1.0f);
+	const GSVector4i dRect = dTex->GetRect();
+	EndRenderPass();
+	OMSetRenderTargets(dTex, nullptr, dRect);
+	SetUtilityTexture(sTex, m_linear_sampler);
+	BeginRenderPass(m_utility_color_render_pass_discard, dRect);
+	dTex->SetState(GSTexture::State::Dirty);
+	SetPipeline(m_fxaa_pipeline);
+	DrawStretchRect(sRect, GSVector4(dRect), dTex->GetSize());
+	EndRenderPass();
+
+	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+}
+
+#ifdef ARMSX2_HAS_LIBRASHADER
+
+static void ReportShaderChainError(const char* what, libra_error_t err)
+{
+	char* msg = nullptr;
+	if (libra_error_write(err, &msg) == 0 && msg)
+	{
+		Console.Error("(GS) librashader %s failed: %s", what, msg);
+		libra_error_free_string(&msg);
+	}
+	else
+	{
+		Console.Error("(GS) librashader %s failed (errno %d)", what, static_cast<int>(libra_error_errno(err)));
+	}
+	libra_error_free(&err);
+}
+
+#endif
+
+void GSDeviceVK::DestroyShaderChain()
+{
+#ifdef ARMSX2_HAS_LIBRASHADER
+	if (m_shader_chain)
+	{
+		libra_vk_filter_chain_t chain = static_cast<libra_vk_filter_chain_t>(m_shader_chain);
+		libra_vk_filter_chain_free(&chain);
+		m_shader_chain = nullptr;
+	}
+#endif
+	m_shader_chain_preset.clear();
+	m_shader_chain_failed = false;
+	m_shader_frame_count = 0;
+	m_shader_param_generation = 0;
+}
+
+void GSDeviceVK::ApplyShaderChainParams()
+{
+#ifdef ARMSX2_HAS_LIBRASHADER
+	// Per-frame fast path: one atomic load. The lock and the copy only happen on the
+	// frames where the user actually moved something.
+	const u64 generation = GetShaderChainParamGeneration();
+	if (generation == m_shader_param_generation)
+		return;
+
+	std::vector<std::pair<std::string, float>> params;
+	if (GetShaderChainParams(m_shader_chain_preset, &params))
+	{
+		libra_vk_filter_chain_t chain = static_cast<libra_vk_filter_chain_t>(m_shader_chain);
+		for (const auto& [name, value] : params)
+		{
+			// A preset can be swapped under a stale override set, so an unknown parameter
+			// name is a routine miss, not a fault: report nothing and keep going, since
+			// the remaining names are still valid.
+			if (libra_error_t err = libra_vk_filter_chain_set_param(&chain, name.c_str(), value))
+				libra_error_free(&err);
+		}
+	}
+
+	// Set even when the store held another preset's values or none at all — otherwise this
+	// re-runs the lookup on every frame for as long as the generation stays ahead.
+	m_shader_param_generation = generation;
+#endif
+}
+
+bool GSDeviceVK::DoApplyShaderChain(GSTexture* sTex, GSTexture* dTex)
+{
+#ifndef ARMSX2_HAS_LIBRASHADER
+	return false;
+#else
+	// A preset that fails to compile must not be retried every frame — that would run a
+	// full slang compile 60x/sec. Latch the failure until the user picks another preset.
+	if (m_shader_chain_failed && m_shader_chain_preset == GSConfig.ShaderChainPreset)
+		return false;
+
+	if (!m_shader_chain || m_shader_chain_preset != GSConfig.ShaderChainPreset)
+	{
+		DestroyShaderChain();
+		m_shader_chain_preset = GSConfig.ShaderChainPreset;
+
+		libra_shader_preset_t preset = nullptr;
+		if (libra_error_t err = libra_preset_create(m_shader_chain_preset.c_str(), &preset))
+		{
+			ReportShaderChainError("preset load", err);
+			m_shader_chain_failed = true;
+			return false;
+		}
+
+		libra_device_vk_t vk = {};
+		vk.physical_device = m_physical_device;
+		vk.instance = m_instance;
+		vk.device = m_device;
+		vk.queue = m_graphics_queue;
+		// librashader resolves Vulkan through this loader rather than linking it, which
+		// is why it transparently rides a user's custom Turnip ICD.
+		vk.entry = vkGetInstanceProcAddr;
+
+		// create() invalidates `preset` unconditionally ("the shader preset is
+		// immediately invalidated"), so it must NOT be freed afterwards on either path.
+		libra_vk_filter_chain_t chain = nullptr;
+		if (libra_error_t err = libra_vk_filter_chain_create(&preset, vk, nullptr, &chain))
+		{
+			ReportShaderChainError("chain create", err);
+			m_shader_chain_failed = true;
+			return false;
+		}
+
+		m_shader_chain = chain;
+		m_shader_frame_count = 0;
+		// The new chain sits at the preset's initial values, so whatever we last pushed is
+		// gone with the old one — force ApplyShaderChainParams to feed it again.
+		m_shader_param_generation = 0;
+		Console.WriteLn("(GS) librashader: loaded preset '%s'", m_shader_chain_preset.c_str());
+	}
+
+	// GS thread, chain alive, before the frame call — the only place a set_param is safe.
+	ApplyShaderChainParams();
+
+	GSTextureVK* const src = static_cast<GSTextureVK*>(sTex);
+	GSTextureVK* const dst = static_cast<GSTextureVK*>(dTex);
+
+	// The chain records its own render passes, so it must not run inside one of ours.
+	EndRenderPass();
+
+	// librashader's contract: source in SHADER_READ_ONLY_OPTIMAL, target in
+	// COLOR_ATTACHMENT_OPTIMAL.
+	src->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+	dst->TransitionToLayout(GSTextureVK::Layout::ColorAttachment);
+
+	const libra_image_vk_t in = {src->GetImage(), src->GetVkFormat(),
+		static_cast<uint32_t>(src->GetWidth()), static_cast<uint32_t>(src->GetHeight())};
+	const libra_image_vk_t out = {dst->GetImage(), dst->GetVkFormat(),
+		static_cast<uint32_t>(dst->GetWidth()), static_cast<uint32_t>(dst->GetHeight())};
+	const libra_viewport_t vp = {0.0f, 0.0f,
+		static_cast<uint32_t>(dst->GetWidth()), static_cast<uint32_t>(dst->GetHeight())};
+
+	// Every librashader entry point takes the chain handle by address, not by value.
+	libra_vk_filter_chain_t chain = static_cast<libra_vk_filter_chain_t>(m_shader_chain);
+	if (libra_error_t err = libra_vk_filter_chain_frame(&chain, GetCurrentCommandBuffer(),
+			m_shader_frame_count, in, out, &vp, nullptr, nullptr))
+	{
+		ReportShaderChainError("frame", err);
+		m_shader_chain_failed = true;
+		return false;
+	}
+	m_shader_frame_count++;
+
+	// The chain left the target in COLOR_ATTACHMENT_OPTIMAL behind the tracker's back, so
+	// resync it WITHOUT emitting a barrier (Override), then transition for real to the
+	// ShaderReadOnly that DoFXAA/DoShadeBoost also leave behind and the presenter expects.
+	// Skipping the Override would make the next barrier start from a stale layout.
+	dst->OverrideImageLayout(GSTextureVK::Layout::ColorAttachment);
+	dst->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+	dst->SetState(GSTexture::State::Dirty);
+
+	// librashader recycles its per-frame objects (VkImageView / VkFramebuffer / descriptor
+	// sets) on its OWN internal frame counter, over a `frames_in_flight`-deep ring
+	// (default 3): frame N destroys what frame N-3 recorded. That is only safe if every
+	// frame() call is followed by a submit, so the fence for N-3 has been waited by the
+	// time N recycles its slot.
+	//
+	// PCSX2 violates that. GSRenderer::VSync calls Merge() -- and therefore the chain --
+	// BEFORE it decides whether to present, and a skipped present (SkipDuplicateFrames,
+	// which is default-on, or the FIFO present throttle) returns early from DoBeginPresent
+	// and never reaches EndPresent, so it never submits. MAX_SKIPPED_DUPLICATE_FRAMES is
+	// 3 -- exactly the ring depth -- so three skipped frames in a row let librashader
+	// destroy views that are still bound to the command buffer we are STILL recording.
+	// Validation names it: VUID-vkDestroyImageView-imageView-01026, followed by the
+	// buffer going invalid and the Adreno driver segfaulting as it walks it at submit.
+	//
+	// Kicking the buffer here keeps exactly one submit per chain frame, so librashader's
+	// ring and our NUM_COMMAND_BUFFERS ring advance together. The GL backend is immune
+	// because it executes immediately and has no recorded buffer to go stale.
+	ExecuteCommandBuffer(false);
+	return true;
+#endif
+}
+
+void GSDeviceVK::IASetVertexBuffer(const void* vertex, size_t stride, size_t count, size_t align_multiplier)
+{
+	const u32 size = static_cast<u32>(stride) * static_cast<u32>(count);
+	if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride) * align_multiplier))
+	{
+		// While presenting, the swap-chain pass isn't tracked by m_current_render_pass, so the ordinary
+		// render-pass restart would leave the command buffer with an open present pass. From EmuCoreX.
+		if (m_is_presenting)
+			ExecuteCommandBufferAndRestartPresent(false, "Uploading bytes to vertex buffer");
+		else
+			ExecuteCommandBufferAndRestartRenderPass(false, "Uploading bytes to vertex buffer");
+		if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride) * align_multiplier))
+			pxFailRel("Failed to reserve space for vertices");
+	}
+
+	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / stride;
+	m_vertex.count = count;
+
+	// storent, not memcpy. On ARM64 this is __builtin_nontemporal_store lowering to STNP -- a
+	// non-temporal PAIR store in 8-byte halves, twelve instructions per 64 bytes where an ordinary
+	// copy uses two ldp/stp pairs -- which looked like the reason writing 800 KiB of vertices costs
+	// a third of the MQ65's GS thread. It is not: swapping it for memcpy moved nothing on any title
+	// on either device, base or cached (rung T1, 2026-09-03). The memory type was the whole story.
+	GSVector4i::storent(m_vertex_stream_buffer.GetCurrentHostPointer(), vertex, count * stride);
+	m_vertex_stream_buffer.CommitMemory(size);
+}
+
+void GSDeviceVK::UploadIndices(VKStreamBuffer& buffer, const void* index, size_t count)
+{
+	const u32 size = sizeof(u16) * static_cast<u32>(count);
+	if (!buffer.ReserveMemory(size, sizeof(u16)))
+	{
+		if (m_is_presenting)
+			ExecuteCommandBufferAndRestartPresent(false, "Uploading bytes to index buffer");
+		else
+			ExecuteCommandBufferAndRestartRenderPass(false, "Uploading bytes to index buffer");
+		if (!buffer.ReserveMemory(size, sizeof(u16)))
+			pxFailRel("Failed to reserve space for vertices");
+	}
+
+	m_index.start = buffer.GetCurrentOffset() / sizeof(u16);
+	m_index.count = count;
+
+	std::memcpy(buffer.GetCurrentHostPointer(), index, size);
+	buffer.CommitMemory(size);
+}
+
+void GSDeviceVK::IASetIndexBuffer(const void* index, size_t count)
+{
+	UploadIndices(m_index_stream_buffer, index, count);
+
+	SetIndexBuffer(m_index_stream_buffer.GetBuffer());
+}
+
+void GSDeviceVK::VSSetIndexBuffer(const void* index, size_t count)
+{
+	UploadIndices(m_expand_index_stream_buffer, index, count);
+}
+
+void GSDeviceVK::OMSetRenderTargets(
+	GSTexture* rt, GSTexture* ds, const GSVector4i& scissor, FeedbackLoopFlag feedback_loop,
+	const GSVector2i& viewport_size)
+{
+	GSTextureVK* vkRt = static_cast<GSTextureVK*>(rt);
+	GSTextureVK* vkDs = static_cast<GSTextureVK*>(ds);
+
+	if (m_current_render_target != vkRt || m_current_depth_target != vkDs ||
+		m_current_framebuffer_feedback_loop != feedback_loop ||
+		m_current_framebuffer == VK_NULL_HANDLE)
+	{
+		// framebuffer change or feedback loop enabled/disabled
+		EndRenderPass();
+
+		if (vkRt)
+		{
+			m_current_framebuffer =
+				vkRt->GetLinkedFramebuffer(vkDs,
+					(feedback_loop & FeedbackLoopFlag_ReadAndWriteRT) != 0,
+					(feedback_loop & (FeedbackLoopFlag_ReadAndWriteDepth | FeedbackLoopFlag_ReadDepth)) != 0);
+		}
+		else if (vkDs)
+		{
+			pxAssert(!(feedback_loop & FeedbackLoopFlag_ReadAndWriteRT));
+			m_current_framebuffer = vkDs->GetLinkedFramebuffer(
+				nullptr, false, (feedback_loop & (FeedbackLoopFlag_ReadAndWriteDepth | FeedbackLoopFlag_ReadDepth)) != 0);
+		}
+		else
+		{
+			m_current_framebuffer = m_null_framebuffer;
+		}
+	}
+	else if (InRenderPass())
+	{
+		// Framebuffer unchanged, but check for clears
+		// Use an attachment clear to wipe it out without restarting the render pass
+		//
+		// Unless the open pass's render area is narrower than the attachment: a
+		// vkCmdClearAttachments rect has to lie inside the render area, so a whole-attachment
+		// clear issued into a narrower pass would stop at the pass's edge and leave the rest of
+		// the target holding stale pixels. A colclip resolve pass and a stretch-rect pass can both
+		// open narrower than their attachment today, so this is reachable now, not hypothetical.
+		// End the pass instead and leave the Cleared state alone, which puts the clear on the next
+		// pass's load op -- exactly what happens when this is reached outside a pass.
+		const bool clear_pending = (vkRt && vkRt->GetState() == GSTexture::State::Cleared) ||
+								   (vkDs && vkDs->GetState() == GSTexture::State::Cleared);
+		if (clear_pending &&
+			!m_current_render_pass_area.rcontains(GSVector4i::loadh(vkRt ? vkRt->GetSize() : vkDs->GetSize())))
+		{
+			EndRenderPass();
+		}
+		else if (IsDeviceNVIDIA())
+		{
+			// Using vkCmdClearAttachments() within a render pass on NVIDIA seems to cause dependency issues
+			// between draws that are testing depth which precede it. The result is flickering where Z tests
+			// should be failing. Breaking/restarting the render pass isn't enough to work around the bug,
+			// it needs an explicit pipeline barrier.
+			if (vkRt && vkRt->GetState() != GSTexture::State::Dirty)
+			{
+				if (vkRt->GetState() == GSTexture::State::Cleared)
+				{
+					EndRenderPass();
+					vkRt->TransitionSubresourcesToLayout(GetCurrentCommandBuffer(), 0, 1,
+						vkRt->GetLayout(), vkRt->GetLayout());
+				}
+				else
+				{
+					// Invalidated -> Dirty.
+					vkRt->SetState(GSTexture::State::Dirty);
+				}
+			}
+			if (vkDs && vkDs->GetState() != GSTexture::State::Dirty)
+			{
+				if (vkDs->GetState() == GSTexture::State::Cleared)
+				{
+					EndRenderPass();
+					vkDs->TransitionSubresourcesToLayout(GetCurrentCommandBuffer(), 0, 1,
+						vkDs->GetLayout(), vkDs->GetLayout());
+				}
+				else
+				{
+					// Invalidated -> Dirty.
+					vkDs->SetState(GSTexture::State::Dirty);
+				}
+			}
+		}
+		else
+		{
+			std::array<VkClearAttachment, 2> cas;
+			u32 num_ca = 0;
+			if (vkRt && vkRt->GetState() != GSTexture::State::Dirty)
+			{
+				if (vkRt->GetState() == GSTexture::State::Cleared)
+				{
+					VkClearAttachment& ca = cas[num_ca++];
+					ca.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+					ca.colorAttachment = 0;
+					GSVector4::store<false>(ca.clearValue.color.float32, vkRt->GetClearForFormat());
+				}
+
+				vkRt->SetState(GSTexture::State::Dirty);
+			}
+			if (vkDs && vkDs->GetState() != GSTexture::State::Dirty)
+			{
+				if (vkDs->GetState() == GSTexture::State::Cleared)
+				{
+					VkClearAttachment& ca = cas[num_ca++];
+					ca.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+					ca.colorAttachment = 1;
+					ca.clearValue.depthStencil = {vkDs->GetClearDepth()};
+				}
+
+				vkDs->SetState(GSTexture::State::Dirty);
+			}
+
+			if (num_ca > 0)
+			{
+				const GSVector2i size = vkRt ? vkRt->GetSize() : vkDs->GetSize();
+				const VkClearRect cr = {{{0, 0}, {static_cast<u32>(size.x), static_cast<u32>(size.y)}}, 0u, 1u};
+				vkCmdClearAttachments(GetCurrentCommandBuffer(), num_ca, cas.data(), 1, &cr);
+				// A clear inside the pass rewrites alpha the shared DATE stencil copy describes.
+				m_date_copy.valid = false;
+			}
+		}
+	}
+
+	m_current_render_target = vkRt;
+	m_current_depth_target = vkDs;
+	m_current_framebuffer_feedback_loop = feedback_loop;
+
+	if (!InRenderPass())
+	{
+		if (vkRt)
+		{
+			if (feedback_loop & FeedbackLoopFlag_ReadAndWriteRT)
+			{
+				// NVIDIA drivers appear to return random garbage when sampling the RT via a feedback loop, if the load op for
+				// the render pass is CLEAR. Using vkCmdClearAttachments() doesn't work, so we have to clear the image instead.
+				// Adreno/turnip has the same garbage-on-CLEAR feedback read.
+				if (vkRt->GetState() == GSTexture::State::Cleared && (IsDeviceNVIDIA() || IsDeviceAdreno()))
+					vkRt->CommitClear();
+				// Adreno/turnip: a feedback-read RT with a DONT_CARE load op (Invalidated state) reads undefined
+				// tile memory. Mark it Dirty so the load op becomes LOAD and the read sees real content.
+				else if (vkRt->GetState() == GSTexture::State::Invalidated && IsDeviceAdreno())
+					vkRt->SetState(GSTexture::State::Dirty);
+
+				if (vkRt->GetLayout() != GSTextureVK::Layout::FeedbackLoop)
+				{
+					// need to update descriptors to reflect the new layout
+					m_dirty_flags |= (DIRTY_FLAG_TFX_TEXTURE_0 << TFX_TEXTURE_RT);
+					if (m_tfx_textures[TFX_TEXTURE_TEXTURE] == vkRt)
+						m_dirty_flags |= DIRTY_FLAG_TFX_TEXTURE_0 << TFX_TEXTURE_TEXTURE;
+					vkRt->TransitionToLayout(GSTextureVK::Layout::FeedbackLoop);
+				}
+			}
+			else
+			{
+				vkRt->TransitionToLayout(GSTextureVK::Layout::ColorAttachment);
+			}
+		}
+		if (vkDs)
+		{
+			// need to update descriptors to reflect the new layout
+			if (feedback_loop & FeedbackLoopFlag_ReadAndWriteDepth)
+			{
+				// NVIDIA drivers appear to return random garbage when sampling the RT via a feedback loop, if the load op for
+				// the render pass is CLEAR. Using vkCmdClearAttachments() doesn't work, so we have to clear the image instead.
+				// Note: DS feedback loop was added later - we will assume that the same issue is relevant.
+				// Adreno/turnip has the same garbage-on-CLEAR feedback read.
+				if (vkDs->GetState() == GSTexture::State::Cleared && (IsDeviceNVIDIA() || IsDeviceAdreno()))
+					vkDs->CommitClear();
+
+				if (vkDs->GetLayout() != GSTextureVK::Layout::FeedbackLoop)
+				{
+					m_dirty_flags |= (DIRTY_FLAG_TFX_TEXTURE_0 << TFX_TEXTURE_DEPTH);
+					if (m_tfx_textures[TFX_TEXTURE_TEXTURE] == vkDs)
+						m_dirty_flags |= DIRTY_FLAG_TFX_TEXTURE_0 << TFX_TEXTURE_TEXTURE;
+					vkDs->TransitionToLayout(GSTextureVK::Layout::FeedbackLoop);
+				}
+			}
+			else if (feedback_loop & FeedbackLoopFlag_ReadDepth)
+			{
+				const GSTextureVK::Layout layout = m_features.depth_feedback ?
+					GSTextureVK::Layout::FeedbackLoop : GSTextureVK::Layout::General;
+				if (vkDs->GetLayout() != layout)
+				{
+					m_dirty_flags |= (DIRTY_FLAG_TFX_TEXTURE_0 << TFX_TEXTURE_TEXTURE);
+					if (m_tfx_textures[TFX_TEXTURE_TEXTURE] == vkDs)
+						m_dirty_flags |= DIRTY_FLAG_TFX_TEXTURE_0 << TFX_TEXTURE_TEXTURE;
+					vkDs->TransitionToLayout(layout);
+				}
+			}
+			else
+			{
+				vkDs->TransitionToLayout(GSTextureVK::Layout::DepthStencilAttachment);
+			}
+		}
+	}
+
+	// This is used to set/initialize the framebuffer for tfx rendering.
+	const GSVector2i size = (vkRt ? vkRt->GetSize() : (vkDs ? vkDs->GetSize() : viewport_size));
+	const VkViewport vp{0.0f, 0.0f, static_cast<float>(size.x), static_cast<float>(size.y), 0.0f, 1.0f};
+
+	SetViewport(vp);
+	SetScissor(scissor);
+}
+
+VkSampler GSDeviceVK::GetSampler(GSHWDrawConfig::SamplerSelector ss)
+{
+	const auto it = m_samplers.find(ss.key);
+	if (it != m_samplers.end())
+		return it->second;
+
+	// See https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkSamplerCreateInfo.html#_description
+	// for the reasoning behind 0.25f here.
+	const VkSamplerCreateInfo ci = {
+		VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, nullptr, 0,
+		ss.IsMagFilterLinear() ? VK_FILTER_LINEAR : VK_FILTER_NEAREST, // min
+		ss.IsMinFilterLinear() ? VK_FILTER_LINEAR : VK_FILTER_NEAREST, // mag
+		ss.IsMipFilterLinear() ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST, // mip
+		static_cast<VkSamplerAddressMode>(
+			ss.tau ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE), // u
+		static_cast<VkSamplerAddressMode>(
+			ss.tav ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE), // v
+		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, // w
+		0.0f, // lod bias
+		VK_FALSE, // anisotropy enable
+		1.0f, // anisotropy
+		VK_FALSE, // compare enable
+		VK_COMPARE_OP_ALWAYS, // compare op
+		0.0f, // min lod
+		(ss.lodclamp || !ss.UseMipmapFiltering()) ? 0.25f : VK_LOD_CLAMP_NONE, // max lod
+		VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK, // border
+		VK_FALSE // unnormalized coordinates
+	};
+	VkSampler sampler = VK_NULL_HANDLE;
+	VkResult res = vkCreateSampler(m_device, &ci, nullptr, &sampler);
+	if (res != VK_SUCCESS)
+		LOG_VULKAN_ERROR(res, "vkCreateSampler() failed: ");
+
+	m_samplers.emplace(ss.key, sampler);
+	return sampler;
+}
+
+void GSDeviceVK::ClearSamplerCache()
+{
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+    s_native_gs_texture_sets.Clear();
+#endif
+	ExecuteCommandBuffer(true);
+	for (const auto& it : m_samplers)
+	{
+		if (it.second != VK_NULL_HANDLE)
+			vkDestroySampler(m_device, it.second, nullptr);
+	}
+	m_samplers.clear();
+	m_point_sampler = GetSampler(GSHWDrawConfig::SamplerSelector::Point());
+	m_linear_sampler = GetSampler(GSHWDrawConfig::SamplerSelector::Linear());
+	m_utility_sampler = m_point_sampler;
+	m_tfx_sampler = m_point_sampler;
+}
+
+static void AddMacro(std::stringstream& ss, const char* name, int value)
+{
+	ss << "#define " << name << " " << value << "\n";
+}
+
+static void AddShaderHeader(std::stringstream& ss)
+{
+	const GSDeviceVK* dev = GSDeviceVK::GetInstance();
+	const GSDevice::FeatureSupport features = dev->Features();
+
+	ss << "#version 460 core\n";
+	ss << "#extension GL_EXT_samplerless_texture_functions : require\n";
+
+	// Mali driver-bug shader gate (currently the EQUAL_WZ_CORRUPTS_DEPTH z-nudge in
+	// tfx.glsl). 1 only on Mali; the guarded code compiles out on every other GPU.
+	ss << "#define GPU_PROFILE_MALI " << (dev->IsDeviceMali() ? 1 : 0) << "\n";
+
+	if (!features.texture_barrier)
+		ss << "#define DISABLE_TEXTURE_BARRIER 1\n";
+	if (features.texture_barrier && dev->UseFeedbackLoopLayout())
+		ss << "#define HAS_FEEDBACK_LOOP_LAYOUT 1\n";
+	if (features.rov)
+	{
+		ss << "#extension GL_ARB_fragment_shader_interlock : require\n";
+		ss << "#extension GL_ARB_shader_image_load_store : require\n";
+	}
+
+	// Shader-compiler workarounds from the driver-bug database (ported from EmuCoreX/sashkinbro
+	// with his approval). Both default to 0, so the generated SPIR-V is unchanged on any driver
+	// the database has no rule for. Emitted after the #extension directives above because GLSL
+	// wants those before any real code, and the wrapper bodies below are real code.
+	AddMacro(ss, "DRIVER_SCALARIZE_VECTOR_BITWISE_AND",
+		dev->UsesMobileDriverWorkaround(DriverWorkaround::ScalarizeVectorBitwiseAnd) ? 1 : 0);
+	AddMacro(ss, "DRIVER_REWRITE_UNIFORM_INDEXING",
+		dev->UsesMobileDriverWorkaround(DriverWorkaround::RewriteUniformIndexing) ? 1 : 0);
+	// When no workaround is active these MUST expand to the bare operator, not to a function that
+	// happens to return it. Overloads cost an OpFunctionCall in the SPIR-V at every call site --
+	// including inside the texture loop in tfx.glsl and the region-clamp path -- and Qualcomm's
+	// SPIR-V compiler segfaults building a TFX pipeline from that shape (LEGO Batman, Adreno 740,
+	// driver 512.676.53: SIGSEGV inside CreateQGLCProgram, chained to SIGABRT on the GS thread).
+	// OpenGL is unaffected because it hands GLSL straight to the driver and never goes through
+	// SPIR-V, which is why the same build renders that game fine on the GL renderer.
+	//
+	// This also makes good on what the wrappers were introduced promising -- that a driver the
+	// database has no rule for gets unchanged SPIR-V. It did not hold: the function wrapper was
+	// emitted unconditionally, so EVERY driver got new shader structure to please the two that
+	// needed it.
+	ss << R"(
+#if DRIVER_SCALARIZE_VECTOR_BITWISE_AND
+uvec2 gpu_bitwise_and(uvec2 a, uvec2 b)
+{
+	return uvec2(a.x & b.x, a.y & b.y);
+}
+
+uvec3 gpu_bitwise_and(uvec3 a, uvec3 b)
+{
+	return uvec3(a.x & b.x, a.y & b.y, a.z & b.z);
+}
+
+uvec4 gpu_bitwise_and(uvec4 a, uvec4 b)
+{
+	return uvec4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w);
+}
+
+ivec3 gpu_bitwise_and(ivec3 a, ivec3 b)
+{
+	return ivec3(a.x & b.x, a.y & b.y, a.z & b.z);
+}
+#else
+#define gpu_bitwise_and(a, b) ((a) & (b))
+#endif
+
+#if DRIVER_REWRITE_UNIFORM_INDEXING
+float gpu_matrix_element(mat4 value, int column, int row)
+{
+	vec4 selected_column;
+	if (column == 0)
+		selected_column = value[0];
+	else if (column == 1)
+		selected_column = value[1];
+	else if (column == 2)
+		selected_column = value[2];
+	else
+		selected_column = value[3];
+
+	if (row == 0)
+		return selected_column[0];
+	if (row == 1)
+		return selected_column[1];
+	if (row == 2)
+		return selected_column[2];
+	return selected_column[3];
+}
+#else
+#define gpu_matrix_element(value, column, row) ((value)[(column)][(row)])
+#endif
+)";
+}
+
+static void AddShaderStageMacro(std::stringstream& ss, bool vs, bool gs, bool fs)
+{
+	if (vs)
+		ss << "#define VERTEX_SHADER 1\n";
+	else if (gs)
+		ss << "#define GEOMETRY_SHADER 1\n";
+	else if (fs)
+		ss << "#define FRAGMENT_SHADER 1\n";
+}
+
+static void AddUtilityVertexAttributes(Vulkan::GraphicsPipelineBuilder& gpb)
+{
+	gpb.AddVertexBuffer(0, sizeof(GSVertexPT1));
+	gpb.AddVertexAttribute(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT, 0);
+	gpb.AddVertexAttribute(1, 0, VK_FORMAT_R32G32_SFLOAT, 16);
+	gpb.SetPrimitiveTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+}
+
+static void SetPipelineProvokingVertex(const GSDevice::FeatureSupport& features, Vulkan::GraphicsPipelineBuilder& gpb)
+{
+	// We enable provoking vertex here anyway, in case it doesn't support multiple modes in the same pass.
+	// Normally we wouldn't enable it on the present/swap chain, but apparently the rule is it applies to the last
+	// pipeline bound before the render pass begun, and in this case, we can't bind null.
+	if (features.provoking_vertex_last)
+		gpb.SetProvokingVertex(VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT);
+}
+
+VkShaderModule GSDeviceVK::GetUtilityVertexShader(const std::string& source, const char* replace_main = nullptr)
+{
+	std::stringstream ss;
+	AddShaderHeader(ss);
+	AddShaderStageMacro(ss, true, false, false);
+	if (replace_main)
+		ss << "#define " << replace_main << " main\n";
+	ss << source;
+
+	return g_vulkan_shader_cache->GetVertexShader(ss.str());
+}
+
+VkShaderModule GSDeviceVK::GetUtilityFragmentShader(const std::string& source, const char* replace_main = nullptr)
+{
+	std::stringstream ss;
+	AddShaderHeader(ss);
+	AddShaderStageMacro(ss, false, false, true);
+	if (replace_main)
+		ss << "#define " << replace_main << " main\n";
+	ss << source;
+
+	return g_vulkan_shader_cache->GetFragmentShader(ss.str());
+}
+
+bool GSDeviceVK::CreateNullTexture()
+{
+	m_null_texture = GSTextureVK::Create(GSTexture::ShaderWriteTarget, GSTexture::Format::Color, 1, 1, 1);
+	if (!m_null_texture)
+		return false;
+
+	const VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
+	const VkImageSubresourceRange srr{VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u};
+	const VkClearColorValue ccv{};
+	m_null_texture->TransitionToLayout(cmdbuf, GSTextureVK::Layout::ClearDst);
+	vkCmdClearColorImage(cmdbuf, m_null_texture->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &ccv, 1, &srr);
+	m_null_texture->TransitionToLayout(cmdbuf, GSTextureVK::Layout::General);
+	Vulkan::SetObjectName(m_device, m_null_texture->GetImage(), "Null texture");
+	Vulkan::SetObjectName(m_device, m_null_texture->GetView(), "Null texture view");
+
+	return true;
+}
+
+void GSDeviceVK::FlushStreamRingWrites()
+{
+	// All six, not just the ones this submission is known to have touched: a ring that was not
+	// written has nothing pending and costs a compare, and deciding per ring which one a
+	// submission read is the kind of bookkeeping that is wrong once and then silently wrong
+	// forever on the one device that needs the clean.
+	m_vertex_stream_buffer.FlushPendingWrites();
+	m_index_stream_buffer.FlushPendingWrites();
+	m_expand_index_stream_buffer.FlushPendingWrites();
+	m_vertex_uniform_stream_buffer.FlushPendingWrites();
+	m_fragment_uniform_stream_buffer.FlushPendingWrites();
+	m_texture_stream_buffer.FlushPendingWrites();
+}
+
+bool GSDeviceVK::CreateBuffers()
+{
+	constexpr u32 scale = Switch2HostBufferScale;
+#ifdef IZPS2_SWITCH2_VK_ON_DEMAND_RINGS
+	// Only vertex and texture have a growth path. Keep headroom there
+	// without allocating it before the first upload or draw.
+	constexpr u32 growing_ring_start = std::min<u32>(scale, 8);
+#else
+	constexpr u32 growing_ring_start = scale;
+#endif
+	const auto create_stream = [](VKStreamBuffer& stream, VkBufferUsageFlags usage, u32 size,
+								  u32 fallback, const char* name, u32 max_size = 0) {
+		while (!stream.Create(usage, size, name, max_size))
+		{
+			if (fallback >= size)
+				return false;
+			// Retain the previous Switch 2 capacity as an intermediate fallback.
+			const u32 next_size = scale > 8 ? std::max(fallback, size / 2) : fallback;
+			Console.Warning("VK: %s ring allocation failed at %u bytes, retrying at %u.", name, size, next_size);
+			size = next_size;
+		}
+		return true;
+	};
+	// With vertex expansion the whole ring is bound as one storage buffer, so it cannot outgrow
+	// the device's storage-buffer range.
+	u32 vertex_size = VERTEX_BUFFER_SIZE * growing_ring_start;
+	u32 vertex_max_size = VERTEX_BUFFER_MAX_SIZE * scale;
+	if (g_gs_measurement_overrides.vertex_ring_start_kib != 0)
+		vertex_size = std::clamp<u32>(g_gs_measurement_overrides.vertex_ring_start_kib,
+						  VERTEX_BUFFER_MIN_START_SIZE / 1024, vertex_max_size / 1024) * 1024;
+	if (g_gs_measurement_overrides.vertex_ring_no_growth)
+		vertex_max_size = vertex_size;
+	if (m_features.vs_expand)
+	{
+		vertex_max_size = static_cast<u32>(std::min<u64>(vertex_max_size, m_device_properties.limits.maxStorageBufferRange));
+		vertex_size = std::min(vertex_size, vertex_max_size);
+	}
+	if (g_gs_measurement_overrides.vertex_ring_start_kib != 0 || g_gs_measurement_overrides.vertex_ring_no_growth)
+		Console.WriteLn("VK: measurement overrides: vertex ring %u KiB, growth to %u KiB", vertex_size / 1024, vertex_max_size / 1024);
+
+	if (!create_stream(m_vertex_stream_buffer,
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | (m_features.vs_expand ? VK_BUFFER_USAGE_STORAGE_BUFFER_BIT : 0),
+			vertex_size, VERTEX_BUFFER_SIZE, "vertex", vertex_max_size))
+	{
+		Host::ReportErrorAsync("GS", "Failed to allocate vertex buffer");
+		return false;
+	}
+
+	if (!create_stream(m_index_stream_buffer, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, INDEX_BUFFER_SIZE * scale,
+			INDEX_BUFFER_SIZE, "index"))
+	{
+		Host::ReportErrorAsync("GS", "Failed to allocate index buffer");
+		return false;
+	}
+
+	const u32 expand_index_size = m_features.aa1 ?
+		static_cast<u32>(std::min<u64>(INDEX_BUFFER_SIZE * scale, m_device_properties.limits.maxStorageBufferRange)) : 4;
+	if (!create_stream(m_expand_index_stream_buffer, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+			expand_index_size, INDEX_BUFFER_SIZE, "expand-index"))
+	{
+		Host::ReportErrorAsync("GS", "Failed to allocate expansion index buffer (VS resource)");
+		return false;
+	}
+
+	if (!create_stream(m_vertex_uniform_stream_buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VERTEX_UNIFORM_BUFFER_SIZE * scale, VERTEX_UNIFORM_BUFFER_SIZE, "vs-uniform"))
+	{
+		Host::ReportErrorAsync("GS", "Failed to allocate vertex uniform buffer");
+		return false;
+	}
+
+	if (!create_stream(m_fragment_uniform_stream_buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			FRAGMENT_UNIFORM_BUFFER_SIZE * scale, FRAGMENT_UNIFORM_BUFFER_SIZE, "fs-uniform"))
+	{
+		Host::ReportErrorAsync("GS", "Failed to allocate fragment uniform buffer");
+		return false;
+	}
+
+	// Stream offsets are 32-bit. The next power of two above 2 GiB cannot be represented.
+	const u32 texture_start_size = TEXTURE_BUFFER_SIZE * growing_ring_start;
+	const u32 texture_max_size = g_gs_measurement_overrides.texture_ring_no_growth ? texture_start_size :
+		static_cast<u32>(std::min<u64>(u64{2} << 30, static_cast<u64>(TEXTURE_BUFFER_MAX_SIZE) * scale));
+	if (!create_stream(m_texture_stream_buffer, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, texture_start_size,
+			TEXTURE_BUFFER_SIZE, "texture", texture_max_size))
+	{
+		Host::ReportErrorAsync("GS", "Failed to allocate texture upload buffer");
+		return false;
+	}
+	if constexpr (scale > 1)
+	{
+		Console.WriteLn("IZPS2_VK_BUFFERS bytes vertex=%u/%u index=%u expand_index=%u vs=%u fs=%u texture=%u/%u",
+			m_vertex_stream_buffer.GetCurrentSize(), m_vertex_stream_buffer.GetMaxSize(),
+			m_index_stream_buffer.GetCurrentSize(), m_expand_index_stream_buffer.GetCurrentSize(),
+			m_vertex_uniform_stream_buffer.GetCurrentSize(), m_fragment_uniform_stream_buffer.GetCurrentSize(),
+			m_texture_stream_buffer.GetCurrentSize(), m_texture_stream_buffer.GetMaxSize());
+	}
+
+	if (!AllocatePreinitializedGPUBuffer(EXPAND_BUFFER_SIZE, &m_expand_index_buffer, &m_expand_index_buffer_allocation,
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &GSDevice::GenerateExpansionIndexBuffer))
+	{
+		Host::ReportErrorAsync("GS", "Failed to allocate expansion index buffer");
+		return false;
+	}
+
+	SetIndexBuffer(m_index_stream_buffer.GetBuffer());
+	return true;
+}
+
+bool GSDeviceVK::CreatePipelineLayouts()
+{
+	VkDevice dev = m_device;
+	Vulkan::DescriptorSetLayoutBuilder dslb;
+	Vulkan::PipelineLayoutBuilder plb;
+
+	//////////////////////////////////////////////////////////////////////////
+	// Convert Pipeline Layout
+	//////////////////////////////////////////////////////////////////////////
+
+	if (m_use_push_descriptors)
+		dslb.SetPushFlag();
+	dslb.AddBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NUM_UTILITY_SAMPLERS, VK_SHADER_STAGE_FRAGMENT_BIT);
+	if ((m_utility_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_utility_ds_layout, "Convert descriptor layout");
+
+	plb.AddPushConstants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, CONVERT_PUSH_CONSTANTS_SIZE);
+	plb.AddDescriptorSet(m_utility_ds_layout);
+	if ((m_utility_pipeline_layout = plb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_utility_pipeline_layout, "Convert pipeline layout");
+
+	//////////////////////////////////////////////////////////////////////////
+	// Draw/TFX Pipeline Layout
+	//////////////////////////////////////////////////////////////////////////
+	dslb.AddBinding(
+		0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+	dslb.AddBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+	if (m_features.vs_expand)
+	{
+		dslb.AddBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
+		plb.AddPushConstants(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GSHWDrawConfig::VSPushConstants));
+	}
+	if (m_features.aa1)
+		dslb.AddBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
+	if ((m_tfx_ubo_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_tfx_ubo_ds_layout, "TFX UBO descriptor layout");
+
+	if (m_use_push_descriptors)
+		dslb.SetPushFlag();
+	dslb.AddBinding(TFX_TEXTURE_TEXTURE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+	dslb.AddBinding(TFX_TEXTURE_PALETTE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+		// Mali needs real input-attachment descriptors for the subpass feedback path; its shader reads
+	// Cd/Zd via subpassLoad. Adreno mishandles input-attachment descriptors here and produces
+	// alternating stale destination colour (flicker) in accurate-blending draws, so keep Qualcomm on
+	// the long-standing sampled-image descriptor — subpassLoad still reads the render-pass input
+	// attachment (not vendor-scoped). Keep this condition identical to the writes in ApplyTFXState.
+	// Vendor-scoped per sashkinbro/EmuCoreX 30b09c8 (Fix Adreno Vulkan accurate blending flicker).
+	// PowerVR takes the Mali side: see UseInputAttachmentDescriptors().
+	const VkDescriptorType feedback_descriptor_type =
+		UseInputAttachmentDescriptors() ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT : VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	dslb.AddBinding(TFX_TEXTURE_RT, feedback_descriptor_type, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+	dslb.AddBinding(TFX_TEXTURE_PRIMID, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+	dslb.AddBinding(TFX_TEXTURE_DEPTH, feedback_descriptor_type, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+	dslb.AddBinding(TFX_TEXTURE_RT_ROV, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+	dslb.AddBinding(TFX_TEXTURE_DEPTH_ROV, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+	if ((m_tfx_texture_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_tfx_texture_ds_layout, "TFX texture descriptor layout");
+
+	plb.AddDescriptorSet(m_tfx_ubo_ds_layout);
+	plb.AddDescriptorSet(m_tfx_texture_ds_layout);
+	if ((m_tfx_pipeline_layout = plb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_tfx_pipeline_layout, "TFX pipeline layout");
+	return true;
+}
+
+bool GSDeviceVK::CreateRenderPasses()
+{
+#define GET(dest, rt, depth, fbl, dsp, opa, opb, opc) \
+	do \
+	{ \
+		dest = GetRenderPass( \
+			(rt), (depth), ((rt) != VK_FORMAT_UNDEFINED) ? (opa) : VK_ATTACHMENT_LOAD_OP_DONT_CARE, /* color load */ \
+			((rt) != VK_FORMAT_UNDEFINED) ? VK_ATTACHMENT_STORE_OP_STORE : \
+											VK_ATTACHMENT_STORE_OP_DONT_CARE, /* color store */ \
+			((depth) != VK_FORMAT_UNDEFINED) ? (opb) : VK_ATTACHMENT_LOAD_OP_DONT_CARE, /* depth load */ \
+			((depth) != VK_FORMAT_UNDEFINED) ? VK_ATTACHMENT_STORE_OP_STORE : \
+											   VK_ATTACHMENT_STORE_OP_DONT_CARE, /* depth store */ \
+			((depth) != VK_FORMAT_UNDEFINED) ? (opc) : VK_ATTACHMENT_LOAD_OP_DONT_CARE, /* stencil load */ \
+			VK_ATTACHMENT_STORE_OP_DONT_CARE, /* stencil store */ \
+			(fbl), /* feedback loop */ \
+			(dsp) /* depth sampling */ \
+		); \
+		if (dest == VK_NULL_HANDLE) \
+			return false; \
+	} while (0)
+
+	const VkFormat rt_format = LookupNativeFormat(GSTexture::Format::Color);
+	const VkFormat colclip_rt_format = LookupNativeFormat(GSTexture::Format::ColorClip);
+	const VkFormat depth_format = LookupNativeFormat(GSTexture::Format::DepthStencil);
+
+	for (u32 rt = 0; rt < 2; rt++)
+	{
+		for (u32 ds = 0; ds < 2; ds++)
+		{
+			for (u32 colclip = 0; colclip < 2; colclip++)
+			{
+				for (u32 stencil = 0; stencil < 2; stencil++)
+				{
+					for (u32 fbl = 0; fbl < 2; fbl++)
+					{
+						for (u32 dsp = 0; dsp < 2; dsp++)
+						{
+							for (u32 opa = VK_ATTACHMENT_LOAD_OP_LOAD; opa <= VK_ATTACHMENT_LOAD_OP_DONT_CARE; opa++)
+							{
+								for (u32 opb = VK_ATTACHMENT_LOAD_OP_LOAD; opb <= VK_ATTACHMENT_LOAD_OP_DONT_CARE; opb++)
+								{
+									const VkFormat rp_rt_format =
+										(rt != 0) ? ((colclip != 0) ? colclip_rt_format : rt_format) : VK_FORMAT_UNDEFINED;
+									const VkFormat rp_depth_format = (ds != 0) ? depth_format : VK_FORMAT_UNDEFINED;
+									const VkAttachmentLoadOp opc = (!stencil || !m_features.stencil_buffer) ?
+									                                   VK_ATTACHMENT_LOAD_OP_DONT_CARE :
+									                                   VK_ATTACHMENT_LOAD_OP_LOAD;
+									GET(m_tfx_render_pass[rt][ds][colclip][stencil][fbl][dsp][opa][opb], rp_rt_format,
+										rp_depth_format, (fbl != 0), (dsp != 0), static_cast<VkAttachmentLoadOp>(opa),
+										static_cast<VkAttachmentLoadOp>(opb), static_cast<VkAttachmentLoadOp>(opc));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	GET(m_utility_color_render_pass_load, rt_format, VK_FORMAT_UNDEFINED, false, false, VK_ATTACHMENT_LOAD_OP_LOAD,
+		VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+	GET(m_utility_color_render_pass_clear, rt_format, VK_FORMAT_UNDEFINED, false, false, VK_ATTACHMENT_LOAD_OP_CLEAR,
+		VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+	GET(m_utility_color_render_pass_discard, rt_format, VK_FORMAT_UNDEFINED, false, false,
+		VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+	GET(m_utility_depth_render_pass_load, VK_FORMAT_UNDEFINED, depth_format, false, false,
+		VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+	GET(m_utility_depth_render_pass_clear, VK_FORMAT_UNDEFINED, depth_format, false, false,
+		VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+	GET(m_utility_depth_render_pass_discard, VK_FORMAT_UNDEFINED, depth_format, false, false,
+		VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+
+	m_date_setup_render_pass = GetRenderPass(VK_FORMAT_UNDEFINED, depth_format, VK_ATTACHMENT_LOAD_OP_LOAD,
+		VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
+		m_features.stencil_buffer ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+		m_features.stencil_buffer ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE);
+	if (m_date_setup_render_pass == VK_NULL_HANDLE)
+		return false;
+
+#undef GET
+
+	return true;
+}
+
+bool GSDeviceVK::CompileConvertPipelines()
+{
+	const std::optional<std::string> source = ReadShaderSource("shaders/vulkan/convert.glsl");
+	if (!source)
+	{
+		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/convert.glsl.");
+		return false;
+	}
+
+	VkShaderModule vs = GetUtilityVertexShader(*source);
+	if (vs == VK_NULL_HANDLE)
+		return false;
+	ScopedGuard vs_guard([this, &vs]() { vkDestroyShaderModule(m_device, vs, nullptr); });
+
+	Vulkan::GraphicsPipelineBuilder gpb;
+	SetPipelineProvokingVertex(m_features, gpb);
+	AddUtilityVertexAttributes(gpb);
+	gpb.SetPipelineLayout(m_utility_pipeline_layout);
+	gpb.SetDynamicViewportAndScissorState();
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+	gpb.SetNoCullRasterizationState();
+	gpb.SetNoBlendingState();
+	gpb.SetVertexShader(vs);
+
+	m_convert.resize(ShaderConvertSelector::NUM_TOTAL_SHADERS);
+	for (u32 i = 0; i < ShaderConvertSelector::NUM_TOTAL_SHADERS; i++)
+	{
+		const ShaderConvertSelector shader = ShaderConvertSelector::Get(i);
+
+		VkRenderPass rp;
+		if (shader.DATMConvertShader())
+		{
+			rp = m_date_setup_render_pass;
+		}
+		else if (shader.DepthOutput())
+		{
+			rp = GetRenderPass(
+				LookupNativeFormat(GSTexture::Format::Invalid),
+				LookupNativeFormat(GSTexture::Format::DepthStencil),
+				VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+		}
+		else
+		{
+			rp = GetRenderPass(
+				LookupNativeFormat(shader.OutputFormat()),
+				LookupNativeFormat(GSTexture::Format::Invalid),
+				VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+		}
+
+		if (!rp)
+			return false;
+
+		gpb.SetRenderPass(rp, 0);
+
+		if (shader.DATMConvertShader())
+		{
+			const VkStencilOpState sos = {
+				VK_STENCIL_OP_KEEP, VK_STENCIL_OP_REPLACE, VK_STENCIL_OP_KEEP, VK_COMPARE_OP_ALWAYS, 1u, 1u, 1u};
+			gpb.SetDepthState(false, false, VK_COMPARE_OP_ALWAYS);
+			gpb.SetStencilState(true, sos, sos);
+		}
+		else
+		{
+			gpb.SetDepthState(shader.DepthOutput(), shader.DepthOutput(), VK_COMPARE_OP_ALWAYS);
+			gpb.SetNoStencilState();
+		}
+
+		gpb.SetColorWriteMask(0, shader.Mask());
+
+		std::string macro;
+		macro += fmt::format("#define PRIMID_MAX {}\n", GSShader::PRIMID_MAX);
+		macro += fmt::format("#define PRIMID_MIN {}\n", GSShader::PRIMID_MIN);
+		macro += fmt::format("#define HAS_BILN {}\n", static_cast<int>(shader.Biln()));
+		macro += fmt::format("#define HAS_STENCIL_OUTPUT {}\n", static_cast<int>(shader.StencilOutput()));
+		macro += fmt::format("#define HAS_INTEGER_OUTPUT {}\n", static_cast<int>(shader.IntegerOutputBpp() != 0));
+		macro += fmt::format("#define HAS_DEPTH_OUTPUT {}\n", static_cast<int>(shader.DepthOutput()));
+		macro += fmt::format("#define HAS_FLOAT32_INPUT {}\n", static_cast<int>(shader.Float32Input()));
+		macro += fmt::format("#define HAS_FLOAT32_OUTPUT {}\n", static_cast<int>(shader.Float32Output()));
+
+		std::string shader_with_header = macro + *source;
+
+		VkShaderModule ps = GetUtilityFragmentShader(shader_with_header, shader.EntryPoint());
+		if (ps == VK_NULL_HANDLE)
+			return false;
+
+		ScopedGuard ps_guard([this, &ps]() { vkDestroyShaderModule(m_device, ps, nullptr); });
+		gpb.SetFragmentShader(ps);
+
+		VkPipeline pipe = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+					
+		if (!pipe)
+			return false;
+
+		m_convert[i] = pipe;
+
+		Vulkan::SetObjectName(m_device, pipe, "Convert pipeline (%s, mask=%x, depth=%d, biln=%d)",
+			shader.Name(), shader.Mask(), static_cast<int>(shader.DepthOutput()),
+			static_cast<int>(shader.Biln()));
+
+		if (shader.Shader() == ShaderConvert::COLCLIP_INIT || shader.Shader() == ShaderConvert::COLCLIP_RESOLVE)
+		{
+			const bool is_setup = shader.Shader() == ShaderConvert::COLCLIP_INIT;
+			VkPipeline(&arr)[2][2] = *(is_setup ? &m_colclip_setup_pipelines : &m_colclip_finish_pipelines);
+			for (u32 ds = 0; ds < 2; ds++)
+			{
+				for (u32 fbl = 0; fbl < 2; fbl++)
+				{
+					pxAssert(!arr[ds][fbl]);
+
+					gpb.SetRenderPass(GetTFXRenderPass(true, ds != 0, is_setup, false, fbl != 0, false,
+						VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+						0);
+					// The feedback-loop (fbl) render pass carries the RASTERIZATION_ORDER_ATTACHMENT subpass flag
+					// when framebuffer fetch is available; the pipeline bound in it must declare the matching
+					// color-blend rasterization-order flag or the coherent self-read is undefined. Set (overwrite,
+					// not OR, so fbl=0 stays unflagged). Without the extension (PowerVR's ordered
+					// input-attachment read) neither the subpass nor the pipeline may carry it.
+					gpb.SetBlendFlags((fbl != 0 && m_features.framebuffer_fetch &&
+										  m_optional_extensions.vk_ext_rasterization_order_attachment_access)
+							? VK_PIPELINE_COLOR_BLEND_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_BIT_EXT
+							: 0);
+					arr[ds][fbl] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+					if (!arr[ds][fbl])
+						return false;
+
+					Vulkan::SetObjectName(m_device, arr[ds][fbl], "ColorClip %s/copy pipeline (ds=%u, fbl=%u)",
+						is_setup ? "setup" : "finish", i, ds, fbl);
+				}
+			}
+			// gpb is reused for subsequent convert shaders; clear the rasterization-order flag we set above so it
+			// does not leak onto non-feedback convert pipelines (invalid on a non-RASTER_ORDER render pass).
+			gpb.SetBlendFlags(0);
+		}
+	}
+
+	// date image setup
+	for (u32 ds = 0; ds < 2; ds++)
+	{
+		for (u32 clear = 0; clear < 2; clear++)
+		{
+			m_primid_image_setup_render_passes[ds][clear] = GetRenderPass(LookupNativeFormat(GSTexture::Format::PrimID),
+				ds ? LookupNativeFormat(GSTexture::Format::DepthStencil) : VK_FORMAT_UNDEFINED,
+				VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
+				ds ? (clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD) :
+					 VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+				ds ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE);
+		}
+	}
+
+	for (u32 datm = 0; datm < 4; datm++)
+	{
+		std::string macro;
+		macro += fmt::format("#define PRIMID_MAX {}\n", GSShader::PRIMID_MAX);
+		macro += fmt::format("#define PRIMID_MIN {}\n", GSShader::PRIMID_MIN);
+
+		const std::string source_with_header = macro + *source;
+
+		const std::string entry_point(StringUtil::StdStringFromFormat("ps_primid_image_init_%d", datm));
+		VkShaderModule ps = GetUtilityFragmentShader(source_with_header, entry_point.c_str());
+		if (ps == VK_NULL_HANDLE)
+			return false;
+
+		ScopedGuard ps_guard([this, &ps]() { vkDestroyShaderModule(m_device, ps, nullptr); });
+		gpb.SetPipelineLayout(m_utility_pipeline_layout);
+		gpb.SetFragmentShader(ps);
+		gpb.SetNoDepthTestState();
+		gpb.SetNoStencilState();
+		gpb.ClearBlendAttachments();
+		gpb.SetBlendAttachment(0, false, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+			VK_BLEND_FACTOR_ZERO, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_COLOR_COMPONENT_R_BIT);
+
+		for (u32 ds = 0; ds < 2; ds++)
+		{
+			gpb.SetRenderPass(m_primid_image_setup_render_passes[ds][0], 0);
+			m_primid_image_setup_pipelines[ds][datm] =
+				gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+			if (!m_primid_image_setup_pipelines[ds][datm])
+				return false;
+
+			Vulkan::SetObjectName(m_device, m_primid_image_setup_pipelines[ds][datm],
+				"DATE image clear pipeline (ds=%u, datm=%u)", ds, (datm == 1 || datm == 3));
+		}
+	}
+
+	return true;
+}
+
+bool GSDeviceVK::CompilePresentPipelines()
+{
+	// we may not have a swap chain if running in headless mode.
+	m_swap_chain_render_pass =
+		GetRenderPass(m_swap_chain ? m_swap_chain->GetTextureFormat() : VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_UNDEFINED);
+	if (m_swap_chain_render_pass == VK_NULL_HANDLE)
+		return false;
+
+	const std::optional<std::string> shader = ReadShaderSource("shaders/vulkan/present.glsl");
+	if (!shader)
+	{
+		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/present.glsl.");
+		return false;
+	}
+
+	VkShaderModule vs = GetUtilityVertexShader(*shader);
+	if (vs == VK_NULL_HANDLE)
+		return false;
+	ScopedGuard vs_guard([this, &vs]() { vkDestroyShaderModule(m_device, vs, nullptr); });
+
+	Vulkan::GraphicsPipelineBuilder gpb;
+	SetPipelineProvokingVertex(m_features, gpb);
+	AddUtilityVertexAttributes(gpb);
+	gpb.SetPipelineLayout(m_utility_pipeline_layout);
+	gpb.SetDynamicViewportAndScissorState();
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+	gpb.SetNoCullRasterizationState();
+	gpb.SetNoBlendingState();
+	gpb.SetVertexShader(vs);
+	gpb.SetDepthState(false, false, VK_COMPARE_OP_ALWAYS);
+	gpb.SetNoStencilState();
+	gpb.SetRenderPass(m_swap_chain_render_pass, 0);
+
+	for (PresentShader i = PresentShader::COPY; i < PresentShader::Count; i = static_cast<PresentShader>(static_cast<int>(i) + 1))
+	{
+		const int index = static_cast<int>(i);
+
+		VkShaderModule ps = GetUtilityFragmentShader(*shader, ShaderEntryPoint(i));
+		if (ps == VK_NULL_HANDLE)
+			return false;
+
+		ScopedGuard ps_guard([this, &ps]() { vkDestroyShaderModule(m_device, ps, nullptr); });
+		gpb.SetFragmentShader(ps);
+
+		m_present[index] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		if (!m_present[index])
+			return false;
+
+		Vulkan::SetObjectName(m_device, m_present[index], "Present pipeline %d", i);
+	}
+
+	return true;
+}
+
+
+bool GSDeviceVK::CompileInterlacePipelines()
+{
+	const std::optional<std::string> shader = ReadShaderSource("shaders/vulkan/interlace.glsl");
+	if (!shader)
+	{
+		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/interlace.glsl.");
+		return false;
+	}
+
+	VkRenderPass rp =
+		GetRenderPass(LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
+	if (!rp)
+		return false;
+
+	VkShaderModule vs = GetUtilityVertexShader(*shader);
+	if (vs == VK_NULL_HANDLE)
+		return false;
+	ScopedGuard vs_guard([this, &vs]() { vkDestroyShaderModule(m_device, vs, nullptr); });
+
+	Vulkan::GraphicsPipelineBuilder gpb;
+	SetPipelineProvokingVertex(m_features, gpb);
+	AddUtilityVertexAttributes(gpb);
+	gpb.SetPipelineLayout(m_utility_pipeline_layout);
+	gpb.SetDynamicViewportAndScissorState();
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+	gpb.SetNoCullRasterizationState();
+	gpb.SetNoDepthTestState();
+	gpb.SetNoBlendingState();
+	gpb.SetRenderPass(rp, 0);
+	gpb.SetVertexShader(vs);
+
+	for (int i = 0; i < static_cast<int>(m_interlace.size()); i++)
+	{
+		VkShaderModule ps = GetUtilityFragmentShader(*shader, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
+		if (ps == VK_NULL_HANDLE)
+			return false;
+
+		gpb.SetFragmentShader(ps);
+
+		m_interlace[i] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		vkDestroyShaderModule(m_device, ps, nullptr);
+		if (!m_interlace[i])
+			return false;
+
+		Vulkan::SetObjectName(m_device, m_interlace[i], "Interlace pipeline %d", i);
+	}
+
+	return true;
+}
+
+bool GSDeviceVK::CompileMergePipelines()
+{
+	const std::optional<std::string> shader = ReadShaderSource("shaders/vulkan/merge.glsl");
+	if (!shader)
+	{
+		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/merge.glsl.");
+		return false;
+	}
+
+	VkRenderPass rp =
+		GetRenderPass(LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
+	if (!rp)
+		return false;
+
+	VkShaderModule vs = GetUtilityVertexShader(*shader);
+	if (vs == VK_NULL_HANDLE)
+		return false;
+	ScopedGuard vs_guard([this, &vs]() { vkDestroyShaderModule(m_device, vs, nullptr); });
+
+	Vulkan::GraphicsPipelineBuilder gpb;
+	SetPipelineProvokingVertex(m_features, gpb);
+	AddUtilityVertexAttributes(gpb);
+	gpb.SetPipelineLayout(m_utility_pipeline_layout);
+	gpb.SetDynamicViewportAndScissorState();
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+	gpb.SetNoCullRasterizationState();
+	gpb.SetNoDepthTestState();
+	gpb.SetRenderPass(rp, 0);
+	gpb.SetVertexShader(vs);
+
+	for (int i = 0; i < static_cast<int>(m_merge.size()); i++)
+	{
+		VkShaderModule ps = GetUtilityFragmentShader(*shader, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
+		if (ps == VK_NULL_HANDLE)
+			return false;
+
+		gpb.SetFragmentShader(ps);
+		gpb.SetBlendAttachment(0, true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
+			VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD);
+
+		m_merge[i] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		vkDestroyShaderModule(m_device, ps, nullptr);
+		if (!m_merge[i])
+			return false;
+
+		Vulkan::SetObjectName(m_device, m_merge[i], "Merge pipeline %d", i);
+	}
+
+	return true;
+}
+
+bool GSDeviceVK::CompilePostProcessingPipelines()
+{
+	VkRenderPass rp =
+		GetRenderPass(LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
+	if (!rp)
+		return false;
+
+	Vulkan::GraphicsPipelineBuilder gpb;
+	SetPipelineProvokingVertex(m_features, gpb);
+	AddUtilityVertexAttributes(gpb);
+	gpb.SetPipelineLayout(m_utility_pipeline_layout);
+	gpb.SetDynamicViewportAndScissorState();
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+	gpb.SetNoCullRasterizationState();
+	gpb.SetNoDepthTestState();
+	gpb.SetNoBlendingState();
+	gpb.SetRenderPass(rp, 0);
+
+	{
+		const std::optional<std::string> vshader = ReadShaderSource("shaders/vulkan/convert.glsl");
+		if (!vshader)
+		{
+			Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/convert.glsl.");
+			return false;
+		}
+
+		const std::optional<std::string> pshader = ReadShaderSource("shaders/common/fxaa.fx");
+		if (!pshader)
+		{
+			Host::ReportErrorAsync("GS", "Failed to read shaders/common/fxaa.fx.");
+			return false;
+		}
+
+		const std::string psource = "#define FXAA_GLSL_VK 1\n" + *pshader;
+
+		VkShaderModule vs = GetUtilityVertexShader(*vshader);
+		if (vs == VK_NULL_HANDLE)
+			return false;
+		ScopedGuard vs_guard([this, &vs]() { vkDestroyShaderModule(m_device, vs, nullptr); });
+		VkShaderModule ps = GetUtilityFragmentShader(psource, "ps_main");
+		if (ps == VK_NULL_HANDLE)
+			return false;
+		ScopedGuard ps_guard([this, &ps]() { vkDestroyShaderModule(m_device, ps, nullptr); });
+		gpb.SetVertexShader(vs);
+		gpb.SetFragmentShader(ps);
+
+		m_fxaa_pipeline = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		if (!m_fxaa_pipeline)
+			return false;
+
+		Vulkan::SetObjectName(m_device, m_fxaa_pipeline, "FXAA pipeline");
+	}
+
+	{
+		const std::optional<std::string> shader = ReadShaderSource("shaders/vulkan/shadeboost.glsl");
+		if (!shader)
+		{
+			Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/shadeboost.glsl.");
+			return false;
+		}
+
+		VkShaderModule vs = GetUtilityVertexShader(*shader);
+		ScopedGuard vs_guard([this, &vs]() { vkDestroyShaderModule(m_device, vs, nullptr); });
+		if (vs == VK_NULL_HANDLE)
+			return false;
+
+		VkShaderModule ps = GetUtilityFragmentShader(*shader);
+		ScopedGuard ps_guard([this, &ps]() { vkDestroyShaderModule(m_device, ps, nullptr); });
+		if (ps == VK_NULL_HANDLE)
+			return false;
+
+		gpb.SetVertexShader(vs);
+		gpb.SetFragmentShader(ps);
+
+		m_shadeboost_pipeline = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		if (!m_shadeboost_pipeline)
+			return false;
+
+		Vulkan::SetObjectName(m_device, m_shadeboost_pipeline, "Shadeboost pipeline");
+	}
+
+	return true;
+}
+
+bool GSDeviceVK::CompileCASPipelines()
+{
+	VkDevice dev = m_device;
+	Vulkan::DescriptorSetLayoutBuilder dslb;
+	Vulkan::PipelineLayoutBuilder plb;
+
+	if (m_use_push_descriptors)
+		dslb.SetPushFlag();
+	dslb.AddBinding(0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+	dslb.AddBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+	if ((m_cas_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_cas_ds_layout, "CAS descriptor layout");
+
+	plb.AddPushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, NUM_CAS_CONSTANTS * sizeof(u32));
+	plb.AddDescriptorSet(m_cas_ds_layout);
+	if ((m_cas_pipeline_layout = plb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_cas_pipeline_layout, "CAS pipeline layout");
+
+	// we use specialization constants to avoid compiling it twice
+	std::optional<std::string> cas_source = ReadShaderSource("shaders/vulkan/cas.glsl");
+	if (!cas_source.has_value() || !GetCASShaderSource(&cas_source.value()))
+		return false;
+
+	VkShaderModule mod = g_vulkan_shader_cache->GetComputeShader(cas_source->c_str());
+	ScopedGuard mod_guard = [this, &mod]() { vkDestroyShaderModule(m_device, mod, nullptr); };
+	if (mod == VK_NULL_HANDLE)
+		return false;
+
+	for (u8 sharpen_only = 0; sharpen_only < 2; sharpen_only++)
+	{
+		Vulkan::ComputePipelineBuilder cpb;
+		cpb.SetPipelineLayout(m_cas_pipeline_layout);
+		cpb.SetShader(mod, "main");
+		cpb.SetSpecializationBool(0, sharpen_only != 0);
+		m_cas_pipelines[sharpen_only] = cpb.Create(dev, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		if (!m_cas_pipelines[sharpen_only])
+			return false;
+	}
+
+	m_features.cas_sharpening = true;
+	return true;
+}
+
+bool GSDeviceVK::CompileFSR1Pipelines()
+{
+	VkDevice dev = m_device;
+	Vulkan::DescriptorSetLayoutBuilder dslb;
+	Vulkan::PipelineLayoutBuilder plb;
+
+	if (m_use_push_descriptors)
+		dslb.SetPushFlag();
+	// Combined image sampler, not SAMPLED_IMAGE as CAS uses: EASU reads through textureGather,
+	// which needs a sampler bound to the image.
+	dslb.AddBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+	dslb.AddBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+	if ((m_fsr1_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_fsr1_ds_layout, "FSR1 descriptor layout");
+
+	plb.AddPushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, NUM_FSR1_CONSTANTS * sizeof(u32));
+	plb.AddDescriptorSet(m_fsr1_ds_layout);
+	if ((m_fsr1_pipeline_layout = plb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_fsr1_pipeline_layout, "FSR1 pipeline layout");
+
+	// Two modules from two differently-#define'd copies of the same file, where CAS gets away
+	// with one module and a specialization constant: FSR_EASU_F/FSR_RCAS_F decide which function
+	// bodies ffx_fsr1.h emits, so a specialization constant would leave both calls unresolved.
+	for (u8 easu_pass = 0; easu_pass < NUM_FSR1_PIPELINES; easu_pass++)
+	{
+		std::optional<std::string> fsr1_source = ReadShaderSource("shaders/vulkan/fsr1.glsl");
+		if (!fsr1_source.has_value() || !GetFSR1ShaderSource(&fsr1_source.value(), easu_pass != 0))
+			return false;
+
+		VkShaderModule mod = g_vulkan_shader_cache->GetComputeShader(fsr1_source->c_str());
+		if (mod == VK_NULL_HANDLE)
+			return false;
+		ScopedGuard mod_guard = [this, &mod]() { vkDestroyShaderModule(m_device, mod, nullptr); };
+
+		Vulkan::ComputePipelineBuilder cpb;
+		cpb.SetPipelineLayout(m_fsr1_pipeline_layout);
+		cpb.SetShader(mod, "main");
+		m_fsr1_pipelines[easu_pass] = cpb.Create(dev, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		if (!m_fsr1_pipelines[easu_pass])
+			return false;
+	}
+
+	m_features.fsr1 = true;
+	return true;
+}
+
+bool GSDeviceVK::CompileSGSRPipeline()
+{
+	VkDevice dev = m_device;
+	Vulkan::DescriptorSetLayoutBuilder dslb;
+	Vulkan::PipelineLayoutBuilder plb;
+
+	if (m_use_push_descriptors)
+		dslb.SetPushFlag();
+	// Combined image sampler for the same reason FSR1 needs one: SGSR reads through
+	// textureGather, which has to have a sampler bound to the image.
+	dslb.AddBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+	dslb.AddBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+	if ((m_sgsr_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_sgsr_ds_layout, "SGSR descriptor layout");
+
+	plb.AddPushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, NUM_SGSR_CONSTANTS * sizeof(u32));
+	plb.AddDescriptorSet(m_sgsr_ds_layout);
+	if ((m_sgsr_pipeline_layout = plb.Create(dev)) == VK_NULL_HANDLE)
+		return false;
+	Vulkan::SetObjectName(dev, m_sgsr_pipeline_layout, "SGSR pipeline layout");
+
+	// Two modules from two differently-#define'd copies of one file, the same shape FSR1 uses:
+	// the variant decides which filter body the preprocessor emits at all, so it cannot be a
+	// specialization constant.
+	for (u8 edge = 0; edge < NUM_SGSR_PIPELINES; edge++)
+	{
+		std::optional<std::string> sgsr_source = ReadShaderSource("shaders/vulkan/sgsr.glsl");
+		if (!sgsr_source.has_value())
+			return false;
+		sgsr_source->insert(0, edge ? "#version 460 core\n#define SGSR_EDGE_DIRECTION 1\n"
+									: "#version 460 core\n#define SGSR_EDGE_DIRECTION 0\n");
+
+		VkShaderModule mod = g_vulkan_shader_cache->GetComputeShader(sgsr_source->c_str());
+		if (mod == VK_NULL_HANDLE)
+			return false;
+		ScopedGuard mod_guard = [this, &mod]() { vkDestroyShaderModule(m_device, mod, nullptr); };
+
+		Vulkan::ComputePipelineBuilder cpb;
+		cpb.SetPipelineLayout(m_sgsr_pipeline_layout);
+		cpb.SetShader(mod, "main");
+		m_sgsr_pipelines[edge] = cpb.Create(dev, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		if (!m_sgsr_pipelines[edge])
+			return false;
+	}
+
+	m_features.sgsr = true;
+	return true;
+}
+
+bool GSDeviceVK::CompileImGuiPipeline()
+{
+	const std::optional<std::string> glsl = ReadShaderSource("shaders/vulkan/imgui.glsl");
+	if (!glsl.has_value())
+	{
+		Console.Error("VK: Failed to read imgui.glsl");
+		return false;
+	}
+
+	VkShaderModule vs = GetUtilityVertexShader(glsl.value(), "vs_main");
+	if (vs == VK_NULL_HANDLE)
+	{
+		Console.Error("VK: Failed to compile ImGui vertex shader");
+		return false;
+	}
+	ScopedGuard vs_guard([this, &vs]() { vkDestroyShaderModule(m_device, vs, nullptr); });
+
+	VkShaderModule ps = GetUtilityFragmentShader(glsl.value(), "ps_main");
+	if (ps == VK_NULL_HANDLE)
+	{
+		Console.Error("VK: Failed to compile ImGui pixel shader");
+		return false;
+	}
+	ScopedGuard ps_guard([this, &ps]() { vkDestroyShaderModule(m_device, ps, nullptr); });
+
+	Vulkan::GraphicsPipelineBuilder gpb;
+	SetPipelineProvokingVertex(m_features, gpb);
+	gpb.SetPipelineLayout(m_utility_pipeline_layout);
+	gpb.SetRenderPass(m_swap_chain_render_pass, 0);
+	gpb.AddVertexBuffer(0, sizeof(ImDrawVert), VK_VERTEX_INPUT_RATE_VERTEX);
+	gpb.AddVertexAttribute(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos));
+	gpb.AddVertexAttribute(1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv));
+	gpb.AddVertexAttribute(2, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col));
+	gpb.SetPrimitiveTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	gpb.SetVertexShader(vs);
+	gpb.SetFragmentShader(ps);
+	gpb.SetNoCullRasterizationState();
+	gpb.SetNoDepthTestState();
+	gpb.SetBlendAttachment(0, true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
+		VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD);
+	gpb.SetDynamicViewportAndScissorState();
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+
+	m_imgui_pipeline = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(), false);
+	if (!m_imgui_pipeline)
+	{
+		Console.Error("VK: Failed to compile ImGui pipeline");
+		return false;
+	}
+
+	Vulkan::SetObjectName(m_device, m_imgui_pipeline, "ImGui pipeline");
+	return true;
+}
+
+void GSDeviceVK::RenderImGui()
+{
+	ImGui::Render();
+	const ImDrawData* draw_data = ImGui::GetDrawData();
+	if (draw_data->CmdLists.Size == 0)
+		return;
+
+	UpdateImGuiTextures();
+
+	// ImGui's vertex Position and ClipRect both come in *logical* pixel coords
+	// (against io.DisplaySize, which we set to the rotated presentation size).
+	// uScale/uTranslate map pixel coords directly to NDC. Rotation transforms
+	// logical pixels into the physical pixel space of the swapchain viewport,
+	// so uScale must always be in physical units (not logical) for both the
+	// rotated and unrotated paths. Physical is the swap chain image, whose axes
+	// are swapped from the window's under a 90/270 pre-rotation.
+	const float phys_w = static_cast<float>(m_swap_chain ? m_swap_chain->GetImageWidth() : m_window_info.surface_width);
+	const float phys_h = static_cast<float>(m_swap_chain ? m_swap_chain->GetImageHeight() : m_window_info.surface_height);
+	const GSVector4 uniforms(2.0f / phys_w, 2.0f / phys_h, -1.0f, -1.0f);
+
+	SetUtilityPushConstants(&uniforms, sizeof(uniforms));
+	SetPipeline(m_imgui_pipeline);
+
+	if (m_utility_sampler != m_linear_sampler)
+	{
+		m_utility_sampler = m_linear_sampler;
+		m_dirty_flags |= DIRTY_FLAG_UTILITY_TEXTURE;
+	}
+
+	// this is for presenting, we don't want to screw with the viewport/scissor set by display
+	m_dirty_flags &= ~(DIRTY_FLAG_VIEWPORT | DIRTY_FLAG_SCISSOR);
+
+	// Logical/physical coords differ for Rot90/Rot270; the rotation transform
+	// maps a logical pixel (lx, ly) on a (lw, lh) logical surface to a
+	// physical pixel on the (phys_w, phys_h) swapchain. Rotation is around
+	// the geometric centre of each surface.
+	const DisplayRotation rotation = GetPresentRotation();
+	const bool rotate = (rotation != DisplayRotation::Rot0);
+	const GSVector2i pres = GetPresentationSize();
+	const float lw = static_cast<float>(pres.x);
+	const float lh = static_cast<float>(pres.y);
+	// The turn is RotateNDCForPresent's, the one the game image gets. That works in y-up
+	// coordinates (the present vertex shader flips y) and ImGui's pixels are y-down, so y is
+	// flipped around it; applying the same formula to y-down pixels turns the overlay the other
+	// way, 180 degrees off the game at Rot90/Rot270.
+	const auto rotate_pixel = [&](float lx, float ly, float& px, float& py) {
+		float x = lx - lw * 0.5f;
+		float y = lh * 0.5f - ly;
+		RotateNDCForPresent(rotation, x, y);
+		px = x + phys_w * 0.5f;
+		py = phys_h * 0.5f - y;
+	};
+
+	for (int n = 0; n < draw_data->CmdLists.Size; n++)
+	{
+		const ImDrawList* cmd_list = draw_data->CmdLists[n];
+
+		u32 vertex_offset;
+		{
+			const u32 size = sizeof(ImDrawVert) * static_cast<u32>(cmd_list->VtxBuffer.Size);
+			if (!m_vertex_stream_buffer.ReserveMemory(size, sizeof(ImDrawVert)))
+			{
+				Console.Warning("VK: Skipping ImGui draw because of no vertex buffer space");
+				return;
+			}
+
+			vertex_offset = m_vertex_stream_buffer.GetCurrentOffset() / sizeof(ImDrawVert);
+			if (!rotate)
+			{
+				std::memcpy(m_vertex_stream_buffer.GetCurrentHostPointer(),
+					cmd_list->VtxBuffer.Data, size);
+			}
+			else
+			{
+				ImDrawVert* dst = reinterpret_cast<ImDrawVert*>(
+					m_vertex_stream_buffer.GetCurrentHostPointer());
+				const ImDrawVert* src = cmd_list->VtxBuffer.Data;
+				for (int i = 0; i < cmd_list->VtxBuffer.Size; i++)
+				{
+					dst[i] = src[i];
+					rotate_pixel(src[i].pos.x, src[i].pos.y, dst[i].pos.x, dst[i].pos.y);
+				}
+			}
+			m_vertex_stream_buffer.CommitMemory(size);
+		}
+
+		static_assert(sizeof(ImDrawIdx) == sizeof(u16));
+		IASetIndexBuffer(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size);
+
+		for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
+		{
+			const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+			pxAssert(!pcmd->UserCallback);
+
+			GSVector4 clip = GSVector4::load<false>(&pcmd->ClipRect);
+			if ((clip.zwzw() <= clip.xyxy()).mask() != 0)
+				continue;
+
+			if (rotate)
+			{
+				// Rotate the four corners of the logical clip rect into
+				// physical space, then take their axis-aligned bounding box.
+				// (90/270 rotations preserve axis-alignment.)
+				float x0 = clip.x, y0 = clip.y, x1 = clip.z, y1 = clip.w;
+				float c0x, c0y, c1x, c1y, c2x, c2y, c3x, c3y;
+				rotate_pixel(x0, y0, c0x, c0y);
+				rotate_pixel(x1, y0, c1x, c1y);
+				rotate_pixel(x0, y1, c2x, c2y);
+				rotate_pixel(x1, y1, c3x, c3y);
+				const float xmin = std::min(std::min(c0x, c1x), std::min(c2x, c3x));
+				const float xmax = std::max(std::max(c0x, c1x), std::max(c2x, c3x));
+				const float ymin = std::min(std::min(c0y, c1y), std::min(c2y, c3y));
+				const float ymax = std::max(std::max(c0y, c1y), std::max(c2y, c3y));
+				clip = GSVector4(xmin, ymin, xmax, ymax);
+			}
+
+			SetScissor(GSVector4i(clip).max_i32(GSVector4i::zero()));
+
+			// Since we don't have the GSTexture...
+			GSTextureVK* tex = reinterpret_cast<GSTextureVK*>(pcmd->GetTexID());
+			if (tex)
+				SetUtilityTexture(tex, m_linear_sampler);
+
+			if (ApplyUtilityState())
+			{
+				vkCmdDrawIndexed(GetCurrentCommandBuffer(), pcmd->ElemCount, 1, m_index.start + pcmd->IdxOffset,
+					vertex_offset + pcmd->VtxOffset, 0);
+			}
+		}
+
+		g_perfmon.Put(GSPerfMon::DrawCalls, cmd_list->CmdBuffer.Size);
+	}
+}
+
+void GSDeviceVK::RenderBlankFrame()
+{
+	VkResult res = m_swap_chain->AcquireNextImage();
+	if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
+	{
+		Console.Error("VK: Failed to acquire image for blank frame present");
+		return;
+	}
+
+	VkCommandBuffer cmdbuffer = GetCurrentCommandBuffer();
+	GSTextureVK* sctex = m_swap_chain->GetCurrentTexture();
+	sctex->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::TransferDst);
+
+	constexpr VkImageSubresourceRange srr = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+	vkCmdClearColorImage(
+		cmdbuffer, sctex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &s_present_clear_color.color, 1, &srr);
+
+	m_swap_chain->GetCurrentTexture()->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::PresentSrc);
+	SubmitCommandBuffer(m_swap_chain.get());
+	ActivateCommandBuffer((m_current_frame + 1) % NUM_COMMAND_BUFFERS);
+}
+
+bool GSDeviceVK::DoCAS(
+	GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants)
+{
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
+	EndRenderPass();
+
+	GSTextureVK* const sTexVK = static_cast<GSTextureVK*>(sTex);
+	GSTextureVK* const dTexVK = static_cast<GSTextureVK*>(dTex);
+	VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
+
+	// The sharpen reads the source from the COMPUTE stage, so it needs a compute-scoped transition:
+	// ShaderReadOnly orders the fragment stage on both sides, and the pass that rendered this source
+	// is a colour-attachment write the dispatch would not be waiting on. Same VkImage layout, so the
+	// descriptor written below is unaffected. DoFSR1 and DoSGSR have the identical shape and use
+	// the identical layout for the identical reason.
+	sTexVK->TransitionToLayout(cmdbuf, GSTextureVK::Layout::ComputeReadOnly);
+	dTexVK->TransitionToLayout(cmdbuf, GSTextureVK::Layout::ComputeReadWriteImage);
+
+	// only happening once a frame, so the update isn't a huge deal.
+	Vulkan::DescriptorSetUpdateBuilder dsub;
+	if (m_use_push_descriptors)
+	{
+		dsub.AddImageDescriptorWrite(VK_NULL_HANDLE, 0, sTexVK->GetView(), sTexVK->GetVkLayout());
+		dsub.AddStorageImageDescriptorWrite(VK_NULL_HANDLE, 1, dTexVK->GetView(), dTexVK->GetVkLayout());
+		dsub.PushUpdate(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_cas_pipeline_layout, 0, false);
+	}
+	else
+	{
+		VkDescriptorSet ds = AllocateDescriptorSetFromFramePool(m_cas_ds_layout);
+		if (ds == VK_NULL_HANDLE) [[unlikely]]
+			return false; // single alloc per frame after EndRenderPass — exhaustion implausible; skip the sharpen pass
+		dsub.AddImageDescriptorWrite(ds, 0, sTexVK->GetView(), sTexVK->GetVkLayout());
+		dsub.AddStorageImageDescriptorWrite(ds, 1, dTexVK->GetView(), dTexVK->GetVkLayout());
+		dsub.Update(m_device);
+		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_cas_pipeline_layout, 0, 1, &ds, 0, nullptr);
+	}
+
+	// the actual meat and potatoes! only four commands.
+	static const int threadGroupWorkRegionDim = 16;
+	const int dispatchX = (dTex->GetWidth() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
+	const int dispatchY = (dTex->GetHeight() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
+
+	vkCmdPushConstants(cmdbuf, m_cas_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, NUM_CAS_CONSTANTS * sizeof(u32),
+		constants.data());
+	vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_cas_pipelines[static_cast<u8>(sharpen_only)]);
+	vkCmdDispatch(cmdbuf, dispatchX, dispatchY, 1);
+
+	dTexVK->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+
+	// all done!
+	return true;
+}
+
+bool GSDeviceVK::DoFSR1EASU(GSTexture* sTex, GSTexture* dTex, const std::array<u32, NUM_FSR1_CONSTANTS>& constants)
+{
+	return DoFSR1Pass(sTex, dTex, true, constants);
+}
+
+bool GSDeviceVK::DoFSR1RCAS(GSTexture* sTex, GSTexture* dTex, const std::array<u32, NUM_FSR1_CONSTANTS>& constants)
+{
+	return DoFSR1Pass(sTex, dTex, false, constants);
+}
+
+bool GSDeviceVK::DoFSR1Pass(
+	GSTexture* sTex, GSTexture* dTex, bool easu_pass, const std::array<u32, NUM_FSR1_CONSTANTS>& constants)
+{
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
+	EndRenderPass();
+
+	GSTextureVK* const sTexVK = static_cast<GSTextureVK*>(sTex);
+	GSTextureVK* const dTexVK = static_cast<GSTextureVK*>(dTex);
+	VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
+
+	// The EASU intermediate is handed to RCAS in compute and so never leaves GENERAL, which
+	// defeats both of the backend's usual tools: Layout::ShaderReadOnly's barrier targets
+	// VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT and would not make compute stores visible to a
+	// compute read, and TransitionToLayout() early-outs when the layout already matches, so
+	// re-requesting ComputeReadWriteImage emits nothing at all. Anything already in GENERAL
+	// therefore needs its compute<->compute dependency stated by hand.
+	const auto compute_barrier = [cmdbuf](GSTextureVK* tex, VkAccessFlags src_access, VkAccessFlags dst_access) {
+		const VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr, src_access, dst_access,
+			VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+			tex->GetImage(), {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u}};
+		vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0,
+			nullptr, 0, nullptr, 1, &barrier);
+	};
+
+	if (sTexVK->GetLayout() == GSTextureVK::Layout::ComputeReadWriteImage)
+	{
+		// RCAS reading EASU's output. Without this it reads undefined data.
+		compute_barrier(sTexVK, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+	}
+	else
+	{
+		// EASU's input is the merged display texture, arriving from a colour-attachment write
+		// exactly as CAS's does, and read from the compute stage exactly as CAS's is. So the
+		// transition has to be compute-scoped: ShaderReadOnly puts the fragment stage on both
+		// sides of the barrier and orders this dispatch against nothing.
+		sTexVK->TransitionToLayout(cmdbuf, GSTextureVK::Layout::ComputeReadOnly);
+	}
+
+	if (dTexVK->GetLayout() == GSTextureVK::Layout::ComputeReadWriteImage)
+	{
+		// Every frame after the first: the intermediate was left in GENERAL for RCAS to read, so
+		// this is what orders EASU's writes against the previous frame's RCAS reads of it.
+		compute_barrier(dTexVK, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_WRITE_BIT);
+	}
+	else
+	{
+		dTexVK->TransitionToLayout(cmdbuf, GSTextureVK::Layout::ComputeReadWriteImage);
+	}
+
+	// EASU gathers with normalised coordinates, so it needs the linear/clamp-to-edge sampler;
+	// RCAS only texelFetches and ignores the sampler entirely.
+	const VkSampler sampler = easu_pass ? m_linear_sampler : m_point_sampler;
+
+	// only happening once a frame, so the update isn't a huge deal.
+	Vulkan::DescriptorSetUpdateBuilder dsub;
+	if (m_use_push_descriptors)
+	{
+		dsub.AddCombinedImageSamplerDescriptorWrite(VK_NULL_HANDLE, 0, sTexVK->GetView(), sampler, sTexVK->GetVkLayout());
+		dsub.AddStorageImageDescriptorWrite(VK_NULL_HANDLE, 1, dTexVK->GetView(), dTexVK->GetVkLayout());
+		dsub.PushUpdate(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_fsr1_pipeline_layout, 0, false);
+	}
+	else
+	{
+		VkDescriptorSet ds = AllocateDescriptorSetFromFramePool(m_fsr1_ds_layout);
+		if (ds == VK_NULL_HANDLE) [[unlikely]]
+			return false; // two allocs per frame after EndRenderPass - exhaustion implausible; skip the pass
+		dsub.AddCombinedImageSamplerDescriptorWrite(ds, 0, sTexVK->GetView(), sampler, sTexVK->GetVkLayout());
+		dsub.AddStorageImageDescriptorWrite(ds, 1, dTexVK->GetView(), dTexVK->GetVkLayout());
+		dsub.Update(m_device);
+		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_fsr1_pipeline_layout, 0, 1, &ds, 0, nullptr);
+	}
+
+	static const int threadGroupWorkRegionDim = 16;
+	const int dispatchX = (dTex->GetWidth() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
+	const int dispatchY = (dTex->GetHeight() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
+
+	// Full 80 bytes for both passes. RCAS only reads Const0, but the shared block puts `Sample`
+	// at byte 64 either way, and it is read unconditionally - a 32-byte push leaves it undefined
+	// and the shader squares the image.
+	vkCmdPushConstants(cmdbuf, m_fsr1_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+		NUM_FSR1_CONSTANTS * sizeof(u32), constants.data());
+	vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_fsr1_pipelines[static_cast<u8>(easu_pass)]);
+	vkCmdDispatch(cmdbuf, dispatchX, dispatchY, 1);
+
+	// The EASU target goes straight into RCAS in compute, so leave it in GENERAL and let the
+	// barrier at the top of the next pass order the two dispatches. Only RCAS's output is handed
+	// to the present pass, which samples it from the fragment stage.
+	if (!easu_pass)
+		dTexVK->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+
+	return true;
+}
+
+bool GSDeviceVK::DoSGSR(GSTexture* sTex, GSTexture* dTex, const std::array<u32, NUM_SGSR_CONSTANTS>& constants,
+	bool edge_direction)
+{
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
+	EndRenderPass();
+
+	GSTextureVK* const sTexVK = static_cast<GSTextureVK*>(sTex);
+	GSTextureVK* const dTexVK = static_cast<GSTextureVK*>(dTex);
+	VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
+
+	// Input arrives from a colour-attachment write, exactly as FSR1's EASU input does, and the
+	// dispatch below reads it from the compute stage, so the transition has to be compute-scoped.
+	// There is no compute->compute case here because SGSR has no intermediate.
+	sTexVK->TransitionToLayout(cmdbuf, GSTextureVK::Layout::ComputeReadOnly);
+
+	if (dTexVK->GetLayout() == GSTextureVK::Layout::ComputeReadWriteImage)
+	{
+		// Every frame after the first: order this dispatch's writes against the previous frame's
+		// reads of the same texture by the present pass. TransitionToLayout early-outs when the
+		// layout already matches, so a same-layout dependency has to be stated by hand.
+		const VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr,
+			VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_WRITE_BIT,
+			VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+			dTexVK->GetImage(), {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u}};
+		vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+			0, 0, nullptr, 0, nullptr, 1, &barrier);
+	}
+	else
+	{
+		dTexVK->TransitionToLayout(cmdbuf, GSTextureVK::Layout::ComputeReadWriteImage);
+	}
+
+	// Normalised coordinates and gathers, so linear/clamp-to-edge, like EASU.
+	const VkSampler sampler = m_linear_sampler;
+
+	Vulkan::DescriptorSetUpdateBuilder dsub;
+	if (m_use_push_descriptors)
+	{
+		dsub.AddCombinedImageSamplerDescriptorWrite(VK_NULL_HANDLE, 0, sTexVK->GetView(), sampler, sTexVK->GetVkLayout());
+		dsub.AddStorageImageDescriptorWrite(VK_NULL_HANDLE, 1, dTexVK->GetView(), dTexVK->GetVkLayout());
+		dsub.PushUpdate(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_sgsr_pipeline_layout, 0, false);
+	}
+	else
+	{
+		VkDescriptorSet ds = AllocateDescriptorSetFromFramePool(m_sgsr_ds_layout);
+		if (ds == VK_NULL_HANDLE) [[unlikely]]
+			return false;
+		dsub.AddCombinedImageSamplerDescriptorWrite(ds, 0, sTexVK->GetView(), sampler, sTexVK->GetVkLayout());
+		dsub.AddStorageImageDescriptorWrite(ds, 1, dTexVK->GetView(), dTexVK->GetVkLayout());
+		dsub.Update(m_device);
+		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_sgsr_pipeline_layout, 0, 1, &ds, 0, nullptr);
+	}
+
+	// 8x8 local size, one pixel per invocation — not FSR1's 16, which comes from its 64 threads
+	// each writing four pixels.
+	static const int threadGroupWorkRegionDim = 8;
+	const int dispatchX = (dTex->GetWidth() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
+	const int dispatchY = (dTex->GetHeight() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
+
+	vkCmdPushConstants(cmdbuf, m_sgsr_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+		NUM_SGSR_CONSTANTS * sizeof(u32), constants.data());
+	vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_sgsr_pipelines[edge_direction ? 1 : 0]);
+	vkCmdDispatch(cmdbuf, dispatchX, dispatchY, 1);
+
+	// Handed straight to the present pass, which samples it from the fragment stage.
+	dTexVK->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+
+	return true;
+}
+
+void GSDeviceVK::DestroyResources()
+{
+#if PS2_NATIVE_TFX_WARMUP
+    NativeTfxFinalize(this);
+#endif
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+    // Forget borrowed handles before any maps, samplers, views or pools die.
+    s_native_gs_texture_sets.Clear();
+    s_native_gs_pipeline_front.Clear();
+#endif
+	// Before anything a worker reads is destroyed.
+	StopPipelinePrecompile();
+
+	if (m_tfx_ubo_descriptor_set != VK_NULL_HANDLE)
+		FreePersistentDescriptorSet(m_tfx_ubo_descriptor_set);
+
+	for (auto& it : m_tfx_pipelines)
+		vkDestroyPipeline(m_device, it.second, nullptr);
+	for (auto& it : m_tfx_fragment_shaders)
+		vkDestroyShaderModule(m_device, it.second, nullptr);
+	for (auto& it : m_tfx_vertex_shaders)
+		vkDestroyShaderModule(m_device, it.second, nullptr);
+	for (VkPipeline it : m_interlace)
+	{
+		if (it != VK_NULL_HANDLE)
+			vkDestroyPipeline(m_device, it, nullptr);
+	}
+	for (VkPipeline it : m_merge)
+	{
+		if (it != VK_NULL_HANDLE)
+			vkDestroyPipeline(m_device, it, nullptr);
+	}
+	for (VkPipeline it : m_present)
+	{
+		if (it != VK_NULL_HANDLE)
+			vkDestroyPipeline(m_device, it, nullptr);
+	}
+	for (const auto& pipe : m_convert)
+	{
+		if (pipe != VK_NULL_HANDLE)
+			vkDestroyPipeline(m_device, pipe, nullptr);
+	}
+	for (u32 ds = 0; ds < 2; ds++)
+	{
+		for (u32 fbl = 0; fbl < 2; fbl++)
+		{
+			if (m_colclip_setup_pipelines[ds][fbl] != VK_NULL_HANDLE)
+				vkDestroyPipeline(m_device, m_colclip_setup_pipelines[ds][fbl], nullptr);
+			if (m_colclip_finish_pipelines[ds][fbl] != VK_NULL_HANDLE)
+				vkDestroyPipeline(m_device, m_colclip_finish_pipelines[ds][fbl], nullptr);
+		}
+	}
+	for (u32 ds = 0; ds < 2; ds++)
+	{
+		for (u32 datm = 0; datm < 4; datm++)
+		{
+			if (m_primid_image_setup_pipelines[ds][datm] != VK_NULL_HANDLE)
+				vkDestroyPipeline(m_device, m_primid_image_setup_pipelines[ds][datm], nullptr);
+		}
+	}
+	if (m_fxaa_pipeline != VK_NULL_HANDLE)
+		vkDestroyPipeline(m_device, m_fxaa_pipeline, nullptr);
+	if (m_shadeboost_pipeline != VK_NULL_HANDLE)
+		vkDestroyPipeline(m_device, m_shadeboost_pipeline, nullptr);
+
+	for (VkPipeline it : m_cas_pipelines)
+	{
+		if (it != VK_NULL_HANDLE)
+			vkDestroyPipeline(m_device, it, nullptr);
+	}
+	if (m_cas_pipeline_layout != VK_NULL_HANDLE)
+		vkDestroyPipelineLayout(m_device, m_cas_pipeline_layout, nullptr);
+	if (m_cas_ds_layout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(m_device, m_cas_ds_layout, nullptr);
+
+	for (VkPipeline it : m_fsr1_pipelines)
+	{
+		if (it != VK_NULL_HANDLE)
+			vkDestroyPipeline(m_device, it, nullptr);
+	}
+	if (m_fsr1_pipeline_layout != VK_NULL_HANDLE)
+		vkDestroyPipelineLayout(m_device, m_fsr1_pipeline_layout, nullptr);
+	if (m_fsr1_ds_layout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(m_device, m_fsr1_ds_layout, nullptr);
+
+	for (VkPipeline it : m_sgsr_pipelines)
+	{
+		if (it != VK_NULL_HANDLE)
+			vkDestroyPipeline(m_device, it, nullptr);
+	}
+	if (m_sgsr_pipeline_layout != VK_NULL_HANDLE)
+		vkDestroyPipelineLayout(m_device, m_sgsr_pipeline_layout, nullptr);
+	if (m_sgsr_ds_layout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(m_device, m_sgsr_ds_layout, nullptr);
+
+	if (m_imgui_pipeline != VK_NULL_HANDLE)
+		vkDestroyPipeline(m_device, m_imgui_pipeline, nullptr);
+
+	for (const auto& it : m_samplers)
+	{
+		if (it.second != VK_NULL_HANDLE)
+			vkDestroySampler(m_device, it.second, nullptr);
+	}
+	m_samplers.clear();
+
+	m_texture_stream_buffer.Destroy(false);
+	m_fragment_uniform_stream_buffer.Destroy(false);
+	m_vertex_uniform_stream_buffer.Destroy(false);
+	m_index_stream_buffer.Destroy(false);
+	m_vertex_stream_buffer.Destroy(false);
+	m_expand_index_stream_buffer.Destroy(false);
+	if (m_expand_index_buffer != VK_NULL_HANDLE)
+		vmaDestroyBuffer(m_allocator, m_expand_index_buffer, m_expand_index_buffer_allocation);
+
+	if (m_tfx_pipeline_layout != VK_NULL_HANDLE)
+		vkDestroyPipelineLayout(m_device, m_tfx_pipeline_layout, nullptr);
+	if (m_tfx_texture_ds_layout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(m_device, m_tfx_texture_ds_layout, nullptr);
+	if (m_tfx_ubo_ds_layout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(m_device, m_tfx_ubo_ds_layout, nullptr);
+	if (m_utility_pipeline_layout != VK_NULL_HANDLE)
+		vkDestroyPipelineLayout(m_device, m_utility_pipeline_layout, nullptr);
+	if (m_utility_ds_layout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(m_device, m_utility_ds_layout, nullptr);
+
+	if (m_null_framebuffer != VK_NULL_HANDLE)
+	{
+		vkDestroyFramebuffer(m_device, m_null_framebuffer, nullptr);
+	}
+
+	if (m_null_texture)
+	{
+		m_null_texture->Destroy(false);
+		m_null_texture.reset();
+	}
+
+	for (FrameResources& resources : m_frame_resources)
+	{
+		for (auto& it : resources.cleanup_resources)
+			it();
+		resources.cleanup_resources.clear();
+
+		if (resources.fence != VK_NULL_HANDLE)
+			vkDestroyFence(m_device, resources.fence, nullptr);
+		if (resources.command_buffers[0] != VK_NULL_HANDLE)
+		{
+			vkFreeCommandBuffers(m_device, resources.command_pool, static_cast<u32>(resources.command_buffers.size()),
+				resources.command_buffers.data());
+		}
+		if (resources.command_pool != VK_NULL_HANDLE)
+			vkDestroyCommandPool(m_device, resources.command_pool, nullptr);
+		for (const VkDescriptorPool pool : resources.descriptor_pools)
+			vkDestroyDescriptorPool(m_device, pool, nullptr);
+		resources.descriptor_pools.clear();
+	}
+
+	if (m_timestamp_query_pool != VK_NULL_HANDLE)
+		vkDestroyQueryPool(m_device, m_timestamp_query_pool, nullptr);
+
+	if (m_pipeline_statistics_query_pool != VK_NULL_HANDLE)
+		vkDestroyQueryPool(m_device, m_pipeline_statistics_query_pool, nullptr);
+
+	if (m_global_descriptor_pool != VK_NULL_HANDLE)
+		vkDestroyDescriptorPool(m_device, m_global_descriptor_pool, nullptr);
+
+	for (auto& it : m_render_pass_cache)
+		vkDestroyRenderPass(m_device, it.second, nullptr);
+	m_render_pass_cache.clear();
+
+	if (m_allocator != VK_NULL_HANDLE)
+		vmaDestroyAllocator(m_allocator);
+}
+
+#ifdef IZPS2_SWITCH2_TFX_JOIN_SHADER
+#include "ps2_tfx_pending_shader.hpp"
+namespace
+{
+	Ps2PendingShaders<u32, VkShaderModule> s_pending_tfx_vertex;
+	Ps2PendingShaders<GSHWDrawConfig::PSSelector, VkShaderModule> s_pending_tfx_fragment;
+}
+#endif
+
+VkShaderModule GSDeviceVK::GetTFXVertexShader(GSHWDrawConfig::VSSelector sel)
+{
+	// Precompile workers share the same renderer-owned module cache.
+	const auto find_cached = [&]() -> std::optional<VkShaderModule> {
+		std::unique_lock lock(m_tfx_shader_mutex);
+		const auto it = m_tfx_vertex_shaders.find(sel.key);
+		if (it == m_tfx_vertex_shaders.end())
+			return std::nullopt;
+		return it->second;
+	};
+	if (const auto cached = find_cached())
+		return *cached;
+#ifdef IZPS2_SWITCH2_TFX_JOIN_SHADER
+	return s_pending_tfx_vertex.Get(this, sel.key, [&]() -> VkShaderModule {
+		// A previous compiler may have completed between the fast lookup and the claim.
+		if (const auto cached = find_cached())
+			return *cached;
+#endif
+
+	GSCompileStats::Add(GSCompileStats::ShaderSources, 1);
+	std::optional<GSCompileStats::ScopedTimer> source_timer(std::in_place, GSCompileStats::ShaderSourceNs);
+	std::stringstream ss;
+	AddShaderHeader(ss);
+	AddShaderStageMacro(ss, true, false, false);
+	AddMacro(ss, "VS_TME", sel.tme);
+	AddMacro(ss, "VS_FST", sel.fst);
+	AddMacro(ss, "VS_IIP", sel.iip);
+	AddMacro(ss, "VS_POINT_SIZE", sel.point_size);
+	AddMacro(ss, "VS_EXPAND", static_cast<int>(sel.expand));
+	AddMacro(ss, "VS_SPRITE_EDGE_CLAMP", sel.sprite_edge_clamp);
+	ss << m_tfx_source;
+	std::string source = ss.str();
+	source_timer.reset();
+
+	VkShaderModule mod = g_vulkan_shader_cache->GetVertexShader(source);
+	if (mod)
+		Vulkan::SetObjectName(m_device, mod, "TFX Vertex %08X", sel.key);
+
+#if PS2_NATIVE_TFX_WARMUP
+    if(s_native_tfx.owner==this&&s_native_tfx.warming&&mod==VK_NULL_HANDLE)return VK_NULL_HANDLE;
+#endif
+	std::unique_lock lock(m_tfx_shader_mutex);
+	const auto [it, inserted] = m_tfx_vertex_shaders.emplace(sel.key, mod);
+	if (!inserted && mod != VK_NULL_HANDLE)
+		vkDestroyShaderModule(m_device, mod, nullptr);
+	return it->second;
+#ifdef IZPS2_SWITCH2_TFX_JOIN_SHADER
+	});
+#endif
+}
+
+VkShaderModule GSDeviceVK::GetTFXFragmentShader(const GSHWDrawConfig::PSSelector& requested)
+{
+    auto sel=requested;
+    sel.point_sampler=0;
+	// Same locking as GetTFXVertexShader.
+	const auto find_cached = [&]() -> std::optional<VkShaderModule> {
+		std::unique_lock lock(m_tfx_shader_mutex);
+		const auto it = m_tfx_fragment_shaders.find(sel);
+		if (it == m_tfx_fragment_shaders.end())
+			return std::nullopt;
+		return it->second;
+	};
+	if (const auto cached = find_cached())
+		return *cached;
+#ifdef IZPS2_SWITCH2_TFX_JOIN_SHADER
+	return s_pending_tfx_fragment.Get(this, sel, [&]() -> VkShaderModule {
+		// A previous compiler may have completed between the fast lookup and the claim.
+		if (const auto cached = find_cached())
+			return *cached;
+#endif
+
+	GSCompileStats::Add(GSCompileStats::ShaderSources, 1);
+	std::optional<GSCompileStats::ScopedTimer> source_timer(std::in_place, GSCompileStats::ShaderSourceNs);
+	std::stringstream ss;
+	AddShaderHeader(ss);
+	AddShaderStageMacro(ss, false, false, true);
+	AddMacro(ss, "PS_FST", sel.fst);
+	AddMacro(ss, "PS_WMS", sel.wms);
+	AddMacro(ss, "PS_WMT", sel.wmt);
+	AddMacro(ss, "PS_ADJS", sel.adjs);
+	AddMacro(ss, "PS_ADJT", sel.adjt);
+	AddMacro(ss, "PS_AEM_FMT", sel.aem_fmt);
+	AddMacro(ss, "PS_PAL_FMT", sel.pal_fmt);
+	AddMacro(ss, "PS_DST_FMT", sel.dst_fmt);
+	AddMacro(ss, "PS_DEPTH_FMT", sel.depth_fmt);
+	AddMacro(ss, "PS_CHANNEL_FETCH", sel.channel);
+	AddMacro(ss, "PS_URBAN_CHAOS_HLE", sel.urban_chaos_hle);
+	AddMacro(ss, "PS_TALES_OF_ABYSS_HLE", sel.tales_of_abyss_hle);
+	AddMacro(ss, "PS_AEM", sel.aem);
+	AddMacro(ss, "PS_TFX", sel.tfx);
+	AddMacro(ss, "PS_TCC", sel.tcc);
+	AddMacro(ss, "PS_ATST", static_cast<u32>(sel.atst));
+	AddMacro(ss, "PS_AFAIL", static_cast<u32>(sel.afail));
+	AddMacro(ss, "PS_FOG", sel.fog);
+	AddMacro(ss, "PS_BLEND_HW", sel.blend_hw);
+	AddMacro(ss, "PS_A_MASKED", sel.a_masked);
+	AddMacro(ss, "PS_FBA", sel.fba);
+	AddMacro(ss, "PS_LTF", sel.ltf);
+	AddMacro(ss, "PS_AUTOMATIC_LOD", sel.automatic_lod);
+	AddMacro(ss, "PS_MANUAL_LOD", sel.manual_lod);
+	AddMacro(ss, "PS_COLCLIP", sel.colclip);
+	AddMacro(ss, "PS_DATE", sel.date);
+	AddMacro(ss, "PS_TCOFFSETHACK", sel.tcoffsethack);
+	AddMacro(ss, "PS_REGION_RECT", sel.region_rect);
+	AddMacro(ss, "PS_NATIVE_TEXEL_GRID", sel.native_texel_grid);
+	AddMacro(ss, "PS_SPRITE_EDGE_CLAMP", sel.sprite_edge_clamp);
+	AddMacro(ss, "PS_BLEND_A", sel.blend_a);
+	AddMacro(ss, "PS_BLEND_B", sel.blend_b);
+	AddMacro(ss, "PS_BLEND_C", sel.blend_c);
+	AddMacro(ss, "PS_BLEND_D", sel.blend_d);
+	AddMacro(ss, "PS_BLEND_MIX", sel.blend_mix);
+	AddMacro(ss, "PS_ROUND_INV", sel.round_inv);
+	AddMacro(ss, "PS_FIXED_ONE_A", sel.fixed_one_a);
+	AddMacro(ss, "PS_IIP", sel.iip);
+	AddMacro(ss, "PS_SHUFFLE", sel.shuffle);
+	AddMacro(ss, "PS_SHUFFLE_SAME", sel.shuffle_same);
+	AddMacro(ss, "PS_PROCESS_BA", sel.process_ba);
+	AddMacro(ss, "PS_PROCESS_RG", sel.process_rg);
+	AddMacro(ss, "PS_SHUFFLE_ACROSS", sel.shuffle_across);
+	AddMacro(ss, "PS_READ16_SRC", sel.real16src);
+	AddMacro(ss, "PS_WRITE_RG", sel.write_rg);
+	AddMacro(ss, "PS_FBMASK", sel.fbmask);
+	AddMacro(ss, "PS_QUANTIZE_COLOR", sel.quantize_color);
+	AddMacro(ss, "PS_SUBSTITUTE_ALPHA", sel.substitute_alpha);
+	AddMacro(ss, "PS_COLCLIP_HW", sel.colclip_hw);
+	AddMacro(ss, "PS_RTA_CORRECTION", sel.rta_correction);
+	AddMacro(ss, "PS_RTA_SRC_CORRECTION", sel.rta_source_correction);
+	AddMacro(ss, "PS_REPLACEMENT_ALPHA_SNAP", sel.replacement_alpha_snap);
+	AddMacro(ss, "PS_DITHER", sel.dither);
+	AddMacro(ss, "PS_DITHER_ADJUST", sel.dither_adjust);
+	AddMacro(ss, "PS_ZCLAMP", sel.zclamp);
+	AddMacro(ss, "PS_ZFLOOR", sel.zfloor);
+	AddMacro(ss, "PS_PABE", sel.pabe);
+	AddMacro(ss, "PS_SCANMSK", sel.scanmsk);
+	AddMacro(ss, "PS_TEX_IS_FB", sel.tex_is_fb);
+	AddMacro(ss, "PS_NO_COLOR", sel.no_color);
+	AddMacro(ss, "PS_NO_COLOR1", sel.no_color1);
+	AddMacro(ss, "PS_BLEND_FACTOR_IN_ALPHA", sel.blend_factor_in_alpha);
+	AddMacro(ss, "PS_AF_IN_SRC1", sel.af_in_src1);
+	AddMacro(ss, "PS_STENCIL_COUNTER", sel.stencil_counter);
+	AddMacro(ss, "PS_ZTST", sel.ztst);
+	AddMacro(ss, "PS_AA1", static_cast<u32>(sel.aa1));
+	AddMacro(ss, "PS_ABE", sel.abe);
+	AddMacro(ss, "PS_ANISOTROPIC_FILTERING", sel.sw_aniso);
+	AddMacro(ss, "PS_ROV_COLOR", sel.rov_color);
+	AddMacro(ss, "PS_ROV_DEPTH", static_cast<u32>(sel.rov_depth));
+	ss << m_tfx_source;
+	std::string source = ss.str();
+	source_timer.reset();
+
+	VkShaderModule mod = g_vulkan_shader_cache->GetFragmentShader(source);
+	if (mod)
+		Vulkan::SetObjectName(m_device, mod, "TFX Fragment %016" PRIX64 "_%016" PRIX64, sel.key_hi, sel.key_lo);
+
+#if PS2_NATIVE_TFX_WARMUP
+    if(s_native_tfx.owner==this&&s_native_tfx.warming&&mod==VK_NULL_HANDLE)return VK_NULL_HANDLE;
+#endif
+	std::unique_lock lock(m_tfx_shader_mutex);
+	const auto [it, inserted] = m_tfx_fragment_shaders.emplace(sel, mod);
+	if (!inserted && mod != VK_NULL_HANDLE)
+		vkDestroyShaderModule(m_device, mod, nullptr);
+	return it->second;
+#ifdef IZPS2_SWITCH2_TFX_JOIN_SHADER
+	});
+#endif
+}
+
+VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
+{
+	static constexpr std::array<VkPrimitiveTopology, 3> topology_lookup = {{
+		VK_PRIMITIVE_TOPOLOGY_POINT_LIST, // Point
+		VK_PRIMITIVE_TOPOLOGY_LINE_LIST, // Line
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, // Triangle
+	}};
+
+	GSHWDrawConfig::BlendState pbs{p.bs};
+	GSHWDrawConfig::PSSelector pps{p.ps};
+	if (!p.bs.IsEffective(p.cms))
+	{
+		// disable blending when colours are masked
+		pbs = {};
+		pps.no_color1 = true;
+	}
+
+	VkShaderModule vs = GetTFXVertexShader(p.vs);
+	VkShaderModule fs = GetTFXFragmentShader(pps);
+	if (vs == VK_NULL_HANDLE || fs == VK_NULL_HANDLE)
+		return VK_NULL_HANDLE;
+
+	Vulkan::GraphicsPipelineBuilder gpb;
+	SetPipelineProvokingVertex(m_features, gpb);
+
+	// Common state
+	gpb.SetPipelineLayout(m_tfx_pipeline_layout);
+	if (IsDATEModePrimIDInit(p.ps.date))
+	{
+		// DATE image prepass
+		gpb.SetRenderPass(m_primid_image_setup_render_passes[p.ds][0], 0);
+	}
+	else
+	{
+		gpb.SetRenderPass(
+			GetTFXRenderPass(p.rt, p.ds, p.ps.colclip_hw, p.dss.date,
+				p.IsRTFeedbackLoop(), p.IsTestingAndSamplingDepth(),
+				p.rt ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+				p.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+			0);
+	}
+
+	// Declare the feedback loops on the PIPELINE, not just on the image layout and render pass.
+	//
+	// We put attachments into VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT (see
+	// UseFeedbackLoopLayout()) but never set the matching pipeline create flags. The spec requires
+	// them on any pipeline used while its attachments are in that layout, so omitting them is
+	// undefined behaviour rather than a missing optimisation — and strict mobile drivers (Adreno)
+	// are exactly where undefined shows up as intermittently stale attachment reads.
+	// Ported from sashkinbro/EmuCoreX ("Fix Vulkan attachment feedback pipelines").
+	if (UseFeedbackLoopLayout())
+	{
+		// The same declaration, spelled per draw -- the default spelling since 2026-09-22. The dynamic
+		// state goes on exactly the pipelines the create flag would have gone on, so the
+		// population declared is the population declared before and only WHEN it is stated
+		// changes; that is why the two are byte-identical. The two spellings
+		// are mutually exclusive by more than taste: the Vulkan runtime filters the create flags
+		// out of a pipeline that declares the state dynamic. See GSDynamicFeedbackLoopPolicy.h.
+		if (m_declare_loop_per_draw)
+		{
+			if (p.IsRTFeedbackLoop() || p.IsTestingAndSamplingDepth())
+				gpb.AddDynamicState(VK_DYNAMIC_STATE_ATTACHMENT_FEEDBACK_LOOP_ENABLE_EXT);
+		}
+		else
+		{
+			if (p.IsRTFeedbackLoop())
+				gpb.AddPipelineFlags(VK_PIPELINE_CREATE_COLOR_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT);
+			if (p.IsTestingAndSamplingDepth())
+				gpb.AddPipelineFlags(VK_PIPELINE_CREATE_DEPTH_STENCIL_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT);
+		}
+	}
+
+	gpb.SetPrimitiveTopology(topology_lookup[p.topology]);
+	gpb.SetRasterizationState(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	if (m_optional_extensions.vk_ext_line_rasterization &&
+		p.topology == static_cast<u8>(GSHWDrawConfig::Topology::Line))
+	{
+		gpb.SetLineRasterizationMode(VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT);
+	}
+	gpb.SetDynamicViewportAndScissorState();
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+
+	// Shaders
+	gpb.SetVertexShader(vs);
+	gpb.SetFragmentShader(fs);
+
+	// IA
+	if (p.vs.expand == GSHWDrawConfig::VSExpand::None)
+	{
+		gpb.AddVertexBuffer(0, sizeof(GSVertex));
+		gpb.AddVertexAttribute(0, 0, VK_FORMAT_R32G32_SFLOAT, 0); // ST
+		gpb.AddVertexAttribute(1, 0, VK_FORMAT_R8G8B8A8_UINT, 8); // RGBA
+		gpb.AddVertexAttribute(2, 0, VK_FORMAT_R32_SFLOAT, 12); // Q
+		gpb.AddVertexAttribute(3, 0, VK_FORMAT_R16G16_UINT, 16); // XY
+		gpb.AddVertexAttribute(4, 0, VK_FORMAT_R32_UINT, 20); // Z
+		gpb.AddVertexAttribute(5, 0, VK_FORMAT_R16G16_UINT, 24); // UV
+		gpb.AddVertexAttribute(6, 0, VK_FORMAT_R8G8B8A8_UNORM, 28); // FOG
+	}
+
+	// DepthStencil
+	static const VkCompareOp ztst[] = {
+		VK_COMPARE_OP_NEVER, VK_COMPARE_OP_ALWAYS, VK_COMPARE_OP_GREATER_OR_EQUAL, VK_COMPARE_OP_GREATER};
+	gpb.SetDepthState((p.dss.ztst != ZTST_ALWAYS || p.dss.zwe), p.dss.zwe, ztst[p.dss.ztst]);
+	if (p.dss.date)
+	{
+		const VkStencilOpState sos{VK_STENCIL_OP_KEEP, p.dss.date_one ? VK_STENCIL_OP_ZERO : VK_STENCIL_OP_KEEP,
+			VK_STENCIL_OP_KEEP, VK_COMPARE_OP_EQUAL, 1u, 1u, 1u};
+		gpb.SetStencilState(true, sos, sos);
+	}
+	else if (p.dss.alpha_bit_stencil)
+	{
+		// GSAlphaBitLogicOp: a mark keeps the shared DATE copy true by writing it where the depth test
+		// passes, which is exactly where its logic op writes the bit.
+		const VkStencilOpState sos{VK_STENCIL_OP_KEEP, VK_STENCIL_OP_REPLACE, VK_STENCIL_OP_KEEP, VK_COMPARE_OP_ALWAYS,
+			1u, 1u, (p.dss.alpha_bit_stencil == 2) ? 1u : 0u};
+		gpb.SetStencilState(true, sos, sos);
+	}
+
+	// Blending
+	if (IsDATEModePrimIDInit(p.ps.date))
+	{
+		// image DATE prepass
+		gpb.SetBlendAttachment(0, true, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_MIN, VK_BLEND_FACTOR_ONE,
+			VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_COLOR_COMPONENT_R_BIT);
+	}
+	else if (p.cms.logic_op != GSAlphaBitLogicOp::Off)
+	{
+		// GSAlphaBitLogicOp: blending off, alpha written alone, and the logic op combines the
+		// shader's 0x80 with the stored alpha.
+		gpb.SetBlendAttachment(0, false, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+			VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, p.cms.wrgba);
+		gpb.SetLogicOp(true, (p.cms.logic_op == GSAlphaBitLogicOp::SetBit) ? VK_LOGIC_OP_OR : VK_LOGIC_OP_AND_INVERTED);
+	}
+	else if (pbs.enable)
+	{
+		// clang-format off
+		static constexpr std::array<VkBlendFactor, 16> vk_blend_factors = { {
+			VK_BLEND_FACTOR_SRC_COLOR, VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR, VK_BLEND_FACTOR_DST_COLOR, VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+			VK_BLEND_FACTOR_SRC1_COLOR, VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+			VK_BLEND_FACTOR_DST_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA, VK_BLEND_FACTOR_SRC1_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA,
+			VK_BLEND_FACTOR_CONSTANT_COLOR, VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO
+		}};
+		static constexpr std::array<VkBlendOp, 3> vk_blend_ops = {{
+				VK_BLEND_OP_ADD, VK_BLEND_OP_SUBTRACT, VK_BLEND_OP_REVERSE_SUBTRACT
+		}};
+		// clang-format on
+
+		gpb.SetBlendAttachment(0, true, vk_blend_factors[pbs.src_factor], vk_blend_factors[pbs.dst_factor],
+			vk_blend_ops[pbs.op], vk_blend_factors[pbs.src_factor_alpha], vk_blend_factors[pbs.dst_factor_alpha],
+			VK_BLEND_OP_ADD, p.cms.wrgba);
+	}
+	else if (m_broken_colormask_with_depth && (p.cms.wrgba & 0x7u) == 0 &&
+			 (p.dss.ztst != ZTST_ALWAYS || p.dss.zwe))
+	{
+		// Adreno colorWriteMask-with-depthtest bug (PPSSPP #10421): with a depth test
+		// active the pipeline write mask is ignored, so a masked-RGB draw (FBMASK RGB=off)
+		// would wrongly write colour. Only alpha can differ here (RGB is fully masked),
+		// which Vulkan blend CAN express: open the write mask so the broken HW mask can't
+		// misfire, keep old RGB via (src=ZERO,dst=ONE), gate alpha on wa. Arbitrary
+		// per-channel RGB masks are not emulable this way (would corrupt), so they fall
+		// through to the normal path below.
+		const bool write_alpha = (p.cms.wrgba & 0x8u) != 0;
+		gpb.SetBlendAttachment(0, true,
+			VK_BLEND_FACTOR_ZERO, VK_BLEND_FACTOR_ONE, VK_BLEND_OP_ADD,
+			write_alpha ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_ZERO,
+			write_alpha ? VK_BLEND_FACTOR_ZERO : VK_BLEND_FACTOR_ONE,
+			VK_BLEND_OP_ADD, 0xFu);
+	}
+	else
+	{
+		gpb.SetBlendAttachment(0, false, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+			VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, p.cms.wrgba);
+	}
+
+	// Tests have shown that it's faster to just enable rast order on the entire pass, rather than alternating
+	// between turning it on and off for different draws, and adding the required barrier between non-rast-order
+	// and rast-order draws.
+	// The flag exists only with the extension. PowerVR's in-tile read without it
+	// (VulkanDeviceRules::ordered_input_attachment_read) is ordered by the hardware, not by a flag,
+	// and the render pass declares no rasterization-order subpass flag for it either.
+	if (m_features.framebuffer_fetch && p.IsRTFeedbackLoop() &&
+		m_optional_extensions.vk_ext_rasterization_order_attachment_access)
+		gpb.AddBlendFlags(VK_PIPELINE_COLOR_BLEND_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_BIT_EXT);
+	// The declared-loop road on a driver that orders overlapping primitives only on request: only
+	// the draws the renderer marked get it, because the per-overlap wait is what costs.
+	else if (p.raster_order && m_features.declared_loop_overlap_needs_raster_order && p.IsRTFeedbackLoop())
+		gpb.AddBlendFlags(VK_PIPELINE_COLOR_BLEND_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_BIT_EXT);
+
+	// Mobile ordered depth feedback: the render pass declares ordered depth access (subpass flag
+	// above) whenever depth is sampled on the fbfetch path with the toggle on — the pipeline bound
+	// in that pass must carry the matching depth-stencil rasterization-order flag or it is invalid.
+	// Condition mirrors the subpass flag exactly (key.depth_sampling == p.IsTestingAndSamplingDepth()).
+	if (m_features.depth_feedback && m_features.framebuffer_fetch && p.IsTestingAndSamplingDepth() &&
+		m_optional_extensions.vk_ext_roaa_depth)
+		gpb.AddDepthStencilFlags(VK_PIPELINE_DEPTH_STENCIL_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_DEPTH_ACCESS_BIT_EXT);
+
+	// Marked dirty after the create, not before: a precompile worker's create can straddle a flush
+	// on the GS thread, and a flag set before it would be cleared by that flush and the new entry
+	// never written.
+	VkPipeline pipeline = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(false));
+	g_vulkan_shader_cache->GetPipelineCache(true);
+	if (pipeline)
+	{
+		Vulkan::SetObjectName(
+			m_device, pipeline, "TFX Pipeline %08X/%016" PRIX64 "_%016" PRIX64, p.vs.key, p.ps.key_hi, p.ps.key_lo);
+	}
+
+	return pipeline;
+}
+
+#include "${IZPS2_WORKSPACE}/build/r135-inline-semantic-keys-source-v1/native_tfx_semantic_key.hpp"
+#include "${IZPS2_WORKSPACE}/src/native_tfx_stall_stages.inc"
+VkPipeline GSDeviceVK::GetTFXPipeline(const PipelineSelector& requested)
+{
+	GSFieldProfile::Scope profile(GSFieldProfile::Phase::VulkanPipeline);
+    const PipelineSelector p=NativeTfxCanonicalKey(requested);
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+    const NativeGsPipelineKey native_front_key = NativeGsMakePipelineKey(p);
+    if (const VkPipeline cached = s_native_gs_pipeline_front.Find(this, native_front_key))
+        return cached;
+#endif
+	const auto it = m_tfx_pipelines.find(p);
+	if (it != m_tfx_pipelines.end())
+    {
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+        s_native_gs_pipeline_front.Put(this, native_front_key, it->second);
+#endif
+        return it->second;
+    }
+
+	// A cache miss compiles SYNCHRONOUSLY on the GS thread, freezing the picture for as long as the
+	// driver takes. Normally invisible (a few ms, spread out), but fast-forward runs through content
+	// at 4x+ and hits a burst of new variants at once — which is the other half of "turn fast-forward
+	// off and it hangs for a few seconds". Timed so the stall is measurable instead of inferred;
+	// only slow compiles are logged, so this costs nothing in the common case.
+	GSCompileStats::Add(GSCompileStats::TFXPipelineMisses, 1);
+	const GSCompileStats::ScopedTimer stall_timer(GSCompileStats::GSThreadStallNs);
+
+	if (m_precompile_active)
+	{
+		if (const std::optional<VkPipeline> precompiled = TakePrecompiledTFXPipeline(p))
+		{
+			m_tfx_pipelines.emplace(p, *precompiled);
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+            s_native_gs_pipeline_front.Put(this, native_front_key, *precompiled);
+#endif
+            RecordTFXPipelineKey(p);
+			return *precompiled;
+		}
+	}
+
+    const auto nativeStagesBefore=NativeTfxStages();
+	const Common::Timer::Value tfx_compile_start = Common::Timer::GetCurrentValue();
+	VkPipeline pipeline = CreateTFXPipeline(p);
+	const double tfx_compile_ms =
+		Common::Timer::ConvertValueToMilliseconds(Common::Timer::GetCurrentValue() - tfx_compile_start);
+    NativeTfxPrintStall(tfx_compile_ms,nativeStagesBefore,&p);
+	if (tfx_compile_ms >= 20.0)
+		Console.Warning("@@ANDROID_TFXCOMPILE@@ %.1f ms for one pipeline", tfx_compile_ms);
+	m_tfx_pipelines.emplace(p, pipeline);
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+    s_native_gs_pipeline_front.Put(this, native_front_key, pipeline);
+#endif
+    if (pipeline != VK_NULL_HANDLE)
+		RecordTFXPipelineKey(p, tfx_compile_ms);
+
+	// The pipeline cache reaches the disk from the shader cache's background writer, about once a
+	// minute while it changes: never from here.
+	return pipeline;
+}
+
+namespace
+{
+	/// The key list's entries: a pipeline key with the last session that drew with it (a u32), and
+	/// the number of the latest session (under an empty key).
+	static constexpr u16 KEY_TYPE_PIPELINE = 1;
+	static constexpr u16 KEY_TYPE_SESSION = 2;
+
+#ifdef IZPS2_SWITCH2_TFX_COMPILE_COST
+	// The record's existing aux field stores the last slow foreground build
+	// in milliseconds. Legacy records have zero and retain their order.
+	static constexpr u32 MIN_SLOW_TFX_MS = 20;
+	static constexpr u32 MAX_SLOW_TFX_MS = 60000;
+
+	static u32 GetSlowTFXCompileCost(double elapsed_ms)
+	{
+		if (!(elapsed_ms >= MIN_SLOW_TFX_MS))
+			return 0;
+		return static_cast<u32>(std::min(elapsed_ms, static_cast<double>(MAX_SLOW_TFX_MS)));
+	}
+
+	static u32 ValidateSlowTFXCompileCost(u32 cost)
+	{
+		return cost >= MIN_SLOW_TFX_MS && cost <= MAX_SLOW_TFX_MS ? cost : 0;
+	}
+#endif
+
+	/// Keys drawn with in this many of the game's most recent sessions are built ahead of use; older
+	/// ones stay in the list but cost no memory. A key not drawn with in KEEP_SESSIONS is dropped.
+	static constexpr u32 PRECOMPILE_SESSIONS = 4;
+	static constexpr u32 KEEP_SESSIONS = 32;
+
+	/// Maximum number of pipelines built ahead of use.
+	static size_t GetMaxPrecompiledTFXPipelines()
+	{
+		static constexpr u64 GB = 1024ull * 1024 * 1024;
+		return (GetPhysicalMemory() >= 6 * GB) ? 2048 : 768;
+	}
+
+	/// Keys come from a list this build wrote (the stamp holds the build identity) and each record
+	/// passed its checksum, so these always hold. They are checked anyway, since a bad key would be
+	/// compiled on a worker thread: every field that indexes a table or names an enum, and every bit
+	/// a real key leaves zero.
+	static bool IsLoadableTFXKey(const GSDeviceVK::PipelineSelector& p)
+	{
+		// The bytes after the last member are padding, zero in every selector a draw builds.
+		static constexpr size_t USED_BYTES = sizeof(GSHWDrawConfig::PSSelector) + sizeof(u32) +
+											 sizeof(GSHWDrawConfig::BlendState) + 4 * sizeof(u8);
+		static_assert(USED_BYTES <= sizeof(GSDeviceVK::PipelineSelector));
+		u8 tail[sizeof(GSDeviceVK::PipelineSelector) - USED_BYTES];
+		std::memcpy(tail, reinterpret_cast<const u8*>(&p) + USED_BYTES, sizeof(tail));
+		if (std::any_of(std::begin(tail), std::end(tail), [](u8 b) { return b != 0; }))
+			return false;
+
+		return p.topology <= static_cast<u32>(GSHWDrawConfig::Topology::Triangle) && (p.key >> 8) == 0 &&
+			   p.pad == 0 && p.bs.op <= GSDevice::OP_REV_SUBTRACT &&
+			   p.vs.expand <= GSHWDrawConfig::VSExpand::TriangleAA1 && p.dss._free == 0 &&
+			   p.cms._free == 0 && p.ps.atst <= GSShader::PS_ATST::NOTEQUAL && p.ps.afail <= GSShader::PS_AFAIL::RGB_ONLY_SW_Z &&
+			   p.ps.rov_depth <= GSShader::PS_ROV_DEPTH::READ_ONLY &&
+			   p.ps.blend_hw <= static_cast<u32>(HWBlendType::INV_SRC_DST_BLEND_HALF);
+	}
+} // namespace
+
+std::string GSDeviceVK::GetTFXPipelineKeyFingerprint() const
+{
+	// The driver version is left out on purpose: an update keeps the key list. Anything that
+	// changes what a key builds -- features, workaround rules, attachment formats, the shader
+	// header -- is in.
+	std::stringstream ss;
+	ss << m_device_properties.vendorID << ' ' << m_device_properties.deviceID << ' '
+	   << static_cast<u32>(m_device_driver_properties.driverID) << ' ' << SHADER_CACHE_VERSION << ' '
+	   << sizeof(PipelineSelector) << ' ' << m_features.framebuffer_fetch << m_features.depth_feedback
+	   << m_features.provoking_vertex_last << m_features.texture_barrier << m_features.rov
+	   << m_features.primitive_id << m_features.vs_expand << m_optional_extensions.vk_ext_line_rasterization
+	   << m_optional_extensions.vk_ext_roaa_depth << UseFeedbackLoopLayout() << m_declare_loop_per_draw
+	   << m_broken_colormask_with_depth << ' ';
+	for (const GSTexture::Format fmt : {GSTexture::Format::Color, GSTexture::Format::ColorHQ,
+			 GSTexture::Format::ColorHDR, GSTexture::Format::ColorClip, GSTexture::Format::DepthStencil,
+			 GSTexture::Format::PrimID})
+	{
+		ss << static_cast<u32>(LookupNativeFormat(fmt)) << ' ';
+	}
+	AddShaderHeader(ss);
+	return ss.str();
+}
+
+void GSDeviceVK::SetGameIdentity(const std::string& serial, u32 crc)
+{
+	StopPipelinePrecompile();
+
+	if (!g_vulkan_shader_cache)
+		return;
+	g_vulkan_shader_cache->SetGame(serial, crc);
+
+#if PS2_NATIVE_TFX_WARMUP
+    NativeTfxFinalize(this);
+    s_native_tfx_stall_records=0;
+    auto&s=s_native_tfx;s.Reset(this);
+    // No user setting change, PackWriter, background workers or GS-side SD I/O.
+    if(!serial.empty()&&serial.size()<=128&&crc&&m_device!=VK_NULL_HANDLE&&m_tfx_pipeline_layout!=VK_NULL_HANDLE&&
+       !m_tfx_source.empty()&&!NativeTfxStopping()){
+        bool identityOK=s.AppendIdentity(NativeTfxBuildIdentity,32)&&s.Word(1)&&s.Word(SHADER_CACHE_VERSION)&&s.Word(crc)&&s.Word(static_cast<u32>(serial.size()))&&s.AppendIdentity(serial.data(),serial.size());
+        const auto sourceDigest=GSCacheFile::Hash128(m_tfx_source.data(),m_tfx_source.size());identityOK=s.AppendIdentity(sourceDigest.bytes,16)&&identityOK;
+        const auto&props=m_device_properties;
+        for(u32 v:{props.vendorID,props.deviceID,props.driverVersion,props.apiVersion,static_cast<u32>(m_device_driver_properties.driverID)})identityOK=s.Word(v)&&identityOK;
+        identityOK=s.AppendIdentity(props.pipelineCacheUUID,VK_UUID_SIZE)&&identityOK;
+        const u32 featureWords[]={u32(GSConfig.UseDebugDevice),u32(m_features.framebuffer_fetch),u32(m_features.depth_feedback),u32(m_features.provoking_vertex_last),u32(m_features.texture_barrier),u32(m_features.rov),u32(m_features.primitive_id),u32(m_features.vs_expand),u32(m_features.aa1),u32(m_features.alpha_bit_logic_op),u32(m_features.declared_loop_overlap_needs_raster_order),u32(m_optional_extensions.vk_ext_line_rasterization),u32(m_optional_extensions.vk_ext_roaa_depth),u32(m_optional_extensions.vk_ext_rasterization_order_attachment_access),u32(UseFeedbackLoopLayout()),u32(m_declare_loop_per_draw),u32(m_broken_colormask_with_depth),u32(m_device_features.logicOp),u32(IsDeviceMali()),u32(UsesMobileDriverWorkaround(DriverWorkaround::ScalarizeVectorBitwiseAnd)),u32(UsesMobileDriverWorkaround(DriverWorkaround::RewriteUniformIndexing))};
+        for(u32 v:featureWords)identityOK=s.Word(v)&&identityOK;
+        for(const auto fmt:{GSTexture::Format::Color,GSTexture::Format::ColorHQ,GSTexture::Format::ColorHDR,GSTexture::Format::ColorClip,GSTexture::Format::DepthStencil,GSTexture::Format::PrimID})identityOK=s.Word(static_cast<u32>(LookupNativeFormat(fmt)))&&identityOK;
+        if(identityOK){
+            s.active=true;const u8*raw=nullptr;size_t bytes=0;
+            if(NativeSpirvStore::GetTfx(s.identity,s.identityBytes,&raw,&bytes)&&!s.Snapshot(raw,bytes))++s.rejected;
+            const Common::Timer budget;const size_t loaded=s.count;size_t accepted=0;
+            for(size_t i=0;i<loaded;++i){
+                PipelineSelector key;std::memcpy(&key,s.keys[i].data(),sizeof(key));
+                const bool caps=(!static_cast<u32>(key.vs.expand)||m_features.vs_expand)&&(!static_cast<u32>(key.ps.aa1)||m_features.aa1)&&
+                    ((!key.ps.rov_color&&!static_cast<u32>(key.ps.rov_depth))||m_features.rov)&&
+                    (!key.cms.logic_op||(m_features.alpha_bit_logic_op&&m_device_features.logicOp))&&
+                    (!key.raster_order||(m_features.declared_loop_overlap_needs_raster_order&&m_optional_extensions.vk_ext_rasterization_order_attachment_access));
+                if(!NativeTfxKeys::ValidateSelector(key)||!caps){++s.rejected;s.dirty=true;continue;}
+                const PipelineSelector canonical=NativeTfxCanonicalKey(key);
+                if(std::memcmp(&canonical,&key,sizeof(key)))s.dirty=true;
+                bool duplicate=false;
+                for(size_t prior=0;prior<accepted;++prior)
+                    if(!std::memcmp(s.keys[prior].data(),&canonical,sizeof(canonical))){duplicate=true;break;}
+                if(duplicate){s.dirty=true;continue;}
+                std::memcpy(s.keys[accepted++].data(),&canonical,sizeof(canonical));
+            }
+            s.count=accepted;
+            // Count/time are bounded between calls; one driver/compiler call
+            // cannot be preempted and may exceed this dispatch budget.
+            for(size_t i=0;i<s.count;++i){
+                if(NativeTfxStopping()){++s.stops;break;}
+                if(s.attempts>=256||budget.GetTimeNanoseconds()>=200000000.0){++s.budgetStops;break;}
+                PipelineSelector key;std::memcpy(&key,s.keys[i].data(),sizeof(key));
+                if(m_tfx_pipelines.find(key)!=m_tfx_pipelines.end()){++s.already;continue;}
+                const VkRenderPass pass=IsDATEModePrimIDInit(key.ps.date)?m_primid_image_setup_render_passes[key.ds][0]:GetTFXRenderPass(key.rt,key.ds,key.ps.colclip_hw,key.dss.date,key.IsRTFeedbackLoop(),key.IsTestingAndSamplingDepth(),key.rt?VK_ATTACHMENT_LOAD_OP_LOAD:VK_ATTACHMENT_LOAD_OP_DONT_CARE,key.ds?VK_ATTACHMENT_LOAD_OP_LOAD:VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+                if(pass==VK_NULL_HANDLE){++s.rejected;continue;}
+                ++s.attempts;const Common::Timer call;s.warming=true;
+                const VkPipeline pipeline=CreateTFXPipeline(key);s.warming=false;
+                const u64 elapsed=static_cast<u64>(std::max(0.0,call.GetTimeNanoseconds()));s.maxCallNs=std::max(s.maxCallNs,elapsed);
+                if(pipeline!=VK_NULL_HANDLE){m_tfx_pipelines.emplace(key,pipeline);++s.created;}else{++s.failures;break;}
+            }
+            s.elapsedNs=static_cast<u64>(std::max(0.0,budget.GetTimeNanoseconds()));
+            Console.WriteLn("PS2_NATIVE_TFX_WARMUP diagnosticOnly=1 loaded=%llu rejected=%llu attempts=%llu created=%llu already=%llu failures=%llu stops=%llu budgetStops=%llu elapsedNs=%llu maxCallNs=%llu hardDriverDeadline=0",
+                (unsigned long long)s.loaded,(unsigned long long)s.rejected,(unsigned long long)s.attempts,(unsigned long long)s.created,(unsigned long long)s.already,(unsigned long long)s.failures,(unsigned long long)s.stops,(unsigned long long)s.budgetStops,(unsigned long long)s.elapsedNs,(unsigned long long)s.maxCallNs);
+        }
+    }
+    return;
+#endif
+	if (!GSConfig.PrecompilePipelines || GSConfig.DisableShaderCache || serial.empty())
+		return;
+
+	// The build identity is in the stamp because what a key means is defined by this build's code:
+	// a list from another build could name pipelines no draw of this one produces, or ones that do
+	// not compile. The device configuration is in the file name as well, so a switch of driver
+	// family or of a covered setting keeps both lists; the driver version is not, so a driver update
+	// keeps the list, which is the point of it.
+	const std::string fingerprint = GetTFXPipelineKeyFingerprint();
+	const std::string& build_id = GSCacheFile::GetBuildId();
+	GSCacheFile::Stamp stamp;
+	stamp.Add("build", build_id);
+	stamp.Add("device", fingerprint);
+	const std::string stem = fmt::format("vk_keys{}_{}_{}", GSConfig.UseDebugDevice ? "_debug" : "",
+		GSCacheFile::ShortName(GSCacheFile::Hash128(fingerprint.data(), fingerprint.size())),
+		GSCacheFile::ShortName(GSCacheFile::Hash128(build_id.data(), build_id.size())));
+	m_tfx_key_pack = g_vulkan_shader_cache->OpenGamePack(serial, crc, "vk_keys", stem, GSCacheFile::KIND_VK_PIPELINE_KEYS, stamp);
+	if (!m_tfx_key_pack)
+		return;
+
+	u32 session = 1;
+	if (std::vector<u8> value; m_tfx_key_pack->Get(KEY_TYPE_SESSION, nullptr, 0, &value) && value.size() == sizeof(u32))
+	{
+		std::memcpy(&session, value.data(), sizeof(session));
+		session++;
+	}
+	m_tfx_key_session = session;
+	m_tfx_key_pack->Put(KEY_TYPE_SESSION, nullptr, 0, &session, sizeof(session));
+
+	// What the last sessions recorded, in the order the game first drew with them. What has gone
+	// stale is dropped from the list.
+	struct RecordedKey
+	{
+		PipelineSelector key;
+		u32 last_session;
+#ifdef IZPS2_SWITCH2_TFX_COMPILE_COST
+		u32 foreground_cost_ms;
+#endif
+	};
+	std::vector<RecordedKey> records;
+	std::vector<PipelineSelector> stale;
+	m_tfx_key_pack->ForEach(KEY_TYPE_PIPELINE, [&](const u8* key, u32 key_size, const std::vector<u8>& value,
+		[[maybe_unused]] u32 aux) {
+		if (key_size != sizeof(PipelineSelector) || value.size() != sizeof(u32))
+			return;
+		RecordedKey rec;
+		std::memcpy(&rec.key, key, sizeof(rec.key));
+		std::memcpy(&rec.last_session, value.data(), sizeof(rec.last_session));
+#ifdef IZPS2_SWITCH2_TFX_COMPILE_COST
+		rec.foreground_cost_ms = ValidateSlowTFXCompileCost(aux);
+#endif
+		if (rec.last_session >= session || session - rec.last_session > KEEP_SESSIONS || !IsLoadableTFXKey(rec.key))
+			stale.push_back(rec.key);
+		else
+			records.push_back(rec);
+	});
+	for (const PipelineSelector& key : stale)
+		m_tfx_key_pack->Erase(KEY_TYPE_PIPELINE, &key, sizeof(key));
+
+#ifdef IZPS2_SWITCH2_TFX_COMPILE_COST
+	std::stable_sort(records.begin(), records.end(), [](const RecordedKey& a, const RecordedKey& b) {
+		return a.foreground_cost_ms > b.foreground_cost_ms;
+	});
+	u32 queued_slow_keys = 0;
+#endif
+	const size_t max_jobs = GetMaxPrecompiledTFXPipelines();
+	for (const RecordedKey& rec : records)
+	{
+		if (m_precompile_jobs.size() >= max_jobs)
+			break;
+		if (session - rec.last_session > PRECOMPILE_SESSIONS || m_tfx_pipelines.find(rec.key) != m_tfx_pipelines.end())
+			continue;
+#ifdef IZPS2_SWITCH2_TFX_COMPILE_COST
+		queued_slow_keys += rec.foreground_cost_ms != 0;
+#endif
+		m_precompile_jobs.emplace(rec.key, TFXPrecompileJob());
+		m_precompile_queue.push_back(rec.key);
+	}
+
+	if (m_precompile_queue.empty())
+		return;
+
+	// Half the cores less one, at most four: enough to stay ahead of a game's first frames without
+	// taking the cores the EE, GS and VU threads run on.
+	const u32 hw = std::max(std::thread::hardware_concurrency(), 2u);
+	const u32 num_workers = std::min<u32>(std::clamp(hw / 2 - 1, 1u, 4u), static_cast<u32>(m_precompile_queue.size()));
+	m_precompile_active = true;
+	m_precompile_start = Common::Timer::GetCurrentValue();
+	for (u32 i = 0; i < num_workers; i++)
+		m_precompile_workers.emplace_back(&GSDeviceVK::PrecompileWorker, this);
+
+	INFO_LOG("Vulkan: building {} of {} recorded pipelines for {} (session {}) on {} threads",
+		m_precompile_queue.size(), records.size(), serial, session, num_workers);
+#ifdef IZPS2_SWITCH2_TFX_COMPILE_COST
+	INFO_LOG("IZPS2_VK_PRECOMPILE slow_keys={} queued={}", queued_slow_keys, m_precompile_queue.size());
+#endif
+}
+
+void GSDeviceVK::PrepareShaderCacheClear()
+{
+#if PS2_NATIVE_TFX_WARMUP
+    if(s_native_tfx.owner==this){
+        if(s_native_tfx.active)NativeSpirvStore::EraseTfx(s_native_tfx.identity,s_native_tfx.identityBytes);
+        s_native_tfx.Clear();
+    }
+#endif
+	// Joins the workers and closes the key list; recording resumes at the next game change.
+	StopPipelinePrecompile();
+	// The driver's cache would otherwise be written back, cleared files and all, at the next flush.
+	if (g_vulkan_shader_cache)
+		g_vulkan_shader_cache->ResetPipelineCache();
+}
+
+void GSDeviceVK::PrecompileWorker()
+{
+	Threading::SetNameOfCurrentThread("GS precompile"); // Linux keeps 15 characters.
+	GSShaderCompileIndicator::t_background = true;
+
+	// A thread inherits its creator's affinity, and the GS thread may be pinned to one core.
+	const Threading::ThreadHandle self = Threading::ThreadHandle::GetForCallingThread();
+	self.SetAffinity(0);
+	self.SetNicePriority(5);
+
+	u32 built = 0;
+	std::unique_lock lock(m_precompile_mutex);
+	while (!m_precompile_stop && !m_precompile_queue.empty())
+	{
+		const PipelineSelector p = m_precompile_queue.front();
+		m_precompile_queue.pop_front();
+
+		// Gone if the GS thread took it off the queue to build it itself.
+		const auto it = m_precompile_jobs.find(p);
+		if (it == m_precompile_jobs.end() || it->second.state != TFXPrecompileJob::State::Queued)
+			continue;
+		it->second.state = TFXPrecompileJob::State::Running;
+
+		lock.unlock();
+		const VkPipeline pipeline = CreateTFXPipeline(p);
+		lock.lock();
+
+		// Still present: the GS thread erases a Running job only after it has become Done.
+		TFXPrecompileJob& job = m_precompile_jobs.at(p);
+		job.pipeline = pipeline;
+		job.state = TFXPrecompileJob::State::Done;
+		m_precompile_done_cv.notify_all();
+		built++;
+	}
+
+	GSCompileStats::Add(GSCompileStats::PrecompileBuilt, built);
+	const double cpu_ms = static_cast<double>(self.GetCPUTime()) * 1000.0 / static_cast<double>(Threading::GetThreadTicksPerSecond());
+	const double wall_ms = Common::Timer::ConvertValueToMilliseconds(Common::Timer::GetCurrentValue() - m_precompile_start);
+	INFO_LOG("Vulkan: precompile worker built {} pipelines, {:.1f} ms CPU, finished {:.1f} ms after start, last on CPU {}",
+		built, cpu_ms, wall_ms, self.GetCurrentCpu());
+}
+
+std::optional<VkPipeline> GSDeviceVK::TakePrecompiledTFXPipeline(const PipelineSelector& p)
+{
+	std::unique_lock lock(m_precompile_mutex);
+	const auto it = m_precompile_jobs.find(p);
+	if (it == m_precompile_jobs.end())
+		return std::nullopt;
+
+	if (it->second.state == TFXPrecompileJob::State::Queued)
+	{
+		// Building it here is no slower than waiting behind the queue for a worker.
+		m_precompile_jobs.erase(it);
+		return std::nullopt;
+	}
+
+	if (it->second.state == TFXPrecompileJob::State::Running)
+	{
+		const Common::Timer wait_timer;
+		m_precompile_done_cv.wait(lock, [this, &p]() {
+			return m_precompile_jobs.at(p).state == TFXPrecompileJob::State::Done;
+		});
+		const u64 waited_ns = static_cast<u64>(wait_timer.GetTimeNanoseconds());
+		GSShaderCompileIndicator::OnCompileDone(waited_ns, wait_timer.GetStartValue());
+		GSCompileStats::Add(GSCompileStats::PrecompileWaits, 1);
+		GSCompileStats::Add(GSCompileStats::PrecompileWaitNs, waited_ns);
+	}
+
+	const auto done = m_precompile_jobs.find(p);
+	const VkPipeline pipeline = done->second.pipeline;
+	m_precompile_jobs.erase(done);
+
+	// A worker's failure may be one the GS thread would not have had (memory pressure from several
+	// compiles at once), so it gets its own attempt rather than a permanent null for the session.
+	if (pipeline == VK_NULL_HANDLE)
+		return std::nullopt;
+	return pipeline;
+}
+
+void GSDeviceVK::StopPipelinePrecompile()
+{
+	{
+		std::unique_lock lock(m_precompile_mutex);
+		m_precompile_stop = true;
+		m_precompile_queue.clear();
+	}
+	for (std::thread& worker : m_precompile_workers)
+		worker.join();
+	m_precompile_workers.clear();
+#ifdef IZPS2_SWITCH2_TFX_JOIN_SHADER
+	const u64 joined_vertex = s_pending_tfx_vertex.TakeJoinedCount();
+	const u64 joined_fragment = s_pending_tfx_fragment.TakeJoinedCount();
+	if (joined_vertex || joined_fragment)
+		INFO_LOG("IZPS2_VK_SHADER_JOIN vertex={} fragment={}", joined_vertex, joined_fragment);
+#endif
+	m_precompile_stop = false;
+
+	// Built and not drawn with this session. Never bound, so no command buffer holds them and they
+	// can go now rather than occupy driver memory until the device closes.
+	for (const auto& [key, job] : m_precompile_jobs)
+	{
+		if (job.pipeline != VK_NULL_HANDLE)
+			vkDestroyPipeline(m_device, job.pipeline, nullptr);
+	}
+	m_precompile_jobs.clear();
+	m_precompile_active = false;
+
+	// Written once more by the cache's writer, then let go.
+	if (m_tfx_key_pack && g_vulkan_shader_cache)
+		g_vulkan_shader_cache->ReleasePack(std::move(m_tfx_key_pack));
+	m_tfx_key_pack.reset();
+}
+
+void GSDeviceVK::RecordTFXPipelineKey(const PipelineSelector& p, [[maybe_unused]] double foreground_compile_ms)
+{
+#if PS2_NATIVE_TFX_WARMUP
+    if(s_native_tfx.owner==this&&NativeTfxKeys::ValidateSelector(p)){const PipelineSelector canonical=NativeTfxCanonicalKey(p);s_native_tfx.Record(&canonical);}
+#endif
+	// RAM only; the pack leaves an entry that already holds this session alone. The key is stored
+	// byte for byte, padding included: the maps compare selectors with memcmp, and a key read back
+	// with other padding would never match a draw.
+	if (!m_tfx_key_pack)
+		return;
+#ifdef IZPS2_SWITCH2_TFX_COMPILE_COST
+	u32 cost = GetSlowTFXCompileCost(foreground_compile_ms);
+	if (cost == 0)
+	{
+		// A precompiled or inexpensive draw updates recency without erasing
+		// the recorded stall. The pack is already in memory.
+		std::vector<u8> previous;
+		if (m_tfx_key_pack->Get(KEY_TYPE_PIPELINE, &p, sizeof(p), &previous, &cost))
+			cost = ValidateSlowTFXCompileCost(cost);
+	}
+	m_tfx_key_pack->Put(KEY_TYPE_PIPELINE, &p, sizeof(p), &m_tfx_key_session, sizeof(m_tfx_key_session), cost);
+#else
+	m_tfx_key_pack->Put(KEY_TYPE_PIPELINE, &p, sizeof(p), &m_tfx_key_session, sizeof(m_tfx_key_session));
+#endif
+}
+
+bool GSDeviceVK::BindDrawPipeline(const PipelineSelector& p)
+{
+	VkPipeline pipeline = GetTFXPipeline(p);
+	if (pipeline == VK_NULL_HANDLE)
+		return false;
+
+	SetPipeline(pipeline);
+
+	if (!ApplyTFXState())
+		return false;
+
+	return true;
+}
+
+void GSDeviceVK::InitializeState()
+{
+	m_current_framebuffer = VK_NULL_HANDLE;
+	m_current_render_pass = VK_NULL_HANDLE;
+
+	for (u32 i = 0; i < NUM_TFX_TEXTURES; i++)
+		m_tfx_textures[i] = m_null_texture.get();
+
+	m_utility_texture = m_null_texture.get();
+
+	m_point_sampler = GetSampler(GSHWDrawConfig::SamplerSelector::Point());
+	if (m_point_sampler)
+		Vulkan::SetObjectName(m_device, m_point_sampler, "Point sampler");
+	m_linear_sampler = GetSampler(GSHWDrawConfig::SamplerSelector::Linear());
+	if (m_linear_sampler)
+		Vulkan::SetObjectName(m_device, m_linear_sampler, "Linear sampler");
+
+	m_tfx_sampler_sel = GSHWDrawConfig::SamplerSelector::Point().key;
+	m_tfx_sampler = m_point_sampler;
+
+	InvalidateCachedState();
+	SetInitialState(m_current_command_buffer);
+}
+
+bool GSDeviceVK::CreatePersistentDescriptorSets()
+{
+	m_tfx_ubo_descriptor_set = CreateTFXUBODescriptorSet();
+	return (m_tfx_ubo_descriptor_set != VK_NULL_HANDLE);
+}
+
+VkDescriptorSet GSDeviceVK::CreateTFXUBODescriptorSet()
+{
+	const VkDevice dev = m_device;
+	Vulkan::DescriptorSetUpdateBuilder dsub;
+
+	const VkDescriptorSet set = AllocatePersistentDescriptorSet(m_tfx_ubo_ds_layout);
+	if (set == VK_NULL_HANDLE)
+		return VK_NULL_HANDLE;
+	dsub.AddBufferDescriptorWrite(set, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+		m_vertex_uniform_stream_buffer.GetBuffer(), 0, sizeof(GSHWDrawConfig::VSConstantBuffer));
+	dsub.AddBufferDescriptorWrite(set, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+		m_fragment_uniform_stream_buffer.GetBuffer(), 0, sizeof(GSHWDrawConfig::PSConstantBuffer));
+	if (m_features.vs_expand)
+	{
+		dsub.AddBufferDescriptorWrite(set, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			m_vertex_stream_buffer.GetBuffer(), 0, m_vertex_stream_buffer.GetCurrentSize());
+	}
+	if (m_features.aa1)
+	{
+		dsub.AddBufferDescriptorWrite(set, 3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			m_expand_index_stream_buffer.GetBuffer(), 0, m_expand_index_stream_buffer.GetCurrentSize());
+	}
+	dsub.Update(dev);
+	Vulkan::SetObjectName(dev, set, "Persistent TFX UBO set");
+	return set;
+}
+
+void GSDeviceVK::OnStreamRingReplaced(const VKStreamBuffer& ring)
+{
+	// Each texture upload names the ring's buffer when it is recorded and nothing binds it, so a
+	// grown texture ring needs nothing redone. Only the vertex ring is bound.
+	if (&ring == &m_texture_stream_buffer)
+		return;
+	pxAssert(&ring == &m_vertex_stream_buffer);
+
+	// Draws already recorded keep the old buffer, which retires with this command buffer. Later
+	// draws, in this command buffer and every one after it, bind the new one.
+	SetInitialState(m_current_command_buffer);
+
+	if (m_features.vs_expand)
+	{
+		// The persistent set is in use by recorded and in-flight command buffers, so it cannot be
+		// rewritten in place: build a new one and free the old one when this command buffer retires.
+		const VkDescriptorSet old_set = m_tfx_ubo_descriptor_set;
+		m_tfx_ubo_descriptor_set = CreateTFXUBODescriptorSet();
+		if (m_tfx_ubo_descriptor_set == VK_NULL_HANDLE)
+			pxFailRel("Failed to allocate the TFX UBO descriptor set for the grown vertex ring");
+		m_frame_resources[m_current_frame].cleanup_resources.push_back(
+			[this, old_set]() { FreePersistentDescriptorSet(old_set); });
+		m_dirty_flags |= DIRTY_FLAG_TFX_UBO;
+	}
+}
+
+GSDeviceVK::WaitType GSDeviceVK::GetWaitType(bool wait, bool spin)
+{
+	if (!wait)
+		return WaitType::None;
+	if (spin)
+		return WaitType::Spin;
+	else
+		return WaitType::Sleep;
+}
+
+void GSDeviceVK::ExecuteCommandBuffer(bool wait_for_completion)
+{
+	EndRenderPass();
+	ExecuteCommandBuffer(GetWaitType(wait_for_completion, GSConfig.HWSpinCPUForReadbacks));
+}
+
+void GSDeviceVK::ExecuteCommandBuffer(bool wait_for_completion, const char* reason, ...)
+{
+	std::va_list ap;
+	va_start(ap, reason);
+	const std::string reason_str(StringUtil::StdStringFromFormatV(reason, ap));
+	va_end(ap);
+
+	Console.Warning("VK: Executing command buffer due to '%s'", reason_str.c_str());
+	ExecuteCommandBuffer(wait_for_completion);
+}
+
+void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completion, const char* reason)
+{
+	Console.Warning("VK: Executing command buffer due to '%s'", reason);
+
+	const VkRenderPass render_pass = m_current_render_pass;
+	const GSVector4i render_pass_area = m_current_render_pass_area;
+	const GSVector4i scissor = m_scissor;
+	GSTexture* const current_rt = m_current_render_target;
+	GSTexture* const current_ds = m_current_depth_target;
+	const FeedbackLoopFlag current_feedback_loop = m_current_framebuffer_feedback_loop;
+	// Callers restart in the middle of a draw whose textures are already bound, then re-apply its
+	// state. Moving to the next command buffer resets every texture slot to the null texture, which
+	// would draw the rest of that draw untextured, so carry the bindings across. They stay valid:
+	// a texture unbinds itself when destroyed.
+	const std::array<GSTextureVK*, NUM_TFX_TEXTURES> tfx_textures = m_tfx_textures;
+	const GSTextureVK* const utility_texture = m_utility_texture;
+
+	EndRenderPass();
+	ExecuteCommandBuffer(GetWaitType(wait_for_completion, GSConfig.HWSpinCPUForReadbacks));
+
+	m_tfx_textures = tfx_textures;
+	m_utility_texture = utility_texture;
+
+	if (render_pass != VK_NULL_HANDLE)
+	{
+		// rebind framebuffer
+		OMSetRenderTargets(current_rt, current_ds, scissor, current_feedback_loop);
+
+		// restart render pass
+		BeginRenderPass(GetRenderPassForRestarting(render_pass), render_pass_area);
+	}
+
+	// Push constants are command-buffer state. Utility draws often upload them before reserving their
+	// vertices, so a stream-buffer rollover can happen after the upload — restore the cached block so
+	// strict mobile drivers don't draw post-process/interlace with stale coordinates. From EmuCoreX.
+	if (m_utility_push_constants_size > 0)
+	{
+		vkCmdPushConstants(GetCurrentCommandBuffer(), m_utility_pipeline_layout,
+			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+			m_utility_push_constants_size, m_utility_push_constants.data());
+	}
+}
+
+void GSDeviceVK::ExecuteCommandBufferAndRestartPresent(bool wait_for_completion, const char* reason, ...)
+{
+	std::va_list ap;
+	va_start(ap, reason);
+	const std::string reason_str(StringUtil::StdStringFromFormatV(reason, ap));
+	va_end(ap);
+
+	Console.Warning("VK: Executing command buffer due to '%s'", reason_str.c_str());
+
+	pxAssert(m_is_presenting);
+	vkCmdEndRenderPass(GetCurrentCommandBuffer());
+	ExecuteCommandBuffer(wait_for_completion);
+
+	GSTextureVK* swap_chain_texture =
+		m_swap_chain ? m_swap_chain->GetCurrentTexture() : s_libretro_bb[s_libretro_bb_idx].get();
+
+	const VkFramebuffer fb = swap_chain_texture->GetFramebuffer(false);
+	pxAssert(fb);
+
+	const VkRenderPassBeginInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, nullptr,
+		GetRenderPass(swap_chain_texture->GetVkFormat(), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD,
+			VK_ATTACHMENT_STORE_OP_STORE),
+		fb,
+		{{0, 0}, {static_cast<u32>(swap_chain_texture->GetWidth()), static_cast<u32>(swap_chain_texture->GetHeight())}},
+		0u, nullptr};
+	vkCmdBeginRenderPass(GetCurrentCommandBuffer(), &rp, VK_SUBPASS_CONTENTS_INLINE);
+
+	// Dynamic viewport/scissor and push-constant state do not survive a command-buffer submission.
+	// DoBeginPresent() normally emits them; this rare restart path must do the same, or strict mobile
+	// Vulkan drivers present with undefined viewport/coordinates. Ported from sashkinbro/EmuCoreX.
+	const VkViewport present_vp{0.0f, 0.0f, static_cast<float>(swap_chain_texture->GetWidth()),
+		static_cast<float>(swap_chain_texture->GetHeight()), 0.0f, 1.0f};
+	const VkRect2D present_scissor{
+		{0, 0}, {static_cast<u32>(swap_chain_texture->GetWidth()), static_cast<u32>(swap_chain_texture->GetHeight())}};
+	vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &present_vp);
+	vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &present_scissor);
+
+	if (m_utility_push_constants_size > 0)
+	{
+		vkCmdPushConstants(GetCurrentCommandBuffer(), m_utility_pipeline_layout,
+			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+			m_utility_push_constants_size, m_utility_push_constants.data());
+	}
+}
+
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+void GSDeviceVK::Ps2NativeRequireReadbackComplete(u64 counter)
+{
+	if (m_last_submit_failed || !counter || m_completed_fence_counter < counter)
+		ps2_hwgs_retain_ownership("own-GS-readback-unproved", VK_ERROR_DEVICE_LOST);
+}
+#endif
+
+void GSDeviceVK::ExecuteCommandBufferForReadback()
+{
+	GSFieldProfile::Scope profile(GSFieldProfile::Phase::VulkanReadback);
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+	++s_native_gs_aggregate.readback_requests;
+#endif
+	m_readback_frame = m_frame;
+	ExecuteCommandBuffer(true);
+	if (m_spinning_supported && GSConfig.HWSpinGPUForReadbacks)
+	{
+		m_spin_timer = 30;
+		m_spin_manager.ReadbackRequested();
+
+		if (!m_optional_extensions.vk_ext_calibrated_timestamps && !m_warned_slow_spin)
+		{
+			m_warned_slow_spin = true;
+			Host::AddKeyedOSDMessage("GSDeviceVK_NoCalibratedTimestamps",
+				TRANSLATE_STR("GS", "Spin GPU During Readbacks is enabled, but calibrated timestamps are unavailable.  "
+									"This might be really slow."),
+				Host::OSD_WARNING_DURATION);
+		}
+	}
+}
+
+void GSDeviceVK::InvalidateCachedState()
+{
+	m_dirty_flags = ALL_DIRTY_STATE;
+	for (u32 i = 0; i < NUM_TFX_TEXTURES; i++)
+		m_tfx_textures[i] = m_null_texture.get();
+	m_utility_texture = m_null_texture.get();
+	m_current_framebuffer = VK_NULL_HANDLE;
+	m_current_render_target = nullptr;
+	m_current_depth_target = nullptr;
+	m_current_framebuffer_feedback_loop = FeedbackLoopFlag_None;
+
+	m_current_pipeline_layout = PipelineLayout::Undefined;
+	m_tfx_texture_descriptor_set = VK_NULL_HANDLE;
+	m_tfx_rt_descriptor_set = VK_NULL_HANDLE;
+	m_utility_descriptor_set = VK_NULL_HANDLE;
+}
+
+void GSDeviceVK::SetIndexBuffer(VkBuffer buffer)
+{
+	if (m_index_buffer == buffer)
+		return;
+
+	m_index_buffer = buffer;
+	m_dirty_flags |= DIRTY_FLAG_INDEX_BUFFER;
+}
+
+void GSDeviceVK::SetBlendConstants(u8 color)
+{
+	if (m_blend_constant_color == color)
+		return;
+
+	m_blend_constant_color = color;
+	m_dirty_flags |= DIRTY_FLAG_BLEND_CONSTANTS;
+}
+
+void GSDeviceVK::SetLineWidth(float width)
+{
+	if (m_current_line_width == width)
+		return;
+
+	m_current_line_width = width;
+	m_dirty_flags |= DIRTY_FLAG_LINE_WIDTH;
+}
+
+void GSDeviceVK::PSSetROVs(GSTexture* rt, GSTexture* ds, bool write_rt, bool write_ds)
+{
+	GSTextureVK* vkRt = static_cast<GSTextureVK*>(rt);
+	GSTextureVK* vkDs = static_cast<GSTextureVK*>(ds);
+	GSTextureVK* oldVkRt = m_tfx_textures[TFX_TEXTURE_RT_ROV] != m_null_texture.get() ?
+	                       m_tfx_textures[TFX_TEXTURE_RT_ROV] : nullptr;
+	GSTextureVK* oldVkDs = m_tfx_textures[TFX_TEXTURE_DEPTH_ROV] != m_null_texture.get() ?
+	                       m_tfx_textures[TFX_TEXTURE_DEPTH_ROV] : nullptr;
+
+	if (!(vkRt || vkDs || oldVkRt || oldVkDs))
+		return;
+
+	pxAssert(!(vkRt || vkDs) || m_features.rov);
+
+	if (vkRt)
+	{
+		PSSetShaderResource(TFX_TEXTURE_RT_ROV, vkRt, true, ResourceType::UAV);
+
+		// Unbind conflicting RT texture
+		PSSetShaderResource(TFX_TEXTURE_RT, nullptr, false);
+
+		// Unbind conflicting source texture
+		if (m_tfx_textures[TFX_TEXTURE_TEXTURE] == vkRt)
+		{
+			PSSetShaderResource(TFX_TEXTURE_TEXTURE, nullptr, false);
+		}
+
+		if (write_rt)
+		{
+			vkRt->SetState(GSTexture::State::Dirty);
+		}
+	}
+	else
+	{
+		// Unbind to avoid conflicts with OM targets.
+		PSSetShaderResource(TFX_TEXTURE_RT_ROV, nullptr, false);
+	}
+
+	if (vkDs)
+	{
+		PSSetShaderResource(TFX_TEXTURE_DEPTH_ROV, vkDs, true, ResourceType::UAV);
+
+		// Unbind conflicting depth texture
+		PSSetShaderResource(TFX_TEXTURE_DEPTH, nullptr, false);
+
+		// Unbind conflicting source texture
+		if (m_tfx_textures[TFX_TEXTURE_TEXTURE] == vkDs)
+		{
+			PSSetShaderResource(TFX_TEXTURE_TEXTURE, nullptr, false);
+		}
+
+		if (write_ds)
+		{
+			vkDs->SetState(GSTexture::State::Dirty);
+		}
+	}
+	else
+	{
+		// Unbind to avoid conflicts with OM targets.
+		PSSetShaderResource(TFX_TEXTURE_DEPTH_ROV, nullptr, false);
+	}
+
+	if (IsDeviceNVIDIA() && InRenderPass())
+	{
+		// Nvidia doesn't like switching ROV targets mid-render pass, doing so causes flickering or missing geometry.
+		// End the render pass to avoid such issues.
+		if (vkRt != oldVkRt || vkDs != oldVkDs)
+		{
+			GL_INS("VK: Ending render pass due to UAV switch");
+			EndRenderPass();
+		}
+	}
+
+	if (GSConfig.HWROVBarriersVK)
+	{
+		// This is to fix issues with some systems that seem to require barriers even with FSI.
+		// Adds a barriers to the UAVs before every draw. Can result in a large performance hit.
+		if ((vkRt || vkDs) && InRenderPass())
+		{
+			GL_INS("Ending render pass due to UAV barrier");
+			EndRenderPass();
+		}
+		for (GSTextureVK* tex : std::array{ vkRt, vkDs })
+		{
+			if (tex)
+			{
+				if (InRenderPass())
+				{
+					GL_INS("Ending render pass due to UAV barrier");
+					EndRenderPass();
+				}
+				// The subresources version does the barrier even when the before/after layout
+				// are the same since we want a memory barrier here, not just a layout change.
+				tex->TransitionSubresourcesToLayout(GetCurrentCommandBuffer(), 0, 1, tex->GetLayout(), tex->GetLayout());
+			}
+		}
+	}
+}
+
+void GSDeviceVK::PSSetShaderResource(int i, GSTexture* sr, bool check_state, ResourceType type)
+{
+	GSTextureVK* vkTex = static_cast<GSTextureVK*>(sr);
+	bool update_layout = false;
+	if (vkTex)
+	{
+		if (check_state)
+		{
+			const GSTextureVK::Layout layout = GetResourceLayout(type);
+
+			vkTex->CommitClear();
+
+			if (vkTex->GetLayout() != layout)
+			{
+				update_layout = true;
+				if (InRenderPass())
+				{
+					GL_INS("Ending render pass due to resource transition");
+					EndRenderPass();
+				}
+				vkTex->TransitionToLayout(layout);
+			}
+		}
+		vkTex->SetUseFenceCounter(GetCurrentFenceCounter());
+	}
+	else
+	{
+		vkTex = m_null_texture.get();
+	}
+
+	if (m_tfx_textures[i] == vkTex && !update_layout)
+		return;
+
+	m_tfx_textures[i] = vkTex;
+	m_dirty_flags |= (DIRTY_FLAG_TFX_TEXTURE_0 << i);
+}
+
+void GSDeviceVK::PSSetSampler(GSHWDrawConfig::SamplerSelector sel)
+{
+	if (m_tfx_sampler_sel == sel.key)
+		return;
+
+	m_tfx_sampler_sel = sel.key;
+	m_tfx_sampler = GetSampler(sel);
+	m_dirty_flags |= DIRTY_FLAG_TFX_TEXTURE_0;
+}
+
+void GSDeviceVK::SetUtilityTexture(GSTexture* tex, VkSampler sampler)
+{
+	GSTextureVK* vkTex = static_cast<GSTextureVK*>(tex);
+	if (vkTex)
+	{
+		vkTex->CommitClear();
+		vkTex->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+		vkTex->SetUseFenceCounter(GetCurrentFenceCounter());
+	}
+	else
+	{
+		vkTex = m_null_texture.get();
+	}
+
+	if (m_utility_texture == vkTex && m_utility_sampler == sampler)
+		return;
+
+	m_utility_texture = vkTex;
+	m_utility_sampler = sampler;
+	m_dirty_flags |= DIRTY_FLAG_UTILITY_TEXTURE;
+}
+
+void GSDeviceVK::SetUtilityPushConstants(const void* data, u32 size)
+{
+	// Cache so a mid-utility-draw command-buffer rollover can replay these. Ported from sashkinbro/EmuCoreX.
+	pxAssert(size <= m_utility_push_constants.size());
+	std::memcpy(m_utility_push_constants.data(), data, size);
+	m_utility_push_constants_size = size;
+	vkCmdPushConstants(GetCurrentCommandBuffer(), m_utility_pipeline_layout,
+		VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, size, data);
+}
+
+void GSDeviceVK::UnbindTexture(GSTextureVK* tex)
+{
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+    // GSTextureVK::Destroy calls here BEFORE immediate/deferred view destruction.
+    s_native_gs_texture_sets.Clear();
+#endif
+	for (u32 i = 0; i < NUM_TFX_TEXTURES; i++)
+	{
+		if (m_tfx_textures[i] == tex)
+		{
+			m_tfx_textures[i] = m_null_texture.get();
+			m_dirty_flags |= (DIRTY_FLAG_TFX_TEXTURE_0 << i);
+		}
+	}
+	if (m_utility_texture == tex)
+	{
+		m_utility_texture = m_null_texture.get();
+		m_dirty_flags |= DIRTY_FLAG_UTILITY_TEXTURE;
+	}
+	if (m_current_render_target == tex || m_current_depth_target == tex)
+	{
+		EndRenderPass();
+		m_current_framebuffer = VK_NULL_HANDLE;
+		m_current_render_target = nullptr;
+		m_current_depth_target = nullptr;
+	}
+}
+
+bool GSDeviceVK::InRenderPass()
+{
+	return m_current_render_pass != VK_NULL_HANDLE;
+}
+
+void GSDeviceVK::BeginRenderPass(VkRenderPass rp, const GSVector4i& rect)
+{
+	if (m_current_render_pass != VK_NULL_HANDLE)
+		EndRenderPass();
+
+	m_current_render_pass = rp;
+	m_loop_declared_in_pass = false;
+	m_current_render_pass_area = rect;
+	CountRenderPassArea(rect);
+
+	const VkRenderPassBeginInfo begin_info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, nullptr, m_current_render_pass,
+		m_current_framebuffer, {{rect.x, rect.y}, {static_cast<u32>(rect.width()), static_cast<u32>(rect.height())}}, 0,
+		nullptr};
+
+	m_command_buffer_render_passes++;
+	vkCmdBeginRenderPass(GetCurrentCommandBuffer(), &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void GSDeviceVK::CountRenderPassArea(const GSVector4i& rect)
+{
+	// Counted where the area is handed to vkCmdBeginRenderPass, which is the only site that cannot
+	// disagree with what was submitted -- a pass that clamps its area and a counter that predicts the
+	// clamp would be two derivations of one number, and the reason to have this at all is that the
+	// pass-structure census had to be assembled by hand.
+	g_perfmon.Put(GSPerfMon::RenderPassAreaPixels,
+		static_cast<double>(rect.width()) * static_cast<double>(rect.height()));
+}
+
+void GSDeviceVK::BeginClearRenderPass(VkRenderPass rp, const GSVector4i& rect, const VkClearValue* cv, u32 cv_count)
+{
+	if (m_current_render_pass != VK_NULL_HANDLE)
+		EndRenderPass();
+
+	m_current_render_pass = rp;
+	m_loop_declared_in_pass = false;
+	m_current_render_pass_area = rect;
+	CountRenderPassArea(rect);
+
+	const VkRenderPassBeginInfo begin_info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, nullptr, m_current_render_pass,
+		m_current_framebuffer, {{rect.x, rect.y}, {static_cast<u32>(rect.width()), static_cast<u32>(rect.height())}},
+		cv_count, cv};
+
+	vkCmdBeginRenderPass(GetCurrentCommandBuffer(), &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void GSDeviceVK::BeginClearRenderPass(VkRenderPass rp, const GSVector4i& rect, u32 clear_color)
+{
+	alignas(16) VkClearValue cv;
+	GSVector4::store<true>((void*)cv.color.float32, GSVector4::unorm8(clear_color));
+	BeginClearRenderPass(rp, rect, &cv, 1);
+}
+
+void GSDeviceVK::BeginClearRenderPass(VkRenderPass rp, const GSVector4i& rect, float depth, u8 stencil)
+{
+	VkClearValue cv;
+	cv.depthStencil.depth = depth;
+	cv.depthStencil.stencil = stencil;
+	BeginClearRenderPass(rp, rect, &cv, 1);
+}
+
+void GSDeviceVK::EndRenderPass()
+{
+	if (m_current_render_pass == VK_NULL_HANDLE)
+		return;
+
+	m_current_render_pass = VK_NULL_HANDLE;
+	g_perfmon.Put(GSPerfMon::RenderPasses, 1);
+	m_render_passes_since_submit++;
+	m_render_pass_serial++;
+
+	vkCmdEndRenderPass(GetCurrentCommandBuffer());
+}
+
+void GSDeviceVK::SetViewport(const VkViewport& viewport)
+{
+	if (std::memcmp(&viewport, &m_viewport, sizeof(VkViewport)) == 0)
+		return;
+
+	std::memcpy(&m_viewport, &viewport, sizeof(VkViewport));
+	m_dirty_flags |= DIRTY_FLAG_VIEWPORT;
+}
+
+void GSDeviceVK::SetScissor(const GSVector4i& scissor)
+{
+	if (m_scissor.eq(scissor))
+		return;
+
+	m_scissor = scissor;
+	m_dirty_flags |= DIRTY_FLAG_SCISSOR;
+}
+
+void GSDeviceVK::SetPipeline(VkPipeline pipeline)
+{
+	if (m_current_pipeline == pipeline)
+		return;
+
+	m_current_pipeline = pipeline;
+	m_dirty_flags |= DIRTY_FLAG_PIPELINE;
+}
+
+void GSDeviceVK::SetInitialState(VkCommandBuffer cmdbuf)
+{
+	VkBuffer buffer = *m_vertex_stream_buffer.GetBufferPtr();
+	if (buffer != VK_NULL_HANDLE)
+	{
+		constexpr VkDeviceSize buffer_offset = 0;
+		vkCmdBindVertexBuffers(cmdbuf, 0, 1, &buffer, &buffer_offset);
+	}
+}
+
+__ri void GSDeviceVK::ApplyBaseState(u32 flags, VkCommandBuffer cmdbuf)
+{
+	if (flags & DIRTY_FLAG_INDEX_BUFFER)
+		vkCmdBindIndexBuffer(cmdbuf, m_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+	if (flags & DIRTY_FLAG_PIPELINE)
+	{
+		// Counted here, at the emitted bind, rather than in SetPipeline: SetPipeline
+		// dedupes same-pipeline requests, and the cost being tracked is the command
+		// actually reaching the driver.
+		g_perfmon.Put(GSPerfMon::PipelineSwitches, 1);
+		vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_current_pipeline);
+	}
+
+	if (flags & DIRTY_FLAG_VIEWPORT)
+		vkCmdSetViewport(cmdbuf, 0, 1, &m_viewport);
+
+	if (flags & DIRTY_FLAG_SCISSOR)
+	{
+		const VkRect2D vscissor{
+			{m_scissor.x, m_scissor.y}, {static_cast<u32>(m_scissor.width()), static_cast<u32>(m_scissor.height())}};
+		vkCmdSetScissor(cmdbuf, 0, 1, &vscissor);
+	}
+
+	if (flags & DIRTY_FLAG_BLEND_CONSTANTS)
+	{
+		const GSVector4 col(static_cast<float>(m_blend_constant_color) / 128.0f);
+		vkCmdSetBlendConstants(cmdbuf, col.v);
+	}
+
+	if (flags & DIRTY_FLAG_LINE_WIDTH)
+		vkCmdSetLineWidth(cmdbuf, m_current_line_width);
+}
+
+bool GSDeviceVK::ApplyTFXState(bool already_execed)
+{
+	if (m_current_pipeline_layout == PipelineLayout::TFX && m_dirty_flags == 0)
+		return true;
+
+	const VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
+	u32 flags = m_dirty_flags;
+	m_dirty_flags &= ~(DIRTY_TFX_STATE | DIRTY_CONSTANT_BUFFER_STATE | DIRTY_FLAG_TFX_UBO);
+
+	// do cbuffer first, because it's the most likely to cause an exec
+	if (flags & DIRTY_FLAG_VS_CONSTANT_BUFFER)
+	{
+		if (!m_vertex_uniform_stream_buffer.ReserveMemory(
+			sizeof(m_vs_cb_cache), static_cast<u32>(m_device_properties.limits.minUniformBufferOffsetAlignment)))
+		{
+			if (already_execed)
+			{
+				Console.Error("VK: Failed to reserve vertex uniform space");
+				return false;
+			}
+
+			ExecuteCommandBufferAndRestartRenderPass(false, "Ran out of vertex uniform space");
+			return ApplyTFXState(true);
+		}
+
+		std::memcpy(m_vertex_uniform_stream_buffer.GetCurrentHostPointer(), &m_vs_cb_cache, sizeof(m_vs_cb_cache));
+		m_tfx_dynamic_offsets[0] = m_vertex_uniform_stream_buffer.GetCurrentOffset();
+		m_vertex_uniform_stream_buffer.CommitMemory(sizeof(m_vs_cb_cache));
+		flags |= DIRTY_FLAG_TFX_UBO;
+	}
+
+	if (flags & DIRTY_FLAG_PS_CONSTANT_BUFFER)
+	{
+		if (!m_fragment_uniform_stream_buffer.ReserveMemory(
+				sizeof(m_ps_cb_cache), static_cast<u32>(m_device_properties.limits.minUniformBufferOffsetAlignment)))
+		{
+			if (already_execed)
+			{
+				Console.Error("VK: Failed to reserve pixel uniform space");
+				return false;
+			}
+
+			ExecuteCommandBufferAndRestartRenderPass(false, "Ran out of pixel uniform space");
+			return ApplyTFXState(true);
+		}
+
+		std::memcpy(m_fragment_uniform_stream_buffer.GetCurrentHostPointer(), &m_ps_cb_cache, sizeof(m_ps_cb_cache));
+		m_tfx_dynamic_offsets[1] = m_fragment_uniform_stream_buffer.GetCurrentOffset();
+		m_fragment_uniform_stream_buffer.CommitMemory(sizeof(m_ps_cb_cache));
+		flags |= DIRTY_FLAG_TFX_UBO;
+	}
+
+	Vulkan::DescriptorSetUpdateBuilder dsub;
+	if (m_current_pipeline_layout != PipelineLayout::TFX)
+	{
+		m_current_pipeline_layout = PipelineLayout::TFX;
+		flags |= DIRTY_FLAG_TFX_UBO | DIRTY_FLAG_TFX_TEXTURES | DIRTY_FLAG_VS_PUSH_CONSTANTS;
+
+		// Clear out the RT/DS binding if feedback loop isn't on, because it'll be in the wrong state and make
+		// the validation layer cranky. Not a big deal since we need to write it anyway.
+		std::array<TFX_TEXTURES, 2> texture_types = { TFX_TEXTURE_RT, TFX_TEXTURE_DEPTH };
+		for (u32 texture_type : texture_types)
+		{
+			const GSTextureVK::Layout tex_layout = m_tfx_textures[texture_type]->GetLayout();
+			if (tex_layout != GSTextureVK::Layout::FeedbackLoop && tex_layout != GSTextureVK::Layout::ShaderReadOnly)
+				m_tfx_textures[texture_type] = m_null_texture.get();
+		}
+	}
+
+	if (flags & DIRTY_FLAG_TFX_UBO)
+	{
+		// Still need to bind the UBO descriptor set.
+		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tfx_pipeline_layout, 0, 1,
+			&m_tfx_ubo_descriptor_set, NUM_TFX_DYNAMIC_OFFSETS, m_tfx_dynamic_offsets.data());
+	}
+
+	if (m_features.vs_expand && (flags & DIRTY_FLAG_VS_PUSH_CONSTANTS))
+		SetVSPushConstants(m_vs_pc_cache.base_vertex, m_vs_pc_cache.base_index, true);
+
+	if (flags & DIRTY_FLAG_TFX_TEXTURES)
+	{
+		VkDescriptorSet ds = VK_NULL_HANDLE;
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+        NativeGsTextureDescriptorKey native_descriptor_key{};
+        bool native_descriptor_reused = false;
+        if (!m_use_push_descriptors)
+        {
+            static_assert(NUM_TFX_TEXTURES == native_descriptor_key.images.size());
+            native_descriptor_key.set_layout = m_tfx_texture_ds_layout;
+            native_descriptor_key.pipeline_layout = m_tfx_pipeline_layout;
+            native_descriptor_key.command_buffer = cmdbuf;
+            native_descriptor_key.command_pool = m_frame_resources[m_current_frame].command_pool;
+            native_descriptor_key.activation_generation = s_native_gs_activation_generation;
+            native_descriptor_key.set_index = TFX_DESCRIPTOR_SET_TEXTURES;
+            native_descriptor_key.input_attachments = UseInputAttachmentDescriptors();
+            for (u32 i = 0; i < NUM_TFX_TEXTURES; ++i)
+                native_descriptor_key.images[i] = {VK_NULL_HANDLE, m_tfx_textures[i]->GetView(), m_tfx_textures[i]->GetVkLayout()};
+            native_descriptor_key.images[TFX_TEXTURE_TEXTURE].sampler = m_tfx_sampler;
+            if (native_descriptor_key.input_attachments)
+            {
+                native_descriptor_key.images[TFX_TEXTURE_RT].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                native_descriptor_key.images[TFX_TEXTURE_DEPTH].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            }
+            ds = s_native_gs_texture_sets.Find(this, native_descriptor_key);
+            native_descriptor_reused = (ds != VK_NULL_HANDLE);
+        }
+#endif
+        // A non-push cache miss allocates a fresh empty set, so every binding
+        // must be written. A hit borrows an already fully written immutable set;
+        // it skips allocation/update while retaining the ordinary binding call.
+        // Push descriptors retain the original per-binding dirty behavior.
+		if (!m_use_push_descriptors)
+		{
+			flags |= DIRTY_FLAG_TFX_TEXTURES;
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+            if (!native_descriptor_reused)
+#endif
+                ds = AllocateDescriptorSetFromFramePool(m_tfx_texture_ds_layout);
+			if (ds == VK_NULL_HANDLE) [[unlikely]]
+			{
+				if (already_execed)
+				{
+					Console.Error("VK: Failed to allocate TFX texture descriptor set");
+					return false;
+				}
+
+				// Frame descriptor pool exhausted — flush to reset it, then restart
+				// the render pass and re-apply all state on the fresh command buffer.
+				ExecuteCommandBufferAndRestartRenderPass(false, "Out of TFX texture descriptors");
+				return ApplyTFXState(true);
+			}
+		}
+
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+        if (!native_descriptor_reused)
+#endif
+        {
+        if (flags & DIRTY_FLAG_TFX_TEXTURE_TEX)
+		{
+			dsub.AddCombinedImageSamplerDescriptorWrite(ds, TFX_TEXTURE_TEXTURE,
+				m_tfx_textures[TFX_TEXTURE_TEXTURE]->GetView(), m_tfx_sampler,
+				m_tfx_textures[TFX_TEXTURE_TEXTURE]->GetVkLayout());
+		}
+		if (flags & DIRTY_FLAG_TFX_TEXTURE_PALETTE)
+		{
+			dsub.AddImageDescriptorWrite(ds, TFX_TEXTURE_PALETTE,
+				m_tfx_textures[TFX_TEXTURE_PALETTE]->GetView(), m_tfx_textures[TFX_TEXTURE_PALETTE]->GetVkLayout());
+		}
+		if (flags & DIRTY_FLAG_TFX_TEXTURE_RT)
+		{
+			if (UseInputAttachmentDescriptors())
+			{
+				dsub.AddInputAttachmentDescriptorWrite(
+					ds, TFX_TEXTURE_RT, m_tfx_textures[TFX_TEXTURE_RT]->GetView(), VK_IMAGE_LAYOUT_GENERAL);
+			}
+			else
+			{
+				dsub.AddImageDescriptorWrite(ds, TFX_TEXTURE_RT, m_tfx_textures[TFX_TEXTURE_RT]->GetView(),
+					m_tfx_textures[TFX_TEXTURE_RT]->GetVkLayout());
+			}
+		}
+		if (flags & DIRTY_FLAG_TFX_TEXTURE_PRIMID)
+		{
+			dsub.AddImageDescriptorWrite(ds, TFX_TEXTURE_PRIMID,
+				m_tfx_textures[TFX_TEXTURE_PRIMID]->GetView(), m_tfx_textures[TFX_TEXTURE_PRIMID]->GetVkLayout());
+		}
+		if (flags & DIRTY_FLAG_TFX_TEXTURE_DEPTH)
+		{
+			if (UseInputAttachmentDescriptors())
+			{
+				dsub.AddInputAttachmentDescriptorWrite(
+					ds, TFX_TEXTURE_DEPTH, m_tfx_textures[TFX_TEXTURE_DEPTH]->GetView(), VK_IMAGE_LAYOUT_GENERAL);
+			}
+			else
+			{
+				dsub.AddImageDescriptorWrite(ds, TFX_TEXTURE_DEPTH, m_tfx_textures[TFX_TEXTURE_DEPTH]->GetView(),
+					m_tfx_textures[TFX_TEXTURE_DEPTH]->GetVkLayout());
+			}
+		}
+		if (flags & DIRTY_FLAG_TFX_TEXTURE_RT_ROV)
+		{
+			dsub.AddImageDescriptorWrite(ds, TFX_TEXTURE_RT_ROV, m_tfx_textures[TFX_TEXTURE_RT_ROV]->GetView(),
+				m_tfx_textures[TFX_TEXTURE_RT_ROV]->GetVkLayout(), true);
+		}
+		if (flags & DIRTY_FLAG_TFX_TEXTURE_DEPTH_ROV)
+		{
+			dsub.AddImageDescriptorWrite(ds, TFX_TEXTURE_DEPTH_ROV, m_tfx_textures[TFX_TEXTURE_DEPTH_ROV]->GetView(),
+				m_tfx_textures[TFX_TEXTURE_DEPTH_ROV]->GetVkLayout(), true);
+		}
+
+		if (m_use_push_descriptors)
+		{
+			dsub.PushUpdate(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tfx_pipeline_layout, TFX_DESCRIPTOR_SET_TEXTURES);
+		}
+		else
+		{
+            dsub.Update(m_device);
+#if defined(PS2_NATIVE_GSVK_EXTERNAL) && defined(PS2_NATIVE_GS_DRAW_CACHE)
+            s_native_gs_texture_sets.Put(this, native_descriptor_key, ds);
+#endif
+        }
+        }
+        if (!m_use_push_descriptors)
+        {
+            vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tfx_pipeline_layout,
+				TFX_DESCRIPTOR_SET_TEXTURES, 1, &ds, 0, nullptr);
+		}
+	}
+
+	ApplyBaseState(flags, cmdbuf);
+	return true;
+}
+
+bool GSDeviceVK::ApplyUtilityState(bool already_execed)
+{
+	if (m_current_pipeline_layout == PipelineLayout::Utility && m_dirty_flags == 0)
+		return true;
+
+	const VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
+	u32 flags = m_dirty_flags;
+	m_dirty_flags &= ~DIRTY_UTILITY_STATE;
+
+	if (m_current_pipeline_layout != PipelineLayout::Utility || flags & DIRTY_FLAG_UTILITY_TEXTURE)
+	{
+		m_current_pipeline_layout = PipelineLayout::Utility;
+
+		Vulkan::DescriptorSetUpdateBuilder dsub;
+		if (m_use_push_descriptors)
+		{
+			dsub.AddCombinedImageSamplerDescriptorWrite(
+				VK_NULL_HANDLE, 0, m_utility_texture->GetView(), m_utility_sampler, m_utility_texture->GetVkLayout());
+			dsub.PushUpdate(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_utility_pipeline_layout, 0, false);
+		}
+		else
+		{
+			VkDescriptorSet ds = AllocateDescriptorSetFromFramePool(m_utility_ds_layout);
+			if (ds == VK_NULL_HANDLE) [[unlikely]]
+			{
+				if (already_execed)
+				{
+					Console.Error("VK: Failed to allocate utility descriptor set");
+					return false;
+				}
+
+				// Frame descriptor pool exhausted — flush to reset it, then restart
+				// the render pass and re-apply all state on the fresh command buffer.
+				ExecuteCommandBufferAndRestartRenderPass(false, "Out of utility descriptors");
+				return ApplyUtilityState(true);
+			}
+			dsub.AddCombinedImageSamplerDescriptorWrite(
+				ds, 0, m_utility_texture->GetView(), m_utility_sampler, m_utility_texture->GetVkLayout());
+			dsub.Update(m_device);
+			vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_utility_pipeline_layout, 0, 1, &ds, 0, nullptr);
+		}
+	}
+
+
+	ApplyBaseState(flags, cmdbuf);
+	return true;
+}
+
+void GSDeviceVK::SetVSConstantBuffer(const GSHWDrawConfig::VSConstantBuffer& cb)
+{
+	if (m_vs_cb_cache.Update(cb))
+		m_dirty_flags |= DIRTY_FLAG_VS_CONSTANT_BUFFER;
+}
+
+void GSDeviceVK::SetPSConstantBuffer(const GSHWDrawConfig::PSConstantBuffer& cb)
+{
+	if (m_ps_cb_cache.Update(cb))
+		m_dirty_flags |= DIRTY_FLAG_PS_CONSTANT_BUFFER;
+}
+
+void GSDeviceVK::SetVSPushConstants(u32 base_vertex, u32 base_index, bool force_update)
+{
+	GSHWDrawConfig::VSPushConstants pc;
+	pc.base_vertex = base_vertex;
+	pc.base_index = base_index;
+
+	if (m_vs_pc_cache.Update(pc) || force_update)
+	{
+		vkCmdPushConstants(GetCurrentCommandBuffer(), m_tfx_pipeline_layout,
+			VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
+	}
+}
+
+void GSDeviceVK::SetupDATE(GSTexture* rt, GSTexture* ds, SetDATM datm, const GSVector4i& bbox)
+{
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
+	GL_PUSH("SetupDATE {%d,%d} %dx%d", bbox.left, bbox.top, bbox.width(), bbox.height());
+
+	const GSVector2i size(ds->GetSize());
+	const GSVector4 src = GSVector4(bbox) / GSVector4(size).xyxy();
+	const GSVector4 dst = src * 2.0f - 1.0f;
+	const GSVertexPT1 vertices[] = {
+		{GSVector4(dst.x, -dst.y, 0.5f, 1.0f), GSVector2(src.x, src.y)},
+		{GSVector4(dst.z, -dst.y, 0.5f, 1.0f), GSVector2(src.z, src.y)},
+		{GSVector4(dst.x, -dst.w, 0.5f, 1.0f), GSVector2(src.x, src.w)},
+		{GSVector4(dst.z, -dst.w, 0.5f, 1.0f), GSVector2(src.z, src.w)},
+	};
+
+	// sfex3 (after the capcom logo), vf4 (first menu fading in), ffxii shadows, rumble roses shadows, persona4 shadows
+	EndRenderPass();
+	SetUtilityTexture(rt, m_point_sampler);
+	OMSetRenderTargets(nullptr, ds, bbox);
+	IASetVertexBuffer(vertices, sizeof(vertices[0]), 4);
+	SetPipeline(GetConvertPipeline(SetDATMShader(datm)));
+	BeginClearRenderPass(m_date_setup_render_pass, bbox, 0.0f, 0);
+	if (ApplyUtilityState())
+		DrawPrimitive();
+
+	EndRenderPass();
+}
+
+GSTextureVK* GSDeviceVK::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config)
+{
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
+	// How this is done:
+	// - can't put a barrier for the image in the middle of the normal render pass, so that's out
+	// - so, instead of just filling the int texture with INT_MAX, we sample the RT and use -1 for failing values
+	// - then, instead of sampling the RT with DATE=1/2, we just do a min() without it, the -1 gets preserved
+	// - then, the DATE=3 draw is done as normal
+	GL_INS("Setup DATE Primitive ID Image for {%d,%d}-{%d,%d}", config.drawarea.left, config.drawarea.top,
+		config.drawarea.right, config.drawarea.bottom);
+
+	const GSVector2i rtsize(config.rt->GetSize());
+	GSTextureVK* image =
+		static_cast<GSTextureVK*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::PrimID, false));
+	if (!image)
+		return nullptr;
+
+	EndRenderPass();
+
+	// setup the fill quad to prefill with existing alpha values
+	SetUtilityTexture(config.rt, m_point_sampler);
+	OMSetRenderTargets(image, config.ds, config.drawarea);
+
+	// if the depth target has been cleared, we need to preserve that clear
+	const VkAttachmentLoadOp ds_load_op = GetLoadOpForTexture(static_cast<GSTextureVK*>(config.ds));
+	const u32 ds = (config.ds ? 1 : 0);
+
+	if (ds_load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
+	{
+		VkClearValue cv[2] = {};
+		cv[1].depthStencil.depth = static_cast<GSTextureVK*>(config.ds)->GetClearDepth();
+		cv[1].depthStencil.stencil = 1;
+		BeginClearRenderPass(m_primid_image_setup_render_passes[ds][1], GSVector4i::loadh(rtsize), cv, 2);
+	}
+	else
+	{
+		BeginRenderPass(m_primid_image_setup_render_passes[ds][0], config.drawarea);
+	}
+
+	// draw the quad to prefill the image
+	const GSVector4 src = GSVector4(config.drawarea) / GSVector4(rtsize).xyxy();
+	const GSVector4 dst = src * 2.0f - 1.0f;
+	const GSVertexPT1 vertices[] = {
+		{GSVector4(dst.x, -dst.y, 0.5f, 1.0f), GSVector2(src.x, src.y)},
+		{GSVector4(dst.z, -dst.y, 0.5f, 1.0f), GSVector2(src.z, src.y)},
+		{GSVector4(dst.x, -dst.w, 0.5f, 1.0f), GSVector2(src.x, src.w)},
+		{GSVector4(dst.z, -dst.w, 0.5f, 1.0f), GSVector2(src.z, src.w)},
+	};
+	const VkPipeline pipeline = m_primid_image_setup_pipelines[ds][static_cast<u8>(config.datm)];
+	SetPipeline(pipeline);
+	IASetVertexBuffer(vertices, sizeof(vertices[0]), std::size(vertices));
+	if (ApplyUtilityState())
+		DrawPrimitive();
+
+	// image is now filled with either -1 or INT_MAX, so now we can do the prepass
+	UploadHWDrawVerticesAndIndices(config);
+
+	// primid texture will get re-bound, so clear it since we're using push descriptors
+	PSSetShaderResource(3, m_null_texture.get(), false);
+
+	// cut down the configuration for the prepass, we don't need blending or any feedback loop
+	PipelineSelector& pipe = m_pipeline_selector;
+	UpdateHWPipelineSelector(config, pipe);
+	pipe.dss.zwe = false;
+	pipe.cms.wrgba = 0;
+	pipe.bs = {};
+	pipe.feedback_loop_flags = FeedbackLoopFlag_None;
+	pipe.rt = true;
+	pipe.ps.blend_a = pipe.ps.blend_b = pipe.ps.blend_c = pipe.ps.blend_d = false;
+	pipe.ps.no_color = false;
+	pipe.ps.no_color1 = true;
+	if (BindDrawPipeline(pipe))
+		Draw(config);
+
+	// image is initialized/prepass is done, so finish up and get ready to do the "real" draw
+	EndRenderPass();
+
+	// .. by setting it to DATE=3
+	config.ps.date = 3;
+	config.alpha_second_pass.ps.date = 3;
+
+	// and bind the image to the primitive sampler
+	image->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+	PSSetShaderResource(3, image, false);
+	return image;
+}
+
+bool GSDeviceVK::DateCopyLive(const GSHWDrawConfig& config)
+{
+	return m_date_copy.valid && InRenderPass() && m_date_copy.pass_serial == m_render_pass_serial &&
+	       m_date_copy.rt == config.rt && m_date_copy.ds == config.ds;
+}
+
+void GSDeviceVK::DoRenderHW(GSHWDrawConfig& config)
+{
+	GSFieldProfile::Scope profile(GSFieldProfile::Phase::VulkanDraw);
+	// Mid-frame kick (see m_render_passes_since_submit in the header): while a
+	// readback-prone frame is recording, submit the work recorded so far once enough of it has
+	// piled up, so the GPU executes it while the GS thread records the rest instead of starting
+	// only when the readback fence-waits on it. Draw entry is the safe spot: nothing is staged
+	// yet, and every binding below re-applies via dirty flags.
+	//
+	// A kick happens only at a render-pass boundary: with no pass open, or when the draw shares
+	// neither target with the open pass and so ends it anyway (the keep-the-pass test further
+	// down). Ending a pass the draw would have continued costs a tile store on a tiler, so a draw
+	// that keeps either target never kicks. A colour-clip target in progress or an ROV draw
+	// changes which image the draw binds, so neither is predicted and both wait for the next
+	// boundary. Most passes end at a target switch rather than with no pass open, so without
+	// that boundary many readback frames never kick before their readback at all.
+	//
+	// A kick needs m_readback_kick_passes unsubmitted passes, the open one included. Every submit sleeps
+	// in the driver on Android's Adreno drivers, and the governor answers the sleeps by lowering
+	// the GS thread's clock, so kicking at every boundary costs more there than the earlier
+	// start saves.
+	//
+	// Frames count as readback-prone for readback_window_frames after a synchronous readback,
+	// so a game that never reads back sees zero change.
+	//
+	// Do not read the threshold as a submit budget. It sets how often we *offer* to kick;
+	// what we get is decided by the fence gate below, and that gate binds by a wide margin.
+	// With three command buffers only two submissions can be in flight, so a third kick
+	// needs the first to have retired. Measured on Rogue Galaxy (M2/Honeykrisp, 60 frames,
+	// ~116 RPs/frame): the arithmetic "RPs-per-frame / threshold" predicts ~14 kicks/frame
+	// and the real number is 2, because ~3300 of ~3400 offers find the next command buffer
+	// still executing. So raising the threshold buys far less than it looks like it should.
+	// Sweeping it 8->16 measured -2% total GPU stall on Rogue Galaxy and +12% on OutRun 2006.
+	constexpr u32 readback_window_frames = 3;
+	const bool near_readback = m_readback_frame != ~0u && (m_frame - m_readback_frame) <= readback_window_frames;
+	const bool at_pass_boundary = !InRenderPass() ||
+		(!config.ps.HasColorROV() && !config.ps.HasDepthROV() && !g_gs_device->GetColorClipTexture() &&
+			!(config.rt && config.rt == m_current_render_target) && !(config.ds && config.ds == m_current_depth_target));
+	const u32 unsubmitted_passes = m_render_passes_since_submit + (InRenderPass() ? 1u : 0u);
+	if (near_readback && at_pass_boundary && unsubmitted_passes >= m_readback_kick_passes)
+	{
+		// The kick must never block: submitting cycles to the next command buffer, and
+		// ActivateCommandBuffer fence-waits if that buffer's previous submission is still
+		// executing — a hidden GPU-sync worse than the backlog the kick drains. Only kick
+		// when the next buffer is verifiably complete; otherwise keep recording and retry
+		// at the next boundary.
+		ScanForCommandBufferCompletion();
+		const u32 next_buffer = (m_current_frame + 1) % NUM_COMMAND_BUFFERS;
+		if (m_frame_resources[next_buffer].fence_counter <= m_completed_fence_counter)
+		{
+			// Submitting does not close an open pass, and this one ends at this draw anyway.
+			EndRenderPass();
+#ifdef PS2_NATIVE_GSVK_EXTERNAL
+            ++s_native_gs_aggregate.midframe_kicks;
+#endif
+			ExecuteCommandBuffer(WaitType::None);
+		}
+	}
+
+	// The shared destination-alpha stencil copy (GSAlphaBitLogicOp.h) survives only draws that keep
+	// it true: DATE draws sharing it, and logic-op marks, which write it where they write the bit.
+	// Any other draw that writes alpha drops it. A draw on other targets ends the pass, which drops
+	// it too (DateCopyLive).
+	if (m_date_copy.valid && config.date_copy == GSAlphaBitLogicOp::NoDateCopy &&
+		config.colormask.logic_op == GSAlphaBitLogicOp::Off &&
+		(config.colormask.wa || (config.alpha_second_pass.enable && config.alpha_second_pass.colormask.wa)))
+	{
+		m_date_copy.valid = false;
+	}
+
+	const GSVector2i rtsize(config.rt ? config.rt->GetSize() : config.ds->GetSize());
+	GSTextureVK* draw_rt = config.ps.HasColorROV() ? nullptr : static_cast<GSTextureVK*>(config.rt);
+	GSTextureVK* draw_ds = config.ps.HasDepthROV() ? nullptr : static_cast<GSTextureVK*>(config.ds);
+	GSTextureVK* draw_rt_rov = config.ps.HasColorROV() ? static_cast<GSTextureVK*>(config.rt) : nullptr;
+	GSTextureVK* draw_ds_rov = config.ps.HasDepthROV() ? static_cast<GSTextureVK*>(config.ds) : nullptr;
+	GSTextureVK* draw_rt_clone = nullptr;
+	GSTextureVK* colclip_rt = static_cast<GSTextureVK*>(g_gs_device->GetColorClipTexture());
+
+	// A counter draw the renderer asked to have drawn at native resolution (GSHWDrawConfig::colclip_native_scale):
+	// the colclip target, and a point-sampled copy of the depth buffer it tests against, are made at the target's
+	// size divided by its scale, and the resolve stretches the result back with point sampling. Only a fresh
+	// convert-and-resolve draw qualifies, since an existing colclip target already has the full size.
+	const bool native = config.colclip_native_scale > 1.0f && config.ps.colclip_hw && !colclip_rt &&
+	                    config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve && config.rt &&
+	                    config.rt->GetState() == GSTexture::State::Dirty;
+	const float native_div = native ? config.colclip_native_scale : 1.0f;
+	const GSVector2i draw_size = native ?
+		GSVector2i(static_cast<int>(std::ceil(rtsize.x / native_div)), static_cast<int>(std::ceil(rtsize.y / native_div))) :
+		rtsize;
+	const auto to_draw_size = [native, native_div](const GSVector4i& r) {
+		if (!native)
+			return r;
+		return GSVector4i(static_cast<int>(std::floor(r.x / native_div)), static_cast<int>(std::floor(r.y / native_div)),
+			static_cast<int>(std::ceil(r.z / native_div)), static_cast<int>(std::ceil(r.w / native_div)));
+	};
+	GSTextureVK* const full_ds = draw_ds;
+	GSTextureVK* native_ds = nullptr;
+
+	// stream buffer in first, in case we need to exec
+	SetVSConstantBuffer(config.cb_vs);
+	SetPSConstantBuffer(config.cb_ps);
+
+	// bind textures before checking the render pass, in case we need to transition them
+	if (config.tex)
+	{
+		PSSetShaderResource(TFX_TEXTURE_TEXTURE, config.tex, config.tex != config.rt && config.tex != config.ds);
+		PSSetSampler(config.sampler);
+	}
+	if (config.pal)
+		PSSetShaderResource(TFX_TEXTURE_PALETTE, config.pal, true);
+
+	if (config.blend.constant_enable)
+		SetBlendConstants(config.blend.constant);
+
+	if (config.topology == GSHWDrawConfig::Topology::Line)
+		SetLineWidth(config.line_expand ? config.cb_ps.ScaleFactor.z : 1.0f);
+
+	// Primitive ID tracking DATE setup.
+	// Needs to be done before
+	GSTextureVK* date_image = nullptr;
+	if (config.destination_alpha == GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking)
+	{
+		// If we have a colclip in progress, we need to use the colclip texture, but we can't check this later as there's a chicken/egg problem with the pipe setup.
+		GSTexture* backup_rt = config.rt;
+
+		if (colclip_rt)
+			config.rt = colclip_rt;
+
+		date_image = SetupPrimitiveTrackingDATE(config);
+		if (!date_image)
+		{
+			Console.Warning("VK: Failed to allocate DATE image, aborting draw.");
+			return;
+		}
+
+		config.rt = backup_rt;
+	}
+
+	// figure out the pipeline
+	PipelineSelector& pipe = m_pipeline_selector;
+	UpdateHWPipelineSelector(config, pipe);
+
+	// now blit the colclip texture back to the original target
+	if (colclip_rt)
+	{
+		if (config.colclip_mode == GSHWDrawConfig::ColClipMode::EarlyResolve)
+		{
+			GL_PUSH("Blit ColorClip back to RT");
+
+			EndRenderPass();
+			colclip_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+
+			draw_rt = static_cast<GSTextureVK*>(config.rt);
+			OMSetRenderTargets(draw_rt, draw_ds, GSVector4i::loadh(rtsize), static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
+
+			// if this target was cleared and never drawn to, perform the clear as part of the resolve here.
+			if (draw_rt->GetState() == GSTexture::State::Cleared)
+			{
+				alignas(16) VkClearValue cvs[2];
+				u32 cv_count = 0;
+				GSVector4::store<true>(&cvs[cv_count++].color, draw_rt->GetClearForFormat());
+				if (draw_ds)
+					cvs[cv_count++].depthStencil = {draw_ds->GetClearDepth(), 1};
+
+				BeginClearRenderPass(GetTFXRenderPass(true, pipe.ds, false, false, pipe.IsRTFeedbackLoop(),
+										 pipe.IsTestingAndSamplingDepth(), VK_ATTACHMENT_LOAD_OP_CLEAR,
+										 pipe.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+					draw_rt->GetRect(), cvs, cv_count);
+				draw_rt->SetState(GSTexture::State::Dirty);
+			}
+			else
+			{
+				BeginRenderPass(GetTFXRenderPass(true, pipe.ds, false, false, pipe.IsRTFeedbackLoop(),
+									pipe.IsTestingAndSamplingDepth(), VK_ATTACHMENT_LOAD_OP_LOAD,
+									pipe.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+					draw_rt->GetRect());
+			}
+
+			const GSVector4 drawareaf = GSVector4(config.colclip_update_area);
+			const GSVector4 sRect(drawareaf / GSVector4(rtsize).xyxy());
+			SetPipeline(m_colclip_finish_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
+			SetUtilityTexture(colclip_rt, m_point_sampler);
+			DrawStretchRect(sRect, drawareaf, rtsize);
+
+			Recycle(colclip_rt);
+			g_gs_device->SetColorClipTexture(nullptr);
+
+			colclip_rt = nullptr;
+			draw_rt = config.ps.HasColorROV() ? nullptr : static_cast<GSTextureVK*>(config.rt);
+		}
+		else
+		{
+			pipe.ps.colclip_hw = 1;
+			draw_rt = colclip_rt;
+		}
+	}
+
+	// Destination Alpha Setup
+	const bool need_barrier = config.require_one_barrier || (config.require_full_barrier && m_features.texture_barrier);
+	switch (config.destination_alpha)
+	{
+		case GSHWDrawConfig::DestinationAlphaMode::Off: // No setup
+		case GSHWDrawConfig::DestinationAlphaMode::Full: // No setup
+		case GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking: // Setup is done below
+			break;
+		case GSHWDrawConfig::DestinationAlphaMode::StencilOne: // setup is done below
+		{
+			// we only need to do the setup here if we don't have barriers, in which case do full DATE.
+			if (!need_barrier)
+			{
+				SetupDATE(draw_rt, config.ds, config.datm, config.drawarea);
+				config.destination_alpha = GSHWDrawConfig::DestinationAlphaMode::Stencil;
+			}
+		}
+		break;
+
+		case GSHWDrawConfig::DestinationAlphaMode::Stencil:
+			if (config.date_copy == GSAlphaBitLogicOp::NoDateCopy)
+			{
+				SetupDATE(draw_rt, config.ds, config.datm, config.drawarea);
+			}
+			else if (!DateCopyLive(config) || m_date_copy.datm != config.datm)
+			{
+				// Built over the whole target, since the draws that share it can land anywhere.
+				m_date_copy.valid = false;
+				SetupDATE(draw_rt, config.ds, config.datm, GSVector4i::loadh(rtsize));
+				// The pass this opens holds the run that used to read the target, and Turnip never tiles
+				// a pass holding a declared feedback loop. Without a read left in it the driver's
+				// autotuner may tile it, which is slower here. Declaring the loop on this one draw keeps
+				// the pass untiled, for one wait per run.
+				if (draw_rt && UseFeedbackLoopLayout())
+				{
+					pipe.feedback_loop_flags |= FeedbackLoopFlag_ReadAndWriteRT;
+					m_declare_rt_loop_without_read = true;
+				}
+			}
+			break;
+	}
+
+	// Switch to colclip target for colclip hw rendering
+	if (pipe.ps.colclip_hw)
+	{
+		if (!colclip_rt)
+		{
+			config.colclip_update_area = config.drawarea;
+			EndRenderPass();
+			colclip_rt = static_cast<GSTextureVK*>(CreateFeedbackTarget(draw_size.x, draw_size.y, GSTexture::Format::ColorClip, false));
+			if (!colclip_rt)
+			{
+				Console.Warning("VK: Failed to allocate ColorClip render target, aborting draw.");
+
+				if (date_image)
+					Recycle(date_image);
+
+				GL_POP();
+				return;
+			}
+			g_gs_device->SetColorClipTexture(static_cast<GSTexture*>(colclip_rt));
+
+			// propagate clear value through if the colclip render is the first
+			if (draw_rt->GetState() == GSTexture::State::Cleared)
+			{
+				colclip_rt->SetState(GSTexture::State::Cleared);
+				colclip_rt->SetClearColor(draw_rt->GetClearColor());
+
+				// If depth is cleared, we need to commit it, because we're only going to draw to the active part of the FB.
+				if (draw_ds && draw_ds->GetState() == GSTexture::State::Cleared && !config.drawarea.eq(GSVector4i::loadh(rtsize)))
+					draw_ds->CommitClear(m_current_command_buffer);
+			}
+			else if (draw_rt->GetState() == GSTexture::State::Dirty)
+			{
+				GL_PUSH_("ColorClip Render Target Setup");
+				draw_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+			}
+
+			// we're not drawing to the RT, so we can use it as a source
+			if (config.require_one_barrier && !m_features.texture_barrier)
+				PSSetShaderResource(2, draw_rt, true);
+		}
+		draw_rt = colclip_rt;
+	}
+
+	// clear texture binding when it's bound to RT or DS.
+	if (!config.tex && ((config.rt && static_cast<GSTextureVK*>(config.rt) == m_tfx_textures[0]) ||
+						   (config.ds && static_cast<GSTextureVK*>(config.ds) == m_tfx_textures[0])))
+	{
+		PSSetShaderResource(0, nullptr, false);
+	}
+
+	if (native && full_ds)
+	{
+		// DoStretchRect, not StretchRect: the latter flushes deferred draws, and this is one of them.
+		// The depth-output flag is what makes the copy write depth at all.
+		EndRenderPass();
+		native_ds = static_cast<GSTextureVK*>(CreateDepthStencil(draw_size, false, true));
+		if (!native_ds)
+		{
+			Console.Warning("VK: Failed to allocate native-resolution depth buffer, aborting draw.");
+			Recycle(colclip_rt);
+			g_gs_device->SetColorClipTexture(nullptr);
+			GL_POP();
+			return;
+		}
+		DoStretchRect(static_cast<GSTexture*>(full_ds), GSVector4(0, 0, 1, 1), static_cast<GSTexture*>(native_ds),
+			GSVector4(GSVector4i::loadh(draw_size)), ShaderConvertSelector(ShaderConvert::DEPTH_COPY, 0xf, true), Nearest);
+		draw_ds = native_ds;
+	}
+
+	// render pass restart optimizations
+	if (colclip_rt && (config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve || config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly))
+	{
+		// colclip hw requires blitting.
+		EndRenderPass();
+	}
+	else if (InRenderPass() &&
+		((draw_rt && m_current_render_target == draw_rt) ||
+		(draw_ds && m_current_depth_target == draw_ds)))
+	{
+		// avoid restarting the render pass just to switch from rt+depth to rt and vice versa
+		// keep the depth even if doing colclip hw draws, because the next draw will probably re-enable depth.
+		if (!(draw_rt || draw_rt_rov) && m_current_render_target && config.tex != m_current_render_target &&
+			draw_ds && m_current_render_target->GetSize() == draw_ds->GetSize())
+		{
+			draw_rt = m_current_render_target;
+			m_pipeline_selector.rt = true;
+		}
+		else if (!(draw_ds || draw_ds_rov) && m_current_depth_target && config.tex != m_current_depth_target &&
+			draw_rt && m_current_depth_target->GetSize() == draw_rt->GetSize())
+		{
+			draw_ds = m_current_depth_target;
+			m_pipeline_selector.ds = true;
+		}
+
+		// Keep the open pass's feedback bits across a run of draws on the same target, as the
+		// renderer decided (GSDrawRoad.h). Per target: a draw that keeps the RT but swaps the depth
+		// buffer must not inherit the old depth feedback layout.
+		if (config.road.carry_rt && draw_rt && m_current_render_target == draw_rt)
+			pipe.feedback_loop_flags |= m_current_framebuffer_feedback_loop & FeedbackLoopFlag_ReadAndWriteRT;
+		if (config.road.carry_depth && draw_ds && m_current_depth_target == draw_ds)
+		{
+			pipe.feedback_loop_flags |= (m_current_framebuffer_feedback_loop &
+				(FeedbackLoopFlag_ReadAndWriteDepth | FeedbackLoopFlag_ReadDepth));
+		}
+	}
+
+	if (draw_rt && config.road.clone_rt)
+	{
+		// Requires a copy of the RT.
+		draw_rt_clone = static_cast<GSTextureVK*>(CreateTexture(rtsize.x, rtsize.y, 1, draw_rt->GetFormat(), true));
+		if (draw_rt_clone)
+		{
+			GL_PUSH("VK: Copy RT to temp texture {%d,%d %dx%d}",
+				config.drawarea.left, config.drawarea.top,
+				config.drawarea.width(), config.drawarea.height());
+			EndRenderPass();
+			if (config.tex_hazard)
+			{
+				const GSVector4i union_rect = config.drawarea.runion(config.samplearea);
+				const u32 size_union = union_rect.width() * union_rect.height();
+				const u32 size_indiv = config.drawarea.width() * config.drawarea.height() +
+				                       config.samplearea.width() * config.samplearea.height();
+
+				// Do an individual copy if the union is larger than the sum of individual areas. Only
+				// when they are disjoint: two copies into the same texels with no barrier between them
+				// are a write-after-write hazard, even though both write the same bytes.
+				if (size_union > size_indiv && config.drawarea.rintersect(config.samplearea).rempty())
+				{
+					const GSVector4i snapped_drawarea = ProcessCopyArea(GSVector4i(0, 0, rtsize.x, rtsize.y), config.drawarea);
+					const GSVector4i snapped_samplearea = ProcessCopyArea(GSVector4i(0, 0, rtsize.x, rtsize.y), config.samplearea);
+					DoCopyRect(draw_rt, draw_rt_clone, snapped_drawarea, snapped_drawarea.left, snapped_drawarea.top);
+					DoCopyRect(draw_rt, draw_rt_clone, snapped_samplearea, snapped_samplearea.left, snapped_samplearea.top);
+				}
+				else
+				{
+					DoCopyRect(draw_rt, draw_rt_clone, union_rect, union_rect.left, union_rect.top);
+				}
+			}
+			else
+			{
+				DoCopyRect(draw_rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
+			}
+
+			if (config.require_one_barrier)
+				PSSetShaderResource(2, draw_rt_clone, true);
+			if (config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_RT)
+				PSSetShaderResource(0, draw_rt_clone, true);
+		}
+		else
+			Console.Warning("VK: Failed to allocate temp texture for RT copy.");
+	}
+
+	if (pipe.IsRTFeedbackLoop() && draw_rt)
+	{
+		pxAssertMsg(m_features.texture_barrier, "Texture barriers enabled");
+		PSSetShaderResource(TFX_TEXTURE_RT, draw_rt, false);
+
+		if (m_tfx_textures[TFX_TEXTURE_RT_ROV] == draw_rt)
+		{
+			// Unbind to avoid conflicts.
+			PSSetShaderResource(TFX_TEXTURE_RT_ROV, nullptr, false);
+			m_dirty_flags |= static_cast<u32>(DIRTY_FLAG_TFX_TEXTURE_RT_ROV);
+		}
+	}
+	else if (!draw_rt_clone)
+	{
+		// Unbind to avoid conflicts with framebuffer
+		PSSetShaderResource(TFX_TEXTURE_RT, nullptr, false);
+	}
+	
+	if (pipe.IsDepthFeedbackLoop() && draw_ds)
+	{
+		pxAssertMsg(m_features.texture_barrier, "Texture barriers enabled");
+		PSSetShaderResource(TFX_TEXTURE_DEPTH, draw_ds, false);
+
+		if (m_tfx_textures[TFX_TEXTURE_DEPTH_ROV] == draw_ds)
+		{
+			// Unbind to avoid conflicts.
+			PSSetShaderResource(TFX_TEXTURE_DEPTH_ROV, nullptr, false);
+			m_dirty_flags |= static_cast<u32>(DIRTY_FLAG_TFX_TEXTURE_DEPTH_ROV);
+		}
+	}
+	else
+	{
+		// Unbind to avoid conflicts with framebuffer
+		PSSetShaderResource(TFX_TEXTURE_DEPTH, nullptr, false);
+	}
+	
+	PSSetROVs(draw_rt_rov, draw_ds_rov, config.ps.HasColorOutput(), config.ps.HasDepthROVWrite());
+
+	OMSetRenderTargets(draw_rt, draw_ds, to_draw_size(config.scissor), static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags), draw_size);
+
+	// Begin render pass if new target or out of the area.
+	if (!InRenderPass())
+	{
+		VkAttachmentLoadOp rt_op = GetLoadOpForTexture(draw_rt);
+		VkAttachmentLoadOp ds_op = GetLoadOpForTexture(draw_ds);
+		// A feedback-loop draw reads the attachment via subpassLoad; a DONT_CARE load op leaves it
+		// uninitialized, so the coherent read returns undefined (tile) memory. Force LOAD so the read
+		// sees real content - you cannot coherently read what you did not load.
+		if (pipe.IsRTFeedbackLoop() && rt_op == VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+			rt_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+		if (pipe.IsDepthFeedbackLoop() && ds_op == VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+			ds_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+		const VkRenderPass rp = GetTFXRenderPass(pipe.rt, pipe.ds, pipe.ps.colclip_hw,
+			config.destination_alpha == GSHWDrawConfig::DestinationAlphaMode::Stencil, pipe.IsRTFeedbackLoop(),
+			pipe.IsTestingAndSamplingDepth(), rt_op, ds_op);
+		const bool is_clearing_rt = (rt_op == VK_ATTACHMENT_LOAD_OP_CLEAR || ds_op == VK_ATTACHMENT_LOAD_OP_CLEAR);
+
+		// Only draw to the active area of the colclip hw target. Except when depth is cleared, we need to use the full
+		// buffer size, otherwise it'll only clear the draw part of the depth buffer.
+		//
+		// A TFX pass is opened at the full render target on purpose. Sizing it to its draws instead
+		// (grow to the union of what it holds, pad 2 px, align to the render-area granularity)
+		// removed 98% of Stuntman's render-pass area and moved GPU time by +0.01%..+0.09% on Apple
+		// silicon, +0.59 ms on a Snapdragon 865, and flat to +40% on a Mali-G615. None of Turnip,
+		// Honeykrisp or the Mali driver charge for render-pass AREA -- each charges roughly 12-34
+		// microseconds per PASS, and a narrower area only forces more of them. Commit f9b5395855 has
+		// the mechanism this reverted, and the measurements behind these numbers.
+		const GSVector4i render_area = (pipe.ps.colclip_hw && (config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve) && ds_op != VK_ATTACHMENT_LOAD_OP_CLEAR)
+		                             ? to_draw_size(config.drawarea)
+		                             : GSVector4i::loadh(draw_size);
+
+		if (is_clearing_rt)
+		{
+			// when we're clearing, we set the draw area to the whole fb, otherwise part of it will be undefined
+			alignas(16) VkClearValue cvs[2];
+			u32 cv_count = 0;
+			if (draw_rt)
+			{
+				GSVector4 clear_color = draw_rt->GetClearForFormat();
+				if (pipe.ps.colclip_hw)
+				{
+					// Denormalize clear color for hw colclip.
+					clear_color *= GSVector4::cxpr(255.0f / 65535.0f, 255.0f / 65535.0f, 255.0f / 65535.0f, 1.0f);
+				}
+				GSVector4::store<true>(&cvs[cv_count++].color, clear_color);
+			}
+			if (draw_ds)
+				cvs[cv_count++].depthStencil = {draw_ds->GetClearDepth(), 0};
+
+			BeginClearRenderPass(rp, render_area, cvs, cv_count);
+		}
+		else
+		{
+			BeginRenderPass(rp, render_area);
+		}
+	}
+
+	// The pass the shared copy lives in is open now: this draw built the copy or found it live.
+	if (config.date_copy != GSAlphaBitLogicOp::NoDateCopy && config.destination_alpha == GSHWDrawConfig::DestinationAlphaMode::Stencil)
+		m_date_copy = {true, config.rt, config.ds, config.datm, m_render_pass_serial};
+
+	// Guard on stencil_buffer: devices without a stencil attachment (e.g. Adreno, forced D32F) have no
+	// stencil aspect to clear.
+	if (config.destination_alpha == GSHWDrawConfig::DestinationAlphaMode::StencilOne && m_features.stencil_buffer)
+	{
+		m_date_copy.valid = false;
+		const VkClearAttachment ca = {VK_IMAGE_ASPECT_STENCIL_BIT, 0u, {.depthStencil = {0.0f, 1u}}};
+		const VkClearRect rc = {{{config.drawarea.left, config.drawarea.top},
+									{static_cast<u32>(config.drawarea.width()), static_cast<u32>(config.drawarea.height())}},
+			0u, 1u};
+		vkCmdClearAttachments(m_current_command_buffer, 1, &ca, 1, &rc);
+	}
+
+	// rt -> colclip hw blit if enabled
+	if (colclip_rt && (config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly || config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve) && config.rt->GetState() == GSTexture::State::Dirty)
+	{
+		OMSetRenderTargets(draw_rt, draw_ds, GSVector4i::loadh(draw_size), static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags), draw_size);
+		SetUtilityTexture(static_cast<GSTextureVK*>(config.rt), m_point_sampler);
+		SetPipeline(m_colclip_setup_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
+
+		const GSVector4 drawareaf = GSVector4((config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly) ? GSVector4i::loadh(rtsize) : config.drawarea);
+		const GSVector4 sRect(drawareaf / GSVector4(rtsize).xyxy());
+		DrawStretchRect(sRect, native ? GSVector4(to_draw_size(config.drawarea)) : drawareaf, draw_size);
+
+		GL_POP();
+		OMSetRenderTargets(draw_rt, draw_ds, to_draw_size(config.scissor), static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags), draw_size);
+	}
+
+	// VB/IB upload, if we did DATE setup and it's not colclip hw this has already been done
+	if (!date_image || colclip_rt)
+		UploadHWDrawVerticesAndIndices(config);
+
+	// now we can do the actual draw
+	if (config.colormask.logic_op != GSAlphaBitLogicOp::Off)
+	{
+		// An alpha-bit mark (GSAlphaBitLogicOp.h): one run, or two in submission order when its
+		// primitives set the bit and then clear it (or the reverse), one op each. Nothing reads the
+		// target. Where a shared DATE stencil copy is live, each run writes it where it writes the bit.
+		pxAssert(!config.require_one_barrier && !config.require_full_barrier && config.logic_op_split < m_index.count);
+		const bool keep_copy = DateCopyLive(config) && pipe.ds &&
+			(m_date_copy.datm == SetDATM::DATM0 || m_date_copy.datm == SetDATM::DATM1);
+		if (!keep_copy)
+			m_date_copy.valid = false;
+		const bool datm = m_date_copy.datm == SetDATM::DATM1;
+		const u32 split = config.logic_op_split ? config.logic_op_split : m_index.count;
+		pipe.dss.alpha_bit_stencil = keep_copy ? GSAlphaBitLogicOp::StencilWriteFor(config.colormask.logic_op, datm) : 0;
+		if (BindDrawPipeline(pipe))
+		{
+			DeclareDrawFeedbackLoop(config, pipe);
+			Draw(config, 0, split);
+		}
+		if (split < m_index.count)
+		{
+			pipe.cms.logic_op = GSAlphaBitLogicOp::OtherOp(config.colormask.logic_op);
+			pipe.dss.alpha_bit_stencil = keep_copy ? GSAlphaBitLogicOp::StencilWriteFor(pipe.cms.logic_op, datm) : 0;
+			if (BindDrawPipeline(pipe))
+			{
+				DeclareDrawFeedbackLoop(config, pipe);
+				Draw(config, split, m_index.count - split);
+			}
+		}
+	}
+	else if (BindDrawPipeline(pipe))
+	{
+		DeclareDrawFeedbackLoop(config, pipe);
+		SendHWDraw(config, pipe.IsRTFeedbackLoop() ? draw_rt : nullptr, pipe.IsDepthFeedbackLoop() ? draw_ds : nullptr,
+			config.require_one_barrier, config.require_full_barrier);
+	}
+
+	// blend second pass
+	if (config.blend_multi_pass.enable)
+	{
+		if (config.blend_multi_pass.blend.constant_enable)
+			SetBlendConstants(config.blend_multi_pass.blend.constant);
+
+		pipe.bs = config.blend_multi_pass.blend;
+		config.blend_multi_pass.ApplyTo(pipe.ps);
+		if (BindDrawPipeline(pipe))
+		{
+			DeclareDrawFeedbackLoop(config, pipe);
+			// TODO: This probably should have barriers, in case we want to use it conditionally.
+			Draw(config);
+		}
+	}
+
+	// and the alpha pass
+	if (config.alpha_second_pass.enable)
+	{
+		// cbuffer will definitely be dirty if aref changes, no need to check it
+		if (config.cb_ps.FogColor_AREF.a != config.alpha_second_pass.ps_aref)
+		{
+			config.cb_ps.FogColor_AREF.a = config.alpha_second_pass.ps_aref;
+			SetPSConstantBuffer(config.cb_ps);
+		}
+
+		pipe.ps = config.alpha_second_pass.ps;
+		pipe.cms = config.alpha_second_pass.colormask;
+		pipe.dss = config.alpha_second_pass.depth;
+		pipe.bs = config.blend;
+		if (BindDrawPipeline(pipe))
+		{
+			DeclareDrawFeedbackLoop(config, pipe);
+			SendHWDraw(config, pipe.IsRTFeedbackLoop() ? draw_rt : nullptr, pipe.IsDepthFeedbackLoop() ? draw_ds : nullptr,
+				config.alpha_second_pass.require_one_barrier, config.alpha_second_pass.require_full_barrier);
+		}
+	}
+
+	if (draw_rt_clone)
+		Recycle(draw_rt_clone);
+
+	if (date_image)
+		Recycle(date_image);
+
+	if (native_ds)
+	{
+		EndRenderPass();
+		draw_ds = full_ds;
+		Recycle(native_ds);
+	}
+
+	// now blit the colclip texture back to the original target. The source rectangle is normalised, so a
+	// native-resolution colclip target needs nothing different here.
+	if (colclip_rt)
+	{
+		config.colclip_update_area = config.colclip_update_area.runion(config.drawarea);
+
+		if ((config.colclip_mode == GSHWDrawConfig::ColClipMode::ResolveOnly || config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve))
+		{
+			GL_PUSH("Blit ColorClip back to RT");
+
+			EndRenderPass();
+
+			colclip_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+
+			draw_rt = static_cast<GSTextureVK*>(config.rt);
+			OMSetRenderTargets(draw_rt, draw_ds, (config.colclip_mode == GSHWDrawConfig::ColClipMode::ResolveOnly) ? GSVector4i::loadh(rtsize) : config.scissor, static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
+
+			// if this target was cleared and never drawn to, perform the clear as part of the resolve here.
+			if (draw_rt->GetState() == GSTexture::State::Cleared)
+			{
+				alignas(16) VkClearValue cvs[2];
+				u32 cv_count = 0;
+				GSVector4::store<true>(&cvs[cv_count++].color, draw_rt->GetClearForFormat());
+				if (draw_ds)
+					cvs[cv_count++].depthStencil = {draw_ds->GetClearDepth(), 1};
+
+				BeginClearRenderPass(GetTFXRenderPass(true, pipe.ds, false, false, pipe.IsRTFeedbackLoop(),
+										 pipe.IsTestingAndSamplingDepth(), VK_ATTACHMENT_LOAD_OP_CLEAR,
+										 pipe.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+					draw_rt->GetRect(), cvs, cv_count);
+				draw_rt->SetState(GSTexture::State::Dirty);
+			}
+			else
+			{
+				BeginRenderPass(GetTFXRenderPass(true, pipe.ds, false, false, pipe.IsRTFeedbackLoop(),
+									pipe.IsTestingAndSamplingDepth(), VK_ATTACHMENT_LOAD_OP_LOAD,
+									pipe.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+					draw_rt->GetRect());
+			}
+
+			const GSVector4 drawareaf = GSVector4(config.colclip_update_area);
+			const GSVector4 sRect(drawareaf / GSVector4(rtsize).xyxy());
+			SetPipeline(m_colclip_finish_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
+			SetUtilityTexture(colclip_rt, m_point_sampler);
+			DrawStretchRect(sRect, drawareaf, rtsize);
+
+			Recycle(colclip_rt);
+			g_gs_device->SetColorClipTexture(nullptr);
+		}
+	}
+
+	config.colclip_mode = GSHWDrawConfig::ColClipMode::NoModify;
+}
+
+void GSDeviceVK::UpdateHWPipelineSelector(GSHWDrawConfig& config, PipelineSelector& pipe)
+{
+	pipe.vs.key = config.vs.key;
+	pipe.ps.key_hi = config.ps.key_hi;
+	pipe.ps.key_lo = config.ps.key_lo;
+	pipe.dss.key = config.ps.HasDepthROV() ? GSHWDrawConfig::DepthStencilSelector::NoDepth().key : config.depth.key;
+	pipe.bs.key = config.ps.HasColorROV() ? GSHWDrawConfig::BlendState().key : config.blend.key;
+	pipe.bs.constant = 0; // don't dupe states with different alpha values
+	pipe.cms.key = config.ps.HasColorROV() ? GSHWDrawConfig::ColorMaskSelector().key : config.colormask.key;
+	pipe.topology = static_cast<u32>(config.topology);
+	pipe.rt = config.rt != nullptr && !config.ps.HasColorROV();
+	pipe.ds = config.ds != nullptr && !config.ps.HasDepthROV();
+	pipe.line_width = config.line_expand;
+	// Set from the read, not from the barrier request: the ordered roads drop a reader's barriers
+	// and the read is still in the pass.
+	pipe.feedback_loop_flags = FeedbackLoopFlag_None;
+	if (config.road.rt_loop)
+		pipe.feedback_loop_flags |= FeedbackLoopFlag_ReadAndWriteRT;
+	if (config.road.depth_loop)
+		pipe.feedback_loop_flags |= FeedbackLoopFlag_ReadAndWriteDepth;
+	else if (config.road.depth_read)
+		pipe.feedback_loop_flags |= FeedbackLoopFlag_ReadDepth;
+	pipe.raster_order = config.raster_order && config.road.rt_loop;
+
+	// enable point size in the vertex shader if we're rendering points regardless of upscaling.
+	pipe.vs.point_size |= (config.topology == GSHWDrawConfig::Topology::Point);
+}
+
+void GSDeviceVK::UploadHWDrawVerticesAndIndices(GSHWDrawConfig& config)
+{
+	IASetVertexBuffer(config.verts, sizeof(GSVertex), config.nverts, GetVertexAlignment(config.vs.expand));
+
+	if (config.vs.UseFixedExpandIndexBuffer())
+	{
+		m_index.start = 0;
+		m_index.count = config.nindices;
+		SetIndexBuffer(m_expand_index_buffer);
+	}
+	else if (config.vs.UseVSExpandIndexBuffer())
+	{
+		VSSetIndexBuffer(config.indices, config.nindices);
+		SetVSConstantBuffer(config.cb_vs);
+	}
+	else
+	{
+		IASetIndexBuffer(config.indices, config.nindices);
+	}
+}
+
+VkImageMemoryBarrier GSDeviceVK::GetColorBufferFeedbackBarrier(GSTextureVK* rt) const
+{
+	const VkImageLayout layout =
+		UseFeedbackLoopLayout() ? VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT : VK_IMAGE_LAYOUT_GENERAL;
+	const VkAccessFlags dst_access =
+		UseFeedbackLoopLayout() ? VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+	return {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr,
+		VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, dst_access, layout, layout,
+		VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, rt->GetImage(), {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u}};
+}
+
+VkImageMemoryBarrier GSDeviceVK::GetDepthStencilBufferFeedbackBarrier(GSTextureVK* ds) const
+{
+	const VkImageLayout layout =
+		UseFeedbackLoopLayout() ? VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT : VK_IMAGE_LAYOUT_GENERAL;
+	const VkAccessFlags dst_access =
+		UseFeedbackLoopLayout() ? VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+	return {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr,
+		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, dst_access, layout, layout,
+		VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, ds->GetImage(),
+		{VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0u, 1u, 0u, 1u}};
+}
+
+VkDependencyFlags GSDeviceVK::GetFeedbackBarrierDependencyFlags() const
+{
+	return UseFeedbackLoopLayout() ? (VK_DEPENDENCY_BY_REGION_BIT | VK_DEPENDENCY_FEEDBACK_LOOP_BIT_EXT) :
+	                                 VK_DEPENDENCY_BY_REGION_BIT;
+}
+
+void GSDeviceVK::DeclareDrawFeedbackLoop(const GSHWDrawConfig& config, const PipelineSelector& pipe)
+{
+	const bool rt_loop_without_read = std::exchange(m_declare_rt_loop_without_read, false);
+	if (!m_declare_loop_per_draw)
+		return;
+
+	// ⚠️ Only the pipelines that would have carried the create flag declare the state dynamic, and
+	// only they may be SET: calling a dynamic-state setter for state the bound pipeline specified
+	// statically is itself illegal (VUID-vkCmdDraw*-None-08608, which the Khronos layer raises on
+	// every ordinary draw if this early-out is missing). A pipeline without the dynamic state has
+	// no loop to declare anyway -- its static value is "none", which is what those draws want.
+	if (!pipe.IsRTFeedbackLoop() && !pipe.IsTestingAndSamplingDepth())
+		return;
+
+	// The colour aspect is narrowed to the draws that actually read the target. That is the whole
+	// point: the flag word on the pipeline selector is carried across the non-readers that follow
+	// a reader, so asking it alone would declare the loop for every draw in the latched pass,
+	// which is what the pipeline create flag already does. The depth aspect is a straight mirror
+	// of the create flag it replaces -- nothing in the per-draw work declares a depth loop.
+	VkImageAspectFlags aspects = 0;
+	if (pipe.IsRTFeedbackLoop() && (config.IsFeedbackLoopRT(pipe.ps) || rt_loop_without_read))
+		aspects |= VK_IMAGE_ASPECT_COLOR_BIT;
+	if (pipe.IsTestingAndSamplingDepth())
+		aspects |= VK_IMAGE_ASPECT_DEPTH_BIT;
+
+	// ⚠️ Issued after the pipeline bind, every draw, deliberately. The Mesa runtime resets this
+	// value while filling a bound pipeline's static state, so a value set once per pass would be
+	// gone by the second draw. VK_IMAGE_ASPECT_NONE is the legal way to say "no loop". The first
+	// reader of a pass writes it twice; see GSLoopEnableWritesForDraw.
+	const GSLoopEnableWrites writes = GSLoopEnableWritesForDraw(aspects, m_loop_declared_in_pass);
+	for (u32 i = 0; i < writes.count; i++)
+		vkCmdSetAttachmentFeedbackLoopEnableEXT(GetCurrentCommandBuffer(), writes.values[i]);
+	if (aspects != 0)
+		m_loop_declared_in_pass = true;
+}
+
+void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, GSTextureVK* draw_ds,
+	bool one_barrier, bool full_barrier)
+{
+	if (!m_features.texture_barrier) [[unlikely]]
+	{
+		Draw(config);
+		return;
+	}
+
+#ifdef PCSX2_DEVBUILD
+	if ((one_barrier || full_barrier) && !(config.IsFeedbackLoopRT(m_pipeline_selector.ps) || config.IsFeedbackLoopDepth(m_pipeline_selector.ps))) [[unlikely]]
+		Console.Warning("VK: Possible unnecessary barrier detected.");
+#endif
+	VkDependencyFlags barrier_flags = GetFeedbackBarrierDependencyFlags();
+
+	std::array<VkImageMemoryBarrier, 2> barriers;
+	u32 n_barriers = 0;
+	if (full_barrier || one_barrier)
+	{
+		if (draw_rt)
+		{
+			barriers[0] = GetColorBufferFeedbackBarrier(draw_rt);
+			n_barriers++;
+		}
+		if (draw_ds)
+		{
+			barriers[1] = GetDepthStencilBufferFeedbackBarrier(draw_ds);
+			n_barriers++;
+		}
+	}
+
+	const auto IssueBarriers = [&]() {
+		if (draw_rt)
+		{
+			vkCmdPipelineBarrier(GetCurrentCommandBuffer(),
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier_flags, 0, nullptr, 0, nullptr, 1, &barriers[0]);
+		}
+		if (draw_ds)
+		{
+			vkCmdPipelineBarrier(GetCurrentCommandBuffer(),
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier_flags, 0, nullptr, 0, nullptr, 1, &barriers[1]);
+		}
+	};
+
+	if (full_barrier)
+	{
+		pxAssert(config.drawlist && !config.drawlist->empty());
+
+		const u32 indices_per_prim = config.indices_per_prim;
+		const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
+
+		GL_PUSH("Split the draw");
+		g_perfmon.Put(GSPerfMon::Barriers, n_barriers * static_cast<u32>(draw_list_size));
+
+		for (u32 n = 0, p = 0; n < draw_list_size; n++)
+		{
+			IssueBarriers();
+
+			const u32 count = config.drawlist->at(n) * indices_per_prim;
+			Draw(config, p, count);
+			p += count;
+		}
+
+		return;
+	}
+
+	if (one_barrier)
+	{
+		g_perfmon.Put(GSPerfMon::Barriers, n_barriers);
+		IssueBarriers();
+	}
+
+	Draw(config);
+
+	if (config.ps.HasColorROV() || config.ps.HasDepthROV())
+		g_perfmon.Put(GSPerfMon::DrawCallsROV, 1);
+}
+
+void GSDeviceVK::CollectDriverReport(GSDriverReport::BackendReport& out) const
+{
+	using namespace GSDriverReport;
+
+	// The base object is replaced below by one carrying the whole resolver result.
+	GSDevice::CollectDriverReport(out);
+
+	out.has_served_facts = true;
+	out.vendor_id = m_device_properties.vendorID;
+	out.device_name = m_device_properties.deviceName;
+	if (m_optional_extensions.vk_khr_driver_properties)
+	{
+		out.driver_id = static_cast<u32>(m_device_driver_properties.driverID);
+		out.driver_name = m_device_driver_properties.driverName;
+		out.driver_info = m_device_driver_properties.driverInfo;
+	}
+
+	VulkanLiveFacts live;
+	live.enabled_instance_extensions = s_enabled_instance_extensions;
+	live.enabled_device_extensions = m_enabled_device_extensions;
+	live.missing_device_extensions = m_missing_device_extensions;
+	live.instance_api_version = VK_API_VERSION_1_1;
+	{
+		JsonWriter vw;
+		WriteVulkanInstance(vw, out.steps, "vulkan", m_instance, m_physical_device, &live, nullptr);
+		out.vulkan_json = vw.TakeString();
+	}
+
+	JsonWriter w;
+	w.BeginObject();
+	w.KeyString("device_name", m_name);
+	w.KeyUInt("max_texture_size", m_max_texture_size);
+	w.KeyString("self_read_road", m_report_self_read_road);
+
+	w.Key("roads");
+	w.BeginObject();
+	w.KeyBool("texture_barrier", m_features.texture_barrier);
+	w.KeyBool("framebuffer_fetch_in_tile", m_features.framebuffer_fetch);
+	w.KeyBool("feedback_loop_layout", UseFeedbackLoopLayout());
+	w.KeyBool("declared_loop_orders_overlap", m_features.declared_feedback_loop_orders_overlap);
+	w.KeyString("feedback_loop_declaration", m_declare_loop_per_draw ? "dynamic per draw" : "pipeline create flag");
+	w.KeyBool("depth_loop_declared", m_report_declare_depth_loop);
+	w.KeyBool("depth_feedback", m_features.depth_feedback);
+	w.KeyBool("push_descriptors", m_use_push_descriptors);
+	w.KeyString("stream_rings", GSStreamRingMemoryRoadName(m_stream_ring_memory.road));
+	w.KeyUInt("stream_ring_memory_type", m_stream_ring_memory.type_index);
+	w.KeyBool("gpu_timing_supported", m_gpu_timing_supported);
+	w.KeyBool("present_spinning_supported", m_spinning_supported);
+	w.KeyBool("measurement_overrides_set", g_gs_measurement_overrides.Any());
+	w.EndObject();
+
+	w.Key("features");
+	WriteFeatureSupport(w, m_features);
+
+	w.Key("profile");
+	{
+		ServedDriverFacts facts;
+		facts.vendor_id = out.vendor_id;
+		facts.driver_id = out.driver_id;
+		facts.driver_name = out.driver_name;
+		facts.driver_info = out.driver_info;
+		facts.device_name = out.device_name;
+		WriteGpuProfile(w, m_gpu_profile, &m_device_rules, ClassifyServedDriver(facts).answered);
+	}
+
+	w.Key("optional_extensions");
+	w.BeginObject();
+#define OPT(name) w.KeyBool(#name, m_optional_extensions.name)
+	OPT(vk_ext_provoking_vertex);
+	OPT(vk_ext_memory_budget);
+	OPT(vk_ext_calibrated_timestamps);
+	OPT(vk_ext_rasterization_order_attachment_access);
+	OPT(vk_ext_roaa_depth);
+	OPT(vk_ext_full_screen_exclusive);
+	OPT(vk_ext_line_rasterization);
+	OPT(vk_swapchain_maintenance1);
+	OPT(vk_swapchain_maintenance1_is_khr);
+	OPT(vk_khr_push_descriptor);
+	OPT(vk_khr_driver_properties);
+	OPT(vk_khr_shader_non_semantic_info);
+	OPT(vk_ext_attachment_feedback_loop_layout);
+	OPT(vk_ext_attachment_feedback_loop_dynamic_state);
+	OPT(vk_ext_fragment_shader_interlock);
+	OPT(vk_khr_vulkan_memory_model);
+	OPT(vk_ext_robustness2_null_descriptor);
+	OPT(vk_ext_device_fault);
+#undef OPT
+	w.EndObject();
+
+	w.Key("enabled_core_features");
+	WriteVulkanCoreFeatures(w, m_device_features);
+
+	w.EndObject();
+	out.backend_json = w.TakeString();
+}
+
+#ifdef __ANDROID__
+
+// Remote play's frames (GS/GSRemotePlay.h). Every presented frame is drawn at the stream's size and
+// copied into a free slot, recorded into the frame's own command buffer ahead of the present, which
+// submits it with everything else. The app's video thread picks it up once the GPU marks it done.
+
+void GSDeviceVK::RemotePlayVSync(GSTexture* src, const GSVector4& src_uv, const GSVector4& area)
+{
+	const u32 max_size = GSRemotePlay::g_max_size.load(std::memory_order_acquire);
+	if (max_size == 0)
+	{
+		if (m_rp_published || m_rp_frame || m_rp_marker_buffer != VK_NULL_HANDLE)
+			RemotePlayRelease(false);
+		return;
+	}
+
+	GSRemotePlay::g_frames.fetch_add(1, std::memory_order_relaxed);
+
+	// A slot the app's side has finished with. When the GPU or the app still holds all of them, this
+	// frame is dropped rather than waited for.
+	GSRemotePlay::Ring& ring = m_rp_ring;
+	u32 index = 0;
+	while (index < ring.slots.size() &&
+		   ring.slots[index].state.load(std::memory_order_acquire) != GSRemotePlay::SlotFree)
+	{
+		index++;
+	}
+	if (index == ring.slots.size())
+	{
+		GSRemotePlay::g_skipped.fetch_add(1, std::memory_order_relaxed);
+		return;
+	}
+	GSRemotePlay::Slot& slot = ring.slots[index];
+
+	// Every frame is the stream's full size, whatever size the game's is. Games switch sizes between
+	// menus, videos and play, and a stream that followed them would restart the encoder here and the
+	// decoder on the friend's device at each switch: a hitch every time. NV12 wants the width a
+	// multiple of 4 and the height even.
+	const u32 width = std::max(4u, (max_size >> 16) & ~3u);
+	const u32 height = std::max(2u, (max_size & 0xffffu) & ~1u);
+
+	if (!m_rp_frame || static_cast<u32>(m_rp_frame->GetWidth()) != width ||
+		static_cast<u32>(m_rp_frame->GetHeight()) != height)
+	{
+		m_rp_frame = GSTextureVK::Create(GSTexture::Usage::RenderTarget, GSTexture::Format::Color, width, height, 1);
+		if (!m_rp_frame)
+		{
+			GSRemotePlay::g_skipped.fetch_add(1, std::memory_order_relaxed);
+			return;
+		}
+	}
+
+	// The slot's storage. A free slot is nobody's, so it can be replaced here, and a frame of either
+	// kind can go into any slot.
+	RemotePlayHardware& hardware = m_rp_hardware[index];
+	RemotePlayReadback& readback = m_rp_readback[index];
+	bool use_hardware = GSRemotePlay::g_hardware.load(std::memory_order_acquire) && !m_rp_hardware_failed &&
+						m_optional_extensions.vk_android_external_memory_ahb &&
+						vkGetAndroidHardwareBufferPropertiesANDROID != nullptr;
+
+	if (use_hardware && (!hardware.buffer || hardware.width != width || hardware.height != height))
+	{
+		RemotePlayHardware created;
+		const bool ok = RemotePlayCreateHardware(created, width, height);
+		{
+			// The app takes its own reference to a slot's buffer under the lock.
+			std::lock_guard lock(GSRemotePlay::g_mutex);
+			RemotePlayDiscard(hardware, false);
+			if (ok)
+				hardware = created;
+			slot.hardware_buffer = ok ? hardware.buffer : nullptr;
+			slot.generation = ok ? GSRemotePlay::g_generation.fetch_add(1, std::memory_order_relaxed) + 1 : 0;
+		}
+		if (!ok)
+		{
+			// Frames go through the CPU from here on, for as long as this device lives.
+			m_rp_hardware_failed = true;
+			use_hardware = false;
+			Console.Warning("VK: Remote play: no shared frame buffers on this device, reading frames back instead.");
+		}
+	}
+
+	const u32 rgba_size = width * height * 4;
+	if (!use_hardware && (!readback.buffer || readback.size < rgba_size))
+	{
+		RemotePlayDiscard(readback, false);
+		if (!RemotePlayCreateReadback(readback, rgba_size))
+		{
+			GSRemotePlay::g_skipped.fetch_add(1, std::memory_order_relaxed);
+			return;
+		}
+		slot.data = readback.data;
+	}
+
+	// One u32 per slot, cleared once and kept mapped, so checking a slot costs a memory read.
+	if (m_rp_marker_buffer == VK_NULL_HANDLE)
+	{
+		const VkBufferCreateInfo bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, 0,
+			sizeof(u32) * ring.slots.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr};
+		VmaAllocationCreateInfo aci = {};
+		aci.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
+		aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		aci.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		VmaAllocationInfo ai = {};
+		if (vmaCreateBuffer(m_allocator, &bci, &aci, &m_rp_marker_buffer, &m_rp_marker_allocation, &ai) != VK_SUCCESS ||
+			!ai.pMappedData)
+		{
+			if (m_rp_marker_buffer != VK_NULL_HANDLE)
+				vmaDestroyBuffer(m_allocator, m_rp_marker_buffer, m_rp_marker_allocation);
+			m_rp_marker_buffer = VK_NULL_HANDLE;
+			m_rp_marker_allocation = VK_NULL_HANDLE;
+			GSRemotePlay::g_skipped.fetch_add(1, std::memory_order_relaxed);
+			return;
+		}
+		std::memset(ai.pMappedData, 0, sizeof(u32) * ring.slots.size());
+		ring.markers = static_cast<const volatile u32*>(ai.pMappedData);
+	}
+
+	if (!m_rp_published)
+	{
+		std::lock_guard lock(GSRemotePlay::g_mutex);
+		ring.prepare_read = &GSDeviceVK::RemotePlayPrepareRead;
+		ring.context = this;
+		GSRemotePlay::g_ring = &ring;
+		m_rp_published = true;
+	}
+
+	// The picture where it goes, black around it. The clear also gives every pixel full alpha, which
+	// the draw then leaves alone: the game's own alpha means nothing on a screen.
+	ClearRenderTarget(m_rp_frame.get(), 0xFF000000u);
+	if (src)
+	{
+		const float fw = static_cast<float>(width);
+		const float fh = static_cast<float>(height);
+		const GSVector4 dst(area.x * fw, area.y * fh, (area.x + area.z) * fw, (area.y + area.w) * fh);
+		StretchRect(src, src_uv, m_rp_frame.get(), dst, ShaderConvertSelector(ShaderConvert::COPY, 0x7), Biln);
+	}
+	else
+	{
+		m_rp_frame->CommitClear();
+	}
+	EndRenderPass();
+
+	const VkCommandBuffer cmd = GetCurrentCommandBuffer();
+	m_rp_frame->TransitionToLayout(GSTextureVK::Layout::TransferSrc);
+	m_rp_frame->SetUseFenceCounter(GetCurrentFenceCounter());
+
+	if (use_hardware)
+	{
+		const VkImageSubresourceRange range = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+
+		// Whatever the encoder last read from it is discarded, so no ownership transfer back is needed.
+		VkImageMemoryBarrier acquire = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+		acquire.srcAccessMask = 0;
+		acquire.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		acquire.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		acquire.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		acquire.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		acquire.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		acquire.image = hardware.image;
+		acquire.subresourceRange = range;
+		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
+			nullptr, 1, &acquire);
+
+		const VkImageCopy copy = {{VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, {0, 0, 0}, {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+			{0, 0, 0}, {width, height, 1}};
+		vkCmdCopyImage(cmd, m_rp_frame->GetImage(), m_rp_frame->GetVkLayout(), hardware.image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+
+		// Handed to the encoder's side (GL, on the same GPU): released to the foreign queue family.
+		// The second scope is TRANSFER, not BOTTOM_OF_PIPE, so the marker write below waits for the
+		// release and its layout change, and a landed marker means GL may read.
+		VkImageMemoryBarrier release = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+		release.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		release.dstAccessMask = 0;
+		release.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		release.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+		release.srcQueueFamilyIndex = m_graphics_queue_family_index;
+		release.dstQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT;
+		release.image = hardware.image;
+		release.subresourceRange = range;
+		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
+			nullptr, 1, &release);
+	}
+	else
+	{
+		const VkBufferImageCopy region = {0, 0, 0, {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, {0, 0, 0}, {width, height, 1}};
+		vkCmdCopyImageToBuffer(cmd, m_rp_frame->GetImage(), m_rp_frame->GetVkLayout(), readback.buffer, 1, &region);
+
+		// The frame goes out to the host, and the marker write waits for it, so a marker that shows
+		// this slot's number means its frame is in.
+		const VkBufferMemoryBarrier out = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_HOST_READ_BIT, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, readback.buffer, 0, rgba_size};
+		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &out, 0, nullptr);
+	}
+
+	// 0 is what a cleared marker reads.
+	if (++m_rp_seq == 0)
+		++m_rp_seq;
+
+	vkCmdFillBuffer(cmd, m_rp_marker_buffer, index * sizeof(u32), sizeof(u32), m_rp_seq);
+	const VkBufferMemoryBarrier marker = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT,
+		VK_ACCESS_HOST_READ_BIT, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, m_rp_marker_buffer,
+		index * sizeof(u32), sizeof(u32)};
+	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &marker, 0,
+		nullptr);
+
+	slot.seq = m_rp_seq;
+	slot.width = width;
+	slot.height = height;
+	slot.hardware = use_hardware;
+	slot.recorded_ns = static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+		std::chrono::steady_clock::now().time_since_epoch()).count());
+	slot.state.store(GSRemotePlay::SlotRecorded, std::memory_order_release);
+
+	// Wakes the app's thread, which then waits the few ms until the GPU has the frame done.
+	GSRemotePlay::NotifyRecorded();
+}
+
+// An AHardwareBuffer the GPU can copy a frame into and the encoder's GL can read, imported as an
+// image with its own dedicated memory. False, with nothing left allocated, when any step fails.
+bool GSDeviceVK::RemotePlayCreateHardware(RemotePlayHardware& hardware, u32 width, u32 height)
+{
+	AHardwareBuffer_Desc desc = {};
+	desc.width = width;
+	desc.height = height;
+	desc.layers = 1;
+	desc.format = AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM;
+	// CPU_READ_RARELY although the CPU never reads it: it keeps gralloc from picking a compressed GPU
+	// layout. The writer can be Turnip while the reader is the system GLES driver, and a plain linear
+	// buffer is the one layout both are sure to agree on.
+	desc.usage = AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT | AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE |
+				 AHARDWAREBUFFER_USAGE_CPU_READ_RARELY;
+	if (AHardwareBuffer_allocate(&desc, &hardware.buffer) != 0 || !hardware.buffer)
+	{
+		hardware.buffer = nullptr;
+		return false;
+	}
+
+	VkAndroidHardwareBufferFormatPropertiesANDROID format_properties = {
+		VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID};
+	VkAndroidHardwareBufferPropertiesANDROID properties = {
+		VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID, &format_properties};
+	if (vkGetAndroidHardwareBufferPropertiesANDROID(m_device, hardware.buffer, &properties) != VK_SUCCESS ||
+		properties.memoryTypeBits == 0 || format_properties.format != VK_FORMAT_R8G8B8A8_UNORM)
+	{
+		RemotePlayDiscard(hardware, true);
+		return false;
+	}
+
+	VkExternalMemoryImageCreateInfo external = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO};
+	external.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
+
+	VkImageCreateInfo ici = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, &external};
+	ici.imageType = VK_IMAGE_TYPE_2D;
+	ici.format = VK_FORMAT_R8G8B8A8_UNORM;
+	ici.extent = {width, height, 1};
+	ici.mipLevels = 1;
+	ici.arrayLayers = 1;
+	ici.samples = VK_SAMPLE_COUNT_1_BIT;
+	ici.tiling = VK_IMAGE_TILING_OPTIMAL;
+	ici.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	ici.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	if (vkCreateImage(m_device, &ici, nullptr, &hardware.image) != VK_SUCCESS)
+	{
+		hardware.image = VK_NULL_HANDLE;
+		RemotePlayDiscard(hardware, true);
+		return false;
+	}
+
+	VkImportAndroidHardwareBufferInfoANDROID import = {VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID};
+	import.buffer = hardware.buffer;
+	VkMemoryDedicatedAllocateInfo dedicated = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, &import};
+	dedicated.image = hardware.image;
+	VkMemoryAllocateInfo mai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &dedicated};
+	mai.allocationSize = properties.allocationSize;
+	mai.memoryTypeIndex = static_cast<u32>(std::countr_zero(properties.memoryTypeBits));
+	if (vkAllocateMemory(m_device, &mai, nullptr, &hardware.memory) != VK_SUCCESS)
+	{
+		hardware.memory = VK_NULL_HANDLE;
+		RemotePlayDiscard(hardware, true);
+		return false;
+	}
+
+	if (vkBindImageMemory(m_device, hardware.image, hardware.memory, 0) != VK_SUCCESS)
+	{
+		RemotePlayDiscard(hardware, true);
+		return false;
+	}
+
+	hardware.width = width;
+	hardware.height = height;
+	return true;
+}
+
+// The buffer itself lives on for as long as the encoder's GL still holds an image of it.
+void GSDeviceVK::RemotePlayDiscard(RemotePlayHardware& hardware, bool device_idle)
+{
+	const RemotePlayHardware gone = hardware;
+	hardware = {};
+	if (!gone.buffer && gone.image == VK_NULL_HANDLE && gone.memory == VK_NULL_HANDLE)
+		return;
+
+	const auto destroy = [device = m_device, gone]() {
+		if (gone.image != VK_NULL_HANDLE)
+			vkDestroyImage(device, gone.image, nullptr);
+		if (gone.memory != VK_NULL_HANDLE)
+			vkFreeMemory(device, gone.memory, nullptr);
+		if (gone.buffer)
+			AHardwareBuffer_release(gone.buffer);
+	};
+	if (device_idle)
+		destroy();
+	else
+		m_frame_resources[m_current_frame].cleanup_resources.push_back(destroy);
+}
+
+// A readback slot's buffer, mapped for as long as it exists. Its own memory, so making it visible to
+// the CPU (RemotePlayPrepareRead) touches nothing else's.
+bool GSDeviceVK::RemotePlayCreateReadback(RemotePlayReadback& readback, u32 size)
+{
+	const VkBufferCreateInfo bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, 0, size,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr};
+	VmaAllocationCreateInfo aci = {};
+	aci.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
+	aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+	// As GSDownloadTextureVK chooses, for the same reason: cached reads are far faster, except on the
+	// Mali drivers its profile says otherwise for.
+	const bool prefer_coherent = IsDeviceMali() && GetMobileDriverProfile().UsesWorkaround(DriverWorkaround::PreferCoherentReadback);
+	aci.preferredFlags = prefer_coherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+
+	VmaAllocationInfo ai = {};
+	if (vmaCreateBuffer(m_allocator, &bci, &aci, &readback.buffer, &readback.allocation, &ai) != VK_SUCCESS ||
+		!ai.pMappedData)
+	{
+		if (readback.buffer != VK_NULL_HANDLE)
+			vmaDestroyBuffer(m_allocator, readback.buffer, readback.allocation);
+		readback = {};
+		return false;
+	}
+
+	VkMemoryPropertyFlags flags = 0;
+	vmaGetMemoryTypeProperties(m_allocator, ai.memoryType, &flags);
+	readback.memory = ai.deviceMemory;
+	readback.data = static_cast<const u8*>(ai.pMappedData);
+	readback.size = size;
+	readback.coherent = (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+	return true;
+}
+
+void GSDeviceVK::RemotePlayDiscard(RemotePlayReadback& readback, bool device_idle)
+{
+	if (readback.buffer != VK_NULL_HANDLE)
+	{
+		if (device_idle)
+			vmaDestroyBuffer(m_allocator, readback.buffer, readback.allocation);
+		else
+			DeferBufferDestruction(readback.buffer, readback.allocation);
+	}
+	readback = {};
+}
+
+// The app's video thread, under GSRemotePlay::g_mutex, before it reads a readback slot. The slot's
+// buffer cannot go meanwhile: the GS thread replaces buffers only in free slots, and withdraws the
+// ring under the same lock before it lets them go.
+void GSDeviceVK::RemotePlayPrepareRead(void* context, u32 index)
+{
+	GSDeviceVK* const device = static_cast<GSDeviceVK*>(context);
+	const RemotePlayReadback& readback = device->m_rp_readback[index];
+	if (readback.coherent || readback.memory == VK_NULL_HANDLE)
+		return;
+
+	const VkMappedMemoryRange range = {VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr, readback.memory, 0, VK_WHOLE_SIZE};
+	vkInvalidateMappedMemoryRanges(device->m_device, 1, &range);
+}
+
+// Everything remote play allocated goes once it stops, or with the device. device_idle: the GPU has
+// nothing in flight, so it all goes at once; otherwise once the frames that used it are done. A frame
+// the encoder still holds needs no waiting: its buffer outlives the image for as long as GL has it.
+void GSDeviceVK::RemotePlayRelease(bool device_idle)
+{
+	GSRemotePlay::Ring& ring = m_rp_ring;
+	{
+		// The app's side reads slots under this lock, so once the ring is withdrawn nothing reads it.
+		std::lock_guard lock(GSRemotePlay::g_mutex);
+		if (GSRemotePlay::g_ring == &ring)
+			GSRemotePlay::g_ring = nullptr;
+
+		for (GSRemotePlay::Slot& slot : ring.slots)
+		{
+			slot.state.store(GSRemotePlay::SlotFree, std::memory_order_relaxed);
+			slot.data = nullptr;
+			slot.hardware_buffer = nullptr;
+			slot.generation = 0;
+			slot.hardware = false;
+		}
+		ring.markers = nullptr;
+	}
+	m_rp_published = false;
+
+	for (u32 i = 0; i < ring.slots.size(); i++)
+	{
+		RemotePlayDiscard(m_rp_hardware[i], device_idle);
+		RemotePlayDiscard(m_rp_readback[i], device_idle);
+	}
+
+	if (m_rp_marker_buffer != VK_NULL_HANDLE)
+	{
+		if (device_idle)
+			vmaDestroyBuffer(m_allocator, m_rp_marker_buffer, m_rp_marker_allocation);
+		else
+			DeferBufferDestruction(m_rp_marker_buffer, m_rp_marker_allocation);
+		m_rp_marker_buffer = VK_NULL_HANDLE;
+		m_rp_marker_allocation = VK_NULL_HANDLE;
+	}
+
+	m_rp_frame.reset();
+}
+
+#endif // __ANDROID__

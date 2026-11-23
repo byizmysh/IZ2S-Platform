@@ -1,7 +1,7 @@
 {
   "id": "iz2s-platform",
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "shells": [
     "izlauncher"
   ],
@@ -16,7 +16,8 @@
     "vacootube",
     "iz-file-deck",
     "iz2s-cheese",
-    "izpsx"
+    "izpsx",
+    "izps2"
   ],
   "moduleDirectories": [
     "BookReader",
@@ -24,7 +25,8 @@
     "VacooTube",
     "Foldrift",
     "iz2s-cheese",
-    "IZPSX"
+    "IZPSX",
+    "IZPS2"
   ],
   "hostPlatforms": [
     "linux-x64",
@@ -46,7 +48,7 @@
   "directComponents": [
     "iz2s-core"
   ],
-  "edition": "0.3.0",
+  "edition": "0.3.1",
   "gameSupport": {
     "smilebasic4": [
       "linux-x64",

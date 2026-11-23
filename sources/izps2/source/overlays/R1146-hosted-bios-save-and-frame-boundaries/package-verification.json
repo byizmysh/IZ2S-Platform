@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1146-hosted-bios-save-and-frame-boundaries/IZPS2-R1146.iza",
+  "bytes": 11224296,
+  "sha256": "3948997473cbd9f047d8c7892bbeb8dc296e9a45dcd2ff6cef5c904d734c0368",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 179992,
+    "sha256": "5f1d6c1cd77659df6fa10abb1a94fa17633455417645ad8e4e2df742d2257677"
+  },
+  "engine": {
+    "file": "asset-ad5218a63ab6b02135c8b36d2c525fca6b21575da474745b38d56674cf24b844.izdata",
+    "path": "asset-ad5218a63ab6b02135c8b36d2c525fca6b21575da474745b38d56674cf24b844.izdata",
+    "bytes": 28960624,
+    "sha256": "ad5218a63ab6b02135c8b36d2c525fca6b21575da474745b38d56674cf24b844"
+  }
+}

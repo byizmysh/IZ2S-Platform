@@ -11,7 +11,7 @@ npm run package
 python3 tools/release.py
 ```
 
-This validates and repacks the ready `module/` tree, builds its native SD container with the public platform ABI and produces release assets in `dist/`. It does not rebuild the emulator, start a game, connect to Switch, upload data or publish a repository.
+This validates and repacks the ready `module/` tree, packages the reviewed native SD export and produces release assets in `dist/`. It does not rebuild the emulator, start a game, connect to Switch, upload data or publish a repository.
 
 ## Rebuild native code from source
 
@@ -20,22 +20,25 @@ On Linux, install Python 3, the packages in `requirements-build.txt`, GNU make, 
 ```sh
 export IZPSX_PANEL=/path/to/IZ2S-Platform
 export IZPSX_CC=/path/to/aarch64-linux-musl-gcc
+export SOURCE_DATE_EPOCH=1794293218
 python3 tools/build-native.py
-python3 tools/build-sd.py
+python3 tools/build-sd.py --hen --product-version 0.5.3
 python3 tools/build-package.py
 ```
 
-`build-native.py` creates a generated vendor mirror and records adapter patches without editing `vendor/`. `build-sd.py` performs independent linking/relocation checks and creates the native engine/shim. `build-package.py` creates console shaders and the IZM/SD bundle. The native import profile in `abi/sdk-profile.json` is required; do not replace it with arbitrary addresses from a different game/SDK.
+`build-native.py` creates a generated vendor mirror and records adapter patches without editing `vendor/`. `build-sd.py` performs independent linking/relocation checks and creates the native engine/shim. `build-package.py` creates the console shaders and module tree. The native import profile in `abi/sdk-profile.json` is required; do not replace it with arbitrary addresses from a different game/SDK.
 
-After a deliberate native rebuild, run `node tools/package.cjs --from-build` to replace the frozen module tree with that checked build, then re-run tests and `tools/release.py`. Compare hashes and record hardware qualification before publishing changed native code. Repacking the existing `module/` does not claim a native rebuild.
+`SOURCE_DATE_EPOCH` reproduces the build timestamp in the frozen 0.5.3 core.
+
+After a native rebuild, export the checked module with IZ2S and update `assets/sd-release/` and its SHA-256 receipt together. Run `node tools/package.cjs --from-build` to adopt the rebuilt module, then run the tests and `tools/release.py`.
 
 Optional reference-core tools may use `IZPSX_QEMU` or `qemu-aarch64`; emulated Linux execution is not physical Switch execution. The default test command runs local JS tests only. It does not use a BIOS/game file or automatically access the console.
 
 ## Artifacts
 
-- `izpsx-emulator-0.5.2.iza`: platform-installable module.
-- `izpsx-emulator-0.5.2-sd.zip`: launcher.iza and matching native asset under its SD directory.
-- `izpsx-emulator-0.5.2-source.zip` and `.tar.gz`: complete frozen module, corresponding source, vendor snapshot, licenses and build instructions.
+- `izpsx-emulator-0.5.3.iza`: platform-installable module.
+- `izpsx-emulator-0.5.3.zip`: launcher.iza and matching native asset under its SD directory.
+- `izpsx-emulator-0.5.3-source.zip` and `.tar.gz`: complete frozen module, corresponding source, vendor snapshot, licenses and build instructions.
 - `SHA256SUMS`, `SOURCE-MANIFEST.json`, `release-report.json`: hashes and scope/limits.
 
 The source archives omit `.git`, `build/`, `dist/`, private data, games/BIOS and local caches. No native host platform is enabled just by producing one of these archives.
@@ -48,6 +51,6 @@ Run `python3 tools/screenshots.py` with a local C compiler and Pillow. It render
 
 ## Current native SDK variant
 
-0.5.2 uses the interpreter and the included libsb4 headers in `sdk/include/`. Run `python3 tools/build-native.py` then `python3 tools/build-sd.py --hen --product-version 0.5.2`. The retained `--hen` switch is an internal historical build option. `abi/native-052-rebuild.json` records the byte-identical local rebuild against the shipped module. `assets/sd-release/` contains the reviewed executable, matching engine and SHA-256 receipt. Packaging verifies and copies that frozen export; it does not silently regenerate it with whichever platform SDK happens to be installed.
+0.5.3 uses the interpreter and the included libsb4 headers in `sdk/include/`. Run `python3 tools/build-native.py` then `python3 tools/build-sd.py --hen --product-version 0.5.3`. The retained `--hen` switch is an internal historical build option. `abi/native-053-rebuild.json` records the native build inputs and hashes. `assets/sd-release/` contains the reviewed executable, matching engine and SHA-256 receipt. Packaging verifies and copies that frozen export; it does not silently regenerate it with whichever platform SDK happens to be installed.
 
 After modifying native code, explicitly generate and verify a new SD export using the target platform, then update the frozen export and its receipt together. `npm run package` is a packaging check, not proof that new source has been compiled.

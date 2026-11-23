@@ -88,7 +88,8 @@ bool github_release_url(const char *url, const char *extension) {
            !strcasecmp(suffix, ".izdata");
 }
 
-typedef enum { RELEASE_GET, RELEASE_HEAD, CATALOG_GET } Request;
+typedef enum { RELEASE_GET, RELEASE_HEAD, CATALOG_GET, UPDATE_GET } Request;
+static const char update_api[] = "https://api.github.com/repos/byizmysh/iz2s-cheese/releases/latest";
 
 static const char *target(const char *url, Request request, char host[64], char port[6], bool *encrypted) {
     *encrypted = !strncmp(url, "https://", 8);
@@ -103,7 +104,9 @@ static const char *target(const char *url, Request request, char host[64], char 
     strcpy(port, *encrypted ? "443" : "80");
     if (*encrypted) {
         if (colon) return NULL;
-        if (request == CATALOG_GET) {
+        if (request == UPDATE_GET) {
+            if (strcmp(url, update_api)) return NULL;
+        } else if (request == CATALOG_GET) {
             if (strcmp(host, "raw.githubusercontent.com")) return NULL;
         } else if (strcmp(host, "github.com") && strcmp(host, "release-assets.githubusercontent.com") &&
                    strcmp(host, "objects.githubusercontent.com")) return NULL;
@@ -130,6 +133,15 @@ bool catalog_url(const char *url) {
     char host[64], port[6];
     bool encrypted;
     return strlen(url) < RELEASE_URL_MAX && target(url, CATALOG_GET, host, port, &encrypted);
+}
+
+bool catalog_same_origin(const char *left, const char *right) {
+    char host[64], port[6], other_host[64], other_port[6];
+    bool encrypted, other_encrypted;
+    return target(left, CATALOG_GET, host, port, &encrypted) &&
+        target(right, CATALOG_GET, other_host, other_port, &other_encrypted) &&
+        encrypted == other_encrypted && !strcmp(host, other_host) &&
+        strtoul(port, NULL, 10) == strtoul(other_port, NULL, 10);
 }
 
 static uint64_t milliseconds(void) {
@@ -402,10 +414,11 @@ static bool body(Reader *reader, const Response *response, uint64_t amount, bool
 static bool request_url(const char *url, Request mode, uint64_t size, DownloadSink sink, void *context,
                         const atomic_bool *cancel, char out[DOWNLOAD_MESSAGE]) {
     if (cancel && atomic_load(cancel)) return error_message(out, "Download cancelled.");
-    bool catalog = mode == CATALOG_GET;
+    bool catalog = mode == CATALOG_GET || mode == UPDATE_GET;
     bool site_probe = mode == RELEASE_HEAD && !url;
     if (site_probe) url = "https://github.com/";
-    if (!site_probe && (catalog ? !catalog_url(url) : !github_release_url(url, NULL)))
+    if (!site_probe && (mode == UPDATE_GET ? strcmp(url, update_api) != 0 :
+        catalog ? !catalog_url(url) : !github_release_url(url, NULL)))
         return error_message(out, catalog ? "Use raw GitHub HTTPS or a private LAN HTTP URL." :
                                              "Use a direct GitHub release asset link.");
     bool encrypted = !strncmp(url, "https://", 8);
@@ -483,4 +496,8 @@ bool github_probe(const char *url, char out[DOWNLOAD_MESSAGE]) {
 
 bool catalog_download(const char *url, uint64_t limit, DownloadSink sink, void *context, char out[DOWNLOAD_MESSAGE]) {
     return request_url(url, CATALOG_GET, limit, sink, context, NULL, out);
+}
+
+bool github_latest_release(DownloadSink sink, void *context, char out[DOWNLOAD_MESSAGE]) {
+    return request_url(update_api, UPDATE_GET, 64u * 1024u, sink, context, NULL, out);
 }

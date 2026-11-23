@@ -1,0 +1,19 @@
+{
+  "members": {
+    "GSRenderer.cpp.obj": {
+      "before": "bc309b2374ae7439d5ae2c9ea7b1dc32d6cac07b1b53997ce00318fff9ee938e",
+      "after": "0a532f5b7d05f3ac3d6e0a3deb5e016275184330bda433412f853be1fa1b01b2"
+    },
+    "GSDriverReport.cpp.obj": {
+      "before": "c64f22de4d89e4a13250b57963286fd8823093af4eccc7cc934ccf24df828f94",
+      "after": "8828d387cb66fccfc616e8f8ed6316a711322f83a6d2a1e8300cc51d68e20f0b"
+    }
+  },
+  "otherMembersUnchanged": true,
+  "checkedMembers": 393,
+  "detachReferenceRemoved": true,
+  "joinReferencePreserved": true,
+  "driverHelperThreadRemoved": true,
+  "nativeBaseReconstructedExactly": true,
+  "guestJitBuildFingerprintPreserved": true
+}

@@ -1,0 +1,43 @@
+{
+  "format": "hblauncher.gpu-app",
+  "abi": 1,
+  "id": "izps2",
+  "name": "IZPS2 emulator",
+  "version": "0.5.0",
+  "description": "PlayStation 2 emulator with local SD games and persistent memory cards.",
+  "transition": "none",
+  "category": "game",
+  "shaders": {
+    "vertex": "app.vert.spv",
+    "fragment": "app.frag.spv",
+    "compute": "app.comp.spv"
+  },
+  "initialState": "state.bin",
+  "data": "data.bin",
+  "icon": "icon.png",
+  "native": {
+    "format": "iz2s.native-app",
+    "abi": 7,
+    "code": "native.bin",
+    "dataBytes": 524288,
+    "assets": [
+      {
+        "file": "asset-b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60.izdata",
+        "path": "asset-b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60.izdata",
+        "bytes": 42534144,
+        "sha256": "b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60"
+      }
+    ],
+    "initial": "native-data.bin",
+    "capabilities": [
+      "audio-out",
+      "cooperative-image",
+      "worker",
+      "presentation"
+    ]
+  },
+  "memory": {
+    "bytes": 2097152,
+    "initial": "pixels.bin"
+  }
+}

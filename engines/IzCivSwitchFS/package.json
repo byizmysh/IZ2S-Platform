@@ -1,6 +1,6 @@
 {
   "name": "iz2sciv-core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "description": "IZ2SCiv core — Civilization VII entry for the RUN25 IZ2s",

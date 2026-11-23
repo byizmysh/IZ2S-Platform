@@ -1,0 +1,7 @@
+[
+  "llvm-ar",
+  "rD",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1217-ee-stall-partition/libpcsx2-hosted.a",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1217-ee-stall-partition/R5900.cpp.obj",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1217-ee-stall-partition/Counters.cpp.obj"
+]

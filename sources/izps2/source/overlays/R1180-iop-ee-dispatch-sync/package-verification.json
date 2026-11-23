@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1180-iop-ee-dispatch-sync/IZPS2-R1180.iza",
+  "bytes": 11224076,
+  "sha256": "0cc787449620c0aa90416bc8350ad7bdb7f7123e65c3e69150595f241f2de4e9",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "30826a8d6139907a2cc8c3d5cac10f9723b6b108cb41c041002167733038afb6"
+  },
+  "engine": {
+    "file": "asset-8939e584c5e4854150da6b2e8b1c6462aa3cd186437102f06c5690fbc4f9815c.izdata",
+    "path": "asset-8939e584c5e4854150da6b2e8b1c6462aa3cd186437102f06c5690fbc4f9815c.izdata",
+    "bytes": 27981664,
+    "sha256": "8939e584c5e4854150da6b2e8b1c6462aa3cd186437102f06c5690fbc4f9815c"
+  }
+}

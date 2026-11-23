@@ -1,0 +1,6 @@
+[
+  "llvm-ar",
+  "rD",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1221-ee-deferred-incoming/libpcsx2-hosted.a",
+  "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1221-ee-deferred-incoming/iR5900-arm64.cpp.obj"
+]

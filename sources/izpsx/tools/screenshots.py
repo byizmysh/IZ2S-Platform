@@ -16,4 +16,4 @@ with tempfile.TemporaryDirectory(prefix='izpsx-ui-') as d:
  for source,target in [('pause.rgba','pause-menu.png'),('settings-four-players.rgba','controller-profiles.png')]:
   Image.frombytes('RGBA',(640,480),(tmp/source).read_bytes()).save(OUT/target)
  hashes={f:hashlib.sha256((ROOT/f).read_bytes()).hexdigest() for f in sorted(set(sum(cases.values(),[])))}
- (OUT/'provenance.json').write_text(json.dumps({'version':'0.5.2','renderer':'unmodified native IZPSX menu renderer','sourceHashes':hashes,'controllerState':'synthetic test profiles','consoleCapture':False,'gameExecuted':False},indent=2)+'\n')
+ (OUT/'provenance.json').write_text(json.dumps({'version':json.loads((ROOT/'package.json').read_text())['version'],'renderer':'unmodified native IZPSX menu renderer','sourceHashes':hashes,'controllerState':'synthetic test profiles','consoleCapture':False,'gameExecuted':False},indent=2)+'\n')

@@ -1,0 +1,627 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#include "SPU2/spu2.h"
+#include "SPU2/defs.h"
+#include "SPU2/Debug.h"
+#include "SPU2/Dma.h"
+#include "Host/AudioStream.h"
+#include "Host.h"
+#include "MTGS.h"
+#include "R3000A.h"
+#include "IopThread/IopThreadVm.h"
+#include "IopThread/OwnerAsserts.h"
+#include "Common.h"
+#include "common/ARCADE.h"
+#include "VMManager.h"
+#include "GS/GSRemotePlay.h"
+
+#include "common/Error.h"
+
+#include <atomic>
+
+#if defined(__aarch64__) || defined(_M_ARM64)
+#include "SPU2/spu2_neon.h"
+#endif
+
+const StereoOut32 StereoOut32::Empty(0, 0);
+
+namespace SPU2
+{
+	static void CreateOutputStream();
+	static void UpdateSampleRate();
+	static float GetNominalRate();
+	static void InternalReset(bool psxmode);
+} // namespace SPU2
+
+u64 lClocks = 0;
+
+static bool s_psxmode = false;
+static bool s_output_muted = false;
+static bool s_swap_channels = false;
+
+static std::unique_ptr<AudioStream> s_output_stream;
+static std::array<float, AudioStream::CHUNK_SIZE * 2> s_current_chunk;
+static u32 s_current_chunk_pos;
+static u32 s_standard_volume = 0;
+static u32 s_fast_forward_volume = 0;
+
+static bool OutputShouldPause(bool vm_paused);
+
+float DCFilterIn[2], DCFilterOut[2];
+
+u32 SPU2::GetConsoleSampleRate()
+{
+	// One sample every 768 IOP cycles: 48 kHz on a console, more on an arcade System 256 (PCSX2x6).
+	return s_psxmode ? PSX_SAMPLE_RATE : (Arcade::IsActive() ? (PSXCLK / 768) : SAMPLE_RATE);
+}
+
+// --------------------------------------------------------------------------------------
+//  DMA 4/7 Callbacks from Core Emulator
+// --------------------------------------------------------------------------------------
+
+
+void SPU2readDMA4Mem(u16* pMem, u32 size) // size now in 16bit units
+{
+	IOP_SIDE_ASSERT();
+	TimeUpdate(psxRegs.cycle);
+
+	SPU2::FileLog("[%10d] SPU2 readDMA4Mem size %x\n", Cycles, size << 1);
+	Cores[0].DoDMAread(pMem, size);
+}
+
+void SPU2writeDMA4Mem(u16* pMem, u32 size) // size now in 16bit units
+{
+	IOP_SIDE_ASSERT();
+	TimeUpdate(psxRegs.cycle);
+
+	SPU2::FileLog("[%10d] SPU2 writeDMA4Mem size %x at address %x\n", Cycles, size << 1, Cores[0].TSA);
+
+	Cores[0].DoDMAwrite(pMem, size);
+}
+
+void SPU2interruptDMA4()
+{
+	SPU2::FileLog("[%10d] SPU2 interruptDMA4\n", Cycles);
+	if (Cores[0].DmaMode)
+		Cores[0].Regs.STATX |= 0x80;
+	Cores[0].Regs.STATX &= ~0x400;
+	Cores[0].TSA = Cores[0].ActiveTSA;
+}
+
+void SPU2interruptDMA7()
+{
+	SPU2::FileLog("[%10d] SPU2 interruptDMA7\n", Cycles);
+	if (Cores[1].DmaMode)
+		Cores[1].Regs.STATX |= 0x80;
+	Cores[1].Regs.STATX &= ~0x400;
+	Cores[1].TSA = Cores[1].ActiveTSA;
+}
+
+void SPU2readDMA7Mem(u16* pMem, u32 size)
+{
+	IOP_SIDE_ASSERT();
+	TimeUpdate(psxRegs.cycle);
+
+	SPU2::FileLog("[%10d] SPU2 readDMA7Mem size %x\n", Cycles, size << 1);
+	Cores[1].DoDMAread(pMem, size);
+}
+
+void SPU2writeDMA7Mem(u16* pMem, u32 size)
+{
+	IOP_SIDE_ASSERT();
+	TimeUpdate(psxRegs.cycle);
+
+	SPU2::FileLog("[%10d] SPU2 writeDMA7Mem size %x at address %x\n", Cycles, size << 1, Cores[1].TSA);
+
+	Cores[1].DoDMAwrite(pMem, size);
+}
+
+AudioStream* SPU2::GetOutputStream()
+{
+	return s_output_stream.get();
+}
+
+void SPU2::CreateOutputStream()
+{
+	// The stream the IOP thread writes is replaced: the CPU thread holds the IOP.
+	IOP_SIDE_ASSERT();
+	// Initialize volume and mute settings on new session.
+	if (!s_output_stream)
+	{
+		s_standard_volume = EmuConfig.SPU2.StandardVolume;
+		s_fast_forward_volume = EmuConfig.SPU2.FastForwardVolume;
+		s_output_muted = EmuConfig.SPU2.OutputMuted;
+	}
+	// Else persist volume through stream recreates.
+	else if (!s_output_muted)
+		SPU2::SaveOutputVolume();
+
+	const u32 sample_rate = GetConsoleSampleRate();
+	s_output_stream.reset();
+
+	Error error;
+	s_output_stream = AudioStream::CreateStream(EmuConfig.SPU2.Backend, sample_rate, EmuConfig.SPU2.StreamParameters,
+		EmuConfig.SPU2.DriverName.c_str(), EmuConfig.SPU2.DeviceName.c_str(), EmuConfig.SPU2.IsTimeStretchEnabled(), &error);
+	if (!s_output_stream)
+	{
+		Host::ReportErrorAsync("Error",
+			fmt::format("Failed to create or configure audio stream, falling back to null output. The error was:\n{}",
+				error.GetDescription()));
+
+		s_output_stream = AudioStream::CreateNullStream(sample_rate, EmuConfig.SPU2.StreamParameters.buffer_ms);
+	}
+
+	SPU2::UpdateOutputVolume();
+	s_output_stream->SetNominalRate(GetNominalRate());
+	s_output_stream->SetPaused(OutputShouldPause(VMManager::GetState() == VMState::Paused));
+}
+
+void SPU2::UpdateSampleRate()
+{
+	if (s_output_stream && s_output_stream->GetSampleRate() == GetConsoleSampleRate())
+		return;
+
+	CreateOutputStream();
+}
+
+u32 SPU2::GetOutputVolume()
+{
+	return s_output_stream ? s_output_stream->GetOutputVolume() : 0;
+}
+
+void SPU2::SetOutputVolume(u32 volume)
+{
+	// The Android JNI setters call this from their own thread with no hold. That race is accepted;
+	// this assert reports it in a Devel build running Lockstep.
+	IOP_SIDE_ASSERT();
+	if (VMManager::GetTargetSpeed() == 1.0f)
+		s_standard_volume = volume;
+	else
+		s_fast_forward_volume = volume;
+
+	if (s_output_stream)
+		SPU2::UpdateOutputVolume();
+}
+
+float SPU2::GetNominalRate()
+{
+	// Adjust nominal rate when syncing to host.
+	return VMManager::IsTargetSpeedAdjustedToHost() ? VMManager::GetTargetSpeed() : 1.0f;
+}
+
+bool SPU2::SetOutputMuted(const bool muted)
+{
+	// See SetOutputVolume.
+	IOP_SIDE_ASSERT();
+	// User setting takes precedence. Unmute not guaranteed by design.
+	if (!s_output_stream || (!muted && EmuConfig.SPU2.OutputMuted))
+		return false;
+
+	if (muted == s_output_muted)
+		return true;
+
+	if (muted)
+		SPU2::SaveOutputVolume();
+
+	s_output_muted = muted;
+	SPU2::UpdateOutputVolume();
+	return true;
+}
+
+bool SPU2::IsOutputMuted()
+{
+	return s_output_muted;
+}
+
+void SPU2::SetSwapChannels(bool swap)
+{
+	s_swap_channels = swap;
+}
+
+bool SPU2::IsSwapChannels()
+{
+	return s_swap_channels;
+}
+
+void SPU2::UpdateOutputVolume()
+{
+	s_output_stream->SetOutputVolume(s_output_muted ?
+										 0 : (VMManager::GetTargetSpeed() == 1.0f ?
+										 	s_standard_volume : s_fast_forward_volume));
+}
+
+void SPU2::SaveOutputVolume()
+{
+	if (!s_output_muted)
+	{
+		if (VMManager::GetTargetSpeed() == 1.0f)
+			s_standard_volume = GetOutputVolume();
+		else
+			s_fast_forward_volume = GetOutputVolume();
+	}
+}
+
+// Settings-apply parks the VM (commitSettings / live GS) and the pause edge
+// would otherwise pause the output device. A heavy gamefix can park for
+// seconds; pausing a low-latency Android stream that long lets the OS reclaim
+// it, and the recovery raced the resume so audio stayed dead until a manual
+// menu resume. When this is set, the pause/resume edges are skipped and the
+// stream is left running (silence-on-underrun) for the duration of the park.
+static std::atomic<bool> s_output_pause_suppressed{false};
+
+// The app is not visible. Suppression keeps the device warm for a quick resume, but no one resumes
+// a game they cannot see, and a running stream keeps Android's audio mixer holding a wakelock that
+// drains the battery. While this is set, a paused VM pauses its output, suppressed or not.
+static std::atomic<bool> s_output_backgrounded{false};
+
+static bool OutputShouldPause(bool vm_paused)
+{
+	return vm_paused && (!s_output_pause_suppressed.load() || s_output_backgrounded.load());
+}
+
+void SPU2::SetOutputPaused(bool paused)
+{
+	IOP_SIDE_ASSERT();
+	// Both edges follow the same rule. While suppressed in the foreground the stream stays
+	// running, so the resume edge finds it running and does nothing; after the background has
+	// paused it, the resume edge starts it again.
+	s_output_stream->SetPaused(OutputShouldPause(paused));
+}
+
+void SPU2::SetOutputPauseSuppressed(bool suppressed)
+{
+	s_output_pause_suppressed = suppressed;
+}
+
+void SPU2::SetOutputBackgrounded(bool backgrounded)
+{
+	s_output_backgrounded = backgrounded;
+}
+
+void SPU2::UpdateOutputPaused()
+{
+	// Called on the CPU thread (the Android backgrounding hook posts it there), which touches the stream the IOP
+	// thread writes, so it holds the IOP itself: nothing else calls it.
+	IopThread::VmHold iop_hold(IopThread::HoldKind::Emulation);
+	const VMState state = VMManager::GetState();
+	if (s_output_stream && (state == VMState::Running || state == VMState::Paused))
+		s_output_stream->SetPaused(OutputShouldPause(state == VMState::Paused));
+}
+
+void SPU2::InternalReset(bool psxmode)
+{
+	spu2Mix = MULTI_ISA_SELECT(spu2Mix);
+	ReverbDownsample = MULTI_ISA_SELECT(ReverbDownsample);
+	ReverbUpsample = MULTI_ISA_SELECT(ReverbUpsample);
+
+	// Stereo L<->R output swap (opt-in, default off). Read fresh on every reset so
+	// toggling the setting live also survives a game reboot / cold start.
+	s_swap_channels = Host::GetBaseBoolSettingValue("SPU2/Output", "SwapChannels", false);
+
+#if defined(__aarch64__) || defined(_M_ARM64)
+	// Optional NEON reverb FIR (opt-in, default off). Overrides the Multi-ISA
+	// scalar reverb resamplers assigned just above. Read fresh on every reset so
+	// toggling the setting and rebooting switches backends.
+	if (Host::GetBaseBoolSettingValue("SPU2", "NeonReverbSIMD", false))
+	{
+		SPU2::RegisterNEONBackend();
+	}
+#endif
+
+	s_current_chunk_pos = 0;
+	s_psxmode = psxmode;
+	if (!s_psxmode)
+	{
+		memset(spu2regs, 0, 0x010000);
+		memset(_spu2mem, 0, 0x200000);
+		memset(_spu2mem + 0x2800, 7, 0x10); // from BIOS reversal. Locks the voices so they don't run free.
+		memset(_spu2mem + 0xe870, 7, 0x10); // Loop which gets left over by the BIOS, Megaman X7 relies on it being there.
+
+		memset(DCFilterIn, 0, sizeof(DCFilterIn));
+		memset(DCFilterOut, 0, sizeof(DCFilterOut));
+
+		Spdif.Info = 0; // Reset IRQ Status if it got set in a previously run game
+
+		Cores[0].Init(0);
+		Cores[1].Init(1);
+	}
+}
+
+void SPU2::Reset(bool psxmode)
+{
+	InternalReset(psxmode);
+	UpdateSampleRate();
+}
+
+void SPU2::OnTargetSpeedChanged()
+{
+	IOP_SIDE_ASSERT();
+	if (!s_output_stream)
+		return;
+
+	if (!s_output_stream->IsStretchEnabled())
+	{
+		s_output_stream->EmptyBuffer();
+		s_current_chunk_pos = 0;
+	}
+
+	s_output_stream->SetNominalRate(GetNominalRate());
+
+	// Flipped save as speed has already changed.
+	if (!s_output_muted)
+	{
+		if (VMManager::GetTargetSpeed() == 1.0f)
+		{
+			s_fast_forward_volume = GetOutputVolume();
+			s_output_stream->SetOutputVolume(s_standard_volume);
+		}
+		else
+		{
+			s_standard_volume = GetOutputVolume();
+			s_output_stream->SetOutputVolume(s_fast_forward_volume);
+		}
+	}
+}
+
+bool SPU2::Open()
+{
+#ifdef PCSX2_DEVBUILD
+	if (SPU2::AccessLog())
+		SPU2::OpenFileLog();
+#endif
+
+#ifdef PCSX2_DEVBUILD
+	DMALogOpen();
+
+	FileLog("[%10d] SPU2 Open\n", Cycles);
+#endif
+
+	lClocks = psxRegs.cycle;
+
+	InternalReset(false);
+
+	CreateOutputStream();
+#ifdef PCSX2_DEVBUILD
+	WaveDump::Open();
+#endif
+
+	return true;
+}
+
+void SPU2::Close()
+{
+	FileLog("[%10d] SPU2 Close\n", Cycles);
+
+	s_output_stream.reset();
+
+#ifdef PCSX2_DEVBUILD
+	WaveDump::Close();
+	DMALogClose();
+
+	DoFullDump();
+	CloseFileLog();
+#endif
+}
+
+bool SPU2::IsRunningPSXMode()
+{
+	return s_psxmode;
+}
+
+void SPU2::CheckForConfigChanges(const Pcsx2Config& old_config)
+{
+	IOP_SIDE_ASSERT();
+	const Pcsx2Config::SPU2Options& opts = EmuConfig.SPU2;
+	const Pcsx2Config::SPU2Options& old_opts = old_config.SPU2;
+
+	// No need to reinit for volume change.
+	if (opts.OutputMuted != old_opts.OutputMuted)
+		SPU2::SetOutputMuted(opts.OutputMuted);
+
+	bool volume_settings_changed = false;
+	if (opts.StandardVolume != old_opts.StandardVolume)
+	{
+		s_standard_volume = opts.StandardVolume;
+		volume_settings_changed = true;
+	}
+
+	if (opts.FastForwardVolume != old_opts.FastForwardVolume)
+	{
+		s_fast_forward_volume = opts.FastForwardVolume;
+		volume_settings_changed = true;
+	}
+
+	if (volume_settings_changed)
+		SPU2::UpdateOutputVolume();
+
+	// Things which require re-initialzing the output.
+	if (opts.Backend != old_opts.Backend ||
+		opts.StreamParameters != old_opts.StreamParameters ||
+		opts.DriverName != old_opts.DriverName ||
+		opts.DeviceName != old_opts.DeviceName)
+	{
+		CreateOutputStream();
+	}
+	else if (opts.IsTimeStretchEnabled() != old_opts.IsTimeStretchEnabled())
+	{
+		s_output_stream->SetStretchEnabled(opts.IsTimeStretchEnabled());
+	}
+
+#ifdef PCSX2_DEVBUILD
+	// AccessLog controls file output.
+	if (opts.AccessLog != old_opts.AccessLog)
+	{
+		if (AccessLog())
+			OpenFileLog();
+		else
+			CloseFileLog();
+	}
+#endif
+}
+
+void SPU2async()
+{
+	IOP_SIDE_ASSERT();
+	TimeUpdate(psxRegs.cycle);
+}
+
+u16 SPU2read(u32 rmem)
+{
+	IOP_SIDE_ASSERT();
+
+	u16 ret = 0xDEAD;
+	u32 core = 0;
+	const u32 mem = rmem & 0xFFFF;
+	u32 omem = mem;
+
+	if (mem & 0x400)
+	{
+		omem ^= 0x400;
+		core = 1;
+	}
+
+	if (omem == 0x1f9001AC)
+	{
+		Cores[core].ActiveTSA = Cores[core].TSA;
+		for (int i = 0; i < 2; i++)
+		{
+			if (Cores[i].IRQEnable && (Cores[i].IRQA == Cores[core].ActiveTSA))
+			{
+				SetIrqCall(i);
+			}
+		}
+		ret = Cores[core].DmaRead();
+	}
+	else
+	{
+		TimeUpdate(psxRegs.cycle);
+
+		if (rmem >> 16 == 0x1f80)
+		{
+			ret = Cores[0].ReadRegPS1(rmem);
+		}
+		else if (mem >= 0x800)
+		{
+			ret = spu2Ru16(mem);
+			if (SPU2::MsgToConsole())
+				SPU2::ConLog("* SPU2: Read from reg>=0x800: %x value %x\n", mem, ret);
+		}
+		else
+		{
+			ret = *(regtable[(mem >> 1)]);
+#ifdef PCSX2_DEVBUILD
+			//FileLog("[%10d] SPU2 read mem %x (core %d, register %x): %x\n",Cycles, mem, core, (omem & 0x7ff), ret);
+			SPU2::WriteRegLog("read", rmem, ret);
+#endif
+		}
+	}
+
+	return ret;
+}
+
+void SPU2write(u32 rmem, u16 value)
+{
+	IOP_SIDE_ASSERT();
+
+	// Note: Reverb/Effects are very sensitive to having precise update timings.
+	// If the SPU2 isn't in in sync with the IOP, samples can end up playing at rather
+	// incorrect pitches and loop lengths.
+
+	TimeUpdate(psxRegs.cycle);
+
+	if (rmem >> 16 == 0x1f80)
+		Cores[0].WriteRegPS1(rmem, value);
+	else
+	{
+#ifdef PCSX2_DEVBUILD
+		SPU2::WriteRegLog("write", rmem, value);
+#endif
+		SPU2_FastWrite(rmem, value);
+	}
+}
+
+s32 SPU2freeze(FreezeAction mode, freezeData* data)
+{
+	pxAssume(data != nullptr);
+	if (!data)
+	{
+		printf("SPU2 savestate null pointer!\n");
+		return -1;
+	}
+
+	if (mode == FreezeAction::Size)
+	{
+		data->size = SPU2Savestate::SizeIt();
+		return 0;
+	}
+
+	pxAssume(mode == FreezeAction::Load || mode == FreezeAction::Save);
+
+	if (data->data == nullptr)
+	{
+		printf("SPU2 savestate null pointer!\n");
+		return -1;
+	}
+
+	auto& spud = (SPU2Savestate::DataBlock&)*(data->data);
+
+	switch (mode)
+	{
+		case FreezeAction::Load:
+			return SPU2Savestate::ThawIt(spud);
+		case FreezeAction::Save:
+			return SPU2Savestate::FreezeIt(spud);
+
+			jNO_DEFAULT;
+	}
+
+	// technically unreachable, but kills a warning:
+	return 0;
+}
+
+static void DCFilter(float *input)
+{
+	// A simple DC blocking high-pass filter
+	// Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
+	float output[2];
+	output[0] = (input[0] - DCFilterIn[0] + ((0.995f * DCFilterOut[0])));
+	output[1] = (input[1] - DCFilterIn[1] + ((0.995f * DCFilterOut[1])));
+
+	DCFilterIn[0] = input[0];
+	DCFilterIn[1] = input[1];
+	DCFilterOut[0] = output[0];
+	DCFilterOut[1] = output[1];
+
+	input[0] = output[0];
+	input[1] = output[1];
+}
+
+__forceinline void spu2Output(StereoOut32 out)
+{
+	float conv[2];
+
+	conv[0] = static_cast<float>(clamp_mix(out.Left)) / INT16_MAX;
+	conv[1] = static_cast<float>(clamp_mix(out.Right)) / INT16_MAX;
+
+	/* Some games pause voices with the volume left on leaving us with
+     * significant DC offset, so we filter it out (e.x. SSX 3)*/
+	DCFilter(conv);
+
+	s_current_chunk[s_current_chunk_pos++] = conv[0];
+	s_current_chunk[s_current_chunk_pos++] = conv[1];
+	if (s_current_chunk_pos == s_current_chunk.size())
+	{
+		s_current_chunk_pos = 0;
+
+		// Remote play: the same sound for the friend's device, which plays it at 48 kHz, so only at
+		// that rate (an arcade board's runs faster).
+		if (GSRemotePlay::g_audio_on.load(std::memory_order_relaxed) &&
+			SPU2::GetConsoleSampleRate() == GSRemotePlay::AUDIO_SAMPLE_RATE) [[unlikely]]
+		{
+			GSRemotePlay::PushAudio(s_current_chunk.data(), AudioStream::CHUNK_SIZE);
+		}
+
+		s_output_stream->WriteChunk(s_current_chunk.data());
+	}
+}

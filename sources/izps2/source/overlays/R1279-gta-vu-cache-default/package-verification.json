@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1279-gta-vu-cache-default/IZPS2-R1279.iza",
+  "bytes": 12068079,
+  "sha256": "e07054d4bfbfd4bd6fa95c3f9c27956cac448811636a0a535db4ccb86f8e22cd",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "a33a99b4986ae32f8510aaa491ae1c115e61537bbe0ae9f38320ad1701ff928a"
+  },
+  "engine": {
+    "file": "asset-a3e0d7aaffe2a26ad837a0929b240b220a79a1650d5f6a5a92a0ed14af87eb74.izdata",
+    "path": "asset-a3e0d7aaffe2a26ad837a0929b240b220a79a1650d5f6a5a92a0ed14af87eb74.izdata",
+    "bytes": 29573896,
+    "sha256": "a3e0d7aaffe2a26ad837a0929b240b220a79a1650d5f6a5a92a0ed14af87eb74"
+  }
+}

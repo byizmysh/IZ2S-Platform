@@ -1,0 +1,6 @@
+{
+  "baselineArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1279-gta-vu-cache-default/libpcsx2-hosted.a",
+  "referenceObject": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1220-spu2-reverb-reciprocal/Reverb.cpp.obj",
+  "baselineSha256": "b5a091cf660f146e3932d5326f63377e38ccd2afed01964155bbecba4412a51a",
+  "replacementSha256": "b4790c7c24ca066dc562693ea75d9743d7c9b7e47b03e84e2760a7b79f48dab9"
+}

@@ -35,7 +35,7 @@ def build(args):
     flags = ['-std=gnu11', '-Os', '-Wall', '-Wextra', '-Werror', '-mcmodel=large',
              '-fno-pic', '-fno-pie', '-fno-builtin', '-fno-stack-protector', '-fno-jump-tables',
              '-ffunction-sections', '-fdata-sections', '-mbranch-protection=bti', '-mno-outline-atomics',
-             '-D__SWITCH__', '-D__SWITCH2__', '-DIZ_STORE_MODULE', '-DSTBI_NO_THREAD_LOCALS', '-DIZ_STORE_VERSION="0.8.1"',
+             '-D__SWITCH__', '-D__SWITCH2__', '-DIZ_STORE_MODULE', '-DSTBI_NO_THREAD_LOCALS', '-DIZ_STORE_VERSION="0.8.7"',
              '-I', args.include, '-isystem', args.devkitpro / 'libounce/include']
     sources = [HERE / 'engine.c', work / 'imports.c', work / 'imports.S',
                *(HERE.parent / name for name in ('main.c', 'store.c', 'ui.c', 'download.c', 'installed-artwork.c'))]

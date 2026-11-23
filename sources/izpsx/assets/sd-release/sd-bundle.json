@@ -4,14 +4,14 @@
   "id": "izpsx",
   "launcher": {
     "bytes": 160696,
-    "sha256": "6c15d65fbe65c0f9fc74a895c41d8051ae115501ff444a78611555e81f98f34c"
+    "sha256": "7257c46bb8a018849cf25d2e38591fbddb5a1083303c9ee859bf1ab2edb86a3b"
   },
   "assets": [
     {
-      "file": "asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata",
-      "path": "asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata",
+      "file": "asset-4b0a995128b0cb0708aa38c800f16bbe509050c43e354a8d0ffeffb261425121.izdata",
+      "path": "asset-4b0a995128b0cb0708aa38c800f16bbe509050c43e354a8d0ffeffb261425121.izdata",
       "bytes": 1746208,
-      "sha256": "5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac"
+      "sha256": "4b0a995128b0cb0708aa38c800f16bbe509050c43e354a8d0ffeffb261425121"
     }
   ]
 }

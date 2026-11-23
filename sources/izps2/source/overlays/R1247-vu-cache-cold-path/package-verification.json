@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1247-vu-cache-cold-path/IZPS2-R1247.iza",
+  "bytes": 12043601,
+  "sha256": "478d4da1e8913075591c5e3b120e4f3fd64d396955e6bcfd3622ee1118b08c63",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "6408f76cd405cdd074937e2f78883485e2e4d18637083b052a39d187c264e2d3"
+  },
+  "engine": {
+    "file": "asset-31cdad7b18851b1be5d9c3e01d799ecf041e042b9f7eb28ccd43c4a2e238561b.izdata",
+    "path": "asset-31cdad7b18851b1be5d9c3e01d799ecf041e042b9f7eb28ccd43c4a2e238561b.izdata",
+    "bytes": 29498672,
+    "sha256": "31cdad7b18851b1be5d9c3e01d799ecf041e042b9f7eb28ccd43c4a2e238561b"
+  }
+}

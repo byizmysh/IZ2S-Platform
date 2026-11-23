@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1170-hosted-mtvu/IZPS2-R1170.iza",
+  "bytes": 11215934,
+  "sha256": "99237a0384225c57f4e4ec2e2361cd1878a7b066f243a435a1fbf3c85d7dc4fc",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "5c9de437030eddbdc1b79c37da50c00f3467aa4cb80c64b779e8f3e875cec994"
+  },
+  "engine": {
+    "file": "asset-971dd306cfc5812c3fe8ffe2228e8f153381cf01fe07325859441bf192c4f310.izdata",
+    "path": "asset-971dd306cfc5812c3fe8ffe2228e8f153381cf01fe07325859441bf192c4f310.izdata",
+    "bytes": 27913376,
+    "sha256": "971dd306cfc5812c3fe8ffe2228e8f153381cf01fe07325859441bf192c4f310"
+  }
+}

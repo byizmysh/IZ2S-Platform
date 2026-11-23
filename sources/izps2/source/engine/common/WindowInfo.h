@@ -1,0 +1,59 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+#include "Pcsx2Defs.h"
+
+#include <optional>
+
+/// Contains the information required to create a graphics context in a window.
+struct WindowInfo
+{
+	enum class Type
+	{
+		Surfaceless,
+		Win32,
+		X11,
+		Wayland,
+		MacOS,
+		Android,
+
+		// Vulkan VK_KHR_display direct-to-monitor (no compositor / no GBM
+		// intermediate). Frontend supplies no native window handle; the
+		// renderer enumerates displays itself. surface_width/surface_height
+		// carry the requested mode (0 = pick the display's preferred mode).
+		VulkanDirect
+	};
+
+	/// The type of the surface. Surfaceless indicates it will not be displayed on screen at all.
+	Type type = Type::Surfaceless;
+
+	/// Connection to the display server. On most platforms except X11/Wayland, this is implicit and null.
+	void* display_connection = nullptr;
+
+	/// Abstract handle to the window. This depends on the surface type.
+	void* window_handle = nullptr;
+
+	/// For platforms where a separate surface/layer handle is needed, it is stored here (e.g. MacOS).
+	void* surface_handle = nullptr;
+
+	/// Width of the surface in pixels.
+	u32 surface_width = 0;
+
+	/// Height of the surface in pixels.
+	u32 surface_height = 0;
+
+	/// DPI scale for the surface.
+	float surface_scale = 1.0f;
+
+	/// Refresh rate of the surface, if available.
+	float surface_refresh_rate = 0.0f;
+
+	/// Rotation the window system applies to show this window, in quarter turns counted the way
+	/// Vulkan's currentTransform counts them (1 = ROTATE_90). Filled in where the graphics API does
+	/// not report it (Wayland), so the renderer can pre-rotate. 0 if none or unknown.
+	u8 surface_rotation = 0;
+
+	/// Returns the host's refresh rate for the given window, if available.
+	static std::optional<float> QueryRefreshRateForWindow(const WindowInfo& wi);
+};

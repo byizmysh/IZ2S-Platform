@@ -1,0 +1,17 @@
+# Build system and IDE files
+build/
+.vscode/
+.idea/
+.project
+.settings/
+/ipa-package/
+*.ipa
+
+# OS junk & editor/files
+.DS_Store
+
+# Temporary/log/output files
+log.txt
+*.log
+
+macos

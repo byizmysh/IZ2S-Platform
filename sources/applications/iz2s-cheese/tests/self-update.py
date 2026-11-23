@@ -12,16 +12,26 @@ with tempfile.TemporaryDirectory(prefix='store-self-update-') as name:
         folder.mkdir(parents=True)
         active=folder/('launcher.iza' if kind=='iza' else 'iz2s-cheese.nro')
         previous=b'previous executable';active.write_bytes(previous)
-        catalog=sd/'iz2s/modules/iz2s-cheese/catalog/catalog.tsv';catalog.parent.mkdir(parents=True)
+        catalog=sd/'iz2s/iz2s-cheese/catalog.tsv';catalog.parent.mkdir(parents=True)
         program=release/f'iz2s-cheese.{kind}'
         files=[('launcher.'+kind, program)]
         if kind=='iza':
             with ZipFile(release/'iz2s-cheese-iza-sd.zip') as z:
                 for p in z.namelist():
                     if p.endswith('.izdata'):files.append((Path(p).name,release/Path(p).name))
-        rows=['IZSTORE2',f'app\tiz2s-cheese\t{kind}\t0.8.1\tIZ2S Cheese\tIZMYSH\tTools\tHomebrew store.']
+        rows=['IZSTORE3',f'app\tiz2s-cheese\t{kind}\t0.8.2\tIZ2S Cheese\tIZMYSH\tTools\tHomebrew store.']
         rows += [f'file\t{p.stat().st_size}\t{hashlib.sha256(p.read_bytes()).hexdigest()}\t{n}' for n,p in files]
-        rows += [f'github\thttps://github.com/byizmysh/iz2s-cheese/releases/download/v0.8.1/iz2s-cheese.{kind}']
+        rows += [f'github\thttps://github.com/byizmysh/iz2s-cheese/releases/download/v0.8.2/iz2s-cheese.{kind}']
+        other='nro' if kind=='iza' else 'iza'
+        other_program=release/f'iz2s-cheese.{other}'
+        other_files=[('launcher.'+other,other_program)]
+        if other=='iza':
+            with ZipFile(release/'iz2s-cheese-iza-sd.zip') as z:
+                for p in z.namelist():
+                    if p.endswith('.izdata'):other_files.append((Path(p).name,release/Path(p).name))
+        rows += [f'app\tiz2s-cheese\t{other}\t0.8.2\tIZ2S Cheese\tIZMYSH\tTools\tHomebrew store.']
+        rows += [f'file\t{p.stat().st_size}\t{hashlib.sha256(p.read_bytes()).hexdigest()}\t{n}' for n,p in other_files]
+        rows += [f'github\thttps://github.com/byizmysh/iz2s-cheese/releases/download/v0.8.2/iz2s-cheese.{other}']
         catalog.write_text('\n'.join(rows)+'\n')
         binary=work/('test-'+kind)
         subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Werror',

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1288-spu2-certified-worker/IZPS2-R1288.iza",
+  "bytes": 12070763,
+  "sha256": "0d22ec4fbbc310c90284b04acd96b3f0ae0b357967af2e2d923bd5d61305fcb9",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "fa6e0813e44fd776d305fc2906f439bccb8cc6ac6b5b6059641f6343749135d4"
+  },
+  "engine": {
+    "file": "asset-a4651ff84cb4f17a682c61c28510d2fb959bbebbae4dce5359097fcde8c2b171.izdata",
+    "path": "asset-a4651ff84cb4f17a682c61c28510d2fb959bbebbae4dce5359097fcde8c2b171.izdata",
+    "bytes": 29575648,
+    "sha256": "a4651ff84cb4f17a682c61c28510d2fb959bbebbae4dce5359097fcde8c2b171"
+  }
+}

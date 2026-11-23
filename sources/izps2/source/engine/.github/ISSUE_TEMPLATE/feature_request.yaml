@@ -1,0 +1,51 @@
+# Docs - https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+name: Feature Request
+description: An idea for something new, or a way to make something better.
+labels: [enhancement]
+type: Feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Want to talk about it first? Join us on [Discord](https://discord.gg/AkJgEgETMn).
+        One idea per request.
+
+  - type: textarea
+    id: desc
+    attributes:
+      label: What's your feature request?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: How would it help you?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: System
+      description: Where do you want it? Pick all that apply.
+      multiple: true
+      options:
+        - All
+        - Android
+        - iPhone / iPad
+        - Mac
+        - Windows
+        - Linux
+        - ROCKNIX / Batocera / other handheld OS
+        - RetroArch
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example
+      description: Another app that does this? Add a screenshot or link.
+    validations:
+      required: false

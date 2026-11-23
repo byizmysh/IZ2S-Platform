@@ -1,0 +1,9 @@
+{
+  "inheritedArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1286-vu1-redundant-unpack/libpcsx2-hosted.a",
+  "reference": "${IZPS2_WORKSPACE}/build/izps2-homebrew/obj-hen-sdk/pcsx2/CMakeFiles/PCSX2.dir/SPU2/spu2.cpp.obj",
+  "oldSha256": "213e018ba5a1c03e4b47fbbf6dcb79f9b6d44cde60cbc7eb6a8009da3089333f",
+  "referenceRelocatedInstructionsMatch": true,
+  "newSha256": "f7422b651230f3835c52b78d92ba104d76d085612ffe772bbf32bcae656d5d70",
+  "replacementSelected": true,
+  "oldArchiveMemberSelected": false
+}

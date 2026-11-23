@@ -6,4 +6,4 @@ The IZPSX frontend/integration is conveyed with that derivative module under GPL
 
 Bundled brand/font resources retain `FONT-LICENSE.txt`; the native/source build also uses the compatible IZ2S SDK under that SDK's own notices. No commercial BIOS, game dump or proprietary console SDK is included.
 
-The included libsb4 SDK headers retain `sdk/LICENSE` and per-file notices. Native 0.5.2 is an interpreter build; it does not imply support for every historical execution backend.
+The included libsb4 SDK headers retain `sdk/LICENSE` and per-file notices. Native 0.5.3 is an interpreter build; it does not imply support for every historical execution backend.

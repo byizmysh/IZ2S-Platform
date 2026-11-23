@@ -1,0 +1,90 @@
+// AudioTab.swift — Per-game Audio category tab.
+// SPDX-License-Identifier: GPL-3.0+
+
+import SwiftUI
+
+struct AudioTab: View {
+    @Binding var enabled: Bool
+    @Binding var volumeOverride: Bool
+    @Binding var volumePercent: Int
+    @Binding var globalVolumePercent: Int
+    @Binding var perGameFastForwardVolume: Int
+
+    let settings: SettingsStore
+
+    var body: some View {
+        PerGameTab(title: settings.localized("Audio")) {
+            Section(settings.localized("Audio")) {
+                Toggle(settings.localized("Use Custom Volume"), isOn: volumeOverrideBinding)
+                    .controllerAccessibilityToggleTarget(
+                        id: "per-game.audio.custom-volume",
+                        label: settings.localized("Use Custom Volume"),
+                        isOn: volumeOverrideBinding
+                    )
+                    .disabled(!enabled)
+
+                if volumeOverride {
+                    NumberRow(.emulatorVolume, value: volumeBinding,
+                              accessory: NumberRowAccessory(
+                                  systemImage: "arrow.uturn.backward",
+                                  label: "Use the global value for %@",
+                                  isVisible: true,
+                                  action: {
+                                      volumeOverride = false
+                                      volumePercent = globalVolumePercent
+                                  }),
+                              hint: "Adjusts emulator audio for this game without changing iOS system volume or other apps.",
+                              settings: settings)
+                        .controllerAccessibilityTargetID(
+                            "per-game.audio.emulator-volume"
+                        )
+                        .disabled(!enabled)
+                } else {
+                    HStack {
+                        Text(settings.localized("Using Global"))
+                        Spacer()
+                        Text(Self.formatPercent(globalVolumePercent))
+                            .foregroundStyle(.secondary)
+                            .font(.callout.monospacedDigit())
+                    }
+                }
+
+                Text(settings.localized("Custom volume changes this game's emulator audio only. Turn it off to inherit the global Emulator Volume setting."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                NumberOverrideRow(.fastForwardVolume, value: $perGameFastForwardVolume,
+                                  global: settings.audioFastForwardVolume,
+                                  settings: settings)
+                    .controllerAccessibilityTargetID(
+                        "per-game.audio.fast-forward-volume"
+                    )
+                    .disabled(!enabled)
+                Text(settings.localized("Buffer Size and Output Latency are on the Frame Pacing tab."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var volumeOverrideBinding: Binding<Bool> {
+        Binding(
+            get: { volumeOverride },
+            set: { newValue in
+                volumeOverride = newValue
+                volumePercent = newValue ? SettingsStore.clampedEmulatorVolumePercent(volumePercent) : globalVolumePercent
+            }
+        )
+    }
+
+    private var volumeBinding: Binding<Int> {
+        Binding(
+            get: { volumePercent },
+            set: { volumePercent = SettingsStore.clampedEmulatorVolumePercent($0) }
+        )
+    }
+
+    private static func formatPercent(_ value: Int) -> String {
+        "\(SettingsStore.clampedEmulatorVolumePercent(value))%"
+    }
+}

@@ -4,7 +4,7 @@
   "apiVersion": 1,
   "id": "izpsx",
   "name": "IZPSX emulator",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "author": "@byizmysh",
   "platforms": [
     "linux-x64",
@@ -25,7 +25,7 @@
       "switch/app.vert.spv",
       "switch/data.bin",
       "switch/icon.png",
-      "switch/native/asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata",
+      "switch/native/asset-4b0a995128b0cb0708aa38c800f16bbe509050c43e354a8d0ffeffb261425121.izdata",
       "switch/native/shim.bin",
       "switch/pixels.bin",
       "switch/state.bin"
@@ -34,7 +34,6 @@
   "dependencies": [],
   "settingsSchema": [],
   "license": "GPL-2.0-only",
-  "installationDirectory": "IZPSX",
   "server": {
     "entry": "server/entry.cjs",
     "runtime": "node",
@@ -45,5 +44,6 @@
       "entry": "server/settings.cjs",
       "label": "Games and BIOS"
     }
-  }
+  },
+  "installationDirectory": "IZPSX"
 }

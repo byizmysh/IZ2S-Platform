@@ -137,7 +137,7 @@ async function stopPanel({pid, owner, root, inspect = inspectOwner,
       graceful = true;
       const health = await fetch(url.origin+'/health',{signal:AbortSignal.timeout(1500)})
         .then(response=>response.json()).catch(()=>null);
-      if (health?.pid===pid && ['0.25','0.3.0'].includes(health.edition) && !health.handoverProtocol)
+      if (health?.pid===pid && ['0.25','0.3.0','0.3.1'].includes(health.edition) && !health.handoverProtocol)
         legacyClosing = {url,token:url.hash.slice(1)};
     }
   }
@@ -221,7 +221,7 @@ async function occupiedPort(port){
     const match=line?.match(/users:\(\("([^"]+)",pid=(\d+)/);
     if(match)owner=' ('+match[1]+', PID '+match[2]+')';
   }catch{/* The OS can hide the listener owner. */}
-  return Error('127.0.0.1:'+port+' is already in use'+owner+'. 0.3.0 could not start.');
+  return Error('127.0.0.1:'+port+' is already in use'+owner+'. 0.3.1 could not start.');
 }
 
 async function waitForIdle({root,port,pid,timeout=30000}){
@@ -255,7 +255,7 @@ async function waitForIdle({root,port,pid,timeout=30000}){
       ['queued','loading','publishing'].includes(state.hardwareOperation?.status)||
       state.jobs?.some(job=>['loading','publishing'].includes(job.status));
     if(!busy)return;
-    if(Date.now()>=deadline)throw Error('The preceding panel still has an active operation. Finish it before starting 0.3.0.');
+    if(Date.now()>=deadline)throw Error('The preceding panel still has an active operation. Finish it before starting 0.3.1.');
     await new Promise(resolve=>setTimeout(resolve,500));
   }
 }
@@ -275,9 +275,9 @@ restart = false, idle = waitForIdle, ...options }) {
   const owner = stored?.owner ?? await inspect(pid);
   if (!owner || (health && (owner.version !== health.version || health.preview)))
     throw Error('The panel port '+port+' is occupied by an unverified process'+
-      (Number.isSafeInteger(pid)?' (PID '+pid+')':'')+'. Close it before starting 0.3.0.');
-  if(path.resolve(owner.root)!==path.resolve(root)&&!['RUN24','0.3.0','0.3.0'].includes(owner.edition))
-    throw Error('Port '+port+' belongs to '+(owner.edition||'another panel')+' (PID '+pid+'). Close it before starting 0.3.0.');
+      (Number.isSafeInteger(pid)?' (PID '+pid+')':'')+'. Close it before starting 0.3.1.');
+  if(path.resolve(owner.root)!==path.resolve(root)&&!['RUN24','0.3.0','0.3.1'].includes(owner.edition))
+    throw Error('Port '+port+' belongs to '+(owner.edition||'another panel')+' (PID '+pid+'). Close it before starting 0.3.1.');
   if (path.resolve(owner.root) === path.resolve(root) && !restart) return false;
   if(path.resolve(owner.root)!==path.resolve(root))await idle({root:owner.root,port,pid,timeout:options.timeout});
   console.log('Stopping the preceding IZ2S Platform panel before starting this release.');

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1212-gta-live-ee-publication/IZPS2-R1212.iza",
+  "bytes": 11428156,
+  "sha256": "88f764dcdebc3430813e9f04ef8878893426ebe18d8434e5b09da15997957ce6",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "399119ce8d1d12f4b264bcc4cfb433ef278e899b8dfc8911f6a99f7dd338b70e"
+  },
+  "engine": {
+    "file": "asset-70ef1ac398df567ad373b9a1f384c82db2be283bbc23410ecce882c14b47bb7c.izdata",
+    "path": "asset-70ef1ac398df567ad373b9a1f384c82db2be283bbc23410ecce882c14b47bb7c.izdata",
+    "bytes": 28249232,
+    "sha256": "70ef1ac398df567ad373b9a1f384c82db2be283bbc23410ecce882c14b47bb7c"
+  }
+}

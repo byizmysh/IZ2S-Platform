@@ -4,7 +4,7 @@
   "id": "iz2sciv-core",
   "directory": "IzCivSwitchFS",
   "name": "IZ2SCiv core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "entry": "adapter.cjs",
   "platforms": [
     "linux-x64",

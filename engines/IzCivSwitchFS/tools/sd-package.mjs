@@ -5,6 +5,7 @@ import {fileURLToPath} from "node:url";
 import {createRequire} from "node:module";
 import {randomUUID} from "node:crypto";
 import {loadIz2sRuntime, RUNTIME_FILES} from "./iz2s-runtime.mjs";
+import {buildSdApplications} from "./sd-apps.mjs";
 const require = createRequire(import.meta.url);
 const archive = require("../../../core/archive.cjs");
 const engine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -25,9 +26,11 @@ export async function buildSdPackage() {
     const records = JSON.parse(await fs.readFile(path.join(runtime, "package-manifest.json"), "utf8"));
     for (const record of records.filter(row => row.path.startsWith("licenses/")))
         await add(record.path, "iz2s/" + record.path, {...record, size: record.bytes});
+    const applications = await buildSdApplications();
+    entries.push(...applications.entries);
     const contents = entries.map(({name, bytes}) => ({path: name, bytes: bytes.length, sha256: archive.sha(bytes)}));
     entries.push({name: "iz2s/iz2sciv-sd-manifest.json", bytes: Buffer.from(JSON.stringify({
-        name: "IZ2SCiv core", format: "iz2sciv.sd.v1", files: contents
+        name: "IZ2SCiv core", format: "iz2sciv.sd.v1", apps: applications.apps, files: contents
     }, null, 2) + "\n")});
     entries.push({name: "iz2s/README-IZ2SCiv.txt", bytes: Buffer.from(
         "Extract the contents of the ZIP to the root of the SD card. If the iz2s folder already exists, merge the folders\n" +

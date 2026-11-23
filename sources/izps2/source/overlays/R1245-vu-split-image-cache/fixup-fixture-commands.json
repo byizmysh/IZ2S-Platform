@@ -1,0 +1,18 @@
+[
+  [
+    "c++",
+    "-std=c++20",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wno-unused-function",
+    "-DIZPS2_SWITCH2_VU_SPLIT_PERSIST=1",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1245-vu-split-image-cache/fixup-fixture.cpp",
+    "-o",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1245-vu-split-image-cache/fixup-fixture"
+  ],
+  [
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1245-vu-split-image-cache/fixup-fixture"
+  ]
+]

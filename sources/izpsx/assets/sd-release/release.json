@@ -1,9 +1,9 @@
 {
-  "version": "0.5.2",
-  "sourceRebuild": "abi/native-052-rebuild.json",
+  "version": "0.5.3",
+  "sourceRebuild": "abi/native-053-rebuild.json",
   "files": {
-    "launcher.iza": "6c15d65fbe65c0f9fc74a895c41d8051ae115501ff444a78611555e81f98f34c",
-    "sd-bundle.json": "d47aa0d0088b5a0e4bacda4f27689f820930b9beb1ac8b90d1429a9877794aec",
-    "asset-5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac.izdata": "5a2948396f1a67e52f8c2a0bf5510900affb1f6ecb2a5956a0abf4c7063643ac"
+    "asset-4b0a995128b0cb0708aa38c800f16bbe509050c43e354a8d0ffeffb261425121.izdata": "4b0a995128b0cb0708aa38c800f16bbe509050c43e354a8d0ffeffb261425121",
+    "launcher.iza": "7257c46bb8a018849cf25d2e38591fbddb5a1083303c9ee859bf1ab2edb86a3b",
+    "sd-bundle.json": "357b889b2a78b5756c66847fb9b648a472ccdd67b9aa77bbfdbb03db2adeca5d"
   }
 }

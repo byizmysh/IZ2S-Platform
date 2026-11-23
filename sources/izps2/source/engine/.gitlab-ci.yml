@@ -1,0 +1,340 @@
+# DESCRIPTION: GitLab CI/CD for libRetro (NOT FOR GitLab-proper)
+#
+# Builds armsx2_libretro.so on the libretro buildbot (git.libretro.com mirror)
+# for Linux aarch64, macOS arm64, Android arm64-v8a, iOS arm64 and tvOS arm64. Inert on GitHub
+# — the GitHub Actions workflows under .github/workflows/ are the project's
+# own CI.
+#
+# The buildbot containers carry Clang but none of the pinned third-party
+# libraries, so before_script reuses
+# .github/workflows/scripts/linux/build-dependencies-runner.sh to build the
+# same dependency set the GitHub nightly uses (shaderc, SDL3, zstd, lz4, ...).
+# The Linux job asks that script for a STATIC set: what ships from here is one
+# .so and nothing beside it, so every self-built library has to be inside it.
+
+##############################################################################
+################################# BOILERPLATE ################################
+##############################################################################
+
+# Core definitions
+.core-defs:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    CORENAME: armsx2
+    # CMake puts the finished core in bin/ inside the build tree; the
+    # ci-templates pick it up from $BUILD_DIR/$EXTRA_PATH/.
+    EXTRA_PATH: bin
+    # On the page size below: it is HOST_PAGE_SIZE, not OVERRIDE_HOST_PAGE_SIZE.
+    # The latter is a compile define the build computes for itself, so passing
+    # it here would only set a cache variable nothing reads. HOST_PAGE_SIZE is
+    # the one detect_page_size() caches into, and a preset cache entry wins, so
+    # this pins the core to 4K pages instead of inheriting whatever the runner
+    # happens to have. Android is neither - it takes
+    # ARMSX2_ANDROID_HOST_PAGE_SIZE, set in .core-defs-android below.
+    CORE_ARGS: >-
+      -DCMAKE_C_COMPILER=clang
+      -DCMAKE_CXX_COMPILER=clang++
+      -DCMAKE_EXE_LINKER_FLAGS_INIT=-fuse-ld=lld
+      -DCMAKE_MODULE_LINKER_FLAGS_INIT=-fuse-ld=lld
+      -DCMAKE_SHARED_LINKER_FLAGS_INIT=-fuse-ld=lld
+      -DCMAKE_PREFIX_PATH=$CI_PROJECT_DIR/.deps
+      -DENABLE_LIBRETRO=ON
+      -DENABLE_QT_UI=OFF
+      -DENABLE_SDL_FRONTEND=OFF
+      -DENABLE_GSRUNNER=OFF
+      -DENABLE_TESTS=OFF
+      -DENABLE_RECOMPILER_TEST_HOOKS=OFF
+      -DENABLE_SETCAP=OFF
+      -DUSE_BACKTRACE=OFF
+      -DX11_API=OFF
+      -DWAYLAND_API=OFF
+      -DDISABLE_ADVANCE_SIMD=TRUE
+      -DHOST_PAGE_SIZE=4096
+      -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+
+.core-defs-linux:
+  extends: .core-defs
+  before_script:
+    # The ci-template's script builds with `-j $NUMPROC`; its before_script
+    # (which normally sets it) is replaced by this one.
+    - export NUMPROC=$(($(nproc) / 2)); [ "$NUMPROC" -lt 1 ] && export NUMPROC=1
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt-get update
+    - >-
+      apt-get -y install
+      build-essential ca-certificates cmake curl flex bison git ninja-build
+      nasm pkg-config wget
+      zlib1g-dev libaio-dev libasound2-dev libcurl4-openssl-dev
+      libdbus-1-dev libdrm-dev libegl-dev libevdev-dev libfontconfig1-dev
+      libgbm-dev libgudev-1.0-dev libinput-dev libjpeg-dev libopengl-dev
+      libpcap-dev libpulse-dev libssl-dev libudev-dev
+    # The image carries Clang, so use that one rather than fetching another
+    # from apt.llvm.org. Which version it carries is the image's business:
+    # bind the unversioned names to the newest one present and let CORE_ARGS
+    # stay version-free, so a later bump of the image needs nothing here.
+    - |
+      if ! command -v clang++ >/dev/null 2>&1; then
+        v=$(ls /usr/bin/clang++-* 2>/dev/null | sed 's#.*clang++-##' | sort -V | tail -1)
+        if [ -z "$v" ]; then echo "no clang in this image, and this recipe no longer installs one"; exit 1; fi
+        ln -sf "/usr/bin/clang-$v" /usr/bin/clang
+        ln -sf "/usr/bin/clang++-$v" /usr/bin/clang++
+      fi
+      if ! command -v ld.lld >/dev/null 2>&1; then
+        v=$(ls /usr/bin/ld.lld-* 2>/dev/null | sed 's#.*ld.lld-##' | sort -V | tail -1)
+        if [ -z "$v" ]; then echo "no lld in this image"; exit 1; fi
+        ln -sf "/usr/bin/ld.lld-$v" /usr/bin/ld.lld
+      fi
+      clang++ --version
+    # Static: the core is shipped as a lone .so, so a self-built shared library
+    # is one the user's machine has no copy of. It loaded here and nowhere else.
+    - ARMSX2_DEPS_STATIC=1 ./.github/workflows/scripts/linux/build-dependencies-runner.sh "$CI_PROJECT_DIR/.deps"
+
+# macOS has no buildbot image to apt-install from: the runner is a shared Mac
+# with whatever Xcode it happens to carry and none of the pinned dependencies,
+# so the same script the project's own macOS CI uses builds them from source
+# first. Qt and ffmpeg are skipped - the core links neither - which is most of
+# that script's runtime.
+.core-defs-macos:
+  extends: .core-defs
+  variables:
+    # Not bin/ like the Linux jobs: the top-level CMakeLists redirects the
+    # library output there only under `UNIX AND NOT APPLE`, so on macOS the
+    # dylib stays in the target's own directory.
+    EXTRA_PATH: pcsx2-libretro
+    # The deps are built against 11.0; the templates default to 10.15/10.9,
+    # which is older than the libc++ the C++20 in the emulator needs.
+    MACOSX_DEPLOYMENT_TARGET: "11.0"
+    CC: clang
+    CXX: clang++
+    # Replaces the Linux CORE_ARGS from .core-defs wholesale: the clang/lld
+    # flags there name binaries that exist only in the Linux image.
+    CORE_ARGS: >-
+      -DCMAKE_PREFIX_PATH=$CI_PROJECT_DIR/.deps
+      -DENABLE_LIBRETRO=ON
+      -DENABLE_QT_UI=OFF
+      -DENABLE_SDL_FRONTEND=OFF
+      -DENABLE_GSRUNNER=OFF
+      -DENABLE_TESTS=OFF
+      -DENABLE_RECOMPILER_TEST_HOOKS=OFF
+      -DENABLE_SETCAP=OFF
+      -DUSE_BACKTRACE=OFF
+      -DX11_API=OFF
+      -DWAYLAND_API=OFF
+      -DDISABLE_ADVANCE_SIMD=TRUE
+      -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+  # Around 40 minutes of source builds on a cold runner, so keep them.
+  cache:
+    key:
+      files:
+        - .github/workflows/scripts/macos/build-dependencies-slice.sh
+      prefix: macos-$ARCH
+    paths:
+      - .deps/
+  before_script:
+    # Replaces the template's before_script, which is where NUMPROC is normally
+    # set for its `-j $NUMPROC` build line. sysctl, not nproc: a stock macOS
+    # runner has no coreutils.
+    - export NUMPROC=$(($(sysctl -n hw.ncpu)/2)); [ "$NUMPROC" -lt 1 ] && export NUMPROC=1
+    - |
+      if [ ! -f "$CI_PROJECT_DIR/.deps/lib/libshaderc_combined.a" ] || [ ! -d "$CI_PROJECT_DIR/.deps/include/SDL3" ]; then
+        OSX_ARCH=$ARCH BUILD_QT=0 BUILD_FFMPEG=0 \
+          ./.github/workflows/scripts/macos/build-dependencies-slice.sh "$CI_PROJECT_DIR/.deps"
+      fi
+
+# iOS and tvOS. The same core as everywhere else, with three differences that
+# all come from the platform rather than from taste:
+#
+#   * Every dependency is static. A loose dylib beside a core is not something
+#     these systems will load, so build-dependencies-embedded.sh builds the set
+#     that way rather than reusing the macOS one.
+#   * No Vulkan. MoltenVK ships as a dylib, which is the same problem, so the
+#     GS is Metal here and USE_VULKAN is off.
+#   * JIT needs the process to be allowed to map executable pages, which on a
+#     stock install it is not. That is a property of the platform and the same
+#     bargain every JIT core on it makes; it is not something this build can
+#     fix, and it is why these two jobs exist at all rather than being
+#     pretended to be more finished than they are.
+#
+# allow_failure while they settle: this fork has never been built against an
+# Apple embedded SDK through the root CMakeLists, and the first pipelines are
+# discovery rather than a promise.
+.core-defs-apple-embedded:
+  extends: .core-defs
+  variables:
+    EXTRA_PATH: pcsx2-libretro
+    # 17.4 is what the iOS app in platforms/ios targets; there is no reason for
+    # the core to ask for an older one. One number under three names: the two
+    # templates spell it differently (ios-cmake.yml reads IOS_MINVER,
+    # tvos-cmake.yml reads MINVER) and the dependency script takes it as
+    # APPLE_DEPLOYMENT_TARGET, so a bump here moves the dependencies and the
+    # core together instead of leaving them built against different targets.
+    APPLE_DEPLOYMENT_TARGET: "17.4"
+    IOS_MINVER: "$APPLE_DEPLOYMENT_TARGET"
+    MINVER: "$APPLE_DEPLOYMENT_TARGET"
+    CC: clang
+    CXX: clang++
+    # Replaces the Linux CORE_ARGS wholesale, like the macOS jobs do: the
+    # clang/lld flags there name binaries that exist only in the Linux image.
+    CORE_ARGS: >-
+      -DCMAKE_PREFIX_PATH=$CI_PROJECT_DIR/.deps
+      -DCMAKE_FIND_ROOT_PATH=$CI_PROJECT_DIR/.deps
+      -DENABLE_LIBRETRO=ON
+      -DENABLE_QT_UI=OFF
+      -DENABLE_SDL_FRONTEND=OFF
+      -DENABLE_GSRUNNER=OFF
+      -DENABLE_TESTS=OFF
+      -DENABLE_RECOMPILER_TEST_HOOKS=OFF
+      -DENABLE_SETCAP=OFF
+      -DUSE_BACKTRACE=OFF
+      -DUSE_VULKAN=OFF
+      -DX11_API=OFF
+      -DWAYLAND_API=OFF
+      -DDISABLE_ADVANCE_SIMD=TRUE
+      -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+      -DCMAKE_MACOSX_BUNDLE=OFF
+  cache:
+    key:
+      files:
+        - .github/workflows/scripts/macos/build-dependencies-embedded.sh
+      # The target is part of the key: dependencies built for one deployment
+      # target are not the ones a different target wants, and a cache that
+      # ignored it would hand a bumped core the old set.
+      prefix: apple-$APPLE_PLATFORM-$APPLE_DEPLOYMENT_TARGET
+    paths:
+      - .deps/
+  before_script:
+    # Replaces the template's before_script, which is where NUMPROC is normally
+    # set for its `-j $NUMPROC` build line. sysctl, not nproc: a stock macOS
+    # runner has no coreutils.
+    - export NUMPROC=$(($(sysctl -n hw.ncpu)/2)); [ "$NUMPROC" -lt 1 ] && export NUMPROC=1
+    - |
+      if [ ! -d "$CI_PROJECT_DIR/.deps/include/SDL3" ]; then
+        APPLE_PLATFORM=$APPLE_PLATFORM \
+        APPLE_DEPLOYMENT_TARGET=$APPLE_DEPLOYMENT_TARGET \
+          ./.github/workflows/scripts/macos/build-dependencies-embedded.sh "$CI_PROJECT_DIR/.deps"
+      fi
+
+# The Android image carries the NDK and nothing else - no package manager entry
+# for any of the pinned libraries, and no distribution behind it to take zlib,
+# png or SDL from - so the whole dependency set is cross-built from source first,
+# the same way the macOS jobs do it.
+#
+# API 28: bionic's shared memory (ASharedMemory_create, which the fastmem
+# mapping uses in place of the shm_open bionic does not have) arrives at 26, and
+# posix_spawn at 28.
+.core-defs-android:
+  extends: .core-defs
+  variables:
+    API_LEVEL: 28
+    EXTRA_PATH: bin
+    CORE_ARGS: >-
+      -DCMAKE_PREFIX_PATH=$CI_PROJECT_DIR/.deps
+      -DCMAKE_FIND_ROOT_PATH=$CI_PROJECT_DIR/.deps
+      -DENABLE_LIBRETRO=ON
+      -DENABLE_QT_UI=OFF
+      -DENABLE_SDL_FRONTEND=OFF
+      -DENABLE_GSRUNNER=OFF
+      -DENABLE_TESTS=OFF
+      -DENABLE_RECOMPILER_TEST_HOOKS=OFF
+      -DENABLE_SETCAP=OFF
+      -DUSE_BACKTRACE=OFF
+      -DX11_API=OFF
+      -DWAYLAND_API=OFF
+      -DDISABLE_ADVANCE_SIMD=TRUE
+      -DARMSX2_ANDROID_HOST_PAGE_SIZE=0x1000
+      -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+  cache:
+    key:
+      files:
+        - .github/workflows/scripts/android/build-dependencies.sh
+      prefix: android-$ANDROID_ABI
+    paths:
+      - .deps/
+  before_script:
+    # Replaces the template's before_script, which is where NUMPROC is normally
+    # set for its `-j $NUMPROC` build line.
+    - export NUMPROC=$(($(nproc)/2)); [ "$NUMPROC" -lt 1 ] && export NUMPROC=1
+    - apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get -y install cmake ninja-build python3 git ca-certificates
+    - |
+      if [ ! -f "$CI_PROJECT_DIR/.deps/lib/libshaderc_combined.a" ]; then
+        ANDROID_NDK="$NDK_ROOT" ANDROID_ABI="$ANDROID_ABI" ANDROID_API="$API_LEVEL" \
+          ./.github/workflows/scripts/android/build-dependencies.sh "$CI_PROJECT_DIR/.deps"
+      fi
+
+# Inclusion templates, required for the build to work
+include:
+  # Linux
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/linux-cmake.yml'
+
+  # macOS (Apple Silicon only - the buildbot's Intel Mac is macOS 10.15 with
+  # Apple clang 12, which has neither the C++20 library nor std::bit_cast).
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/osx-cmake-arm64.yml'
+
+  # Android (the NDK cross-build).
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/android-cmake.yml'
+
+  # Apple embedded (iOS and tvOS, both arm64).
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/ios-cmake.yml'
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/tvos-cmake.yml'
+
+# Stages for building
+stages:
+  - build-prepare
+  - build-shared
+
+##############################################################################
+#################################### STAGES ##################################
+##############################################################################
+#
+################################### DESKTOPS #################################
+# No x86_64 job. x86 is vestigial on this fork and must not deviate from
+# upstream PCSX2 to keep building, and pcsx2/x86/ no longer compiles against the
+# current tree (the FPU sources reach for a config macro that is gone and for a
+# register field that went away when the FPU representation widened). Fixing
+# that here is exactly the deviation we do not want, and lrps2 is the core to
+# use for x86 PS2 on RetroArch, so the job goes rather than staying red.
+#
+# Linux 64-bit (ARM)
+libretro-build-linux-aarch64:
+  extends:
+    - .libretro-linux-cmake-aarch64
+    - .core-defs-linux
+
+# macOS arm64 (Apple Silicon).
+libretro-build-osx-arm64:
+  extends:
+    - .libretro-osx-cmake-arm64
+    - .core-defs-macos
+
+################################### CELLULAR #################################
+# Android (arm64-v8a). armeabi-v7a is not built - the emulator is 64-bit only -
+# and neither is x86_64, which this fork does not target.
+libretro-build-android-arm64-v8a:
+  extends:
+    - .libretro-android-cmake-arm64-v8a
+    - .core-defs-android
+
+##################################### APPLE ##################################
+# iOS (arm64).
+libretro-build-ios-arm64:
+  allow_failure: true
+  extends:
+    - .libretro-ios-cmake-arm64
+    - .core-defs-apple-embedded
+  variables:
+    APPLE_PLATFORM: ios
+
+# tvOS (arm64).
+libretro-build-tvos-arm64:
+  allow_failure: true
+  extends:
+    - .libretro-tvos-cmake-arm64
+    - .core-defs-apple-embedded
+  variables:
+    APPLE_PLATFORM: tvos

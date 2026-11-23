@@ -2,13 +2,13 @@
 
 IZ2S is a Homebrew launcher for Nintendo Switch 2.
 
-## Download 0.3.0
+## Download 0.3.1
 
 | System | Download |
 | --- | --- |
-| Linux x64 / ARM64 | [Linux installation archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.0/IZ2S-Platform-0.3.0-linux.tar.gz) |
-| Windows x64 | [Windows installation ZIP](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.0/IZ2S-Platform-0.3.0-windows-x64.zip) |
-| File checksums | [SHA256SUMS.txt](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.0/SHA256SUMS.txt) |
+| Linux x64 / ARM64 | [Linux installation archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.1/IZ2S-Platform-0.3.1-linux.tar.gz) |
+| Windows x64 | [Windows installation ZIP](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.1/IZ2S-Platform-0.3.1-windows-x64.zip) |
+| File checksums | [SHA256SUMS.txt](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.1/SHA256SUMS.txt) |
 
 Use the installation archives above. GitHub's automatic **Source code** downloads are for development, not the packaged installers.
 
@@ -124,9 +124,10 @@ On Windows:
 | [BlitBun](https://github.com/byizmysh/BlitBun) | 1.15.8 | PC video/audio streaming | Only Linux |
 | Book Reader | 0.1.0 | TXT/EPUB reader | |
 | Foldrift | 0.3.3 | Autonomous SD file manager | |
-| [IZ2S Cheese](https://github.com/byizmysh/iz2s-cheese) | 0.8.1 | Homebrew application catalog | |
+| [IZ2S Cheese](https://github.com/byizmysh/iz2s-cheese) | 0.8.7 | Homebrew application catalog | |
 | [VacooTube](https://github.com/byizmysh/VacooTube) | 1.5.7 | Video player with PC source | Only Linux |
-| [IZPSX emulator](https://github.com/byizmysh/IZPSX-emulator) | 0.5.2 | PlayStation emulator | |
+| [IZPSX emulator](https://github.com/byizmysh/IZPSX-emulator) | 0.5.3 | PlayStation emulator | |
+| [IZPS2 emulator](https://github.com/byizmysh/IZPS2-emulator) | 0.5.0 | PlayStation 2 emulator | |
 
 Open **App library** in the panel and install the selected application to the paired console. For a mounted SD card, use the platform's SD installation/export action. The installed entry is:
 
@@ -176,7 +177,17 @@ games/
 saves/
 ```
 
-The updated 0.5.2 native image and PC file interface both use these paths.
+IZPSX 0.5.3 uses these paths.
+
+## IZPS2 BIOS and games
+
+BIOS and game images are not included. Put your own **4 MiB** PS2 BIOS dump in `SD:/iz2s/modules/izps2/bios/` and ISO/CHD game images in `SD:/iz2s/modules/izps2/games/`. Create these folders if needed. Preserve BIOS, games, saves and settings when updating.
+
+## Civilization VII SD archive
+
+The **Download SD package** action in Civilization VII includes the IZ2S runtime and six ready-to-run applications: **IZ2S Cheese 0.8.7, IZPSX 0.5.3, IZPS2 0.5.0, Foldrift 0.3.3, Book Reader 0.1.0 and VacooTube 1.5.7**.
+
+Extract the complete `iz2sciv-core-sd.zip` to the SD card root. Merge the `iz2s` folders and replace matching files; keep your other applications, BIOS, games, saves and settings. All launchers, companion resources and license notices are already in their correct folders. No separate app installation is needed. Return the card to the powered-off console. VacooTube still uses its Linux PC media host.
 
 ## Connections and local state
 
@@ -208,7 +219,7 @@ Or in the owning module's state directory. Verified device pairings can also be 
 - **hyln9 and nxhid contributors**: the Switch keyboard base. Firmware includes its MIT license, libnx and font notices. [nxhid](https://github.com/hyln9/nxhid).
 - **M5Stack, lovyan03, Benoit Blanchon, Ha Thach, Espressif and Arduino contributors**: Cardputer firmware dependencies, including M5Cardputer, M5Unified, M5GFX/LovyanGFX, ArduinoJson, TinyUSB, ESP-IDF, Arduino-ESP32 and IRremote. Versions and texts are retained with the firmware.
 - **DejaVu/Bitstream font authors, Monocypher authors, GitHub Octicons authors**, and the authors of Terser, Acorn, source-map, jridgewell mapping libraries and buffer-from: typography, signature verification, artwork and runtime JavaScript processing. Original notices remain beside their components.
-- **PCSX2, PCSX-ReARMed and their contributors**, plus VIXL, cubeb, SoundTouch, libchdr, fmt, ImGui, libzip, cpuinfo, simpleini, rcheevos, discord-rpc, plutosvg and plutovg authors: inherited statically linked runtime code. IZPSX is included; associated native dependency license texts are retained in `LICENSES/native-linked/`. Native source coverage is described in [SOURCES.md](SOURCES.md).
+- **ARMSX2, PCSX2, PCSX-ReARMed and their contributors**, plus VIXL, cubeb, SoundTouch, libchdr, fmt, ImGui, libzip, cpuinfo, simpleini, rcheevos, discord-rpc, plutosvg and plutovg authors: inherited statically linked runtime code. IZPSX and IZPS2 are included; associated native dependency license texts are retained in `LICENSES/native-linked/`. Native source coverage is described in [SOURCES.md](SOURCES.md).
 - **Electron/Chromium, Node.js, Python, uv, Pillow, OpenSSH, FFmpeg and audio-stack contributors**: bundled or separately installed host dependencies. Electron's complete third-party HTML notice is preserved in each bundled runtime. Downloaded tools retain their own license terms.
 
 `LICENSE` and `COPYRIGHT` cover independently authored IZMYSH code under **GPL-2.0-or-later**. Explicit MIT components (including Foldrift and IZ2S Cheese), third-party code, fonts and prior grants retain their own licenses. This is not a blanket relicensing. See [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [THIRD_PARTY.json](THIRD_PARTY.json), [AUTHORS.md](AUTHORS.md) and [LICENSES/INDEX.md](LICENSES/INDEX.md).

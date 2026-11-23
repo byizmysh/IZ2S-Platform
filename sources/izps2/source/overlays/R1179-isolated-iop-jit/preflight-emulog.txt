@@ -1,0 +1,248 @@
+[    0.1366] IZPS2 R1169 video swapchain images=3
+[    0.1431] IZPS2_GS_HANDOFF borrowed=1 graphics=1 lookup=1 profile=1 profile_bytes=248 api=4210688
+[    0.1467] IZPS2_GS_HANDOFF record_frame=1 queue_family=0
+[    0.1505] IZPS2_IOP_IDLE_ENTRY enabled=1
+[    0.1543] IZPS2_EE_POLL_CONFIG requested=1 trial=1
+[    0.1585] IZPS2_AUDIO_DSP_CONFIG enabled=1
+[    0.1624] IZPS2_FRAME_END_PACING enabled=0
+[    0.1666] IZPS2_EE_FPR_MEMORY mode=paired
+[    0.1715] IZPS2_ASSEMBLER_REUSE enabled=1
+[    0.1764] PCSX2 Unknown
+[    0.1811] Savestate version: 0x9a590000
+[    0.1858] 
+[    0.1907] 
+[    0.1971] Host Machine Init:
+[    0.1999]   Operating System = Nintendo Switch 2 / libounce
+[    0.2027]   Free app heap    = 8041 MB (7.85 GB)
+[    0.2058]   App memory limit = 9024 MB (8.81 GB)
+[    0.2089] 
+[    0.2121]   Processor        = Nintendo Switch 2 / AArch64
+[    0.2157]   Available CPUs   = 6 (process core mask)
+[    0.2196] CPU Extensions Detected:
+[    0.2234]   NEON (AArch64 baseline; optional ISA discovery unavailable)
+[    0.2274] 
+[    0.2662] IZPS2 JIT cache ready: 319815680 bytes
+[    0.2711] EE: ARM64 Recompiler reserved.
+[    0.2782] IOP: ARM64 Recompiler reserved.
+[    0.2888] @@CPU_BACKEND@@ code_generation=1 ee_rec=1 iop_rec=1 vu0_rec=1 vu1_rec=1 fastmem=0 mtvu=0
+[    0.3391] Loading BIOS...
+[    0.3450] BIOS Found: Europe  v02.00(04/11/2004)  Console 20041105-175839
+[    0.3582] BIOS rom1 module not found, skipping...
+[    0.3630] BIOS rom2 module not found, skipping...
+[    0.3700] Opening CDVD...
+[    0.3749] IZPS2_DISC_CACHE slots=256
+[    0.3810] isoFile open ok: /sd/iz2s/modules/izps2/games/GTA_SA_PS2 [Multi5 PAL].ISO
+[    0.3873]   Image type  = DVD
+[    0.3924]  * CDVD Disk Open: DVD, Single layer or unknown:
+[    0.3981]  * * Track 1: Data (Mode 1) (2207136 sectors)
+[    0.4531] GameDB: Has not been initialized yet, initializing...
+[    0.5314] GameDB: 12841 games on record (loaded in 78.26ms)
+[    0.5350] Disc changed to GTA_SA_PS2 [Multi5 PAL].ISO.
+[    0.5382]   Name: Grand Theft Auto - San Andreas
+[    0.5416]   Serial: SLES-52541
+[    0.5451]   Version: 2.01
+[    0.5490]   CRC: B440A8FE
+[    0.5552] Applying settings...
+[    0.5601] [Unsafe Settings] Graphics API is not set to Automatic. This may cause performance problems and graphical issues.
+[    0.5643] OSD [unsafe_settings_warning]:  Graphics API is not set to Automatic. This may cause performance problems and graphical issues.
+[    0.6014] [Unsafe Settings] Fastmem is not enabled, this will reduce performance.
+[    0.6060] OSD [performance_settings_warning]:  Fastmem is not enabled, this will reduce performance.
+[    0.6183] Reopening memory cards...
+[    0.7274] MemcardBackup: Mcd002.ps2 is not readable, not backed up
+[    0.7330] McdSlot 0 [File]: Mcd001.ps2 [8 MB, Formatted]
+[    0.7399] McdSlot 1 [File]: Mcd002.ps2 [8 MB, UNFORMATTED]
+[    0.7429] HLE Host: Set 'host:' root path to: /sd/iz2s/modules/izps2/games
+[    0.7470] iR5900-ARM64 Recompiler reset.
+[    0.7501] EE ARM64: Dispatcher generated at 0x3811ff000 (1952 bytes)
+[    0.7592] iR3000A-ARM64 Recompiler reset.
+[    0.7648] mVUProgCache[0]: sdmc:/iz2s/modules/izps2/saves/armsx2/cache/vu_jit/packs/SLES-52541_B440A8FE/vu0-60b95ed72ea6d3297a12800459872c9b.pack
+[    0.7697] mVUProgCache[1]: sdmc:/iz2s/modules/izps2/saves/armsx2/cache/vu_jit/packs/SLES-52541_B440A8FE/vu1-5109cb2b996ffcdf47da2175c2adca88.pack
+[    0.7858] Opening GS...
+[    1.1471] Opening SPU2...
+[    1.1554] Creating Ounce audio stream, sample rate = 48000, expansion = Disabled, buffer = 50, latency = 20, stretching enabled, driver = , device = 
+[    1.1870] Initializing Pad...
+[    1.1918] OSD [ControllerNotConfigured]: Controller 1 has no input bindings configured.
+[    1.2019] Initializing SIO2...
+[    1.2082] Initializing SIO0...
+[    1.2135] Opening DEV9...
+[    1.2208] DEV9: Ethernet is disabled, no network adapter will be created
+[    1.2286] Opening USB...
+[    1.2345] Opening FW...
+[    1.2452] VM subsystems initialized in 907.90 ms
+[    1.2506] Failed to inhibit screen saver.
+[    1.2574] IZPS2_EE_EVENT_PROFILE enabled=0
+[    1.2617] IZPS2_BUILD run25-hosted-r1169-r1118-vu1-publication-ownership
+[    1.2704] IZPS2_GS_BACK_THREAD requested=0
+[    1.2801] IZPS2_EE_SMC_LITERAL enabled=0
+[    1.2851] IZPS2_EE_SMC_INLINE enabled=0
+[    1.2883] IZPS2_EE_PC_LITERAL enabled=0
+[    1.2965] IZPS2_JIT_DIAGNOSTIC scalar_control_requested=0
+[    1.3009] IZPS2_EE_DISPATCH direct_ram=0
+[    1.4110] IZPS2_STATE_READ buffered_bytes=15263790 reads=15 read_ms=94.934
+[    1.4178] iR5900-ARM64 Recompiler reset.
+[    1.4255] EE ARM64: Dispatcher generated at 0x3811ff000 (1952 bytes)
+[    1.4320] iR3000A-ARM64 Recompiler reset.
+[    1.4504] ELF changed, active CRC B440A8FE (cdrom0:\SLES_525.41;1)
+[    1.4633] Found 5 game patches in SLES-52541_B440A8FE.pnach.
+[    1.4755] Applying core settings...
+[    1.4788] [Unsafe Settings] Fastmem is not enabled, this will reduce performance.
+[    1.4851] OSD [performance_settings_warning]:  Fastmem is not enabled, this will reduce performance.
+[    1.4924] GameDB: Changing EE/FPU clamp mode [mode=2]
+[    1.4971] OSD [HWBlendingWarning]:  Current Blending Accuracy is Basic.
+[    1.5056] Recommended Blending Accuracy for this game is Medium.
+[    1.5152] You can adjust the blending level in Game Properties to improve
+[    1.5220] graphical quality, but this will increase system requirements.
+[    1.5279] GameDB: Enabled GS Hardware Fix: recommendedBlendingLevel to [mode=2]
+[    1.5319] GameDB: Enabled GS Hardware Fix: halfPixelOffset to [mode=5]
+[    1.5375] GameDB: Enabled GS Hardware Fix: autoFlush to [mode=1]
+[    1.5453] GameDB: Enabled GS Hardware Fix: nativeScaling to [mode=4]
+[    1.5496] GS: Native resolution, so these upscaling-only fixes do not apply and were turned off: halfPixelOffset, nativeScaling
+[    1.5580] Updating CPU configuration...
+[    1.5647] iR5900-ARM64 Recompiler reset.
+[    1.5728] EE ARM64: Dispatcher generated at 0x3811ff000 (1952 bytes)
+[    1.5790] iR3000A-ARM64 Recompiler reset.
+[    1.5908] Updating GS configuration...
+[    1.6126] OSD [AutoEjectAllSet]: Force ejecting all Memory Cards. Reinserting in 1 second.
+[    1.7232]   Loading SPU2
+[    1.7549] OSD [UnfreezePad1Changed]: Controller port 1, slot 0 has a DualShock 2 connected, but the save state has a Not Connected.
+[    1.7598] Ejecting DualShock 2 and replacing it with Not Connected.
+[    1.7666]   Loading GS
+[    1.7792] UpdateVSyncRate: Mode Changed to PAL.
+[    1.7852] IZPS2_VU1_CPU_WINDOW phase=checkpoint start=0 path=execute calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[    1.7918] IZPS2_VU1_CPU_WINDOW phase=checkpoint start=0 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[    1.7990] IZPS2_SESSION_TIMING phase=checkpoint start=0 wall_ms=469.135 ee_thread_cpu_ms=139.913 ee_blocks=0 ee_compile_wall_ms=0.000 jit_calls=98 jit_bytes=16240 jit_client_ms=3.985
+[    1.8033] IZPS2_QUEUE_WAIT_WINDOW phase=checkpoint start=0 gs_wait_ms=0.024 vu1_wait_ms=0.000
+[    1.8140] IZPS2_LIMITER_WINDOW phase=checkpoint start=0 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[    1.8200] IZPS2_EE_COMPILE_SPLIT phase=checkpoint start=0 nonpublish_wall_ms=0.000 publish_client_ms=0.000
+[    1.8234] IZPS2_IOP_OFF_WINDOW phase=checkpoint start=0 calls=0 selected=0 valid=0 sampled_wall_ms=0.000000 timing_available=0
+[    1.8311] OSD: GTA SA checkpoint loaded.
+[    1.8398] IZPS2 EE warm capture disc=b440a8fe elf=b440a8fe
+[    1.8585] IZPS2_EE_WARM_INPUT status="ok" file_bytes=243280 payload_bytes=243224 elapsed_ms=12.466 path="sdmc:/iz2s/modules/izps2/saves/armsx2/cache/ee-warm2-3024136446-3024136446-checkpoint.bin"
+[    1.8653] IZPS2_EE_WARM_CHECKPOINT accepted=1
+[    2.6740] IZPS2 EE warm profile valid=1 matched=15200 stale=0 attempted=15200 available=15200 elapsed_ms=800.564
+[    2.6817] IZPS2_EE_WARM_START phase=ee_warm_checkpoint
+[    2.6876] IZPS2_VU1_CPU_WINDOW phase=ee_warm_checkpoint start=0 path=execute calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[    2.6954] IZPS2_VU1_CPU_WINDOW phase=ee_warm_checkpoint start=0 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[    2.6997] IZPS2_SESSION_TIMING phase=ee_warm_checkpoint start=0 wall_ms=847.763 ee_thread_cpu_ms=774.131 ee_blocks=15200 ee_compile_wall_ms=790.550 jit_calls=1133 jit_bytes=9623764 jit_client_ms=41.752
+[    2.7110] IZPS2_QUEUE_WAIT_WINDOW phase=ee_warm_checkpoint start=0 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[    2.7177] IZPS2_LIMITER_WINDOW phase=ee_warm_checkpoint start=0 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[    2.7212] IZPS2_EE_COMPILE_SPLIT phase=ee_warm_checkpoint start=0 nonpublish_wall_ms=749.264 publish_client_ms=41.286
+[    2.7291] IZPS2_IOP_OFF_WINDOW phase=ee_warm_checkpoint start=0 calls=0 selected=0 valid=0 sampled_wall_ms=0.000000 timing_available=0
+[    2.7386] Failed to inhibit screen saver.
+[    2.7479] OSD: IZPS2 R1169
+[    2.7558] IZPS2_EE_POLL_ENTRY eligible=1 reason=none
+[    2.7589] EE ARM64: Entering recompiled code (pc=0x0034DFFC)
+[    5.5818] OSD [AutoEjectAllSet]: Memory Cards reinserted.
+[    5.5905] Pad: DS2 Config Finished - P2/S1 - AL: Off - AB: Usable - VS: Disabled - VL: Disabled - RB: D (0x00000000)
+[    6.0272] Pad: DS2 Config Finished - P2/S1 - AL: On - AB: Locked - VS: Disabled - VL: Disabled - RB: D (0x00000000)
+[    6.6015] Pad: DS2 Config Finished - P2/S1 - AL: On - AB: Locked - VS: Normal - VL: Normal - RB: D (0x00000000)
+[    6.9382] Pad: DS2 Config Finished - P2/S1 - AL: On - AB: Locked - VS: Normal - VL: Normal - RB: D (0x00000000)
+[    7.8581] Pad: DS2 Config Finished - P2/S1 - AL: On - AB: Locked - VS: Normal - VL: Normal - RB: D+A+P (0x0003FFFF)
+[    8.3182] Pad: DS2 Config Finished - P2/S1 - AL: On - AB: Locked - VS: Normal - VL: Normal - RB: D+A+P (0x0003FFFF)
+[    8.6383] Pad: DS2 Config Finished - P2/S1 - AL: On - AB: Locked - VS: Normal - VL: Normal - RB: D+A+P (0x0003FFFF)
+[   48.8227] (VMManager) Pausing...
+[   49.3389] IZPS2_STARTUP_GAP start=5043 wall_ms=165.850
+[   49.3439] IZPS2_VU1_CPU_WINDOW phase=startup_peak start=5043 path=execute calls=822 selected=4 samples=4 sampled_cpu_ms=22.996704 estimated_cpu_ms=4725.823
+[   49.3505] IZPS2_VU1_CPU_WINDOW phase=startup_peak start=5043 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.3533] IZPS2_SESSION_TIMING phase=startup_peak start=5043 wall_ms=165.851 ee_thread_cpu_ms=147.068 ee_blocks=9 ee_compile_wall_ms=1.576 jit_calls=412 jit_bytes=1205688 jit_client_ms=22.174
+[   49.3566] IZPS2_EE_POLL_WINDOW phase=startup_peak start=5043 skips=8068 skipped_guest_cycles=5658609
+[   49.3596] IZPS2_QUEUE_WAIT_WINDOW phase=startup_peak start=5043 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.3630] IZPS2_LIMITER_WINDOW phase=startup_peak start=5043 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.3669] IZPS2_EE_COMPILE_SPLIT phase=startup_peak start=5043 nonpublish_wall_ms=0.808 publish_client_ms=0.768
+[   49.3709] IZPS2_IOP_OFF_WINDOW phase=startup_peak start=5043 calls=10096 selected=1 valid=1 sampled_wall_ms=0.000160 timing_available=1
+[   49.3754] IZPS2_FRAME_WINDOW start=5043 vblanks=120 wall_ms=5404.297 nominal_hz=50.000 wall_start_tick=1795269560428948224 accepted_presents=62 gs_register_updates=60 framebuffer_blits=60 vblank_p50_ms=39.884 vblank_p95_ms=75.534 vblank_p99_ms=126.409 vblank_max_ms=165.850
+[   49.3801] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5043 path=execute calls=76555 selected=299 samples=299 sampled_cpu_ms=26.417312 estimated_cpu_ms=6763.804
+[   49.3847] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5043 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.3911] IZPS2_SESSION_TIMING phase=gameplay start=5043 wall_ms=5404.302 ee_thread_cpu_ms=4634.310 ee_blocks=6333 ee_compile_wall_ms=963.941 jit_calls=18724 jit_bytes=5377044 jit_client_ms=648.128
+[   49.3935] IZPS2_EE_POLL_WINDOW phase=gameplay start=5043 skips=674654 skipped_guest_cycles=348130381
+[   49.3968] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=5043 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.4004] IZPS2_LIMITER_WINDOW phase=gameplay start=5043 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.4041] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=5043 nonpublish_wall_ms=427.403 publish_client_ms=536.538
+[   49.4084] IZPS2_IOP_OFF_WINDOW phase=gameplay start=5043 calls=1018610 selected=123 valid=123 sampled_wall_ms=0.259648 timing_available=1
+[   49.4129] IZPS2_FRAME_WINDOW start=5163 vblanks=120 wall_ms=5047.946 nominal_hz=50.000 wall_start_tick=1795269565833245216 accepted_presents=60 gs_register_updates=60 framebuffer_blits=60 vblank_p50_ms=39.950 vblank_p95_ms=57.110 vblank_p99_ms=109.957 vblank_max_ms=113.973
+[   49.4178] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5163 path=execute calls=89720 selected=351 samples=351 sampled_cpu_ms=4.230432 estimated_cpu_ms=1081.351
+[   49.4245] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5163 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.4273] IZPS2_SESSION_TIMING phase=gameplay start=5163 wall_ms=5047.940 ee_thread_cpu_ms=4503.305 ee_blocks=3156 ee_compile_wall_ms=475.836 jit_calls=8389 jit_bytes=2354340 jit_client_ms=233.712
+[   49.4306] IZPS2_EE_POLL_WINDOW phase=gameplay start=5163 skips=742202 skipped_guest_cycles=338209498
+[   49.4339] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=5163 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.4376] IZPS2_LIMITER_WINDOW phase=gameplay start=5163 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.4419] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=5163 nonpublish_wall_ms=255.816 publish_client_ms=220.020
+[   49.4464] IZPS2_IOP_OFF_WINDOW phase=gameplay start=5163 calls=1111729 selected=136 valid=136 sampled_wall_ms=0.082368 timing_available=1
+[   49.4512] IZPS2_FRAME_WINDOW start=5283 vblanks=120 wall_ms=4461.585 nominal_hz=50.000 wall_start_tick=1795269570881191104 accepted_presents=59 gs_register_updates=59 framebuffer_blits=59 vblank_p50_ms=34.603 vblank_p95_ms=57.101 vblank_p99_ms=101.766 vblank_max_ms=108.288
+[   49.4578] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5283 path=execute calls=72582 selected=283 samples=283 sampled_cpu_ms=3.535072 estimated_cpu_ms=906.652
+[   49.4608] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5283 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.4639] IZPS2_SESSION_TIMING phase=gameplay start=5283 wall_ms=4461.589 ee_thread_cpu_ms=4085.236 ee_blocks=3436 ee_compile_wall_ms=463.721 jit_calls=8542 jit_bytes=1775040 jit_client_ms=229.008
+[   49.4672] IZPS2_EE_POLL_WINDOW phase=gameplay start=5283 skips=645685 skipped_guest_cycles=341157397
+[   49.4711] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=5283 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.4754] IZPS2_LIMITER_WINDOW phase=gameplay start=5283 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.5123] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=5283 nonpublish_wall_ms=235.242 publish_client_ms=228.479
+[   49.5173] IZPS2_IOP_OFF_WINDOW phase=gameplay start=5283 calls=983690 selected=120 valid=120 sampled_wall_ms=0.080768 timing_available=1
+[   49.5240] IZPS2_FRAME_WINDOW start=5403 vblanks=120 wall_ms=3739.982 nominal_hz=50.000 wall_start_tick=1795269575342776000 accepted_presents=61 gs_register_updates=61 framebuffer_blits=61 vblank_p50_ms=30.238 vblank_p95_ms=37.092 vblank_p99_ms=56.040 vblank_max_ms=64.808
+[   49.5263] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5403 path=execute calls=71542 selected=279 samples=279 sampled_cpu_ms=3.287264 estimated_cpu_ms=842.930
+[   49.5290] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5403 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.5319] IZPS2_SESSION_TIMING phase=gameplay start=5403 wall_ms=3739.980 ee_thread_cpu_ms=3637.106 ee_blocks=710 ee_compile_wall_ms=102.250 jit_calls=1841 jit_bytes=318480 jit_client_ms=51.403
+[   49.5366] IZPS2_EE_POLL_WINDOW phase=gameplay start=5403 skips=662408 skipped_guest_cycles=374407037
+[   49.5413] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=5403 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.5461] IZPS2_LIMITER_WINDOW phase=gameplay start=5403 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.5529] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=5403 nonpublish_wall_ms=52.262 publish_client_ms=49.989
+[   49.5560] IZPS2_IOP_OFF_WINDOW phase=gameplay start=5403 calls=991830 selected=122 valid=122 sampled_wall_ms=0.079744 timing_available=1
+[   49.5594] IZPS2_FRAME_WINDOW start=5523 vblanks=120 wall_ms=3804.095 nominal_hz=50.000 wall_start_tick=1795269579082757696 accepted_presents=60 gs_register_updates=60 framebuffer_blits=60 vblank_p50_ms=30.616 vblank_p95_ms=41.409 vblank_p99_ms=64.279 vblank_max_ms=70.189
+[   49.5628] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5523 path=execute calls=71326 selected=279 samples=279 sampled_cpu_ms=3.275968 estimated_cpu_ms=837.497
+[   49.5667] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5523 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.5710] IZPS2_SESSION_TIMING phase=gameplay start=5523 wall_ms=3804.095 ee_thread_cpu_ms=3692.687 ee_blocks=999 ee_compile_wall_ms=145.503 jit_calls=2443 jit_bytes=558108 jit_client_ms=69.414
+[   49.5758] IZPS2_EE_POLL_WINDOW phase=gameplay start=5523 skips=661783 skipped_guest_cycles=369726866
+[   49.5826] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=5523 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.5856] IZPS2_LIMITER_WINDOW phase=gameplay start=5523 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.5887] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=5523 nonpublish_wall_ms=76.203 publish_client_ms=69.300
+[   49.5923] IZPS2_IOP_OFF_WINDOW phase=gameplay start=5523 calls=993611 selected=121 valid=121 sampled_wall_ms=0.083776 timing_available=1
+[   49.5965] IZPS2_FRAME_WINDOW start=5643 vblanks=120 wall_ms=4598.357 nominal_hz=50.000 wall_start_tick=1795269582886852512 accepted_presents=60 gs_register_updates=60 framebuffer_blits=60 vblank_p50_ms=35.982 vblank_p95_ms=52.465 vblank_p99_ms=112.782 vblank_max_ms=166.989
+[   49.6010] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5643 path=execute calls=77243 selected=302 samples=302 sampled_cpu_ms=3.597984 estimated_cpu_ms=920.262
+[   49.6058] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5643 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.6118] IZPS2_SESSION_TIMING phase=gameplay start=5643 wall_ms=4598.355 ee_thread_cpu_ms=4180.681 ee_blocks=3282 ee_compile_wall_ms=447.356 jit_calls=8582 jit_bytes=1665516 jit_client_ms=228.251
+[   49.6149] IZPS2_EE_POLL_WINDOW phase=gameplay start=5643 skips=680982 skipped_guest_cycles=340092398
+[   49.6183] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=5643 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.6222] IZPS2_LIMITER_WINDOW phase=gameplay start=5643 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.6263] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=5643 nonpublish_wall_ms=230.359 publish_client_ms=216.997
+[   49.6307] IZPS2_IOP_OFF_WINDOW phase=gameplay start=5643 calls=1041014 selected=127 valid=127 sampled_wall_ms=0.083776 timing_available=1
+[   49.6352] IZPS2_FRAME_WINDOW start=5763 vblanks=120 wall_ms=4024.238 nominal_hz=50.000 wall_start_tick=1795269587485209696 accepted_presents=59 gs_register_updates=60 framebuffer_blits=60 vblank_p50_ms=31.303 vblank_p95_ms=43.764 vblank_p99_ms=49.550 vblank_max_ms=86.309
+[   49.6401] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5763 path=execute calls=77757 selected=304 samples=304 sampled_cpu_ms=3.635904 estimated_cpu_ms=929.990
+[   49.6426] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5763 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.6463] IZPS2_SESSION_TIMING phase=gameplay start=5763 wall_ms=4024.238 ee_thread_cpu_ms=3775.709 ee_blocks=1277 ee_compile_wall_ms=193.310 jit_calls=3232 jit_bytes=741428 jit_client_ms=91.531
+[   49.6502] IZPS2_EE_POLL_WINDOW phase=gameplay start=5763 skips=689546 skipped_guest_cycles=372851864
+[   49.6546] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=5763 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.6598] IZPS2_LIMITER_WINDOW phase=gameplay start=5763 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.6674] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=5763 nonpublish_wall_ms=104.280 publish_client_ms=89.031
+[   49.6706] IZPS2_IOP_OFF_WINDOW phase=gameplay start=5763 calls=1021627 selected=124 valid=124 sampled_wall_ms=0.077408 timing_available=1
+[   49.6741] IZPS2_FRAME_WINDOW start=5883 vblanks=120 wall_ms=3811.759 nominal_hz=50.000 wall_start_tick=1795269591509447328 accepted_presents=61 gs_register_updates=60 framebuffer_blits=60 vblank_p50_ms=30.756 vblank_p95_ms=43.328 vblank_p99_ms=48.279 vblank_max_ms=56.422
+[   49.6779] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5883 path=execute calls=66880 selected=261 samples=261 sampled_cpu_ms=3.282592 estimated_cpu_ms=841.148
+[   49.6823] IZPS2_VU1_CPU_WINDOW phase=gameplay start=5883 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.6871] IZPS2_SESSION_TIMING phase=gameplay start=5883 wall_ms=3811.760 ee_thread_cpu_ms=3581.190 ee_blocks=762 ee_compile_wall_ms=132.697 jit_calls=1986 jit_bytes=621316 jit_client_ms=62.544
+[   49.6940] IZPS2_EE_POLL_WINDOW phase=gameplay start=5883 skips=648993 skipped_guest_cycles=377541438
+[   49.6973] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=5883 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.7008] IZPS2_LIMITER_WINDOW phase=gameplay start=5883 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.7049] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=5883 nonpublish_wall_ms=76.027 publish_client_ms=56.670
+[   49.7096] IZPS2_IOP_OFF_WINDOW phase=gameplay start=5883 calls=974743 selected=119 valid=119 sampled_wall_ms=0.069728 timing_available=1
+[   49.7146] IZPS2_FRAME_WINDOW start=6003 vblanks=120 wall_ms=3601.198 nominal_hz=50.000 wall_start_tick=1795269595321206752 accepted_presents=60 gs_register_updates=60 framebuffer_blits=60 vblank_p50_ms=29.980 vblank_p95_ms=34.384 vblank_p99_ms=35.018 vblank_max_ms=35.195
+[   49.7215] IZPS2_VU1_CPU_WINDOW phase=gameplay start=6003 path=execute calls=59135 selected=231 samples=231 sampled_cpu_ms=2.717632 estimated_cpu_ms=695.702
+[   49.7246] IZPS2_VU1_CPU_WINDOW phase=gameplay start=6003 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.7281] IZPS2_SESSION_TIMING phase=gameplay start=6003 wall_ms=3601.198 ee_thread_cpu_ms=3293.330 ee_blocks=273 ee_compile_wall_ms=50.572 jit_calls=749 jit_bytes=130960 jit_client_ms=26.539
+[   49.7319] IZPS2_EE_POLL_WINDOW phase=gameplay start=6003 skips=631814 skipped_guest_cycles=404106301
+[   49.7362] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=6003 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.7416] IZPS2_LIMITER_WINDOW phase=gameplay start=6003 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.7482] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=6003 nonpublish_wall_ms=26.926 publish_client_ms=23.646
+[   49.7510] IZPS2_IOP_OFF_WINDOW phase=gameplay start=6003 calls=940623 selected=115 valid=115 sampled_wall_ms=0.066336 timing_available=1
+[   49.7540] IZPS2_FRAME_WINDOW start=6123 vblanks=120 wall_ms=3631.402 nominal_hz=50.000 wall_start_tick=1795269598922404672 accepted_presents=60 gs_register_updates=60 framebuffer_blits=60 vblank_p50_ms=29.958 vblank_p95_ms=33.751 vblank_p99_ms=41.563 vblank_max_ms=47.540
+[   49.7581] IZPS2_VU1_CPU_WINDOW phase=gameplay start=6123 path=execute calls=52561 selected=205 samples=205 sampled_cpu_ms=2.474560 estimated_cpu_ms=634.465
+[   49.7624] IZPS2_VU1_CPU_WINDOW phase=gameplay start=6123 path=xgkick calls=0 selected=0 samples=0 sampled_cpu_ms=0.000000 estimated_cpu_ms=0.000
+[   49.7689] IZPS2_SESSION_TIMING phase=gameplay start=6123 wall_ms=3631.405 ee_thread_cpu_ms=3250.578 ee_blocks=331 ee_compile_wall_ms=55.885 jit_calls=826 jit_bytes=160232 jit_client_ms=24.870
+[   49.7719] IZPS2_EE_POLL_WINDOW phase=gameplay start=6123 skips=589311 skipped_guest_cycles=384282414
+[   49.7754] IZPS2_QUEUE_WAIT_WINDOW phase=gameplay start=6123 gs_wait_ms=0.000 vu1_wait_ms=0.000
+[   49.7790] IZPS2_LIMITER_WINDOW phase=gameplay start=6123 calls=0 throttle_wall_ms=0.000 first_target_speed=1.000 last_target_speed=1.000 first_host_vsync_pacing=0 last_host_vsync_pacing=0
+[   49.7831] IZPS2_EE_COMPILE_SPLIT phase=gameplay start=6123 nonpublish_wall_ms=31.015 publish_client_ms=24.870
+[   49.7878] IZPS2_IOP_OFF_WINDOW phase=gameplay start=6123 calls=892377 selected=109 valid=109 sampled_wall_ms=0.081728 timing_available=1
+[   49.7949] IZPS2_EE_POLL requested=1 eligible_entries=1 generated_guards=1 skips=6903832 pipeline_precompile=1 ineligible_entries=0 first_reject=none skipped_guest_cycles=3840179502 vu_aot=0 vu_program_cache=1
+[   49.8045] PerfLog session: 1258 frames in 48.5s wall = 25.91 fps average
+[   49.8148] Add 46 seconds play time to SLES-52541 -> now 2768
+[   50.0151] mVUProgCache[1] close: entries=0 ram=0.0MiB read(packs/records/ms/waitMs/missesDuringLoad/capHit/torn/otherFormat)=0/0/1.8/0.0/0/0/0/0 programs(saves/stored/hits/known/misses/missing/rejects)=23/0/0/0/23/0/0 dispatch(probes/avail)=23/0 sidecars(reads/stored/storedKiB/skips)=0/0/0/0 written(flushes/records/KiB/rewrites/failures)=0/0/0/0/0 close(deadlineHit/dropped)=0/0 leftovers(files/KiB)=0/0
+[   50.0198] mVUProgCache[0] close: entries=0 ram=0.0MiB read(packs/records/ms/waitMs/missesDuringLoad/capHit/torn/otherFormat)=0/0/1.5/0.0/0/0/0/0 programs(saves/stored/hits/known/misses/missing/rejects)=1/0/0/0/1/0/0 dispatch(probes/avail)=1/0 sidecars(reads/stored/storedKiB/skips)=0/0/0/0 written(flushes/records/KiB/rewrites/failures)=0/0/0/0/0 close(deadlineHit/dropped)=0/0 leftovers(files/KiB)=0/0
+[   50.0245] Releasing host memory for virtual systems...

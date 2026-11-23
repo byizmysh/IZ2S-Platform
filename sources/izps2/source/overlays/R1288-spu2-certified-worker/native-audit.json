@@ -1,0 +1,61 @@
+{
+  "inheritedArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1286-vu1-redundant-unpack/libpcsx2-hosted.a",
+  "inheritedArchiveSha256": "36128d44895c57436a7b2fbed5a137e3161f231031618a9c408e924b722af85b",
+  "replacement": {
+    "inheritedArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1286-vu1-redundant-unpack/libpcsx2-hosted.a",
+    "reference": "${IZPS2_WORKSPACE}/build/izps2-homebrew/obj-hen-sdk/pcsx2/CMakeFiles/PCSX2.dir/SPU2/spu2.cpp.obj",
+    "oldSha256": "213e018ba5a1c03e4b47fbbf6dcb79f9b6d44cde60cbc7eb6a8009da3089333f",
+    "referenceRelocatedInstructionsMatch": true,
+    "newSha256": "f7422b651230f3835c52b78d92ba104d76d085612ffe772bbf32bcae656d5d70",
+    "replacementSelected": true,
+    "oldArchiveMemberSelected": false
+  },
+  "sdkArchives": [
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a",
+      "sha256": "69a616fd8fd03ad6e80bde9b4824efc50f49c04526d3e264210f361040b738a0",
+      "explicitLinkInput": true,
+      "selectedMemberInMap": false
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a",
+      "sha256": "cc3e3f4698aaa7b2389b9652d536ff855026dc544d00ea318a306fdb8ba8745c",
+      "explicitLinkInput": true,
+      "selectedMemberInMap": true
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a",
+      "sha256": "0189100b17ae3143cca7f1ba0b859cf300090960deeae9f23d046120b7f6285a",
+      "explicitLinkInput": true,
+      "selectedMemberInMap": true
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a",
+      "sha256": "6e2f49c45c0a160ecc93d4a5934e844d109cfec339ce7cb73506af6b8a192fba",
+      "explicitLinkInput": true,
+      "selectedMemberInMap": true
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a",
+      "sha256": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da",
+      "explicitLinkInput": false,
+      "selectedMemberInMap": true
+    }
+  ],
+  "selectedLibounceMembers": [
+    "cache.o",
+    "levent.o",
+    "svc.o"
+  ],
+  "hostedPosixSelectedWrappers": [
+    "__wrap_pthread_create",
+    "__wrap_pthread_join",
+    "__wrap_pthread_cond_init",
+    "__wrap_pthread_cond_wait",
+    "__wrap_pthread_cond_signal",
+    "__wrap_pthread_cond_destroy",
+    "__wrap_pthread_mutex_lock",
+    "__wrap_pthread_mutex_unlock"
+  ],
+  "audioStretchObject": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1214-audio-dsp-space/native_audio_stream.cpp.obj"
+}

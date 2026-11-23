@@ -146,7 +146,7 @@ Local build/ABI tests and FTP file verification do not prove a successful
 Civ7 native boot. That requires a fresh console boot and an on-device launch.
 Already-installed Civ7 saves contain their old payload until `install` updates it.
 RUN25 labels installations without the new save name as needing an update.
-The installed and LDN boot title is `IZ2s 0.3.0 by IZMYSH`; upstream notices
+The installed and LDN boot title is `IZ2s 0.3.1 by IZMYSH`; upstream notices
 and the single-line acknowledgments are retained.
 
 ## License

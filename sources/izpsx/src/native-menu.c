@@ -101,7 +101,7 @@ void ps1_menu_draw(const Ps1Menu *m,const Ps1MenuConfig *c){
  if(!m||!config_valid(c))return;uint32_t*p=c->rgba;ps1_ui_chrome(p,"YOUR PLAYSTATION LIBRARY",c->preferences);uint32_t accent=ps1_ui_accent(c->preferences);
  text(p,24,90,"SD",1,accent,2);const char*path=m->directory;size_t n=strlen(path);if(n>79)path+=n-79;text(p,48,90,path,1,0xffb3a79b,94);
  if(m->error){char code[9];hex(code,m->error);text(p,30,145,m->error_kind==1?"BIOS NOT READY":m->error_kind==2?"GAME NOT READY":"FOLDER UNAVAILABLE",3,0xffb4b8ff,25);text(p,30,190,m->error_kind==1?"Add your own 512 KB bios.bin in the BIOS folder.":m->error_kind==2?"Check the game image and its CUE/BIN track files.":"Check the SD card and try again.",1,0xffd3e1e9,70);text(p,30,218,"ERROR",1,0xffb3a79b,5);text(p,72,218,code,1,0xffb3a79b,8);text(p,30,254,m->error_kind?"A LIBRARY    B BACK":"A RETRY    B BACK",2,accent,40);}
- else if(!m->count){text(p,30,155,"YOUR LIBRARY STARTS HERE",2,0xfff5f2ec,45);text(p,30,199,"ADD BIN/CUE OR PBP TO THE GAMES FOLDER",1,0xffb3a79b,80);text(p,30,225,"SD:/iz2s/modules/IZPSX/GAMES",1,accent,80);}
+ else if(!m->count){text(p,30,155,"YOUR LIBRARY STARTS HERE",2,0xfff5f2ec,45);text(p,30,199,"ADD BIN/CUE OR PBP TO THE GAMES FOLDER",1,0xffb3a79b,80);text(p,30,225,"SD:/iz2s/modules/izpsx/games",1,accent,80);}
  else for(size_t i=m->top;i<m->count&&i<m->top+12;i++){
   unsigned y=114+(unsigned)(i-m->top)*24;int selected=i==m->index;
   if(selected){ps1_ui_rect(p,22,y-5,596,23,0xff493623);ps1_ui_rect(p,22,y-5,3,23,accent);}

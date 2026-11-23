@@ -1,0 +1,90 @@
+/* name, result, parameters, arguments, unavailable result, launcher function */
+#ifndef SB4_POSIX_VOID
+#define SB4_POSIX_VOID(name, params, args) SB4_POSIX(name, void, params, args, (void)0, name)
+#define SB4_POSIX_DEFAULT_VOID
+#endif
+#ifndef SB4_POSIX_MANAGED
+#define SB4_POSIX_MANAGED SB4_POSIX
+#define SB4_POSIX_DEFAULT_MANAGED
+#endif
+#ifndef SB4_POSIX_OPTIONAL
+#define SB4_POSIX_OPTIONAL SB4_POSIX
+#define SB4_POSIX_DEFAULT_OPTIONAL
+#endif
+SB4_POSIX(clock_gettime, int, (clockid_t clock, struct timespec *time), (clock, time), unavailable_errno(), clock_gettime)
+SB4_POSIX(nanosleep, int, (const struct timespec *delay, struct timespec *remaining), (delay, remaining), unavailable_errno(), host_nanosleep)
+SB4_POSIX(pthread_attr_destroy, int, (pthread_attr_t *attr), (attr), ENOSYS, pthread_attr_destroy)
+SB4_POSIX(pthread_attr_init, int, (pthread_attr_t *attr), (attr), ENOSYS, pthread_attr_init)
+SB4_POSIX(pthread_attr_setdetachstate, int, (pthread_attr_t *attr, int state), (attr, state), ENOSYS, pthread_attr_setdetachstate)
+SB4_POSIX(pthread_attr_setstacksize, int, (pthread_attr_t *attr, size_t bytes), (attr, bytes), ENOSYS, pthread_attr_setstacksize)
+SB4_POSIX(pthread_cond_broadcast, int, (pthread_cond_t *cond), (cond), ENOSYS, pthread_cond_broadcast)
+SB4_POSIX(pthread_cond_destroy, int, (pthread_cond_t *cond), (cond), ENOSYS, pthread_cond_destroy)
+SB4_POSIX(pthread_cond_init, int, (pthread_cond_t *cond, const pthread_condattr_t *attr), (cond, attr), ENOSYS, pthread_cond_init)
+SB4_POSIX(pthread_cond_signal, int, (pthread_cond_t *cond), (cond), ENOSYS, pthread_cond_signal)
+SB4_POSIX(pthread_cond_timedwait, int, (pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *deadline), (cond, mutex, deadline), ENOSYS, pthread_cond_timedwait)
+SB4_POSIX(pthread_cond_wait, int, (pthread_cond_t *cond, pthread_mutex_t *mutex), (cond, mutex), ENOSYS, pthread_cond_wait)
+SB4_POSIX(pthread_condattr_init, int, (pthread_condattr_t *attr), (attr), ENOSYS, pthread_condattr_init)
+SB4_POSIX_MANAGED(pthread_create, int, (pthread_t *thread, const pthread_attr_t *attr, void *(*start)(void *), void *arg), (thread, attr, start, arg), ENOSYS, pthread_create)
+SB4_POSIX_MANAGED(pthread_detach, int, (pthread_t thread), (thread), ENOSYS, pthread_detach)
+SB4_POSIX(pthread_equal, int, (pthread_t first, pthread_t second), (first, second), 0, pthread_equal)
+SB4_POSIX(pthread_getspecific, void *, (pthread_key_t key), (key), NULL, pthread_getspecific)
+SB4_POSIX_MANAGED(pthread_join, int, (pthread_t thread, void **result), (thread, result), ENOSYS, pthread_join)
+SB4_POSIX(pthread_key_create, int, (pthread_key_t *key, void (*destroy)(void *)), (key, destroy), ENOSYS, pthread_key_create)
+SB4_POSIX(pthread_key_delete, int, (pthread_key_t key), (key), ENOSYS, pthread_key_delete)
+SB4_POSIX(pthread_mutex_destroy, int, (pthread_mutex_t *mutex), (mutex), ENOSYS, pthread_mutex_destroy)
+SB4_POSIX(pthread_mutex_init, int, (pthread_mutex_t *mutex, const pthread_mutexattr_t *attr), (mutex, attr), ENOSYS, pthread_mutex_init)
+SB4_POSIX(pthread_mutex_lock, int, (pthread_mutex_t *mutex), (mutex), ENOSYS, pthread_mutex_lock)
+SB4_POSIX(pthread_mutex_trylock, int, (pthread_mutex_t *mutex), (mutex), ENOSYS, pthread_mutex_trylock)
+SB4_POSIX(pthread_mutex_unlock, int, (pthread_mutex_t *mutex), (mutex), ENOSYS, pthread_mutex_unlock)
+SB4_POSIX(pthread_mutexattr_init, int, (pthread_mutexattr_t *attr), (attr), ENOSYS, pthread_mutexattr_init)
+SB4_POSIX(pthread_once, int, (pthread_once_t *once, void (*init)(void)), (once, init), ENOSYS, pthread_once)
+SB4_POSIX(pthread_rwlock_rdlock, int, (pthread_rwlock_t *lock), (lock), ENOSYS, pthread_rwlock_rdlock)
+SB4_POSIX(pthread_rwlock_unlock, int, (pthread_rwlock_t *lock), (lock), ENOSYS, pthread_rwlock_unlock)
+SB4_POSIX(pthread_rwlock_wrlock, int, (pthread_rwlock_t *lock), (lock), ENOSYS, pthread_rwlock_wrlock)
+SB4_POSIX(pthread_self, pthread_t, (void), (), (pthread_t)0, pthread_self)
+SB4_POSIX(pthread_setspecific, int, (pthread_key_t key, const void *value), (key, value), ENOSYS, pthread_setspecific)
+SB4_POSIX(sem_destroy, int, (sem_t *sem), (sem), unavailable_errno(), sem_destroy)
+SB4_POSIX(sem_init, int, (sem_t *sem, int shared, unsigned value), (sem, shared, value), unavailable_errno(), sem_init)
+SB4_POSIX(sem_post, int, (sem_t *sem), (sem), unavailable_errno(), sem_post)
+SB4_POSIX(sem_timedwait, int, (sem_t *sem, const struct timespec *deadline), (sem, deadline), unavailable_errno(), sem_timedwait)
+SB4_POSIX(sem_wait, int, (sem_t *sem), (sem), unavailable_errno(), sem_wait)
+SB4_POSIX_OPTIONAL(pthread_attr_getdetachstate, int, (const pthread_attr_t *attr, int *state), (attr, state), ENOSYS, pthread_attr_getdetachstate)
+SB4_POSIX_OPTIONAL(pthread_barrier_destroy, int, (pthread_barrier_t *barrier), (barrier), ENOSYS, pthread_barrier_destroy)
+SB4_POSIX_OPTIONAL(pthread_barrier_init, int, (pthread_barrier_t *barrier, const pthread_barrierattr_t *attr, unsigned count), (barrier, attr, count), ENOSYS, pthread_barrier_init)
+SB4_POSIX_OPTIONAL(pthread_barrier_wait, int, (pthread_barrier_t *barrier), (barrier), ENOSYS, pthread_barrier_wait)
+SB4_POSIX_OPTIONAL(pthread_condattr_destroy, int, (pthread_condattr_t *attr), (attr), ENOSYS, pthread_condattr_destroy)
+SB4_POSIX_OPTIONAL(pthread_condattr_setclock, int, (pthread_condattr_t *attr, clockid_t clock), (attr, clock), ENOSYS, pthread_condattr_setclock)
+SB4_POSIX_OPTIONAL(pthread_mutexattr_destroy, int, (pthread_mutexattr_t *attr), (attr), ENOSYS, pthread_mutexattr_destroy)
+SB4_POSIX_OPTIONAL(pthread_mutexattr_settype, int, (pthread_mutexattr_t *attr, int type), (attr, type), ENOSYS, pthread_mutexattr_settype)
+SB4_POSIX_OPTIONAL(pthread_mutex_timedlock, int, (pthread_mutex_t *mutex, const struct timespec *deadline), (mutex, deadline), ENOSYS, host_pthread_mutex_timedlock)
+SB4_POSIX_OPTIONAL(pthread_rwlock_destroy, int, (pthread_rwlock_t *lock), (lock), ENOSYS, pthread_rwlock_destroy)
+SB4_POSIX_OPTIONAL(pthread_rwlock_init, int, (pthread_rwlock_t *lock, const pthread_rwlockattr_t *attr), (lock, attr), ENOSYS, pthread_rwlock_init)
+SB4_POSIX_OPTIONAL(pthread_rwlock_timedrdlock, int, (pthread_rwlock_t *lock, const struct timespec *deadline), (lock, deadline), ENOSYS, pthread_rwlock_timedrdlock)
+SB4_POSIX_OPTIONAL(pthread_rwlock_timedwrlock, int, (pthread_rwlock_t *lock, const struct timespec *deadline), (lock, deadline), ENOSYS, pthread_rwlock_timedwrlock)
+SB4_POSIX_OPTIONAL(pthread_rwlock_tryrdlock, int, (pthread_rwlock_t *lock), (lock), ENOSYS, pthread_rwlock_tryrdlock)
+SB4_POSIX_OPTIONAL(pthread_rwlock_trywrlock, int, (pthread_rwlock_t *lock), (lock), ENOSYS, pthread_rwlock_trywrlock)
+SB4_POSIX_OPTIONAL(sched_yield, int, (void), (), unavailable_errno(), sched_yield)
+SB4_POSIX_OPTIONAL(sched_getcpu, int, (void), (), unavailable_errno(), sched_getcpu)
+SB4_POSIX_OPTIONAL(clock_nanosleep, int, (clockid_t clock, int flags, const struct timespec *time, struct timespec *remaining), (clock, flags, time, remaining), hosted_clock_sleep(clock, flags, time, remaining), host_clock_nanosleep)
+SB4_POSIX_OPTIONAL(sem_getvalue, int, (sem_t *sem, int *value), (sem, value), unavailable_errno(), sem_getvalue)
+SB4_POSIX_OPTIONAL(sem_trywait, int, (sem_t *sem), (sem), unavailable_errno(), sem_trywait)
+#ifdef __SWITCH2__
+SB4_POSIX(__getreent, struct _reent *, (void), (), _impure_ptr, __getreent)
+SB4_POSIX(_gettimeofday_r, int, (struct _reent *context, struct timeval *time, void *zone), (context, time, zone), unavailable_reentrant(context), _gettimeofday_r)
+SB4_POSIX_VOID(__libc_lock_acquire, (_LOCK_T *lock), (lock))
+SB4_POSIX_VOID(__libc_lock_acquire_recursive, (_LOCK_RECURSIVE_T *lock), (lock))
+SB4_POSIX_VOID(__libc_lock_release, (_LOCK_T *lock), (lock))
+SB4_POSIX_VOID(__libc_lock_release_recursive, (_LOCK_RECURSIVE_T *lock), (lock))
+#endif
+#ifdef SB4_POSIX_DEFAULT_VOID
+#undef SB4_POSIX_DEFAULT_VOID
+#undef SB4_POSIX_VOID
+#endif
+#ifdef SB4_POSIX_DEFAULT_MANAGED
+#undef SB4_POSIX_DEFAULT_MANAGED
+#undef SB4_POSIX_MANAGED
+#endif
+#ifdef SB4_POSIX_DEFAULT_OPTIONAL
+#undef SB4_POSIX_DEFAULT_OPTIONAL
+#undef SB4_POSIX_OPTIONAL
+#endif

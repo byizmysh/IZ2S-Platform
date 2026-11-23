@@ -1,4 +1,4 @@
-# Platform support in 0.3.0
+# Platform support in 0.3.1
 
 | Game / entry point | Linux x64 / ARM64 | Windows x64 |
 | --- | --- | --- |
@@ -16,8 +16,10 @@
 
 The panel is normally at `http://127.0.0.1:39524`; PC Link uses port `39525`. Firewall and local-network reachability still apply. Device discovery can fall back to an explicitly entered address. Pairing is generated through Device setup; no manually obtained keys are required. Windows ARM64 and 32-bit installations are not supported.
 
-Windows 11 virtual-machine checks covered automatic setup, dependency reuse, panel navigation, SB4 listener startup/stop/restart, and authenticated status from Cardputer ADV and Switch 1. They did not complete a full physical-console SB4 session. The Windows SSH client was checked; a connection to a physical ARM host was not tested in this round. The support table describes the available launch routes, not a claim that every hardware configuration has been tested.
+The 0.3.0 Windows 11 virtual-machine checks covered automatic setup, dependency reuse, panel navigation, SB4 listener startup/stop/restart, and authenticated status from Cardputer ADV and Switch 1. They did not complete a full physical-console SB4 session. The Windows SSH client was checked; a connection to a physical ARM host was not tested in this round. The support table describes the available launch routes, not a claim that every hardware configuration has been tested.
 
 The console FTP default is **1425**. Follow the address and port shown by the active console menu when an older runtime is installed. Console runtime changes take effect after reopening the game/menu as directed by the panel.
 
-Six bundled applications are listed in [README.md](README.md#included-applications). Their versions are independent of the Platform version. BIOS, games and existing user sessions are not bundled.
+Seven bundled applications are listed in [README.md](README.md#included-applications). Their versions are independent of the Platform version. BIOS, games and existing user sessions are not bundled.
+
+Version 0.3.1 updates the bundled IZA applications and Civ7 SD archive. Offline packaging, executable hashes and companion bindings are checked; no new physical-console gameplay or full Windows SB4 session is claimed.

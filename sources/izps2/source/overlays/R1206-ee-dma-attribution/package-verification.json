@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1206-ee-dma-attribution/IZPS2-R1206.iza",
+  "bytes": 11426554,
+  "sha256": "8a6bc270a093b6404dd391f2e8a2d8c473f196969f00ddbce6861895afd82f24",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "2042c96edac036118167f0299cdc9e78a0b2b6f00088542a4ca461ec3730e800"
+  },
+  "engine": {
+    "file": "asset-c2eb3563511172e40a87111adb0ce43a05d8c13bd985dbfce40b482e6e15fe59.izdata",
+    "path": "asset-c2eb3563511172e40a87111adb0ce43a05d8c13bd985dbfce40b482e6e15fe59.izdata",
+    "bytes": 28249024,
+    "sha256": "c2eb3563511172e40a87111adb0ce43a05d8c13bd985dbfce40b482e6e15fe59"
+  }
+}

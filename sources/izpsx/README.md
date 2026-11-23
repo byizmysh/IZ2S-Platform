@@ -2,27 +2,35 @@
 
 <p align="center"><img src="assets/brand/izpsx-icon-v1.png" width="120" alt="IZPSX emulator icon"></p>
 
-PlayStation emulation on **Switch 2**, with local ARM64 execution, an SD game library, persistent memory cards and controls for up to four players.
+IZPSX runs PlayStation games on Nintendo Switch 2 through [IZ2S](https://github.com/byizmysh/IZ2S-Platform). It includes an SD game library, persistent memory cards, and controls for up to four players.
 
-**IZPSX works only through [IZ2S Panel / IZ2S Platform](https://github.com/byizmysh/IZ2S-Platform). A working console connection with Filesystem access (FS) enabled and successfully acquired is required to install and use its games, BIOS, settings and saves.** Enable FS before starting the launcher and wait for the panel to confirm access. See the platform's [installation and launch guide](https://github.com/byizmysh/IZ2S-Platform#readme) and [FS troubleshooting FAQ](https://github.com/byizmysh/IZ2S-Platform/blob/main/FAQ.md).
+[Install](#install) · [BIOS and games](#bios-and-games) · [Features](#what-makes-izpsx-useful) · [Screenshots](#screenshots) · [Controls](#controls) · [Files and saves](#storage-and-files) · [Build](BUILDING.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [License](LICENSE)
 
-[Install](#installation) · [Features](#what-makes-izpsx-useful) · [Screenshots](#screenshots) · [Controls](#controls) · [Files and saves](#storage-and-files) · [Build](BUILDING.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md) · [License](LICENSE)
+## Install
 
-## Installation
+### Through IZ2S App library
 
-Install IZPSX separately if it is absent from your IZ2S Platform edition. This release provides **IZPSX 0.5.2** in the `.iza` format for the current IZ2S menu. Native code was rebuilt locally and matched the selected 0.5.2 module byte for byte. No new hardware test or performance gain is claimed.
+1. Download [`izpsx-emulator-0.5.3.iza`](https://github.com/byizmysh/IZPSX-emulator/releases/download/v0.5.3/izpsx-emulator-0.5.3.iza).
+2. In IZ2S, open **App library**, import the `.iza` file, and install it to the Switch 2 SD card. IZ2S installs the emulator in `SD:/iz2s/modules/izpsx/`. The installer includes the launcher, engine, shaders, font, and interface assets.
 
-Install `izpsx-emulator-0.5.2.iza` through the platform App library. For a mounted SD card, extract the complete `iz2s/` directory from `izpsx-emulator-0.5.2-sd.zip` to the card root. The entry must be `SD:/iz2s/modules/izpsx/launcher.iza`; keep its `sd-bundle.json` and every `asset-*.izdata` file beside it. Preserve `games/`, `bios/` and `saves/` when updating.
+### Directly to the SD card
 
-Download the module, SD package or complete corresponding source from [Releases](https://github.com/byizmysh/IZPSX-emulator/releases/latest). Each release includes `SHA256SUMS` for checking downloads.
+1. Download [`izpsx-emulator-0.5.3.zip`](https://github.com/byizmysh/IZPSX-emulator/releases/download/v0.5.3/izpsx-emulator-0.5.3.zip).
+2. Extract the ZIP to the root of the Switch 2 SD card so `iz2s/` sits at the top level. The archive includes the emulator files and empty `bios/`, `games/`, and `saves/` folders under `SD:/iz2s/modules/izpsx/`.
 
-1. Install [IZ2S Platform](https://github.com/byizmysh/IZ2S-Platform/releases/latest) with the current compatible IZ2S menu. Its [README](https://github.com/byizmysh/IZ2S-Platform#readme) explains the SmileBASIC 4 and Civilization VII connection routes. This release targets Linux x64/ARM64 PC hosts.
-2. Enable **Filesystem access** in the panel before launching. Wait until FS access is confirmed; an open browser tab alone does not mean that the console filesystem is available. If acquisition fails, follow the [platform FAQ](https://github.com/byizmysh/IZ2S-Platform/blob/main/FAQ.md) before another attempt.
-3. In **App library**, add `izpsx-emulator-0.5.2.iza`, then choose **Session memory (RAM)** or **SD card**. A second installation is unnecessary if the same content is already present.
-4. Open **IZPSX emulator → Games and BIOS → Connect SD card** in the panel. Provide your own 512 KiB `bios.bin` BIOS and supported game dumps; neither is included.
-5. Disconnect the file view when finished and open the IZPSX emulator tile on the console. **About** identifies whether the app was loaded from RAM or SD.
+Preserve your BIOS, games, memory cards, and settings when updating.
 
-The separate SD ZIP is for an already initialized compatible IZ2S native launcher. Prefer the panel's App library so matching executable/assets, ownership and installation checks remain in force. Do not replace app or game files while the emulator is running.
+## BIOS and games
+
+| File | SD card path |
+| --- | --- |
+| Your own PlayStation BIOS, exactly **512 KiB (524,288 bytes)** | `SD:/iz2s/modules/izpsx/bios/bios.bin` |
+| CUE/BIN or CUE/IMG disc image | `SD:/iz2s/modules/izpsx/games/<game name>/`. Keep the CUE file and its referenced tracks together. |
+| PBP game image | `SD:/iz2s/modules/izpsx/games/<game name>/` |
+
+Open **IZPSX emulator** in IZ2S and select a game.
+
+You can also use **Games and BIOS** in IZ2S when its PC integration is available. Enable filesystem access and connect the SD card before transferring files. [IZ2S setup](https://github.com/byizmysh/IZ2S-Platform#readme) · [Filesystem help](https://github.com/byizmysh/IZ2S-Platform/blob/main/FAQ.md)
 
 ## What makes IZPSX useful
 
@@ -71,19 +79,6 @@ For an individual sideways Joy-Con, +/- is Start and stick click is Select. SL/S
 
 ## Storage and files
 
-## Add your BIOS and games
-
-BIOS and game images are **not included**. Add your own files after installing the emulator. These are paths on the Switch SD card:
-
-| File | Exact destination |
-| --- | --- |
-| PlayStation BIOS, exactly **512 KiB (524,288 bytes)** | `SD:/iz2s/modules/izpsx/bios/bios.bin` |
-| CUE/BIN game | `SD:/iz2s/modules/izpsx/games/<game name>/disc.cue` and its referenced BIN tracks in the same folder |
-| PBP game | `SD:/iz2s/modules/izpsx/games/<game name>/game.pbp` |
-
-Create `bios/` and `games/` if they do not exist. The BIOS filename must be `bios.bin`; keep game filenames and CUE track references consistent. Extract compressed game downloads before copying them. Do not put BIOS or games beside `launcher.iza`. Add them through **Games and BIOS** in the PC panel, FTP, or a mounted SD card. Preserve `bios/`, `games/`, `saves/` and settings when updating the application.
-
-
 ```text
 SD:/iz2s/modules/izpsx/
   launcher.iza
@@ -105,8 +100,8 @@ Missing or empty game files are rejected before core startup. A missing or wrong
 
 ## Source, compatibility and licensing
 
-[src/](src/), [shaders/](shaders/), [server/](server/), the pinned [vendor snapshot](vendor/pcsx_rearmed/) and [ABI profile](abi/sdk-profile.json) accompany the frozen [module](module/). [BUILDING.md](BUILDING.md) describes portable packaging and native rebuilds. Existing SD installations must be updated once for the new public-ABI consumer; games, BIOS and saves remain user data.
+[src/](src/), [shaders/](shaders/), [server/](server/), the pinned [vendor snapshot](vendor/pcsx_rearmed/) and [ABI profile](abi/sdk-profile.json) accompany the frozen [module](module/). [BUILDING.md](BUILDING.md) describes portable packaging and native rebuilds.
 
-The [repository](https://github.com/byizmysh/IZPSX-emulator) and [release downloads](https://github.com/byizmysh/IZPSX-emulator/releases) include the matching native module and corresponding source. Packaging and local model checks do not establish new physical-console, audio, long-session or every-game qualification. See [Compatibility](COMPATIBILITY.md), [FAQ](FAQ.md) and [Changes](CHANGELOG.md).
+The [repository](https://github.com/byizmysh/IZPSX-emulator) and [release downloads](https://github.com/byizmysh/IZPSX-emulator/releases) include the matching native module and corresponding source. See [Compatibility](COMPATIBILITY.md), [FAQ](FAQ.md) and [Changes](CHANGELOG.md).
 
 PCSX-ReARMed and this derivative module are conveyed under GPL-2.0. Upstream notices remain intact. See [LICENSE](LICENSE), [THIRD_PARTY.md](THIRD_PARTY.md), [font license](FONT-LICENSE.txt) and the [upstream project](https://github.com/notaz/pcsx_rearmed). Games, BIOS, keys and personal saves are excluded.

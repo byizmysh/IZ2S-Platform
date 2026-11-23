@@ -35,7 +35,7 @@ async function status(){
 }
 function verifyOwner(value){
  if(value&&value.service?.root!==path.resolve(__dirname,'../../..'))
-  throw Error('PC Link belongs to another installation. Start the 0.3.0 PC Link service.');
+  throw Error('PC Link belongs to another installation. Start the 0.3.1 PC Link service.');
  return value;
 }
 async function ensure(out){

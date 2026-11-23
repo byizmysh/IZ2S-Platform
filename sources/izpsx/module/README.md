@@ -1,4 +1,4 @@
-# IZPSX emulator 0.5.2
+# IZPSX emulator 0.5.3
 
 Install through IZ2S Platform App library or copy the complete SD export. Keep `launcher.iza`, `sd-bundle.json` and its companion assets together in `SD:/iz2s/modules/izpsx/`.
 

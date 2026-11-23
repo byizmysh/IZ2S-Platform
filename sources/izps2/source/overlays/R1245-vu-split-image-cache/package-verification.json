@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1245-vu-split-image-cache/IZPS2-R1245.iza",
+  "bytes": 12043869,
+  "sha256": "e9e3b84a0e1a7abcf71c21dcfa84b299a15a599755ebb6f5ac365e5a6db615e6",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "cbb1d07b836c0aa04a0ab082a1ae5144d11bbe206cee24b63fa98856e105cd41"
+  },
+  "engine": {
+    "file": "asset-97269340709a6a9df7a973a4af4ce88085ce8304efa7f9cf19ef9008425bedae.izdata",
+    "path": "asset-97269340709a6a9df7a973a4af4ce88085ce8304efa7f9cf19ef9008425bedae.izdata",
+    "bytes": 29498816,
+    "sha256": "97269340709a6a9df7a973a4af4ce88085ce8304efa7f9cf19ef9008425bedae"
+  }
+}

@@ -2,8 +2,8 @@
 """Verify and deterministically archive two prepared IZ2S installation trees."""
 from pathlib import Path
 import argparse,gzip,hashlib,json,stat,subprocess,tarfile,zipfile
-EPOCH=1795305600  # 2026-11-22 00:00:00 UTC
-STAMP=(2026,11,22,0,0,0)
+EPOCH=1795478400  # 2026-11-24 00:00:00 UTC
+STAMP=(2026,11,24,0,0,0)
 def digest(file):
  with file.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 def main():

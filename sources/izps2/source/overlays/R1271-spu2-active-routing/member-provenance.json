@@ -1,0 +1,6 @@
+{
+  "baselineArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1270-iop-host-hotspots/libpcsx2-hosted.a",
+  "reproducedFrom": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1270-iop-host-hotspots/Mixer.cpp.obj",
+  "baselineSha256": "2da0ef0e5ba538eed62fbe28afe69570658bb4a8b184375c505e4287657a8aab",
+  "candidateSha256": "0b3478d7120154f31416fbc9df9df5bf5a0036d3cb4c21b19ab8c9ea1db0bd59"
+}

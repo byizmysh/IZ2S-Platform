@@ -1,0 +1,561 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include "GS/Renderers/Common/GSDevice.h"
+
+#ifndef __OBJC__
+	#error "This header is for use with Objective-C++ only.
+#endif
+
+#ifdef __APPLE__
+
+#include "common/HashCombine.h"
+#include "common/MRCHelpers.h"
+#include "common/ReadbackSpinManager.h"
+#include "GS/GS.h"
+#include "GSMTLDeviceInfo.h"
+#include "GSMTLSharedHeader.h"
+#include <TargetConditionals.h>
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+#define PCSX2_MTL_USES_UIVIEW 1
+#include <UIKit/UIKit.h>
+using GSMTLView = UIView;
+#else
+#define PCSX2_MTL_USES_UIVIEW 0
+#include <AppKit/AppKit.h>
+using GSMTLView = NSView;
+#endif
+// MetalFX upscaler: macOS 13+ / iOS 16+, weak-linked on device. Neither the
+// simulator nor the tvOS SDK ships MetalFX headers, so PCSX2_HAS_METALFX is 0
+// there and every MetalFX reference is compiled out; m_features.metalfx_spatial
+// stays false.
+#if TARGET_OS_SIMULATOR || TARGET_OS_TV
+	#define PCSX2_HAS_METALFX 0
+#else
+	#define PCSX2_HAS_METALFX 1
+	#include <MetalFX/MetalFX.h>
+#endif
+#include <Metal/Metal.h>
+#include <QuartzCore/QuartzCore.h>
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
+#include <utility>
+
+struct PipelineSelectorExtrasMTL
+{
+	union
+	{
+		struct
+		{
+			GSTexture::Format rt : 4;
+			u8 writemask : 4;
+			GSDevice::BlendFactor src_factor : 4;
+			GSDevice::BlendFactor dst_factor : 4;
+			GSDevice::BlendFactor src_factor_alpha : 4;
+			GSDevice::BlendFactor dst_factor_alpha : 4;
+			GSDevice::BlendOp     blend_op : 2;
+			bool blend_enable : 1;
+			bool has_depth    : 1;
+			bool has_stencil  : 1;
+			bool has_rt1      : 1;
+		};
+		u32 fullkey;
+	};
+
+	PipelineSelectorExtrasMTL(): fullkey(0) {}
+	PipelineSelectorExtrasMTL(GSHWDrawConfig::BlendState blend, GSTexture* rt, GSHWDrawConfig::ColorMaskSelector cms, bool has_depth, bool has_stencil, bool has_rt1)
+		: fullkey(0)
+	{
+		this->rt = rt ? rt->GetFormat() : GSTexture::Format::Invalid;
+		MTLColorWriteMask mask = MTLColorWriteMaskNone;
+		if (cms.wr) mask |= MTLColorWriteMaskRed;
+		if (cms.wg) mask |= MTLColorWriteMaskGreen;
+		if (cms.wb) mask |= MTLColorWriteMaskBlue;
+		if (cms.wa) mask |= MTLColorWriteMaskAlpha;
+		this->writemask = mask;
+		this->src_factor = static_cast<GSDevice::BlendFactor>(blend.src_factor);
+		this->dst_factor = static_cast<GSDevice::BlendFactor>(blend.dst_factor);
+		this->blend_op = static_cast<GSDevice::BlendOp>(blend.op);
+		this->src_factor_alpha = static_cast<GSDevice::BlendFactor>(blend.src_factor_alpha);
+		this->dst_factor_alpha = static_cast<GSDevice::BlendFactor>(blend.dst_factor_alpha);
+		this->blend_enable = blend.enable;
+		this->has_depth   = has_depth;
+		this->has_stencil = has_stencil;
+		this->has_rt1     = has_rt1;
+	}
+};
+struct PipelineSelectorMTL
+{
+	GSHWDrawConfig::PSSelector ps;
+	PipelineSelectorExtrasMTL extras;
+	GSHWDrawConfig::VSSelector vs;
+	u8 pad[3];
+	PipelineSelectorMTL()
+	{
+		memset(this, 0, sizeof(*this));
+	}
+	PipelineSelectorMTL(GSHWDrawConfig::VSSelector vs, GSHWDrawConfig::PSSelector ps, PipelineSelectorExtrasMTL extras)
+	{
+		memset(this, 0, sizeof(*this));
+		this->vs = vs;
+		this->ps = ps;
+		this->extras = extras;
+	}
+	PipelineSelectorMTL(const PipelineSelectorMTL& other)
+	{
+		memcpy(this, &other, sizeof(other));
+	}
+	PipelineSelectorMTL& operator=(const PipelineSelectorMTL& other)
+	{
+		memcpy(this, &other, sizeof(other));
+		return *this;
+	}
+	bool operator==(const PipelineSelectorMTL& other) const
+	{
+		return BitEqual(*this, other);
+	}
+};
+
+static_assert(sizeof(PipelineSelectorMTL) == 24);
+
+template <>
+struct std::hash<PipelineSelectorMTL>
+{
+	size_t operator()(const PipelineSelectorMTL& sel) const
+	{
+		size_t h = 0;
+		size_t pieces[(sizeof(PipelineSelectorMTL) + sizeof(size_t) - 1) / sizeof(size_t)] = {};
+		memcpy(pieces, &sel, sizeof(PipelineSelectorMTL));
+		for (auto& piece : pieces)
+			HashCombine(h, piece);
+		return h;
+	}
+};
+
+class GSScopedDebugGroupMTL
+{
+	id<MTLCommandBuffer> m_buffer;
+public:
+	GSScopedDebugGroupMTL(id<MTLCommandBuffer> buffer, NSString* name): m_buffer(buffer)
+	{
+		[m_buffer pushDebugGroup:name];
+	}
+	~GSScopedDebugGroupMTL()
+	{
+		[m_buffer popDebugGroup];
+	}
+};
+
+struct ImDrawData;
+class GSTextureMTL;
+
+class GSDeviceMTL final : public GSDevice
+{
+public:
+	using DepthStencilSelector = GSHWDrawConfig::DepthStencilSelector;
+	using SamplerSelector = GSHWDrawConfig::SamplerSelector;
+	enum class UsePresentDrawable : u8
+	{
+		Never = 0,
+		Always = 1,
+		IfVsync = 2,
+	};
+	enum class LoadAction
+	{
+		DontCare,
+		DontCareIfFull,
+		Load,
+	};
+	class UsageTracker
+	{
+		struct UsageEntry
+		{
+			u64 drawno;
+			size_t pos;
+		};
+		std::vector<UsageEntry> m_usage;
+		size_t m_size = 0;
+		size_t m_pos = 0;
+	public:
+		size_t Size() { return m_size; }
+		size_t Pos() { return m_pos; }
+		bool PrepareForAllocation(u64 last_draw, size_t amt);
+		size_t Allocate(u64 current_draw, size_t amt);
+		void Reset(size_t new_size);
+	};
+	struct Map
+	{
+		id<MTLBuffer> gpu_buffer;
+		size_t gpu_offset;
+		void* cpu_buffer;
+	};
+	struct UploadBuffer
+	{
+		UsageTracker usage;
+		MRCOwned<id<MTLBuffer>> mtlbuffer;
+		void* buffer = nullptr;
+	};
+	struct BufferPair
+	{
+		UsageTracker usage;
+		MRCOwned<id<MTLBuffer>> cpubuffer;
+		MRCOwned<id<MTLBuffer>> gpubuffer;
+		void* buffer = nullptr;
+		size_t last_upload = 0;
+	};
+
+	struct ConvertShaderVertex
+	{
+		simd_float2 pos;
+		simd_float2 texpos;
+	};
+
+	struct VSSelector
+	{
+		union
+		{
+			struct
+			{
+				bool iip        : 1;
+				bool fst        : 1;
+				bool point_size : 1;
+				GSShader::VSExpand expand : 3;
+			};
+			u8 key;
+		};
+		VSSelector(): key(0) {}
+		VSSelector(u8 key): key(key) {}
+	};
+
+	using PSSelector = GSHWDrawConfig::PSSelector;
+
+	// MARK: Permanent resources
+	std::shared_ptr<std::pair<std::mutex, GSDeviceMTL*>> m_backref;
+	GSMTLDevice m_dev;
+	MRCOwned<id<MTLCommandQueue>> m_queue;
+	MRCOwned<id<MTLFence>> m_draw_sync_fence;
+	MRCOwned<MTLFunctionConstantValues*> m_fn_constants;
+	MRCOwned<MTLVertexDescriptor*> m_hw_vertex;
+	MTLResourceOptions m_resource_options_shared_wc;
+
+	// Previously in MetalHostDisplay.
+	MRCOwned<GSMTLView*> m_view;
+	MRCOwned<CAMetalLayer*> m_layer;
+	MRCOwned<id<CAMetalDrawable>> m_current_drawable;
+	MRCOwned<MTLRenderPassDescriptor*> m_pass_desc;
+	u32 m_capture_start_frame;
+	UsePresentDrawable m_use_present_drawable;
+	bool m_gpu_timing_enabled = false;
+	double m_accumulated_gpu_time = 0;
+	double m_last_gpu_time_end = 0;
+	std::mutex m_mtx;
+
+	// Draw IDs are used to make sure we're not clobbering things
+	u64 m_current_draw = 1;
+	std::atomic<u64> m_last_finished_draw{0};
+
+	// Spinning
+	ReadbackSpinManager m_spin_manager;
+	u32 m_encoders_in_current_cmdbuf = 0;
+	u32 m_spin_timer = 0;
+	MRCOwned<id<MTLComputePipelineState>> m_spin_pipeline;
+	MRCOwned<id<MTLBuffer>> m_spin_buffer;
+	MRCOwned<id<MTLFence>> m_spin_fence;
+
+	// Functions and Pipeline States
+	MRCOwned<id<MTLComputePipelineState>> m_cas_pipeline[2];
+
+	// MetalFX spatial upscaler. Creating the scaler is expensive, so it's cached and
+	// only rebuilt when the input/output size or format changes (the cache key below).
+	// macOS 13+ / iOS 16+ device, weak-linked. Compiled out on the simulator.
+#if PCSX2_HAS_METALFX
+	API_AVAILABLE(macos(13.0), ios(16.0)) MRCOwned<id<MTLFXSpatialScaler>> m_mfx_spatial;
+	int m_mfx_in_w = 0, m_mfx_in_h = 0, m_mfx_out_w = 0, m_mfx_out_h = 0;
+	MTLPixelFormat m_mfx_in_fmt = MTLPixelFormatInvalid, m_mfx_out_fmt = MTLPixelFormatInvalid;
+#endif
+	std::vector<MRCOwned<id<MTLRenderPipelineState>>> m_convert_pipeline;
+	MRCOwned<id<MTLRenderPipelineState>> m_present_pipeline[static_cast<int>(PresentShader::Count)];
+	MRCOwned<id<MTLRenderPipelineState>> m_merge_pipeline[4];
+	MRCOwned<id<MTLRenderPipelineState>> m_interlace_pipeline[NUM_INTERLACE_SHADERS];
+	MRCOwned<id<MTLRenderPipelineState>> m_datm_pipeline[4];
+	MRCOwned<id<MTLRenderPipelineState>> m_clut_pipeline[2];
+	MRCOwned<id<MTLRenderPipelineState>> m_stencil_clear_pipeline;
+	MRCOwned<id<MTLRenderPipelineState>> m_primid_init_pipeline[2][4];
+	MRCOwned<id<MTLRenderPipelineState>> m_colclip_init_pipeline;
+	MRCOwned<id<MTLRenderPipelineState>> m_colclip_clear_pipeline;
+	MRCOwned<id<MTLRenderPipelineState>> m_colclip_resolve_pipeline;
+	MRCOwned<id<MTLRenderPipelineState>> m_fxaa_pipeline;
+	MRCOwned<id<MTLRenderPipelineState>> m_shadeboost_pipeline;
+	MRCOwned<id<MTLRenderPipelineState>> m_imgui_pipeline;
+
+	id<MTLRenderPipelineState> GetConvertPipeline(ShaderConvertSelector shader) const
+	{
+		return m_convert_pipeline[shader.Index()];
+	}
+
+	id<MTLRenderPipelineState> GetConvertPipeline(ShaderConvert shader) const
+	{
+		return m_convert_pipeline[ShaderConvertSelector(shader).Index()];
+	}
+
+	MRCOwned<id<MTLFunction>> m_hw_vs[6 << 3];
+	std::unordered_map<PSSelector, MRCOwned<id<MTLFunction>>> m_hw_ps;
+	std::unordered_map<PipelineSelectorMTL, MRCOwned<id<MTLRenderPipelineState>>> m_hw_pipeline;
+
+	MRCOwned<MTLRenderPassDescriptor*> m_render_pass_desc[16];
+	MRCOwned<MTLRenderPassDescriptor*> m_full_rov_render_pass_desc;
+
+	MRCOwned<id<MTLSamplerState>> m_sampler_hw[1 << 8];
+
+	MRCOwned<id<MTLDepthStencilState>> m_dss_stencil_zero;
+	MRCOwned<id<MTLDepthStencilState>> m_dss_stencil_write;
+	MRCOwned<id<MTLDepthStencilState>> m_dss_hw[1 << 5];
+
+	MRCOwned<id<MTLBuffer>> m_expand_index_buffer;
+	UploadBuffer m_texture_upload_buf;
+	BufferPair m_vertex_upload_buf;
+
+	// MARK: Ephemeral resources
+	MRCOwned<id<MTLCommandBuffer>> m_current_render_cmdbuf;
+	u32 m_skipped_present_frames_since_submit = 0;
+	u64 m_deferred_submit_started = 0;
+	struct MainRenderEncoder
+	{
+		MRCOwned<id<MTLRenderCommandEncoder>> encoder;
+		GSTexture* color_target = nullptr;
+		GSTexture* depth_target = nullptr;
+		GSTexture* stencil_target = nullptr;
+		GSTexture* tex[GSMTLTextureIndexCount] = {};
+		id<MTLBuffer> vertex_buffer = nullptr;
+		id<MTLBuffer> vs_index_buffer = nullptr;
+		void* name = nullptr;
+		struct Has
+		{
+			bool cb_vs        : 1;
+			bool cb_ps        : 1;
+			bool scissor      : 1;
+			bool blend_color  : 1;
+			bool pipeline_sel : 1;
+			bool sampler      : 1;
+			bool rt1_depth    : 1;
+		} has = {};
+		DepthStencilSelector depth_sel = DepthStencilSelector::NoDepth();
+		// Clear line (Things below here are tracked by `has` and don't need to be cleared to reset)
+		SamplerSelector sampler_sel;
+		u8 blend_color;
+		struct { u32 w, h; } full_rov_size;
+		GSVector4i scissor;
+		PipelineSelectorMTL pipeline_sel;
+		GSHWDrawConfig::VSConstantBuffer cb_vs;
+		GSHWDrawConfig::PSConstantBuffer cb_ps;
+		MainRenderEncoder(const MainRenderEncoder&) = delete;
+		MainRenderEncoder() = default;
+		bool is_full_rov() const { return encoder && !color_target && !depth_target && !stencil_target; }
+	} m_current_render;
+	MRCOwned<id<MTLCommandBuffer>> m_texture_upload_cmdbuf;
+	MRCOwned<id<MTLBlitCommandEncoder>> m_texture_upload_encoder;
+	MRCOwned<id<MTLBlitCommandEncoder>> m_late_texture_upload_encoder;
+	MRCOwned<id<MTLCommandBuffer>> m_vertex_upload_cmdbuf;
+	MRCOwned<id<MTLBlitCommandEncoder>> m_vertex_upload_encoder;
+	id<MTLTexture> m_ds_as_rt_texture = nil;
+	GSTexture* m_ds_as_rt_gstexture = nullptr;
+	MRCOwned<id<MTLTexture>> m_rov_dummy_texture;
+	struct { u32 w, h; } m_rov_dummy_texture_size = {};
+
+	struct DebugEntry
+	{
+		enum Op { Push, Insert, Pop } op;
+		MRCOwned<NSString*> str;
+		DebugEntry(Op op, MRCOwned<NSString*> str): op(op), str(std::move(str)) {}
+	};
+
+	std::vector<DebugEntry> m_debug_entries;
+	u32 m_debug_group_level = 0;
+
+	GSDeviceMTL();
+	~GSDeviceMTL() override;
+
+	/// Allocate space in the given buffer
+	Map Allocate(UploadBuffer& buffer, size_t amt);
+	/// Allocate space in the given buffer for use with the given render command encoder
+	Map Allocate(BufferPair& buffer, size_t amt);
+	/// Enqueue upload of any outstanding data
+	void Sync(BufferPair& buffer);
+	/// Get the texture upload encoder, creating a new one if it doesn't exist
+	id<MTLBlitCommandEncoder> GetTextureUploadEncoder();
+	/// Get the late texture upload encoder, creating a new one if it doesn't exist
+	id<MTLBlitCommandEncoder> GetLateTextureUploadEncoder();
+	/// Get the vertex upload encoder, creating a new one if it doesn't exist
+	id<MTLBlitCommandEncoder> GetVertexUploadEncoder();
+	/// Get the render command buffer, creating a new one if it doesn't exist
+	id<MTLCommandBuffer> GetRenderCmdBuf();
+	/// Get the render command buffer, will not create a new one if it doesn't exist.
+	id<MTLCommandBuffer> GetRenderCmdBufWithoutCreate();
+	/// Get the spin fence if spinning is enabled.
+	id<MTLFence> GetSpinFence();
+	/// Get the texture to use as RT1 depth for the given depth texture
+	id<MTLTexture> GetRT1DepthTexture(GSTextureMTL* depth);
+	/// Called by command buffers when they finish
+	void DrawCommandBufferFinished(u64 draw, id<MTLCommandBuffer> buffer);
+	/// Flush pending operations from all encoders to the GPU
+	void FlushEncoders();
+	/// Flush pending operations and spins the GPU for a download.
+	void FlushEncodersForReadback();
+	/// End current render pass without flushing
+	void EndRenderPass();
+	/// Prepare to begin a new render pass
+	void PrepareBeginRenderPass();
+	/// Begin a new render pass (may reuse existing)
+	void BeginRenderPass(NSString* name, GSTexture* color, MTLLoadAction color_load, GSTexture* depth, MTLLoadAction depth_load, GSTexture* stencil = nullptr, MTLLoadAction stencil_load = MTLLoadActionDontCare, bool rt1 = false);
+	/// Begin a new full-ROV render pass (may reuse existing)
+	void BeginFullROV(NSString* name, uint32_t width, uint32_t height);
+	/// Call at the end of each frame
+	void FrameCompleted();
+
+	GSTexture* CreateSurface(GSTexture::Usage usage, int width, int height, int levels, GSTexture::Format format) override;
+
+	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const MergeTopBand* top_band, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const Filter filter) override;
+	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, Filter filter, const InterlaceConstantBuffer& cb) override;
+	void DoFXAA(GSTexture* sTex, GSTexture* dTex) override;
+	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) override;
+	bool DoApplyShaderChain(GSTexture* sTex, GSTexture* dTex) override;
+
+	/// librashader filter chain state. The handle is void* so plain C++ can include this header,
+	/// since librashader's Metal declarations only compile as Objective-C. Creating a chain
+	/// compiles every pass, so it is rebuilt only for a new preset path or after a retry.
+	void* m_shader_chain = nullptr;
+	std::string m_shader_chain_preset;
+	bool m_shader_chain_failed = false;
+	u64 m_shader_chain_retry = 0;
+	size_t m_shader_frame_count = 0;
+	u64 m_shader_param_generation = 0;
+	void DestroyShaderChain();
+	void ReleaseShaderChain() override { DestroyShaderChain(); }
+	void ApplyShaderChainParams();
+
+	bool DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants) override;
+
+	/// (Re)builds m_mfx_spatial when the src/dst size or format changes. Returns false on failure.
+	/// On simulator builds (PCSX2_HAS_METALFX=0) this is a no-op stub returning false.
+#if PCSX2_HAS_METALFX
+	API_AVAILABLE(macos(13.0), ios(16.0)) bool EnsureMetalFXSpatial(GSTexture* sTex, GSTexture* dTex);
+#else
+	bool EnsureMetalFXSpatial(GSTexture* sTex, GSTexture* dTex);
+#endif
+	bool DoMetalFXSpatial(GSTexture* sTex, GSTexture* dTex) override;
+
+	MRCOwned<id<MTLFunction>> LoadShader(NSString* name);
+	MRCOwned<id<MTLRenderPipelineState>> MakePipeline(MTLRenderPipelineDescriptor* desc, id<MTLFunction> vertex, id<MTLFunction> fragment, NSString* name);
+	MRCOwned<id<MTLComputePipelineState>> MakeComputePipeline(id<MTLFunction> compute, NSString* name);
+	bool Create(GSVSyncMode vsync_mode, bool allow_present_throttle) override;
+	void Destroy() override;
+
+	void AttachSurfaceOnMainThread();
+	void DetachSurfaceOnMainThread();
+
+	RenderAPI GetRenderAPI() const override;
+	bool HasSurface() const override;
+	void DestroySurface() override;
+	bool UpdateWindow() override;
+	bool SupportsExclusiveFullscreen() const override;
+	std::string GetDriverInfo() const override;
+
+	void ResizeWindow(u32 new_window_width, u32 new_window_height, float new_window_scale) override;
+
+	void UpdateTexture(id<MTLTexture> texture, u32 x, u32 y, u32 width, u32 height, const void* data, u32 data_stride);
+
+	PresentResult DoBeginPresent(bool frame_skip) override;
+	void EndPresent() override;
+	void SetVSyncMode(GSVSyncMode mode, bool allow_present_throttle) override;
+
+	bool SetGPUTimingEnabled(bool enabled) override;
+	float GetAndResetAccumulatedGPUTime() override;
+	void AccumulateCommandBufferTime(id<MTLCommandBuffer> buffer);
+
+	bool SetGPUPipelineStatisticsEnabled(bool enabled) override { return false; }
+	GPUPipelineStatistics GetAndResetAccumulatedGPUPipelineStatistics() override { return {}; }
+
+	std::unique_ptr<GSDownloadTexture> CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format) override;
+
+	void ClearSamplerCache() override;
+
+	void DoCopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY) override;
+	void BeginStretchRect(NSString* name, GSTexture* dTex, MTLLoadAction action);
+	void DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, id<MTLRenderPipelineState> pipeline, std::optional<Filter> filter, LoadAction load_action, const void* frag_uniform, size_t frag_uniform_len);
+	void DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect, const GSVector2& ds);
+	/// Copy from a position in sTex to the same position in the currently active render encoder using the given fs pipeline and rect
+	void RenderCopy(GSTexture* sTex, id<MTLRenderPipelineState> pipeline, const GSVector4i& rect);
+	void PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, PresentShader shader, float shaderTime, Filter filter) override;
+	void DoDrawMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvertSelector shader) override;
+	void DoUpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize) override;
+	void DoConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM) override;
+	void DoFilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i& clamp_min, const GSVector4& dRect) override;
+	void DoBeginDSAsRT(GSTexture* ds, const GSVector4i& drawarea) override;
+
+	void FlushClears(GSTexture* tex);
+
+	// MARK: Main Render Encoder operations
+	void MRESetHWPipelineState(GSHWDrawConfig::VSSelector vs, GSHWDrawConfig::PSSelector ps, GSHWDrawConfig::BlendState blend, GSHWDrawConfig::ColorMaskSelector cms);
+	void MRESetDSS(DepthStencilSelector sel);
+	void MRESetDSS(id<MTLDepthStencilState> dss);
+	void MRESetSampler(SamplerSelector sel);
+	void MRESetTexture(GSTexture* tex, int pos);
+	void MRESetTexture(id<MTLTexture> tex, int pos);
+	void MRESetVertices(id<MTLBuffer> buffer, size_t offset);
+	void MRESetVSIndices(id<MTLBuffer> buffer, size_t offset);
+	void MRESetScissor(const GSVector4i& scissor);
+	void MREClearScissor();
+	void MRESetCB(const GSHWDrawConfig::VSConstantBuffer& cb_vs);
+	void MRESetCB(const GSHWDrawConfig::PSConstantBuffer& cb_ps);
+	void MRESetBlendColor(u8 blend_color);
+	void MRESetPipeline(id<MTLRenderPipelineState> pipe);
+	void MREInitHWDraw(GSHWDrawConfig& config, const Map& verts);
+
+	// MARK: Render HW
+
+	void SetupDestinationAlpha(GSTexture* rt, GSTexture* ds, const GSVector4i& r, SetDATM datm);
+	void PrepareROVTexture(GSTexture** ptex);
+	void DoRenderHW(GSHWDrawConfig& config) override;
+	void SendHWDraw(GSHWDrawConfig& config, id<MTLRenderCommandEncoder> enc, id<MTLBuffer> buffer, size_t off,
+		bool one_barrier, bool full_barrier);
+
+	// MARK: Debug
+
+	void PushDebugGroup(const char* fmt, ...) override;
+	void PopDebugGroup() override;
+	void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) override;
+	void ProcessDebugEntry(id<MTLCommandEncoder> enc, const DebugEntry& entry);
+	void FlushDebugEntries(id<MTLCommandEncoder> enc);
+	void EndDebugGroup(id<MTLCommandEncoder> enc);
+
+	// MARK: ImGui
+
+	void RenderImGui(ImDrawData* data);
+	u32 FrameNo() const { return m_frame; }
+
+protected:
+	using GSDevice::DoStretchRect; // Suppress overloaded virtual function warning
+	virtual void DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
+		ShaderConvertSelector shader, Filter filter) override;
+};
+
+static constexpr bool IsCommandBufferCompleted(MTLCommandBufferStatus status)
+{
+	switch (status)
+	{
+		case MTLCommandBufferStatusNotEnqueued:
+		case MTLCommandBufferStatusEnqueued:
+		case MTLCommandBufferStatusCommitted:
+		case MTLCommandBufferStatusScheduled:
+			return false;
+		case MTLCommandBufferStatusCompleted:
+		case MTLCommandBufferStatusError:
+			return true;
+	}
+}
+
+#endif // __APPLE__

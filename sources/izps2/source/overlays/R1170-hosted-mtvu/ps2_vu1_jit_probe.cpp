@@ -1,0 +1,117 @@
+#include "ps2_sb4_session.h"
+#include "ps2_jit_worker_scratch.h"
+#include <sb4/jit-cache.h>
+extern "C" {
+#include <switch/kernel/thread.h>
+#include <switch/kernel/svc.h>
+}
+#include <atomic>
+#include <bit>
+#include <cstdio>
+#include <cstring>
+#include <memory>
+#include <new>
+
+extern "C" void izps2_boot_stage(IzNativeApp*, const char*, uint32_t);
+
+namespace {
+struct Vu1JitProbe {
+    const Sb4JitCacheApi* api;
+    size_t bytes;
+    Ps2JitWorkerScratch borrowed;
+    Thread worker{};
+    Sb4JitCache arena{};
+    std::atomic<bool> finished{false};
+    uint32_t opened = 0;
+    uint32_t published = 0;
+    uint32_t closed = 0;
+    bool qualified = false;
+    uint32_t core = 0;
+};
+
+void qualify_vu1_jit(void* context)
+{
+    auto& probe = *static_cast<Vu1JitProbe*>(context);
+    probe.core = svcGetCurrentProcessorNumber();
+    const bool shared = probe.borrowed.arena != nullptr;
+    if (!shared)
+        probe.opened = probe.api->open(&probe.arena, probe.bytes);
+    const auto& arena = shared ? *probe.borrowed.arena : probe.arena;
+    if (!probe.opened && arena.owner && arena.rw && arena.rx && arena.rw != arena.rx) {
+        using ReturnConstant = uint32_t (*)();
+        constexpr uint32_t mov_23 = 0x528002e0;
+        constexpr uint32_t function[] = {0xd503245f, 0x52800220, 0xd65f03c0}; // BTI c, MOV W0,#17, RET
+        const size_t offset = shared ? probe.borrowed.offset : probe.bytes - 64;
+        auto code = reinterpret_cast<ReturnConstant>(arena.rx + offset);
+        std::memcpy(arena.rw + offset, function, sizeof(function));
+        probe.published = probe.api->publish(&arena, offset, sizeof(function));
+        if (!probe.published && code() == 17) {
+            std::memcpy(arena.rw + offset + sizeof(uint32_t), &mov_23, sizeof(mov_23));
+            probe.published = probe.api->publish(&arena, offset + sizeof(uint32_t), sizeof(mov_23));
+            probe.qualified = !probe.published && code() == 23;
+        }
+    }
+    if (!shared && arena.owner)
+        probe.closed = probe.api->close(&probe.arena);
+    probe.finished.store(true, std::memory_order_release);
+}
+
+} // namespace
+
+bool probe_vu1_jit(Ps2Sb4Worker* worker, const Sb4JitCacheApi* api, size_t bytes, Ps2JitWorkerScratch scratch, bool* cross_core)
+{
+    if (cross_core)
+        *cross_core = false;
+    const auto* compat = sb4ModuleCompat(worker->app);
+    if (!compat || !api || !api->open || !api->publish || !api->close)
+        return true;
+    const auto create = reinterpret_cast<decltype(&threadCreate)>(compat->resolve_c("threadCreate"));
+    const auto start = reinterpret_cast<decltype(&threadStart)>(compat->resolve_c("threadStart"));
+    const auto close = reinterpret_cast<decltype(&threadClose)>(compat->resolve_c("threadClose"));
+    if (!create || !start || !close)
+        return true;
+    auto probe = std::unique_ptr<Vu1JitProbe>(new (std::nothrow) Vu1JitProbe{api, bytes, scratch});
+    if (!probe)
+        return true;
+    constexpr char begin[] = "20 VU1 JIT worker probe begin\n";
+    izps2_boot_stage(nullptr, begin, sizeof(begin) - 1);
+    const uint32_t ee_core = svcGetCurrentProcessorNumber();
+    u64 allowed = 0;
+    int worker_core = -2;
+    if (!svcGetInfo(&allowed, InfoType_CoreMask, CUR_PROCESS_HANDLE, 0)) {
+        // threadCreate's pinned libounce header documents core IDs 0 through 3.
+        uint32_t other = static_cast<uint32_t>(allowed) & 0xf;
+        if (ee_core < 4)
+            other &= ~(1u << ee_core);
+        if (other)
+            worker_core = std::countr_zero(other);
+    }
+    Result created = create(&probe->worker, qualify_vu1_jit, probe.get(), nullptr, 256 * 1024, 0x3b, worker_core);
+    const bool launch_attempted = created == 0 && probe->worker.handle;
+    Result started = launch_attempted ? start(&probe->worker) : 0;
+    const bool ran = launch_attempted && started == 0;
+    Result waited = ran ? svcWaitSynchronizationSingle(probe->worker.handle, 4000000000ULL) : 0;
+    const bool finished = ran && !waited && probe->finished.load(std::memory_order_acquire);
+    const bool unknown_create = (created != 0) == (probe->worker.handle != 0);
+    Result closed = !created && probe->worker.handle && (!ran || finished) ? close(&probe->worker) : 0;
+    const bool retained = unknown_create || (ran && !finished) || closed || (finished && probe->arena.owner);
+    char result[320];
+    const int length = std::snprintf(result, sizeof(result),
+        "20 VU1 JIT worker shared=%u create=0x%x start=0x%x wait=0x%x open=0x%x publish=0x%x close_arena=0x%x "
+        "close_thread=0x%x executed=%u retained=%u ee_core=%u worker_core=%d\n",
+        unsigned(scratch.arena != nullptr), created, started, waited,
+        finished ? probe->opened : 0, finished ? probe->published : 0, finished ? probe->closed : 0,
+        closed, unsigned(finished && probe->qualified), unsigned(retained), ee_core,
+        finished ? static_cast<int>(probe->core) : -1);
+    if (length > 0 && static_cast<size_t>(length) < sizeof(result))
+        izps2_boot_stage(nullptr, result, static_cast<uint32_t>(length));
+    if (cross_core && !retained && finished)
+        *cross_core = probe->qualified && probe->core != ee_core;
+    if (retained) {
+        worker->platform_retained = 1;
+        if (scratch.arena)
+            iz_retain_jit_worker_scratch();
+        probe.release(); // SDK or worker still owns the object and its mappings.
+    }
+    return !retained;
+}

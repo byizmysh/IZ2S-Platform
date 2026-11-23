@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1319-nfs-burst/IZPS2-R1319.iza",
+  "bytes": 12092613,
+  "sha256": "4d741b0816da0e92b5605d93d0de6fdbef818ec950a112066af785b2d825a9b4",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "875375ac82fe0d8f4fefadaa3d147974289073ef9d03cc22ac491a3ff2eaa617"
+  },
+  "engine": {
+    "file": "asset-f7d97f46615fa9771ef32f71b26e5b8c0aaf16a54063f8a72e11712e8736d165.izdata",
+    "path": "asset-f7d97f46615fa9771ef32f71b26e5b8c0aaf16a54063f8a72e11712e8736d165.izdata",
+    "bytes": 29860704,
+    "sha256": "f7d97f46615fa9771ef32f71b26e5b8c0aaf16a54063f8a72e11712e8736d165"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "sources": {
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/console-cache/iz2s__modules__izps2__saves__armsx2__cache__gs_packs__SLES-52541_B440A8FE__vk_spirv_0dcf4d00.pack": {
+      "sha256": "bf1a6f8abf798cd688851e5dd9909df4eecf14e8e1b794a6cca4a7eb0958d243",
+      "records": 120,
+      "live": 120
+    },
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/console-cache/iz2s__modules__izps2__saves__armsx2__cache__gs_packs_____vk_spirv_0dcf4d00.pack": {
+      "sha256": "ae7ec27271128d9b5e917589ba5982b7f4b3534c1741754d20df74e184eca22f",
+      "records": 75,
+      "live": 75
+    }
+  },
+  "compilerStamp": "0dcf4d0017f71a97c45267e6153abdc4",
+  "records": 190,
+  "stages": {
+    "0": 12,
+    "1": 178
+  },
+  "bytes": 521988,
+  "sha256": "9c5e91f01ee905208f199c89691c90e65a2a8d2557a5d27f3beb827343d2159d",
+  "validatedTarget": "vulkan1.0"
+}

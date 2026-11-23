@@ -1,4 +1,4 @@
-IZ2S Platform 0.3.0 — Windows x64
+IZ2S Platform 0.3.1 — Windows x64
 
 1. Extract the entire ZIP into a new folder.
 2. Double-click Start.cmd (Install.cmd is an alias).

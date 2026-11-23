@@ -5,8 +5,8 @@
   "id": "iz2s-cheese",
   "installationDirectory": "iz2s-cheese",
   "name": "IZ2S Cheese",
-  "version": "0.8.1",
-  "moduleVersion": "0.8.1",
+  "version": "0.8.7",
+  "moduleVersion": "0.8.7",
   "author": "IZMYSH",
   "platforms": [
     "linux-x64",
@@ -29,7 +29,7 @@
       "switch/iza/assets/icon.png",
       "switch/iza/assets/state.bin",
       "switch/iza/assets/data.bin",
-      "switch/iza/asset-53ab0dd7f21f951f3673fa4e5c152f6a93f31179533676655a7f684caa17080a.izdata"
+      "switch/iza/asset-f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426.izdata"
     ]
   },
   "dependencies": [],

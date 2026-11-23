@@ -1,0 +1,8 @@
+/dist/
+/build/
+__pycache__/
+*.p2s
+*.iso
+*.chd
+*.pem
+*.key

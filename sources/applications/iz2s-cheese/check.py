@@ -15,21 +15,25 @@ output = Path(sys.argv[1])
 check_iza, check_nro = (value == '1' for value in sys.argv[2:])
 
 if check_iza:
-    entry = 'iz2s/modules/iz2s-cheese/launcher.iza'
-    with ZipFile(output / 'iz2s-cheese-iza-sd.zip') as archive:
-        bundle = json.loads(archive.read('iz2s/modules/iz2s-cheese/sd-bundle.json'))
+    prefix = 'iz2s/modules/iz2s-cheese/'
+    with ZipFile(output / 'iz2s-cheese-iza-sd.zip') as archive, \
+            ZipFile(output / 'iz2s-cheese-install.iza') as installer:
+        bundle = json.loads(archive.read(prefix + 'sd-bundle.json'))
         companions = bundle['assets']
         assert len(companions) == 1
-        assert set(archive.namelist()) == {entry, 'iz2s/modules/iz2s-cheese/sd-bundle.json',
-            *('iz2s/modules/iz2s-cheese/' + item['file'] for item in companions)}
+        members = {'launcher.iza', 'sd-bundle.json', *(item['file'] for item in companions)}
+        assert sorted(archive.namelist()) == sorted(prefix + name for name in members)
+        assert sorted(installer.namelist()) == sorted(members)
+        for name in members:
+            assert installer.read(name) == archive.read(prefix + name)
         for item in companions:
-            engine = archive.read('iz2s/modules/iz2s-cheese/' + item['file'])
+            engine = installer.read(item['file'])
             assert len(engine) == item['bytes'] and hashlib.sha256(engine).hexdigest() == item['sha256']
             assert engine.startswith(b'IZNATRL1')
             assert b'sb4IZ2SCheeseEvent' not in engine
             assert b'sb4NativeServicesVersion' not in engine
             assert b'sslConnectionDoHandshake' in engine and b'swkbdShow' in engine
-        iza = archive.read(entry)
+        iza = installer.read('launcher.iza')
         assert bundle['launcher']['sha256'] == hashlib.sha256(iza).hexdigest()
         assert b'sb4IZ2SCheeseEvent' not in iza
         assert b'sb4NativeServicesVersion' not in iza
@@ -52,7 +56,7 @@ if check_nro:
     assert nro[aset:aset+4] == b'ASET'
     fs, size = struct.unpack_from('<2Q', nro, aset+40)
     romfs = nro[aset+fs:aset+fs+size]
-    assert size and b'font.bin' in romfs
+    assert size and b'font.bin' in romfs and b'brand.rgba' in romfs
     assert all(name not in romfs for name in (b'catalog.tsv', b'sources.json', b'payloads', b'IZSTORE2'))
 
 with TemporaryDirectory(prefix='iz-store-check-') as directory:
@@ -71,8 +75,11 @@ bool __wrap_catalog_download(const char *url, uint64_t limit, DownloadSink sink,
     fprintf(requests, "%s\n", url);
     fclose(requests);
     const char *name = strrchr(url, '/');
-    FILE *file = fopen(getenv(name && !strcmp(name, "/artwork.bin") ?
-                             "IZ_STORE_TEST_ARTWORK_PACK" : "IZ_STORE_TEST_CATALOG"), "rb");
+    bool artwork = name && !strcmp(name, "/artwork.bin");
+    const char *variable = strstr(url, "/second-feed/") ?
+        (artwork ? "IZ_STORE_TEST_SECOND_ARTWORK" : "IZ_STORE_TEST_SECOND_CATALOG") :
+        (artwork ? "IZ_STORE_TEST_ARTWORK_PACK" : "IZ_STORE_TEST_CATALOG");
+    FILE *file = fopen(getenv(variable), "rb");
     if (!file) {
         snprintf(out, DOWNLOAD_MESSAGE, "Test source is offline.");
         return false;
@@ -117,8 +124,11 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
 }
 ''')
     url = 'https://raw.githubusercontent.com/example/store-feed/main/catalog.tsv'
+    second_url = 'https://raw.githubusercontent.com/example/second-feed/main/catalog.tsv'
     source = work / 'feed.tsv'
     artwork = work / 'artwork.bin'
+    second_source = work / 'second.tsv'
+    second_artwork = work / 'second-artwork.bin'
     requests = work / 'requests.txt'
     external = os.environ.get('IZ_STORE_CHECK_CATALOG')
     initial = Path(external).read_text() if external else (
@@ -176,6 +186,8 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
             result = subprocess.run([binary, sd, *args], capture_output=True, text=True,
                                     env={**os.environ, 'IZ_STORE_TEST_CATALOG': str(source),
                                          'IZ_STORE_TEST_ARTWORK_PACK': str(artwork),
+                                         'IZ_STORE_TEST_SECOND_CATALOG': str(second_source),
+                                         'IZ_STORE_TEST_SECOND_ARTWORK': str(second_artwork),
                                          'IZ_STORE_TEST_REQUESTS': str(requests),
                                          'IZ_STORE_TEST_RELEASE': str(release)})
             assert result.returncode == code, (args, result.stdout, result.stderr)
@@ -185,21 +197,13 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         artwork.write_bytes(image_pack)
         assert not run('list')
         assert not (sd / 'iz2s').exists()
-        legacy = sd / 'iz2s/iz2s-cheese'
-        legacy.mkdir(parents=True)
-        (legacy / 'settings.txt').write_text(url + '\nonline\n')
-        (legacy / 'remote.tsv').write_text(url + '\n' + initial)
-        assert [line.split('\t')[0] for line in run('list').splitlines()] == app_ids
         assert f'{len(app_ids)} online entries, 1 thumbnail.' in run('fetch-list', url)
-        cache = sd / 'iz2s/modules/iz2s-cheese/remote.tsv'
+        cache_key = digest(url.encode())
+        cache = sd / f'iz2s/iz2s-cheese/catalog-{cache_key}.tsv'
         assert cache.read_text() == url + '\n' + initial
-        assert (cache.parent / 'settings.txt').read_text() == url + '\nonline\n'
-        for file in legacy.iterdir():
-            file.unlink()
-        legacy.rmdir()
         assert [line.split('\t')[0] for line in run('list').splitlines()] == app_ids
         assert run('artwork').strip() == '1'
-        artwork_cache = cache.with_name('remote-artwork.bin')
+        artwork_cache = cache.with_name(f'artwork-{cache_key}.bin')
         assert artwork_cache.read_bytes() == url.encode() + b'\n' + image_pack
         artwork.write_bytes(image_pack[:-1])
         assert 'No new thumbnails' in run('fetch-list', url)
@@ -209,10 +213,11 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         assert 'Invalid list' in run('fetch-list', url, code=1)
         assert cache.read_text() == url + '\n' + initial
         assert len(run('list').splitlines()) == len(app_ids)
-        assert 'Enter a catalog URL' in run('fetch-list', '', code=1)
+        assert 'enable a source' in run('fetch-list', '', code=1)
         assert not run('list')
         assert run('artwork').strip() == '0'
         (cache.parent / 'catalog.tsv').write_text(initial)
+        (cache.parent / 'settings.txt').write_text('IZCATALOGS3\nsd-on\n')
         assert len(run('list').splitlines()) == len(app_ids)
         cache.unlink()
         artwork_cache.unlink()
@@ -265,7 +270,64 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         assert 'Test source is offline' in run('refresh', code=1)
         assert [line.split('\t')[0] for line in run('list').splitlines()] == updated_ids
         assert run('artwork').strip() == '2'
-        active = sd / 'iz2s/modules/iz2s-cheese/catalog'
+
+        source.write_text(updated_feed)
+        artwork.write_bytes(updated_art)
+        second_ids = [first_id, 'second-only']
+        second_source.write_text(updated_feed.replace('refresh-added', 'second-only').replace('99.0', '98.0'))
+        second_artwork.write_bytes(b'IZART1\n\x02' + b''.join(
+            id.encode().ljust(48, b'\0') + b'\xa7' * (96 * 96 * 4) for id in second_ids))
+        settings_file = cache.with_name('settings.txt')
+        settings_file.write_text(f'IZCATALOGS1\nonline\n1\t{url}\n1\t{second_url}\n')
+        requests.write_text('')
+        assert '3 apps from 2/2 catalogs' in run('refresh')
+        assert requests.read_text().splitlines() == [
+            url, url.rsplit('/', 1)[0] + '/artwork.bin', second_url, second_url.rsplit('/', 1)[0] + '/artwork.bin']
+        merged = [line.split('\t') for line in run('list').splitlines()]
+        assert [(line[0], line[-1]) for line in merged] == [(first_id, '99.0'), ('refresh-added', '99.0'), ('second-only', '98.0')]
+        assert run('artwork').strip() == '3'
+        second_source.unlink()
+        assert 'Available caches were kept' in run('refresh', code=1)
+        assert 'second-only' in run('list')
+        settings_file.write_text(f'IZCATALOGS1\nonline\n1\t{url}\n0\t{second_url}\n')
+        requests.write_text('')
+        assert '2 online entries' in run('refresh')
+        assert second_url not in requests.read_text()
+        assert 'second-only' not in run('list') and run('artwork').strip() == '2'
+        settings_file.write_text(f'IZCATALOGS1\nonline\n0\t{url}\n0\t{second_url}\n')
+        requests.write_text('')
+        assert not run('refresh').strip()
+        assert requests.read_text() == '' and not run('list')
+
+        # A redirect is discovered at launch even with a valid cache.
+        original_settings = f'IZCATALOGS1\nonline\n1\t{url}\n0\t{second_url}\n'
+        settings_file.write_text(original_settings)
+        for redirect, diagnostic in (
+            (f'IZREDIRECT1\t{url}\n', 'redirect loop'),
+            ('IZREDIRECT1\thttp://192.168.1.10/feed.tsv\n', 'same origin'),
+            (f'IZREDIRECT1\t{second_url}\nextra\n', 'same origin'),
+            (f'IZREDIRECT1\t{second_url}\n', 'Test source is offline'),
+        ):
+            source.write_text(redirect)
+            assert diagnostic in run('open-catalogs', code=1)
+            assert settings_file.read_text() == original_settings
+            assert [line.split('\t')[0] for line in run('list').splitlines()] == updated_ids
+
+        community = 'https://raw.githubusercontent.com/dadadush/switch2-homebrew-catalog/main/catalog/catalog-new.tsv'
+        settings_file.write_text(f'IZCATALOGS1\nonline\n1\t{community}\n0\t{second_url}\n')
+        second_source.write_text(updated_feed.replace('refresh-added', 'second-only'))
+        requests.write_text('')
+        assert 'Catalog address updated' in run('open-catalogs')
+        assert requests.read_text().splitlines()[:2] == [community, second_url]
+        assert settings_file.read_text() == f'IZCATALOGS3\nsd-off\n3\t{second_url}\n'
+        assert 'second-only' in run('list') and 'refresh-added' not in run('list')
+        requests.write_text('')
+        run('open-catalogs')
+        assert requests.read_text().splitlines()[0] == second_url and community not in requests.read_text()
+        source.write_text(updated_feed)
+        settings_file.write_text(f'IZCATALOGS1\nonline\n1\t{url}\n0\t{second_url}\n')
+
+        active = sd / ('switch/iz2s-cheese/catalog' if standalone else 'iz2s/modules/iz2s-cheese/catalog')
         active.mkdir(parents=True)
         local_id = 'sd-fixture'
         local = ('IZSTORE2\napp\tsd-fixture\tnro\t1.0\tSD App\tExample\tTools\tTest.\n'
@@ -273,16 +335,23 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         (active / 'catalog.tsv').write_text(local)
         (active / 'artwork.bin').write_bytes(b'IZART1\n\x01' + local_id.encode().ljust(48, b'\0') + b'\xfe' * (96 * 96 * 4))
         assert local_id not in run('list')
-        (cache.parent / 'settings.txt').write_text(url + '\nsd\n')
+        settings_file.write_text(f'IZCATALOGS2\nsd\n1\t{url}\n0\t{second_url}\n')
         assert [line.split('\t')[0] for line in run('list').splitlines()] == [local_id]
-        assert not legacy.exists()
         assert run('artwork').strip() == '1'
         requests.write_text('')
-        assert not run('refresh').strip()
+        assert 'SD catalog reloaded' in run('refresh')
         assert requests.read_text() == ''
         assert [line.split('\t')[0] for line in run('list').splitlines()] == [local_id]
+        settings_file.write_text(f'IZCATALOGS3\nsd-on\n1\t{url}\n0\t{second_url}\n')
+        assert '3 apps from 2/2 catalogs' in run('refresh')
+        assert [line.split('\t')[0] for line in run('list').splitlines()] == [*updated_ids, local_id]
+        assert run('artwork').strip() == '3'
+        (active / 'catalog.tsv').write_text('invalid\n')
+        assert 'Some sources could not be refreshed' in run('refresh', code=1)
+        assert [line.split('\t')[0] for line in run('list').splitlines()] == updated_ids
+        (active / 'catalog.tsv').write_text(local)
+        settings_file.write_text(f'IZCATALOGS3\nsd-on\n0\t{url}\n0\t{second_url}\n')
         install_root = sd / ('switch' if standalone else 'iz2s/modules')
-        install_root.mkdir(exist_ok=True)
         jpeg = BytesIO()
         Image.new('RGB', (32, 32), (255, 0, 0)).save(jpeg, format='JPEG')
         image = jpeg.getvalue()
@@ -305,7 +374,7 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         assert '2 online entries' in run('fetch-list', url)
         assert [line.split('\t')[0] for line in run('list').splitlines()] == ['test-nro', 'feed-iza']
         if standalone:
-            assert 'IZA apps require IZ2S' in run('raw-install', 'feed-iza', code=1)
+            assert not run('raw-install', 'feed-iza', code=2)
             assert not (install_root / 'feed-iza').exists()
             continue
         assert 'Installed 1.0' in run('raw-install', 'feed-iza')
@@ -342,4 +411,4 @@ bool __wrap_github_download(const char *url, uint64_t size, DownloadSink sink, v
         assert not launcher.exists() and not list(app_dir.glob('*.izdata'))
 
 
-print('Verified startup caching, Y/Refresh downloads, fresh artwork, offline/invalid-feed recovery, SD-only refresh, mixed feeds and online IZA install, update and rollback.')
+print('Verified catalog migration on startup, redirect fallback, legacy source settings, mixed SD/online lists, thumbnails, per-source disable and online IZA install/rollback.')

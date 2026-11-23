@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1281-spu2-reverb-neon-key/IZPS2-R1281.iza",
+  "bytes": 12068209,
+  "sha256": "b8dda18e91945782a89339f1710415735084c45bce3111f3b9e5ae89ad2bde28",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "4d93547e4536b79f2374a6b363d72558a5bc4e1af937eeae0f8f3be9477cbcf0"
+  },
+  "engine": {
+    "file": "asset-0d54c84dc0d187f3183042055cc91221727342eafeceb6c0889cb2299241119c.izdata",
+    "path": "asset-0d54c84dc0d187f3183042055cc91221727342eafeceb6c0889cb2299241119c.izdata",
+    "bytes": 29574632,
+    "sha256": "0d54c84dc0d187f3183042055cc91221727342eafeceb6c0889cb2299241119c"
+  }
+}

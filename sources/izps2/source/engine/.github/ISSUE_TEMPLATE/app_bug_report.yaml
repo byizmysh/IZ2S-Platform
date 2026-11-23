@@ -1,0 +1,69 @@
+# Docs - https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+name: App Problem
+description: A problem with the app itself, not a game (menus, settings, controls, files).
+labels: [bug]
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Need help with setup? Ask on [Discord](https://discord.gg/AkJgEgETMn).
+        One problem per report.
+
+  - type: textarea
+    id: desc
+    attributes:
+      label: What happens?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps
+      placeholder: |
+        1. Open Settings
+        2. Tap Controls
+        3. App closes
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: System
+      options:
+        - Android
+        - iPhone / iPad
+        - Mac
+        - Windows
+        - Linux
+        - ROCKNIX / Batocera / other handheld OS
+        - RetroArch
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: "Retroid Pocket 5"
+    validations:
+      required: true
+
+  - type: input
+    id: rev
+    attributes:
+      label: ARMSX2 version
+      description: Please try the newest version first.
+      placeholder: "2.8 or nightly-20261004"
+    validations:
+      required: true
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Screenshot, video or log
+      description: If the app crashed, add emulog.txt if you can.
+    validations:
+      required: false

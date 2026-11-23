@@ -1,0 +1,5935 @@
+#include "gta-vu-cache-policy.h"
+#include "native_iop_contract.h"
+#include "EeWriteShadow.h"
+#include "native_iop_vm_startup_private.h"
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#include "Achievements.h"
+#include "Arcade/AcGameFile.h"
+#include "Autosave.h"
+#include "BuildVersion.h"
+#include "CDVD/CDVD.h"
+#include "CDVD/IsoReader.h"
+#include "Counters.h"
+#include "DEV9/DEV9.h"
+#include "DebugTools/DebugInterface.h"
+#include "DebugTools/SymbolImporter.h"
+#include "Elfheader.h"
+#include "EECycleRate.h"
+#include "EECycleRateSampler.h"
+#include "FW.h"
+#include "GS.h"
+#include "GS/Renderers/Common/GSBackThreadPolicy.h"
+#include "GS/Renderers/HW/GSTextureReplacements.h"
+#include "AutoTune/AutoTuneApplier.h"
+#include "GSDumpReplayer.h"
+#include "GameDatabase.h"
+#include "GameList.h"
+#include "Host.h"
+#include "INISettingsInterface.h"
+#include "ImGui/FullscreenUI.h"
+#include "ImGui/ImGuiOverlays.h"
+#include "Input/InputManager.h"
+#include "IopBios.h"
+#include "IopThread/IopPlacement.h"
+#include "IopThread/IopThreadVm.h"
+#include "MTGS.h"
+#include "MTVU.h"
+#include "ps2_mtvu_lifecycle_private.h"
+#include "PINE.h"
+#include "Patch.h"
+#include "PerformanceMetrics.h"
+#include "PerGameOverrides.h"
+#include "R3000A.h"
+#include "R5900.h"
+#include "Recording/InputRecording.h"
+#include "Recording/InputRecordingControls.h"
+#include "SIO/Memcard/MemoryCardFile.h"
+#include "SIO/Pad/Pad.h"
+#include "SIO/Sio.h"
+#include "SIO/Sio0.h"
+#include "SIO/Sio2.h"
+#include "SPU2/spu2.h"
+#include "SupportURLs.h"
+#include "USB/USB.h"
+#include "Vif_Dynarec.h"
+#include "VMManager.h"
+#ifdef __SWITCH2__
+#include "ps2_sb4_vm_fs.h"
+#endif
+#include "ps2/BiosTools.h"
+#include "DEV9/ACATA.h"
+#include "DEV9/ACATAPI.h"
+#include "DEV9/ACCORE.h"
+#include "DEV9/ACJV.h"
+#include "DEV9/ACRAM.h"
+#include "DEV9/ACSRAM.h"
+
+#include "common/ARCADE.h"
+#include "common/Console.h"
+#include "common/Error.h"
+#include "common/FileSystem.h"
+#include "common/FPControl.h"
+#include "common/HostSys.h"
+#include "common/Perf.h"
+#include "common/ScopedGuard.h"
+#include "common/SettingsWrapper.h"
+#include "common/SmallString.h"
+#include "common/StringUtil.h"
+#include "common/Threading.h"
+#include "common/Timer.h"
+#include "common/emitter/x86emitter.h"
+
+#include "IconsFontAwesome.h"
+#include "IconsPromptFont.h"
+#include "cpuinfo.h"
+#include "discord_rpc.h"
+#include "fmt/format.h"
+
+#include <atomic>
+#include <bit>
+#include <mutex>
+#include <sstream>
+#include <common/RedtapeWilCom.h>
+
+#if defined(__linux__)
+// Performance-core selection: std::popcount/max_element for the mask, and plain POSIX I/O
+// for the sysfs capacity nodes (they report st_size == 0, so buffered reads come back empty).
+#include <algorithm>
+#include <bit>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
+#ifdef _WIN32
+#include "common/RedtapeWindows.h"
+#include <objbase.h>
+#include <timeapi.h>
+#include <powrprof.h>
+#include <wil/com.h>
+#include <dxgi.h>
+#endif
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#include "common/Darwin/DarwinMisc.h"
+#endif
+
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+extern "C" void ARMSX2_PostEmulationOnlyStartupReady(void);
+#endif
+
+namespace VMManager
+{
+	static void SetDefaultLoggingSettings(SettingsInterface& si);
+	static void UpdateLoggingSettings(SettingsInterface& si);
+
+	static void LogCPUCapabilities();
+	static void InitializeCPUProviders();
+	static void ShutdownCPUProviders();
+	static void UpdateCPUImplementations();
+	static void ClampRuntimeConfigToAvailableCPUProviders();
+
+	static void ApplyGameFixes();
+	static bool UpdateGameSettingsLayer();
+	static void CheckForConfigChanges(const Pcsx2Config& old_config);
+	static void CheckForCPUConfigChanges(const Pcsx2Config& old_config);
+	static void CheckForGSConfigChanges(const Pcsx2Config& old_config);
+	static void CheckForEmulationSpeedConfigChanges(const Pcsx2Config& old_config);
+	static void CheckForPatchConfigChanges(const Pcsx2Config& old_config);
+	static void CheckForDEV9ConfigChanges(const Pcsx2Config& old_config);
+	static void CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config);
+	static void CheckForMiscConfigChanges(const Pcsx2Config& old_config);
+	static void EnforceAchievementsChallengeModeSettings();
+	static void LogUnsafeSettingsToConsole(const std::string& messages);
+	static void WarnAboutUnsafeSettings();
+
+	static bool AutoDetectSource(const std::string& filename, Error* error = nullptr);
+	static bool OpenArcadeGame(const VMBootParameters& boot_params, Error* error);
+	static void CloseArcadeGame();
+	static void ApplyArcadeSessionSettings(SettingsInterface& si);
+	static u32 GetCRCForPatches();
+	static void UpdateDiscDetails(bool booting);
+	static void ClearDiscDetails();
+	static void HandleELFChange(bool verbose_patches_if_changed);
+	static void UpdateELFInfo(std::string elf_path);
+	static void ClearELFInfo();
+	static void ReportGameChangeToHost();
+	static bool HasBootedELF();
+	static bool HasValidOrInitializingVM();
+	static void PrecacheCDVDFile();
+
+	static std::string GetCurrentSaveStateFileName(s32 slot, bool backup = false);
+	static bool DoLoadState(const char* filename, Error* error = nullptr);
+	static void DoSaveState(const char* filename, s32 slot_for_message, bool zip_on_thread, bool backup_old_state, std::function<void(const std::string&)> error_callback);
+	static bool ZipSaveState(std::unique_ptr<ArchiveEntryList> elist,
+		std::unique_ptr<SaveStateScreenshotData> screenshot, const char* filename,
+		s32 slot_for_message, std::function<void(const std::string&)> error_callback, bool keep_scoped_backup = false);
+	static void ZipSaveStateOnThread(std::unique_ptr<ArchiveEntryList> elist,
+		std::unique_ptr<SaveStateScreenshotData> screenshot, std::string filename,
+		s32 slot_for_message, std::function<void(const std::string&)> error_callback);
+
+	static void LoadSettings();
+	static void LoadCoreSettings(SettingsInterface& si);
+	static void ApplyCoreSettings();
+	static void LoadInputBindings(SettingsInterface& si, std::unique_lock<std::mutex>& lock);
+	static bool HasAnyBindingsForPad(const SettingsInterface& si, u32 port);
+	static void WarnAboutUnconfiguredController();
+	static void UpdateInhibitScreensaver(bool allow);
+	static void AccumulateSessionPlaytime();
+	static void ResetResumeTimestamp();
+	static void SaveSessionTime(const std::string& prev_serial);
+	static void ReloadPINE();
+
+	static float GetTargetSpeedForLimiterMode(LimiterModeType mode);
+	static void ResetFrameLimiter();
+
+	static void SetTimerResolutionIncreased(bool enabled);
+	static void SetHardwareDependentDefaultSettings(SettingsInterface& si);
+	static void EnsureCPUInfoInitialized();
+	static void SetEmuThreadAffinities();
+
+	static void InitializeDiscordPresence();
+	static void ShutdownDiscordPresence();
+	static void PollDiscordPresence();
+} // namespace VMManager
+
+static constexpr u32 SETTINGS_VERSION = 1;
+
+static std::unique_ptr<INISettingsInterface> s_game_settings_interface;
+static std::unique_ptr<INISettingsInterface> s_input_settings_interface;
+
+static bool s_log_block_system_console = false;
+static bool s_log_force_file_log = false;
+
+static std::atomic<VMState> s_state{VMState::Shutdown};
+static std::atomic_bool s_emulation_only_mode{false};
+static std::atomic<u32> s_emulation_only_release_flags{VMManager::EMULATION_ONLY_RELEASE_ALL};
+static std::atomic_bool s_boot_patches_applied{false};
+static std::atomic_bool s_texture_replacement_startup_complete{false};
+static std::atomic_bool s_emulation_only_startup_notification_posted{false};
+static bool s_cpu_implementation_changed = false;
+static bool s_cpu_providers_initialized = false;
+static Threading::ThreadHandle s_vm_thread_handle;
+
+static bool ArePatchesDisabledByEmulationOnlyMode()
+{
+	return s_emulation_only_mode.load(std::memory_order_acquire) &&
+		(s_emulation_only_release_flags.load(std::memory_order_acquire) & VMManager::EMULATION_ONLY_RELEASE_PATCHES) != 0;
+}
+
+static std::deque<std::thread> s_save_state_threads;
+static std::mutex s_save_state_threads_mutex;
+
+static std::recursive_mutex s_info_mutex;
+static std::string s_disc_serial;
+static std::string s_disc_elf;
+static std::string s_disc_version;
+static std::string s_title;
+static std::string s_title_en_search;
+static std::string s_title_en_replace;
+static std::string s_cur_region;
+static u32 s_disc_crc;
+static u32 s_current_crc;
+static u32 s_elf_entry_point = 0xFFFFFFFFu;
+static std::string s_elf_path;
+static std::pair<u32, u32> s_elf_text_range;
+static bool s_elf_executed = false;
+static std::string s_elf_override;
+static std::string s_game_settings_override;
+
+// Namco System 246/256 arcade boards (PCSX2x6, see common/ARCADE.h): what the running arcade game's .acgame
+// set up, for OpenArcadeGame() and the settings reloads of its session.
+std::atomic<bool> Arcade::s_session{false};
+std::string ArcadeiLinkID;
+static std::string s_arcade_gameid;
+static std::string s_arcade_title;
+static std::string s_arcade_dongle; // memory card file in slot 1: the game's security dongle
+static std::string s_arcade_card;   // memory card file in slot 2, empty for none
+static std::string s_arcade_bios;   // the BIOS (in the BIOS folder) the game runs on, empty to search at boot
+static std::string s_input_profile_name;
+static u32 s_frame_advance_count = 0;
+static bool s_fast_boot_requested = false;
+static bool s_gs_open_on_initialize = false;
+static bool s_thread_affinities_set = false;
+// Cluster mask covering wherever the EE/VU/GS threads were just placed, published for helper
+// threads that want to sit alongside them (the Oboe audio callback). Atomic because that
+// callback is a real-time thread and must not walk cpuinfo itself; 0 means "affinity is off",
+// which is also the correct answer whenever placement failed or was cleared.
+static std::atomic<u64> s_perf_cluster_mask{0};
+// The IOP thread that SetEmuThreadAffinities last placed (IopThread::PlacementToken()). A different value means a
+// thread that has not been placed has started, or the one that was placed has stopped.
+static u32 s_iop_placement_token = 0;
+
+static LimiterModeType s_limiter_mode = LimiterModeType::Nominal;
+static s64 s_limiter_ticks_per_frame = 0;
+static u64 s_limiter_frame_start = 0;
+static float s_target_speed = 0.0f;
+static bool s_target_speed_can_sync_to_host = false;
+static bool s_target_speed_synced_to_host = false;
+static bool s_use_vsync_for_timing = false;
+
+#ifndef PS2_NATIVE_END_ONLY_LIMITER
+#define PS2_NATIVE_END_ONLY_LIMITER 0
+#endif
+
+#ifdef IZPS2_SWITCH2_FRAME_END_PACING
+// Configured on the VM owner before the game starts.
+static bool s_frame_end_pacing = PS2_NATIVE_END_ONLY_LIMITER != 0;
+
+void izConfigureFrameEndPacing(bool enabled)
+{
+	s_frame_end_pacing = enabled;
+}
+#else
+static constexpr bool s_frame_end_pacing = PS2_NATIVE_END_ONLY_LIMITER != 0;
+#endif
+
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+// CPU owner only. Diagnostics never authorize cleanup or change a deadline.
+static struct NativeLimiterWaitTiming
+{
+ u64 calls, waitEntries, sleepPathCalls, spinOnlyCalls, zeroWaitEntries;
+ u64 earlyPhaseCalls, endPhaseCalls, skippedEarlyPhase;
+ u64 skippedUnlimited, skippedVsync, overrunReturns, qualifiedWaits;
+ u64 totalTicks, maxTicks, clockRegressions, sumOverflows, tickHz;
+ s64 lastTicksPerFrame;
+ float lastTargetSpeed;
+ u32 lastLimiterMode, summaryEmitted;
+} s_native_limiter_wait;
+static void NativeLimiterWaitReset()
+{
+ s_native_limiter_wait = {};
+ s_native_limiter_wait.tickHz = GetTickFrequency();
+}
+static void NativeLimiterWaitRecord(u64 begin, u64 end, bool requested_wait)
+{
+ auto& s = s_native_limiter_wait;
+ if (!requested_wait) { ++s.zeroWaitEntries; return; }
+ if (s.tickHz != 31250000ULL) return;
+ if (end < begin) { ++s.clockRegressions; return; }
+ const u64 ticks = end - begin;
+ if (ticks > (~u64(0)) - s.totalTicks) { ++s.sumOverflows; return; }
+ ++s.qualifiedWaits; s.totalTicks += ticks;
+ if (ticks > s.maxTicks) s.maxTicks = ticks;
+}
+static void NativeLimiterWaitSummary()
+{
+ auto& s = s_native_limiter_wait;
+ if (s.summaryEmitted++) return;
+ const u64 end_tick_hz = GetTickFrequency();
+ const bool qualified = s.tickHz == 31250000ULL && end_tick_hz == s.tickHz && !s.clockRegressions && !s.sumOverflows;
+ Console.WriteLn("PS2_LIMITER_WAIT_TIMING diagnosticOnly=1 ownershipAuthority=0 source=qualified-GetCPUTicks scope=actual-Throttle-Sleep-and-ShortSpin qualified=%u tickHz=%llu endTickHz=%llu calls=%llu earlyPhaseCalls=%llu endPhaseCalls=%llu skippedEarlyPhase=%llu endOnlyLimiter=%u waitEntries=%llu sleepPathCalls=%llu spinOnlyCalls=%llu zeroWaitEntries=%llu skippedUnlimited=%llu skippedVsync=%llu overrunReturns=%llu qualifiedWaits=%llu totalTicks=%llu maximumTicks=%llu clockRegressions=%llu sumOverflows=%llu lastLimiterMode=%u lastTargetSpeed=%.9g lastTicksPerFrame=%lld extraClockReadsPerWaitEntry=1 endClockReadReused=1",
+  unsigned(qualified), (unsigned long long)s.tickHz, (unsigned long long)end_tick_hz, (unsigned long long)s.calls,
+  (unsigned long long)s.earlyPhaseCalls, (unsigned long long)s.endPhaseCalls, (unsigned long long)s.skippedEarlyPhase,
+  unsigned(s_frame_end_pacing), (unsigned long long)s.waitEntries, (unsigned long long)s.sleepPathCalls, (unsigned long long)s.spinOnlyCalls,
+  (unsigned long long)s.zeroWaitEntries, (unsigned long long)s.skippedUnlimited, (unsigned long long)s.skippedVsync,
+  (unsigned long long)s.overrunReturns, (unsigned long long)s.qualifiedWaits,
+  (unsigned long long)s.totalTicks, (unsigned long long)s.maxTicks, (unsigned long long)s.clockRegressions,
+  (unsigned long long)s.sumOverflows, s.lastLimiterMode, double(s.lastTargetSpeed), (long long)s.lastTicksPerFrame);
+}
+#endif
+
+
+// Used to track play time. We use a monotonic timer here, in case of clock changes.
+static u64 s_session_resume_timestamp = 0;
+static u64 s_session_accumulated_playtime = 0;
+
+static bool s_screensaver_inhibited = false;
+
+static bool s_discord_presence_active = false;
+static time_t s_discord_presence_time_epoch;
+static const char* s_discord_presence_app_id = "1458595419499139094";
+static const char* s_discord_presence_large_image_key = "4k-pcsx2";
+static const char* s_discord_presence_large_image_text = "PCSX2 PS2 Emulator";
+
+// Making GSDumpReplayer.h dependent on R5900.h is a no-no, since the GS uses it.
+extern R5900cpu GSDumpReplayerCpu;
+
+bool VMManager::PerformEarlyHardwareChecks(const char** error)
+{
+#define COMMON_DOWNLOAD_MESSAGE "ARMSX2 builds can be downloaded from https://armsx2.net/"
+
+#if defined(ARCH_X86)
+	// On Windows, this gets called as a global object constructor, before any of our objects are constructed.
+	// So, we have to put it on the stack instead.
+	cpuinfo_initialize();
+
+	if (!cpuinfo_has_x86_sse4_1())
+	{
+		*error =
+			"PCSX2 requires the Streaming SIMD 4.1 Extensions instruction set, which your CPU does not support.\n\n"
+			"SSE4.1 is now a minimum requirement for PCSX2. You should either upgrade your CPU, or use an older build "
+			"such as 1.6.0.\n\n" COMMON_DOWNLOAD_MESSAGE;
+		return false;
+	}
+
+#if _M_SSE >= 0x0501
+	if (!cpuinfo_has_x86_avx2())
+	{
+		*error = "This build of PCSX2 requires the Advanced Vector Extensions 2 instruction set, which your CPU does "
+				 "not support.\n\n"
+				 "You should download and run the SSE4.1 build of PCSX2 instead, or upgrade to a CPU that supports "
+				 "AVX2 to use this build.\n\n" COMMON_DOWNLOAD_MESSAGE;
+		return false;
+	}
+#endif
+#elif defined(ARCH_ARM64)
+	// Check page size. If it doesn't match, it is a fatal error.
+	const size_t runtime_host_page_size = HostSys::GetRuntimePageSize();
+	if (__pagesize != runtime_host_page_size)
+	{
+		*error = "Page size mismatch. This build cannot run on your system.\n\n" COMMON_DOWNLOAD_MESSAGE;
+		return false;
+	}
+#endif
+
+#undef COMMON_DOWNLOAD_MESSAGE
+	return true;
+}
+
+VMState VMManager::GetState()
+{
+	return s_state.load(std::memory_order_acquire);
+}
+
+#ifdef PCSX2_RECOMPILER_TESTS
+void VMManager::Internal::SetStateForTests(VMState state)
+{
+	s_state.store(state, std::memory_order_release);
+}
+#endif
+
+void VMManager::AccumulateSessionPlaytime()
+{
+	s_session_accumulated_playtime += static_cast<u64>(Common::Timer::GetCurrentValue()) - s_session_resume_timestamp;
+}
+
+#if PS2_NATIVE_IOP_THREADED
+extern "C" uint32_t ps2_exit_requested;
+// CPU-owner-only failure latch. No mode demotion or ownership admission is
+// derived from it; failed Thread::Start has already joined its real worker.
+static uint32_t s_native_iop_vm_failure_reason;
+extern "C" uint32_t ps2_native_iop_vm_failure_reason(void)
+{
+    return s_native_iop_vm_failure_reason;
+}
+
+static bool NativeIopStartFailed()
+{
+    if (IopThread::GetMode() == IopThreadMode::Off || IopThread::g_thread.IsRunning())
+        return false;
+    const uint32_t reason = ps2_native_iop_startup_result();
+    s_native_iop_vm_failure_reason = reason ? reason : UINT32_C(0xfffffff1);
+    return true;
+}
+
+static void NativeIopRequestCleanStop(const char* phase)
+{
+    Console.Error("Native IOP registration failed during %s (reason 0x%08x).", phase, s_native_iop_vm_failure_reason);
+    Host::ReportErrorAsync("The game could not continue", "A required emulator worker could not start. The game has been stopped.");
+    // Reuse the existing cooperative no-save exit request. The session reads
+    // the separate reason latch and records a failure, never a user R3 exit.
+    __atomic_store_n(&ps2_exit_requested, 1u, __ATOMIC_RELEASE);
+    const VMState previous = VMManager::GetState();
+    VMManager::SetState(VMState::Stopping);
+    if (previous != VMState::Running && Cpu)
+        Cpu->ExitExecution();
+}
+#endif
+
+void VMManager::ResetResumeTimestamp()
+{
+	s_session_resume_timestamp = static_cast<u64>(Common::Timer::GetCurrentValue());
+}
+
+void VMManager::SetState(VMState state)
+{
+	// Some state transitions aren't valid.
+	const VMState old_state = s_state.load(std::memory_order_acquire);
+	pxAssert(state != VMState::Initializing && state != VMState::Shutdown);
+	SetTimerResolutionIncreased(state == VMState::Running);
+	s_state.store(state, std::memory_order_release);
+
+	if (state != VMState::Stopping && (state == VMState::Paused || old_state == VMState::Paused))
+	{
+		const bool paused = (state == VMState::Paused);
+		if (paused)
+		{
+			// The IOP stays held for the whole pause, so the debugger and the settings see a still IOP.
+			IopThread::OnVmPaused(true);
+			if (THREAD_VU1)
+				vu1Thread.WaitVU();
+			MTGS::WaitGS(false);
+			InputManager::PauseVibration();
+		}
+		else
+		{
+			PerformanceMetrics::Reset();
+			ResetFrameLimiter();
+			AutoTune::OnResumed();
+		}
+
+		// The window in progress spans a stretch of wall time the guest was not running for.
+		EECycleRateSampler::OnLifecycleReset(paused ? "paused" : "resumed");
+
+		SPU2::SetOutputPaused(paused);
+		if (!paused)
+			IopThread::OnVmPaused(false);
+		Achievements::OnVMPaused(paused);
+
+		UpdateInhibitScreensaver(!paused && EmuConfig.InhibitScreensaver);
+
+		if (paused)
+		{
+			Host::OnVMPaused();
+			AccumulateSessionPlaytime();
+		}
+		else
+		{
+			FullscreenUI::OnVMResumed();
+			Host::OnVMResumed();
+			ResetResumeTimestamp();
+		}
+	}
+	else if (state == VMState::Stopping && old_state == VMState::Running)
+	{
+		// If stopping, break execution as soon as possible.
+		Cpu->ExitExecution();
+	}
+}
+
+bool VMManager::HasValidVM()
+{
+	const VMState state = s_state.load(std::memory_order_acquire);
+	return (state >= VMState::Running && state <= VMState::Resetting);
+}
+
+bool VMManager::HasValidOrInitializingVM()
+{
+	const VMState state = s_state.load(std::memory_order_acquire);
+	return (state >= VMState::Initializing && state <= VMState::Resetting);
+}
+
+std::string VMManager::GetDiscPath()
+{
+	std::unique_lock lock(s_info_mutex);
+	return CDVDsys_GetFile(CDVDsys_GetSourceType());
+}
+
+std::string VMManager::GetDiscSerial()
+{
+	std::unique_lock lock(s_info_mutex);
+	return s_disc_serial;
+}
+
+std::string VMManager::GetDiscELF()
+{
+	std::unique_lock lock(s_info_mutex);
+	return s_disc_elf;
+}
+
+std::string VMManager::GetTitle(bool prefer_en)
+{
+	std::unique_lock lock(s_info_mutex);
+	std::string out = s_title;
+	if (prefer_en && !s_title_en_search.empty())
+	{
+		size_t pos = out.find(s_title_en_search);
+		if (pos != out.npos)
+			out.replace(pos, s_title_en_search.size(), s_title_en_replace);
+	}
+	return out;
+}
+
+u32 VMManager::GetDiscCRC()
+{
+	std::unique_lock lock(s_info_mutex);
+	return s_disc_crc;
+}
+
+std::string VMManager::GetDiscVersion()
+{
+	std::unique_lock lock(s_info_mutex);
+	return s_disc_version;
+}
+
+u32 VMManager::GetCurrentCRC()
+{
+	return s_current_crc;
+}
+
+const std::string& VMManager::GetCurrentELF()
+{
+	return s_elf_path;
+}
+
+// Identity of the CPU thread, for IsOnCPUThread(). The CPU thread owns EmuConfig and is the
+// sole producer into the MTGS ring, so a good deal of core state may only be touched from it;
+// this backs the dev asserts that catch a frontend calling in from its UI thread instead of
+// marshalling via Host::RunOnCPUThread().
+static std::atomic<std::thread::id> s_cpu_thread_id{};
+
+bool VMManager::Internal::IsOnCPUThread()
+{
+	const std::thread::id owner = s_cpu_thread_id.load(std::memory_order_acquire);
+
+	// Permissive before CPUThreadInitialize() and after CPUThreadShutdown(): during startup and
+	// teardown there is no CPU thread to marshal onto, and the frontends legitimately drive core
+	// setup inline (e.g. VMManager::ApplySettings before the first Initialize). Test harnesses
+	// which never register a CPU thread at all are covered by the same allowance.
+	if (owner == std::thread::id())
+		return true;
+
+	return owner == std::this_thread::get_id();
+}
+
+// EnableVUAot in the global settings (the base layer, whatever a game's settings say).
+static bool GetGlobalVuAot()
+{
+	return Host::GetBaseBoolSettingValue("EmuCore/CPU/Recompiler", "EnableVUAot", Pcsx2Config::RecompilerOptions().EnableVUAot);
+}
+
+bool VMManager::Internal::CPUThreadInitialize()
+{
+	Threading::SetNameOfCurrentThread("CPU Thread");
+	s_cpu_thread_id.store(std::this_thread::get_id(), std::memory_order_release);
+	PerformanceMetrics::SetCPUThread(Threading::ThreadHandle::GetForCallingThread());
+	PerformanceMetrics::AdpfRegisterCallingThread(); // ADPF: hint the EE thread's core (Android)
+
+	// On Win32, we have a bunch of things which use COM (e.g. SDL, XAudio2, etc).
+	// We need to initialize COM first, before anything else does, because otherwise they might
+	// initialize it in single-threaded/apartment mode, which can't be changed to multithreaded.
+#ifdef _WIN32
+	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	if (FAILED(hr))
+	{
+		Host::ReportErrorAsync("Error", fmt::format("CoInitializeEx() failed: {:08X}", hr));
+		return false;
+	}
+#endif
+
+	// Use the default rounding mode, just in case it differs on some platform.
+	FPControlRegister::SetCurrent(FPControlRegister::GetDefault());
+
+#ifndef __SWITCH2__
+	if (!cpuinfo_initialize())
+		Console.Error("cpuinfo_initialize() failed.");
+#endif
+
+#ifdef _M_X86
+	x86Emitter::use_avx = g_cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX;
+#endif
+
+	LogCPUCapabilities();
+
+	if (!SysMemory::Allocate())
+	{
+		Host::ReportErrorAsync("Error", "Failed to allocate VM memory.");
+		return false;
+	}
+
+	InitializeCPUProviders();
+
+	USBinit();
+
+	// We want settings loaded so we choose the correct renderer for big picture mode.
+	// This also sorts out input sources.
+	LoadSettings();
+	vuAotNoteGlobalSetting(GetGlobalVuAot());
+	Console.WriteLn(
+		"@@CPU_BACKEND@@ code_generation=%d ee_rec=%d iop_rec=%d vu0_rec=%d vu1_rec=%d fastmem=%d mtvu=%d",
+		SysMemory::HasCodeMemory() ? 1 : 0,
+		EmuConfig.Cpu.Recompiler.EnableEE ? 1 : 0,
+		EmuConfig.Cpu.Recompiler.EnableIOP ? 1 : 0,
+		EmuConfig.Cpu.Recompiler.EnableVU0 ? 1 : 0,
+		EmuConfig.Cpu.Recompiler.EnableVU1 ? 1 : 0,
+		EmuConfig.Cpu.Recompiler.EnableFastmem ? 1 : 0,
+		EmuConfig.Speedhacks.vuThread ? 1 : 0);
+
+	if (EmuConfig.Achievements.Enabled && !Achievements::IsActive())
+		Achievements::Initialize();
+
+	ReloadPINE();
+
+	if (EmuConfig.EnableDiscordPresence)
+		InitializeDiscordPresence();
+
+	// Check for advanced settings status and warn the user if its enabled
+	if (Host::GetBaseBoolSettingValue("UI", "ShowAdvancedSettings", false))
+		Console.Warning("Settings: Advanced Settings are enabled; only proceed if you know what you're doing! No support will be provided if you have the option enabled.");
+
+	return true;
+}
+
+void VMManager::Internal::CPUThreadShutdown()
+{
+	ShutdownDiscordPresence();
+
+	PINEServer::Deinitialize();
+
+	Achievements::Shutdown(false);
+
+	InputManager::CloseSources();
+	WaitForSaveStateFlush();
+
+	PerformanceMetrics::SetCPUThread(Threading::ThreadHandle());
+	PerformanceMetrics::AdpfShutdown(); // ADPF: close the hint session on VM shutdown (Android)
+
+	// On Android this runs at the end of every game, not once at app exit as on desktop, and the
+	// settings screen lists the USB devices from this registry between games. Emptying it here left
+	// that list with nothing but "Not Connected" after the first game until the app restarted (#752).
+	// The registry only holds device factories, filled once at app start (native-lib's initialize);
+	// a game's own devices are closed by USBclose().
+#if !defined(__ANDROID__)
+	USBshutdown();
+#endif
+
+	MTGS::ShutdownThread();
+	GSJoinSnapshotThreads();
+
+	ps2_mtvu_lifecycle_close_before_release();
+	ShutdownCPUProviders();
+
+	SysMemory::Release();
+
+#ifdef _WIN32
+	CoUninitialize();
+#endif
+
+	// Ensure emulog gets flushed.
+	Log::SetFileOutputLevel(LOGLEVEL_NONE, std::string());
+
+	R5900SymbolImporter.ShutdownWorkerThread();
+
+	// Last: everything above still runs as the CPU thread and may hit an IsOnCPUThread() assert.
+	s_cpu_thread_id.store(std::thread::id(), std::memory_order_release);
+}
+
+u64 VMManager::Internal::GetPerformanceClusterAffinityMask()
+{
+	// Unions the CPU clusters of the EE/VU/GS target processors. Computed on the CPU thread
+	// in SetEmuThreadAffinities and only read here, so this stays a single relaxed load —
+	// the caller is Oboe's audio data thread, on its callback deadline.
+	return s_perf_cluster_mask.load(std::memory_order_relaxed);
+}
+
+void VMManager::Internal::SetFileLogPath(std::string path)
+{
+	s_log_force_file_log = Log::SetFileOutputLevel(LOGLEVEL_DEBUG, std::move(path));
+}
+
+void VMManager::Internal::SetBlockSystemConsole(bool block)
+{
+	s_log_block_system_console = block;
+}
+
+void VMManager::UpdateLoggingSettings(SettingsInterface& si)
+{
+#ifdef _DEBUG
+	constexpr LOGLEVEL level = LOGLEVEL_DEBUG;
+#else
+	const LOGLEVEL level = (IsDevBuild || si.GetBoolValue("Logging", "EnableVerbose", false)) ? LOGLEVEL_DEV : LOGLEVEL_INFO;
+#endif
+
+	const bool system_console_enabled = !s_log_block_system_console && si.GetBoolValue("Logging", "EnableSystemConsole", false);
+	const bool log_window_enabled = !s_log_block_system_console && si.GetBoolValue("Logging", "EnableLogWindow", false);
+	const bool file_logging_enabled = s_log_force_file_log || si.GetBoolValue("Logging", "EnableFileLogging", true);
+
+	if (system_console_enabled != Log::IsConsoleOutputEnabled())
+		Log::SetConsoleOutputLevel(system_console_enabled ? level : LOGLEVEL_NONE);
+
+		// Debug console only exists on Windows.
+#ifdef _WIN32
+	const bool debug_console_enabled = IsDebuggerPresent() && si.GetBoolValue("Logging", "EnableDebugConsole", false);
+	Log::SetDebugOutputLevel(debug_console_enabled ? level : LOGLEVEL_NONE);
+#else
+	constexpr bool debug_console_enabled = false;
+#endif
+
+	const bool timestamps_enabled = si.GetBoolValue("Logging", "EnableTimestamps", true);
+	Log::SetTimestampsEnabled(timestamps_enabled);
+
+	const bool any_logging_sinks = system_console_enabled || log_window_enabled || file_logging_enabled || debug_console_enabled;
+
+	const bool ee_console_enabled = any_logging_sinks && si.GetBoolValue("Logging", "EnableEEConsole", false);
+	ConsoleLogging.eeConsole.Enabled = ee_console_enabled;
+
+	ConsoleLogging.iopConsole.Enabled = any_logging_sinks && si.GetBoolValue("Logging", "EnableIOPConsole", false);
+	TraceLogging.IOP.R3000A.Enabled = true;
+	TraceLogging.IOP.COP2.Enabled = true;
+	TraceLogging.IOP.Memory.Enabled = true;
+	TraceLogging.SIF.Enabled = true;
+
+	// Input Recording Logs
+	ConsoleLogging.recordingConsole.Enabled = any_logging_sinks && si.GetBoolValue("Logging", "EnableInputRecordingLogs", true);
+	ConsoleLogging.controlInfo.Enabled = any_logging_sinks && si.GetBoolValue("Logging", "EnableControllerLogs", false);
+
+	// Sync the trace settings with the config.
+	EmuConfig.Trace.SyncToConfig();
+	// Set the output level if file logging or trace logs have changed.
+	if (file_logging_enabled != Log::IsFileOutputEnabled() || (EmuConfig.Trace.Enabled && Log::GetMaxLevel() < LOGLEVEL_TRACE))
+	{
+		std::string path = Path::Combine(EmuFolders::Logs, "emulog.txt");
+		Log::SetFileOutputLevel(file_logging_enabled ? EmuConfig.Trace.Enabled ? LOGLEVEL_TRACE : level : LOGLEVEL_NONE, std::move(path));
+	}
+}
+
+void VMManager::SetDefaultLoggingSettings(SettingsInterface& si)
+{
+	si.SetBoolValue("Logging", "EnableSystemConsole", false);
+	si.SetBoolValue("Logging", "EnableFileLogging", true);
+	si.SetBoolValue("Logging", "EnableTimestamps", true);
+	si.SetBoolValue("Logging", "EnableEESIOInput", false);
+	si.SetBoolValue("Logging", "EnableVerbose", false);
+	si.SetBoolValue("Logging", "EnableEEConsole", false);
+	si.SetBoolValue("Logging", "EnableIOPConsole", false);
+	si.SetBoolValue("Logging", "EnableInputRecordingLogs", true);
+	si.SetBoolValue("Logging", "EnableControllerLogs", false);
+
+	EmuConfig.Trace.Enabled = false;
+	EmuConfig.Trace.EE.bitset = 0;
+	EmuConfig.Trace.IOP.bitset = 0;
+	EmuConfig.Trace.MISC.bitset = 0;
+}
+
+bool VMManager::Internal::CheckSettingsVersion()
+{
+	SettingsInterface* bsi = Host::Internal::GetBaseSettingsLayer();
+
+	uint settings_version;
+	return (bsi->GetUIntValue("UI", "SettingsVersion", &settings_version) && settings_version == SETTINGS_VERSION);
+}
+
+void VMManager::Internal::LoadStartupSettings()
+{
+	SettingsInterface* bsi = Host::Internal::GetBaseSettingsLayer();
+	EmuFolders::LoadConfig(*bsi);
+	EmuFolders::EnsureFoldersExist();
+
+	// Redirect perf jitdump (Linux ProfileWithPerfJitDump builds) out of /tmp
+	// into the cache dir; the dump can be hundreds of MB and tmpfs /tmp on
+	// embedded targets fills up. No-op on non-jitdump builds.
+	Perf::SetJitDumpDir(EmuFolders::Cache);
+
+	// We need to create the console window early, otherwise it appears behind the main window.
+	UpdateLoggingSettings(*bsi);
+
+#ifdef ENABLE_RAINTEGRATION
+	// RAIntegration switch must happen before the UI is created.
+	if (Host::GetBaseBoolSettingValue("Achievements", "UseRAIntegration", false))
+		Achievements::SwitchToRAIntegration();
+#endif
+}
+
+void VMManager::SetDefaultSettings(
+	SettingsInterface& si, bool folders, bool core, bool controllers, bool hotkeys, bool ui)
+{
+	FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
+
+	if (si.GetUIntValue("UI", "SettingsVersion", 0u) != SETTINGS_VERSION)
+		si.SetUIntValue("UI", "SettingsVersion", SETTINGS_VERSION);
+
+	if (folders)
+		EmuFolders::SetDefaults(si);
+	if (core)
+	{
+		Pcsx2Config temp_config;
+		SettingsSaveWrapper ssw(si);
+		temp_config.LoadSave(ssw);
+
+		// Settings not part of the Pcsx2Config struct.
+		si.SetBoolValue("EmuCore", "EnableFastBoot", true);
+
+		SetHardwareDependentDefaultSettings(si);
+		SetDefaultLoggingSettings(si);
+	}
+	if (controllers)
+	{
+		Pad::SetDefaultControllerConfig(si);
+		USB::SetDefaultConfiguration(&si);
+	}
+	if (hotkeys)
+		Pad::SetDefaultHotkeyConfig(si);
+	if (ui)
+		Host::SetDefaultUISettings(si);
+}
+
+void VMManager::LoadSettings()
+{
+	// Switch the rounding mode back to the system default for loading settings.
+	// We might have a different mode, because this can be called during setting updates while a VM is active,
+	// and the rounding mode has an impact on the conversion of floating-point values to/from strings.
+	FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
+
+	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
+	SettingsInterface* si = Host::GetSettingsInterface();
+	LoadCoreSettings(*si);
+	Pad::LoadConfig(*si);
+	Host::LoadSettings(*si, lock);
+	InputManager::ReloadSources(*si, lock);
+	LoadInputBindings(*si, lock);
+	UpdateLoggingSettings(*si);
+
+	// Apply runtime perf-dump gate from Profiler config (no-op on
+	// non-USE_PERF_JITDUMP builds).
+	Perf::SetJitDumpEnabled(EmuConfig.Profiler.EnablePerfDump);
+
+	if (HasValidOrInitializingVM())
+	{
+		WarnAboutUnsafeSettings();
+		ApplyGameFixes();
+
+		// After the database, because a database cycle rate can change the answer. Logged once
+		// per apply; the governor resolves this itself every window without logging.
+		EECycleRate::LogResolvedEligibility();
+	}
+}
+
+void VMManager::ReloadInputSources()
+{
+	FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
+	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
+	SettingsInterface* si = Host::GetSettingsInterface();
+	InputManager::ReloadSources(*si, lock);
+
+	// skip loading bindings if we're not running, since it'll get done on startup anyway
+	if (HasValidVM())
+		LoadInputBindings(*si, lock);
+}
+
+void VMManager::ReloadInputBindings(bool force)
+{
+	// skip loading bindings if we're not running, since it'll get done on startup anyway
+	if (!force && !HasValidVM())
+		return;
+
+	FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
+	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
+	SettingsInterface* si = Host::GetSettingsInterface();
+	LoadInputBindings(*si, lock);
+}
+
+void VMManager::LoadCoreSettings(SettingsInterface& si)
+{
+	SettingsLoadWrapper slw(si);
+	EmuConfig.LoadSave(slw);
+	GtaVuCache::Apply(EmuConfig.Cpu.Recompiler, s_disc_serial, s_disc_crc);
+
+	// A game file's UserHackOverrides replaces the base mask outright, and the
+	// player's global claims still stand here.
+	if (SettingsInterface* base = Host::Internal::GetBaseSettingsLayer(); base && base != &si)
+		EmuConfig.GS.UserHackOverrides |= static_cast<u32>(base->GetIntValue("EmuCore/GS", "UserHackOverrides", 0));
+
+	// A hack key sitting in the per-game file is a claim on that hack, whether or not
+	// a frontend also wrote the mask — only iOS does. This is what makes MaskUserHacks()
+	// below spare it, so the value survives long enough for the database to be told to
+	// leave it alone.
+	//
+	// The two cycle-rate claims come from the same read. They are key presence, not value
+	// comparison: a per-game EECycleRate equal to the global one is still an explicit
+	// per-game choice, and the dynamic governor must leave it alone.
+	EmuConfig.PerGameClaimsEECycleRate = false;
+	EmuConfig.PerGameClaimsDynamicEECycleRate = false;
+	if (const SettingsInterface* game_layer = Host::Internal::GetGameSettingsLayer())
+	{
+		const PerGameOverrides overrides = ComputePerGameOverrides(*game_layer);
+		EmuConfig.GS.UserHackOverrides |= overrides.gs_hacks;
+		EmuConfig.PerGameClaimsEECycleRate = overrides.Has(SpeedHack::EECycleRate);
+		EmuConfig.PerGameClaimsDynamicEECycleRate = overrides.Has(SpeedHack::DynamicEECycleRate);
+	}
+
+	// An auto-tune trial of the governor is the per-game key it becomes if kept: the keep writes it
+	// into the game's file, where it claims the governor over a pinned rate. The trial has to
+	// resolve the same way, or it would measure a governor the kept setting would not give.
+	if (const SettingsInterface* trial_layer = Host::Internal::GetAutoTuneSettingsLayer())
+	{
+		const AutoTune::LeverKey governor_key = AutoTune::KeyForLever(AutoTuneLever::EeGovernor);
+		if (trial_layer->ContainsValue(governor_key.section, governor_key.key))
+			EmuConfig.PerGameClaimsDynamicEECycleRate = true;
+	}
+
+	Patch::ApplyPatchSettingOverrides();
+
+	// Achievements hardcore mode disallows setting some configuration options.
+	EnforceAchievementsChallengeModeSettings();
+
+	// Remove any user-specified hacks in the config (we don't want stale/conflicting values when it's globally disabled).
+	EmuConfig.GS.MaskUserHacks();
+	EmuConfig.GS.MaskUpscalingHacks();
+
+	// Force MTVU off when playing back GS dumps, it doesn't get used.
+	if (GSDumpReplayer::IsReplayingDump())
+		EmuConfig.Speedhacks.vuThread = false;
+
+	// DEBUG (ARM64): the microVU1-vs-interpreter shadow differential needs VU1 to run
+	// synchronously on the CPU thread, so force MTVU off when MVU_DIFF is set.
+	static const bool s_mvu_diff_env = (std::getenv("MVU_DIFF") != nullptr);
+	if (s_mvu_diff_env)
+		EmuConfig.Speedhacks.vuThread = false;
+
+	// The 4 GB fastmem reservation can fail outright on a low VA device, and the
+	// INI still says fastmem is on, so every reload from here turns it back on
+	// against a base that was never mapped. The flag is sticky for the life of
+	// the process. It belongs here rather than at the call sites: it used to be
+	// re-applied by hand after each load, and the ELF change path was missed.
+	if (vtlb_FastmemAreaUnavailable() && EmuConfig.Cpu.Recompiler.EnableFastmem)
+	{
+		EmuConfig.Cpu.Recompiler.EnableFastmem = false;
+
+		static bool s_warned_fastmem_reload = false;
+		if (!s_warned_fastmem_reload)
+		{
+			s_warned_fastmem_reload = true;
+			Console.Warning("Fastmem re-disabled after settings reload (area allocation previously failed)");
+		}
+	}
+
+	ClampRuntimeConfigToAvailableCPUProviders();
+
+	if (Arcade::IsActive())
+		ApplyArcadeSessionSettings(si);
+}
+
+// What an arcade board is, laid over the player's settings for as long as its game runs. Nothing is
+// written back: the player's own BIOS, memory cards and multitap are all there again for the next game.
+void VMManager::ApplyArcadeSessionSettings(SettingsInterface& si)
+{
+	// The board's own BIOS: the one OpenArcadeGame() found the game runs on (FindArcadeBiosFor), else the one
+	// the player picked; empty = the best COH-H dump in the BIOS folder (LoadBIOS).
+	EmuConfig.BaseFilenames.Bios = !s_arcade_bios.empty() ? s_arcade_bios : si.GetStringValue("Filenames", "ArcadeBIOS", "");
+
+	// mc0: holds the game's security dongle, mc1: a second card only a few games read (Soul Calibur
+	// II's Conquest card), or nothing.
+	EmuConfig.Mcd[0].Enabled = true;
+	EmuConfig.Mcd[0].Type = MemoryCardType::File;
+	EmuConfig.Mcd[0].Filename = s_arcade_dongle;
+	EmuConfig.Mcd[1].Enabled = !s_arcade_card.empty();
+	EmuConfig.Mcd[1].Type = MemoryCardType::File;
+	EmuConfig.Mcd[1].Filename = s_arcade_card;
+
+	// A multitap would move the dongle away from the port the board reads it on.
+	EmuConfig.Pad.MultitapPort0_Enabled = false;
+	EmuConfig.Pad.MultitapPort1_Enabled = false;
+
+	// The boards have more RAM than a console (a System 256 game needs 64MB EE and 4MB IOP), so every
+	// arcade game runs with the 128MB/8MB map.
+	EmuConfig.Cpu.ExtraMemory = true;
+}
+
+void VMManager::LoadInputBindings(SettingsInterface& si, std::unique_lock<std::mutex>& lock)
+{
+	// Hotkeys use the base configuration, except if the custom hotkeys option is enabled.
+	if (SettingsInterface* isi = Host::Internal::GetInputSettingsLayer())
+	{
+		const bool use_profile_hotkeys = isi->GetBoolValue("Pad", "UseProfileHotkeyBindings", false);
+		if (use_profile_hotkeys)
+		{
+			InputManager::ReloadBindings(si, *isi, *isi, true, true);
+		}
+		else
+		{
+			// Temporarily disable the input profile layer, so it doesn't take precedence.
+			Host::Internal::SetInputSettingsLayer(nullptr, lock);
+			InputManager::ReloadBindings(si, *isi, si, true, false);
+			Host::Internal::SetInputSettingsLayer(s_input_settings_interface.get(), lock);
+		}
+	}
+	else
+	{
+		InputManager::ReloadBindings(si, si, si, false, false);
+	}
+}
+
+bool VMManager::HasAnyBindingsForPad(const SettingsInterface& si, u32 port)
+{
+	if (port >= Pad::NUM_CONTROLLER_PORTS)
+		return false;
+
+	const std::string section = Pad::GetConfigSection(port);
+	const Pad::ControllerInfo* info = Pad::GetConfigControllerType(si, section.c_str(), port);
+	if (!info || info->type == Pad::ControllerType::NotConnected)
+		return false;
+
+	for (const InputBindingInfo& binding : info->bindings)
+	{
+		if (!si.GetStringList(section.c_str(), binding.name).empty())
+			return true;
+	}
+
+	return false;
+}
+
+void VMManager::WarnAboutUnconfiguredController()
+{
+	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
+	SettingsInterface* si = Host::GetSettingsInterface();
+	if (!si || HasAnyBindingsForPad(*si, 0))
+		return;
+
+	// Android and iOS inject pad state directly through the platform bridge,
+	// bypassing InputManager bindings, so this warning is always a false
+	// positive on mobile. Desktop platforms keep it.
+#if !defined(__ANDROID__) && !(defined(__APPLE__) && TARGET_OS_IPHONE)
+	Host::AddIconOSDMessage("ControllerNotConfigured", ICON_FA_GAMEPAD,
+		TRANSLATE_STR("VMManager", "Controller 1 has no input bindings configured."), Host::OSD_WARNING_DURATION);
+#endif
+}
+
+void VMManager::ApplyGameFixes()
+{
+	// Cleared here rather than where it is set, because the setter only runs when a
+	// database entry exists. Every path out of this function has to leave the flag
+	// saying what THIS apply found, including the paths that find nothing.
+	EmuConfig.GameDBSetEECycleRate = false;
+
+	// An arcade game's own ELF comes off its dongle, after the boot program, so HasBootedELF() can stay
+	// false for the whole game. Its database entry is known from the gameid from the start, so it applies
+	// from the start too, under what the BIOS case below adds (PCSX2x6).
+	if (Arcade::IsActive())
+	{
+		if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_disc_serial))
+		{
+			PerGameOverrides overrides;
+			if (const SettingsInterface* game_layer = Host::Internal::GetGameSettingsLayer())
+				overrides = ComputePerGameOverrides(*game_layer);
+
+			game->applyGameFixes(EmuConfig, EmuConfig.EnableGameFixes, overrides);
+			game->applyGSHardwareFixes(EmuConfig.GS, overrides);
+		}
+	}
+
+	if (!HasBootedELF() && !GSDumpReplayer::IsReplayingDump())
+	{
+		// Instant DMA needs to be on for this BIOS (font rendering is broken without it, possible cache issues).
+		EmuConfig.Gamefixes.InstantDMAHack = true;
+
+		// Disable user's manual hardware fixes, it might be problematic.
+		// LoadCoreSettings() already masked with the flag still set, so clearing it here
+		// isn't enough on its own — the hacks it was meant to strip are still in EmuConfig.
+		// Claims don't get a say either: whether a hack is safe on the BIOS has nothing to
+		// do with whether the player asked for it.
+		EmuConfig.GS.ManualUserHacks = false;
+		EmuConfig.GS.MaskUserHacks(false);
+		EmuConfig.GS.MaskUpscalingHacks();
+		return;
+	}
+
+	const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_disc_serial);
+	if (!game)
+		return;
+
+	// What the player set for this game specifically, which the database does not get
+	// to overwrite. Read from the game layer alone — the layered stack cannot tell a
+	// per-game choice from a global one, and only the per-game one outranks the
+	// database. The settings lock is held by both callers of this function.
+	PerGameOverrides overrides;
+	if (const SettingsInterface* game_layer = Host::Internal::GetGameSettingsLayer())
+		overrides = ComputePerGameOverrides(*game_layer);
+
+	game->applyGameFixes(EmuConfig, EmuConfig.EnableGameFixes, overrides);
+	game->applyGSHardwareFixes(EmuConfig.GS, overrides);
+
+	// Re-remove upscaling fixes, make sure they don't apply at native res.
+	// We do this in LoadCoreSettings(), but game fixes get applied afterwards because of the unsafe warning.
+	EmuConfig.GS.MaskUpscalingHacks();
+}
+
+void VMManager::ApplySettings()
+{
+	ps2_mtvu_lifecycle_cpu_quiesce(); // attachment, not mutable THREAD_VU1, is authoritative
+	// Must run on the CPU thread. This move-constructs and then reconstructs the whole global
+	// EmuConfig — every std::string in it is freed and reallocated, and there is a window where
+	// EmuConfig is moved-from — and CheckForCPUConfigChanges() below goes on to call
+	// ClearCPUExecutionCaches(), i.e. it resets the recompiler code caches. That function
+	// documents that it expects to be re-entered from inside the running CPU ("we're still
+	// executing the cpu when this function is called"), which is only true on the CPU thread.
+	// Called from a UI thread instead, it frees the JIT code buffer under an executing JIT.
+	//
+	// Note the WaitVU/WaitGS below is a *drain*, not a park: it does not stop the EE, so it is no
+	// substitute for being on the right thread.
+	pxAssertMsg(Internal::IsOnCPUThread(),
+		"VMManager::ApplySettings() off the CPU thread — marshal via Host::RunOnCPUThread()");
+
+	Console.WriteLn("Applying settings...");
+
+	// A settings change can reset the recompilers and start or stop the IOP thread.
+	IopThread::VmHold iop_hold;
+	eeStopEagerCodeForSettings();
+
+	// If we're running, ensure the threads are synced.
+	if (GetState() == VMState::Running)
+	{
+		if (THREAD_VU1)
+			vu1Thread.WaitVU();
+		MTGS::WaitGS(false);
+	}
+
+	// Reset to a clean Pcsx2Config. Otherwise things which are optional (e.g. gamefixes)
+	// do not use the correct default values when loading.
+	Pcsx2Config old_config(std::move(EmuConfig));
+	EmuConfig = Pcsx2Config();
+	EmuConfig.CopyRuntimeConfig(old_config);
+	LoadSettings();
+	CheckForConfigChanges(old_config);
+	if (s_emulation_only_mode.load(std::memory_order_acquire))
+		ReleaseNonEssentialRuntimeResources(s_emulation_only_release_flags.load(std::memory_order_acquire));
+	AutoTune::OnSettingsApplied();
+}
+
+void VMManager::ApplyCoreSettings()
+{
+	ps2_mtvu_lifecycle_cpu_quiesce(); // attachment, not mutable THREAD_VU1, is authoritative
+	// Lightweight version of above, called when ELF changes. This should not get called without an active VM.
+	pxAssertRel(HasValidOrInitializingVM(), "Reloading core settings requires a valid VM.");
+	Console.WriteLn("Applying core settings...");
+
+	IopThread::VmHold iop_hold;
+	eeStopEagerCodeForSettings();
+
+	// If we're running, ensure the threads are synced.
+	if (GetState() == VMState::Running)
+	{
+		if (THREAD_VU1)
+			vu1Thread.WaitVU();
+		MTGS::WaitGS(false);
+	}
+
+	// Reset to a clean Pcsx2Config. Otherwise things which are optional (e.g. gamefixes)
+	// do not use the correct default values when loading.
+	Pcsx2Config old_config(std::move(EmuConfig));
+	EmuConfig = Pcsx2Config();
+	EmuConfig.CopyRuntimeConfig(old_config);
+
+	{
+		FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
+		std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
+		LoadCoreSettings(*Host::GetSettingsInterface());
+		WarnAboutUnsafeSettings();
+		ApplyGameFixes();
+		EECycleRate::LogResolvedEligibility();
+	}
+
+	CheckForConfigChanges(old_config);
+	if (s_emulation_only_mode.load(std::memory_order_acquire))
+		ReleaseNonEssentialRuntimeResources(s_emulation_only_release_flags.load(std::memory_order_acquire));
+	AutoTune::OnSettingsApplied();
+}
+
+bool VMManager::ReloadGameSettings()
+{
+	if (!UpdateGameSettingsLayer())
+		return false;
+
+	// Patches must come first, because they can affect aspect ratio/interlacing.
+	Patch::UpdateActivePatches(true, false, true, HasValidVM());
+	ApplySettings();
+	return true;
+}
+
+std::string VMManager::GetGameSettingsPath(const std::string_view game_serial, u32 game_crc)
+{
+	// Game settings override via -gamecfg command line flag
+	if (!s_game_settings_override.empty())
+		return s_game_settings_override;
+
+	std::string sanitized_serial(Path::SanitizeFileName(game_serial));
+
+	return game_serial.empty() ?
+	           Path::Combine(EmuFolders::GameSettings, fmt::format("{:08X}.ini", game_crc)) :
+	           Path::Combine(EmuFolders::GameSettings, fmt::format("{}_{:08X}.ini", sanitized_serial, game_crc));
+}
+
+std::string VMManager::GetDiscOverrideFromGameSettings(const std::string& elf_path)
+{
+	std::string iso_path;
+	ElfObject elfo;
+	if (!elfo.OpenFile(elf_path, false, nullptr))
+		return iso_path;
+
+	const u32 crc = elfo.GetCRC();
+	if (crc != 0)
+	{
+		INISettingsInterface si(GetGameSettingsPath(std::string_view(), crc));
+		if (si.Load())
+		{
+			iso_path = si.GetStringValue("EmuCore", "DiscPath");
+			if (!iso_path.empty())
+				Console.WriteLn(fmt::format("Disc override for ELF at '{}' is '{}'", elf_path, iso_path));
+		}
+	}
+
+	return iso_path;
+}
+
+std::string VMManager::GetInputProfilePath(const std::string_view name)
+{
+	return Path::Combine(EmuFolders::InputProfiles, fmt::format("{}.ini", name));
+}
+
+std::string VMManager::GetDebuggerSettingsFilePath(const std::string_view game_serial, u32 game_crc)
+{
+	std::string path;
+	if (!game_serial.empty() && game_crc != 0)
+	{
+		auto lock = Host::GetSettingsLock();
+		return Path::Combine(EmuFolders::DebuggerSettings, fmt::format("{}_{:08X}.json", game_serial, game_crc));
+	}
+	return path;
+}
+
+std::string VMManager::GetDebuggerSettingsFilePathForCurrentGame()
+{
+	return GetDebuggerSettingsFilePath(s_disc_serial, s_current_crc);
+}
+
+void VMManager::Internal::UpdateEmuFolders()
+{
+	const std::string old_cheats_directory(EmuFolders::Cheats);
+	const std::string old_patches_directory(EmuFolders::Patches);
+	const std::string old_memcards_directory(EmuFolders::MemoryCards);
+	const std::string old_textures_directory(EmuFolders::Textures);
+
+	auto lock = Host::GetSettingsLock();
+	EmuFolders::LoadConfig(*Host::Internal::GetBaseSettingsLayer());
+	EmuFolders::EnsureFoldersExist();
+
+	if (VMManager::HasValidVM())
+	{
+		if ((EmuFolders::Cheats != old_cheats_directory || EmuFolders::Patches != old_patches_directory) &&
+			!ArePatchesDisabledByEmulationOnlyMode())
+			Patch::ReloadPatches(s_disc_serial, GetCRCForPatches(), true, false, true, true);
+
+		if (EmuFolders::MemoryCards != old_memcards_directory)
+		{
+			std::string memcardFilters = "";
+			if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_disc_serial))
+			{
+				memcardFilters = game->memcardFiltersAsString();
+			}
+
+			AutoEject::SetAll();
+
+			if (!GSDumpReplayer::IsReplayingDump())
+				FileMcd_Reopen(memcardFilters.empty() ? s_disc_serial : memcardFilters);
+		}
+
+		if (EmuFolders::Textures != old_textures_directory)
+		{
+			MTGS::RunOnGSThread([]() {
+				if (VMManager::HasValidVM())
+					GSTextureReplacements::ReloadReplacementMap();
+			});
+		}
+	}
+}
+
+void VMManager::RequestDisplaySize(float scale /*= 0.0f*/)
+{
+	int iwidth, iheight;
+	GSgetInternalResolution(&iwidth, &iheight);
+	if (iwidth <= 0 || iheight <= 0)
+		return;
+
+	// scale x not y for aspect ratio
+	float x_scale;
+	switch (GSConfig.AspectRatio)
+	{
+		case AspectRatioType::RAuto4_3_3_2:
+			if (EmuConfig.CurrentCustomAspectRatio > 0.f)
+				x_scale = EmuConfig.CurrentCustomAspectRatio / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			else if (GSgetDisplayMode() == GSVideoMode::SDTV_480P)
+				x_scale = (3.0f / 2.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			else
+				x_scale = (4.0f / 3.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			break;
+		case AspectRatioType::R4_3:
+			x_scale = (4.0f / 3.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			break;
+		case AspectRatioType::R16_9:
+			x_scale = (16.0f / 9.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			break;
+		case AspectRatioType::R10_7:
+			x_scale = (10.0f / 7.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			break;
+		// These two were missing, so requesting a display size under an ultrawide ratio fell
+		// through to the Stretch case and asked for an unscaled (4:3-shaped) window.
+		case AspectRatioType::R21_9:
+			x_scale = (21.0f / 9.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			break;
+		case AspectRatioType::R20_9:
+			x_scale = (20.0f / 9.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			break;
+		case AspectRatioType::R19_5_9:
+			x_scale = (19.5f / 9.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			break;
+		case AspectRatioType::Custom:
+			x_scale = std::clamp(GSConfig.CustomAspectRatio, 0.5f, 5.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
+			break;
+		case AspectRatioType::Stretch:
+		default:
+			x_scale = 1.0f;
+			break;
+	}
+
+	float width = static_cast<float>(iwidth) * x_scale;
+	float height = static_cast<float>(iheight);
+
+	if (scale != 0.0f)
+	{
+		// unapply the upscaling, then apply the scale
+		scale = (1.0f / GSConfig.UpscaleMultiplier) * scale;
+		width *= scale;
+		height *= scale;
+	}
+
+	iwidth = std::max(static_cast<int>(std::lroundf(width)), 1);
+	iheight = std::max(static_cast<int>(std::lroundf(height)), 1);
+
+	Host::RequestResizeHostDisplay(iwidth, iheight);
+}
+
+std::string VMManager::GetSerialForGameSettings()
+{
+	// If we're running an ELF, we don't want to use the serial for any ISO override
+	// for game settings, since the game settings is where we define the override.
+	// An arcade game boots through an ELF too, but is its gameid (PCSX2x6).
+	std::unique_lock lock(s_info_mutex);
+	return (s_elf_override.empty() || Arcade::IsActive()) ? std::string(s_disc_serial) : std::string();
+}
+
+#if defined(__ANDROID__)
+// Set by the Android frontend. Its per-game settings live in the app's own store, and the file
+// read below is a copy it writes -- which it cannot even name until the disc CRC is known, and
+// that is here. Called with the name just before the read, so the file the database consults
+// for what the player claimed already says what they chose, from the very first boot.
+void (*g_android_before_game_settings_load)(const std::string& serial, const std::string& path) = nullptr;
+#endif
+
+bool VMManager::UpdateGameSettingsLayer()
+{
+	std::unique_ptr<INISettingsInterface> new_interface;
+	// An arcade game's settings are its gameid's, with CRC 0 (PCSX2x6).
+	if (s_disc_crc != 0 || (Arcade::IsActive() && !s_disc_serial.empty()))
+	{
+		const std::string serial = GetSerialForGameSettings();
+		std::string filename(GetGameSettingsPath(serial, s_disc_crc));
+#if defined(__ANDROID__)
+		if (g_android_before_game_settings_load)
+			g_android_before_game_settings_load(serial, filename);
+#endif
+		if (!FileSystem::FileExists(filename.c_str()) && !Arcade::IsActive())
+		{
+			// try the legacy format (crc.ini)
+			filename = GetGameSettingsPath({}, s_disc_crc);
+		}
+
+		if (FileSystem::FileExists(filename.c_str()))
+		{
+			Console.WriteLn("Loading game settings from '%s'...", filename.c_str());
+			new_interface = std::make_unique<INISettingsInterface>(std::move(filename));
+			if (!new_interface->Load())
+			{
+				Console.Error("Failed to parse game settings ini '%s'", new_interface->GetFileName().c_str());
+				new_interface.reset();
+			}
+		}
+		else
+		{
+			DevCon.WriteLn("No game settings found (tried '%s')", filename.c_str());
+		}
+	}
+
+	std::string input_profile_name;
+	if (new_interface)
+		new_interface->GetStringValue("EmuCore", "InputProfileName", &input_profile_name);
+
+	if (!s_game_settings_interface && !new_interface && s_input_profile_name == input_profile_name)
+		return false;
+
+	auto lock = Host::GetSettingsLock();
+	Host::Internal::SetGameSettingsLayer(new_interface.get(), lock);
+	s_game_settings_interface = std::move(new_interface);
+
+	std::unique_ptr<INISettingsInterface> input_interface;
+	if (!input_profile_name.empty())
+	{
+		const std::string filename(GetInputProfilePath(input_profile_name));
+		if (FileSystem::FileExists(filename.c_str()))
+		{
+			Console.WriteLn("Loading input profile from '%s'...", filename.c_str());
+			input_interface = std::make_unique<INISettingsInterface>(std::move(filename));
+			if (!input_interface->Load())
+			{
+				Console.Error("Failed to parse input profile ini '%s'", input_interface->GetFileName().c_str());
+				input_interface.reset();
+				input_profile_name = {};
+			}
+		}
+		else
+		{
+			DevCon.WriteLn("No game settings found (tried '%s')", filename.c_str());
+			input_profile_name = {};
+		}
+	}
+
+	Host::Internal::SetInputSettingsLayer(input_interface.get(), lock);
+	s_input_settings_interface = std::move(input_interface);
+	s_input_profile_name = std::move(input_profile_name);
+	return true;
+}
+
+bool VMManager::ReloadGameSettingsLayer()
+{
+	return UpdateGameSettingsLayer();
+}
+
+void VMManager::UpdateDiscDetails(bool booting)
+{
+	std::string memcardFilters;
+	{
+		// Only need to protect writes with the mutex.
+		std::unique_lock lock(s_info_mutex);
+		const std::string old_serial = std::move(s_disc_serial);
+		const u32 old_crc = s_disc_crc;
+		bool serial_is_valid = false;
+		std::string title;
+
+		if (GSDumpReplayer::IsReplayingDump())
+		{
+			s_disc_serial = GSDumpReplayer::GetDumpSerial();
+			s_disc_crc = GSDumpReplayer::GetDumpCRC();
+			s_disc_elf = {};
+			s_disc_version = {};
+			s_cur_region = "NTSC";
+			serial_is_valid = !s_disc_serial.empty();
+		}
+		else if (Arcade::IsActive())
+		{
+			// An arcade game is its .acgame's gameid, with CRC 0 for whatever its media is: patches, game
+			// settings and the database all key off the gameid alone (PCSX2x6). A CD game's disc sits in
+			// the drive too, but has no SYSTEM.CNF a console would boot.
+			s_disc_serial = s_arcade_gameid;
+			s_disc_elf = {};
+			s_disc_version = {};
+			s_disc_crc = 0;
+			s_cur_region = "NTSC";
+			serial_is_valid = true;
+		}
+		else if (CDVDsys_GetSourceType() != CDVD_SourceType::NoDisc)
+		{
+			cdvdGetDiscInfo(&s_disc_serial, &s_disc_elf, &s_disc_version, &s_cur_region, &s_disc_crc, nullptr);
+			serial_is_valid = !s_disc_serial.empty();
+		}
+		else if (!s_elf_override.empty())
+		{
+			s_disc_serial = Path::GetFileTitle(s_elf_override);
+			s_disc_version = {};
+			s_disc_crc = 0; // set below
+			s_cur_region = "NTSC";
+		}
+		else
+		{
+			s_disc_serial = BiosSerial;
+			s_disc_version = {};
+			s_disc_crc = 0;
+			s_cur_region = (BiosZone == "Europe") ? "PAL" : "NTSC";
+			title = fmt::format(TRANSLATE_FS("VMManager", "PS2 BIOS ({})"), BiosZone);
+		}
+
+		// If we're booting an ELF, use its CRC, not the disc (if any). An arcade game's boot program
+		// is not the game.
+		if (!s_elf_override.empty() && !Arcade::IsActive())
+			s_disc_crc = cdvdGetElfCRC(s_elf_override);
+
+		if (!booting && s_disc_serial == old_serial && s_disc_crc == old_crc)
+		{
+			Console.WriteLn("Skipping disc details update, no change.");
+			return;
+		}
+
+		SaveSessionTime(old_serial);
+		vuAotSetTitle(s_disc_serial, s_disc_crc);
+
+		s_title_en_search.clear();
+		s_title_en_replace.clear();
+		std::string custom_title = GameList::GetCustomTitleForPath(CDVDsys_GetFile(CDVDsys_GetSourceType()));
+		if (serial_is_valid)
+		{
+			if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_disc_serial))
+			{
+				if (!game->name_en.empty())
+				{
+					s_title_en_search = game->name;
+					s_title_en_replace = game->name_en;
+				}
+
+				std::string game_title = custom_title.empty() ? game->name : std::move(custom_title);
+
+				// Append the ELF override if we're using it with a disc. An arcade game's .acgame may
+				// name the game itself.
+				if (Arcade::IsActive())
+				{
+					title = s_arcade_title.empty() ? std::move(game_title) : s_arcade_title;
+				}
+				else if (!s_elf_override.empty())
+				{
+					title = fmt::format(
+						"{} [{}]", game_title, Path::GetFileTitle(s_elf_override));
+				}
+				else
+				{
+					title = std::move(game_title);
+				}
+
+				memcardFilters = game->memcardFiltersAsString();
+			}
+			else
+			{
+				Console.Warning(fmt::format("Serial '{}' not found in GameDB.", s_disc_serial));
+			}
+		}
+
+		if (title.empty() && Arcade::IsActive())
+			title = s_arcade_title;
+
+		if (title.empty())
+		{
+			title = std::move(custom_title);
+		}
+
+		if (title.empty())
+		{
+			if (!s_disc_serial.empty())
+				title = fmt::format("{} [?]", s_disc_serial);
+			else if (!s_disc_elf.empty())
+				title = fmt::format("{} [?]", Path::GetFileName(IsoReader::RemoveVersionIdentifierFromPath(s_disc_elf)));
+			else
+				title = TRANSLATE_STR("VMManager", "Unknown Game");
+		}
+
+		s_title = std::move(title);
+	}
+
+	Console.WriteLn(Color_StrongGreen,
+		fmt::format("Disc changed to {}.", Path::GetFileName(CDVDsys_GetFile(CDVDsys_GetSourceType()))));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  Name: {}", s_title));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  Serial: {}", s_disc_serial));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  Version: {}", s_disc_version));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  CRC: {:08X}", s_disc_crc));
+
+	// A trial of the previous game must not reach the settings that are about to be applied.
+	AutoTune::OnGameChanged();
+	UpdateGameSettingsLayer();
+	ApplySettings();
+
+	// Patches are game-dependent, thus should get applied after game settings ia loaded.
+	if (!ArePatchesDisabledByEmulationOnlyMode())
+	{
+		Patch::ReloadPatches(s_disc_serial, HasBootedELF() ? GetCRCForPatches() : 0, true, true, false, false);
+	}
+
+	ReportGameChangeToHost();
+	if (MTGS::IsOpen())
+		MTGS::GameChanged();
+
+	if (!GSDumpReplayer::IsReplayingDump())
+	{
+		Achievements::GameChanged(s_disc_crc, s_current_crc);
+		ReloadPINE();
+		UpdateDiscordPresence(s_state.load(std::memory_order_relaxed) == VMState::Initializing);
+		FileMcd_Reopen(memcardFilters.empty() ? s_disc_serial : memcardFilters);
+	}
+}
+
+void VMManager::ClearDiscDetails()
+{
+	std::unique_lock lock(s_info_mutex);
+	s_disc_crc = 0;
+	s_title = {};
+	s_disc_version = {};
+	s_disc_elf = {};
+	s_disc_serial = {};
+}
+
+void VMManager::HandleELFChange(bool verbose_patches_if_changed)
+{
+	// Classic chicken and egg problem here. We don't want to update the running game
+	// until the game entry point actually runs, because that can update settings, which
+	// can flush the JIT, etc. But we need to apply patches for games where the entry
+	// point is in the patch (e.g. WRC 4). So. Gross, but the only way to handle it really.
+	const u32 crc_to_report = HasBootedELF() ? s_current_crc : 0;
+
+	ReportGameChangeToHost();
+	Achievements::GameChanged(s_disc_crc, crc_to_report);
+
+	Console.WriteLn(Color_StrongOrange, fmt::format("ELF changed, active CRC {:08X} ({})", crc_to_report, s_elf_path));
+	if (!ArePatchesDisabledByEmulationOnlyMode())
+		Patch::ReloadPatches(s_disc_serial, HasBootedELF() ? GetCRCForPatches() : 0, false, false, false, verbose_patches_if_changed);
+	ApplyCoreSettings();
+}
+
+void VMManager::UpdateELFInfo(std::string elf_path)
+{
+	Error error;
+	ElfObject elfo;
+	if (elf_path.empty() || !cdvdLoadElf(&elfo, elf_path, false, &error))
+	{
+		if (!elf_path.empty())
+			Console.Error(fmt::format("Failed to read ELF being loaded: {}: {}", elf_path, error.GetDescription()));
+
+		s_elf_path = {};
+		s_elf_text_range = {};
+		s_elf_entry_point = 0xFFFFFFFFu;
+		s_current_crc = 0;
+		return;
+	}
+
+	elfo.LoadHeaders();
+	s_current_crc = elfo.GetCRC();
+	s_elf_entry_point = elfo.GetEntryPoint();
+	s_elf_text_range = elfo.GetTextRange();
+	s_elf_path = std::move(elf_path);
+
+	R5900SymbolImporter.OnElfChanged(elfo.ReleaseData(), s_elf_path);
+}
+
+void VMManager::ClearELFInfo()
+{
+	s_current_crc = 0;
+	s_elf_executed = false;
+	s_elf_text_range = {};
+	s_elf_path = {};
+	s_elf_entry_point = 0xFFFFFFFFu;
+}
+
+void VMManager::ReportGameChangeToHost()
+{
+	const std::string& disc_path = CDVDsys_GetFile(CDVDsys_GetSourceType());
+	const u32 crc_to_report = HasBootedELF() ? s_current_crc : 0;
+	const bool prefer_english = Host::GetBaseBoolSettingValue("UI", "PreferEnglishGameList", false);
+	const std::string game_title = GetTitle(prefer_english);
+	FullscreenUI::GameChanged(disc_path, s_disc_serial, game_title, s_disc_crc, crc_to_report);
+	Host::OnGameChanged(game_title, s_elf_override, disc_path, s_disc_serial, s_disc_crc, crc_to_report);
+}
+
+bool VMManager::HasBootedELF()
+{
+	return s_current_crc != 0 && s_elf_executed;
+}
+
+u32 VMManager::GetCRCForPatches()
+{
+	// An arcade game's patches are its gameid's alone, whatever ELF runs (PCSX2x6).
+	return Arcade::IsActive() ? 0 : s_current_crc;
+}
+
+bool VMManager::AutoDetectSource(const std::string& filename, Error* error)
+{
+	if (!filename.empty())
+	{
+		if (!FileSystem::FileExists(filename.c_str()))
+		{
+			Error::SetStringFmt(error, TRANSLATE_FS("VMManager", "Requested filename '{}' does not exist."), filename);
+			return false;
+		}
+
+		if (IsGSDumpFileName(filename))
+		{
+			CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
+			return GSDumpReplayer::Initialize(filename.c_str(), error);
+		}
+		else if (IsElfFileName(filename))
+		{
+			// alternative way of booting an elf, change the elf override, and (optionally) use the disc
+			// specified in the game settings.
+			std::string disc_path = GetDiscOverrideFromGameSettings(filename);
+			if (!disc_path.empty())
+			{
+				CDVDsys_SetFile(CDVD_SourceType::Iso, std::move(disc_path));
+				CDVDsys_ChangeSource(CDVD_SourceType::Iso);
+			}
+			else
+			{
+				CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
+			}
+
+			s_elf_override = filename;
+			return true;
+		}
+		else
+		{
+			// TODO: Maybe we should check if it's a valid iso here...
+			CDVDsys_SetFile(CDVD_SourceType::Iso, filename);
+			CDVDsys_ChangeSource(CDVD_SourceType::Iso);
+			return true;
+		}
+	}
+	else
+	{
+		// make sure we're not fast booting when we have no filename
+		CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
+		return true;
+	}
+}
+
+// The board as a freshly started emulator has it: no interrupt or DMA pending, nothing half transferred
+// in the drive, its registers zero, JVS off until the game starts it. Applied at a game's start and at
+// every reset of it. The board's RAM and SRAM, which a reset keeps, are left alone.
+static void ResetArcadeBoard()
+{
+	ACCORE::Reset();
+	ACATA::Reset();
+	ACJV::enabled = false;
+}
+
+// Namco System 246/256 (PCSX2x6). An .acgame is an INI naming what the board needs; only the gameid is
+// mandatory, everything else has a default (PCSX2x6's game config documentation):
+//   [game] name, gameid (NM and five digits), platform (246, 256 or super256, else the game database's)
+//   [data] subdir (the gameid; where elf, mediasrc and sram are, "" for next to the .acgame),
+//          elf (boot.elf), mediasrc (GAMEID.chd), media (CD, DVD or HDD, else the database's),
+//          dongle (GAMEID.ps2, in the memory cards folder), card (none), sram (sram.bin),
+//          256Region (ASIA4, ASIA5 or JAPAN), jvsmode, args
+// A host whose game folders are not plain paths (Android's documents) finds the ELF, the media and the
+// SRAM itself and passes them in boot_params.arcade_*. Everything set up here is taken down by
+// CloseArcadeGame(), on a failed boot too (Initialize's close_state).
+bool VMManager::OpenArcadeGame(const VMBootParameters& boot_params, Error* error)
+{
+	const std::string& filename = boot_params.filename;
+	if (!FileSystem::FileExists(filename.c_str()))
+	{
+		Error::SetStringFmt(error, TRANSLATE_FS("VMManager", "Requested filename '{}' does not exist."), filename);
+		return false;
+	}
+
+	INISettingsInterface ini(filename);
+	if (!ini.Load())
+	{
+		Error::SetStringFmt(error, TRANSLATE_FS("VMManager", "Cannot read the arcade game file '{}'."), filename);
+		return false;
+	}
+
+	const std::string gameid = ini.GetStringValue("game", "gameid", "");
+	if (!Arcade::IsGameId(gameid))
+	{
+		Error::SetStringFmt(error,
+			TRANSLATE_FS("VMManager", "'{}' is not an arcade game ID. It is NM followed by five digits, as in NM00004."),
+			gameid);
+		return false;
+	}
+
+	// Names the core writes under (dongle, card, SRAM) must stay in their folders; Arcade::ReadAcGameInfo() makes
+	// the same check for the game list.
+	if (const std::string unsafe = Arcade::CheckWrittenNames(ini, boot_params.arcade_sram.empty()); !unsafe.empty())
+	{
+		Error::SetString(error, unsafe);
+		return false;
+	}
+
+	const GameDatabaseSchema::GameEntry* const db = GameDatabase::findGame(gameid);
+
+	std::string platform = StringUtil::toLower(ini.GetStringValue("game", "platform", ""));
+	if (platform.empty() && db)
+	{
+		if (db->region == "System256")
+			platform = "256";
+		else if (db->region == "System SUPER256")
+			platform = "super256";
+	}
+	u32 clock;
+	if (platform.empty() || platform == "246")
+		clock = PS2CLK_DEFAULT;
+	else if (platform == "256")
+		clock = PS2CLK_S256;
+	else if (platform == "super256")
+		clock = PS2CLK_SS256;
+	else
+	{
+		Error::SetStringFmt(error,
+			TRANSLATE_FS("VMManager", "Unknown arcade platform '{}'. It is 246, 256 or super256."), platform);
+		return false;
+	}
+
+	std::string media_name = StringUtil::toUpper(ini.GetStringValue("data", "media", ""));
+	if (media_name.empty() && db)
+		media_name = StringUtil::toUpper(db->arcade.media);
+	const ACMEDIATYPE media_type = ACMEDIATYPE_FROM_STRING(media_name);
+	if (media_type == ACMEDIATYPE::ACUNK)
+	{
+		Error::SetStringFmt(error,
+			TRANSLATE_FS("VMManager", "Unknown arcade media type '{}'. It is CD, DVD or HDD."), media_name);
+		return false;
+	}
+
+	const std::string region = StringUtil::toUpper(ini.GetStringValue("data", "256Region", ""));
+	if (!region.empty() && region != "ASIA4" && region != "ASIA5" && region != "JAPAN")
+	{
+		Error::SetStringFmt(error,
+			TRANSLATE_FS("VMManager", "Unknown System 256 region '{}'. It is ASIA4, ASIA5 or JAPAN."), region);
+		return false;
+	}
+
+	// JVS input board: from the gameid, unless the .acgame forces one.
+	const std::string jvsmode = StringUtil::toLower(ini.GetStringValue("data", "jvsmode", ""));
+	JVS_MODE mode;
+	if (jvsmode.empty())
+		mode = ACJV::ResolveModeFromGameId(gameid);
+	else if (jvsmode == "lightgun")
+		mode = JVS_MODE::LIGHTGUN;
+	else if (jvsmode == "fighting")
+		mode = JVS_MODE::FIGHTING;
+	else if (jvsmode == "drum")
+		mode = JVS_MODE::DRUM;
+	else if (jvsmode == "racing")
+		mode = JVS_MODE::DRIVE;
+	else if (jvsmode == "standard")
+		mode = JVS_MODE::STANDARD;
+	else if (jvsmode == "twinstick")
+		mode = JVS_MODE::TWINSTICK;
+	else if (jvsmode == "touch")
+		mode = JVS_MODE::TOUCH;
+	else
+		mode = JVS_MODE::DEFAULT;
+
+	std::string basedir(Path::GetDirectory(filename));
+	const std::string subdir = ini.GetStringValue("data", "subdir", gameid.c_str());
+	if (!subdir.empty())
+		basedir = Path::Combine(basedir, subdir);
+	const auto locate = [&ini, &basedir](const std::string& found, const char* key, const std::string& default_name) {
+		if (!found.empty())
+			return found;
+		std::string name = ini.GetStringValue("data", key, default_name.c_str());
+		if (name.empty())
+			name = default_name;
+		return Path::IsAbsolute(name) ? name : Path::Combine(basedir, name);
+	};
+	const std::string elf = locate(boot_params.arcade_elf, "elf", "boot.elf");
+	const std::string media = locate(boot_params.arcade_media, "mediasrc", gameid + ".chd");
+	const std::string sram = locate(boot_params.arcade_sram, "sram", "sram.bin");
+	if (!FileSystem::FileExists(elf.c_str()))
+	{
+		Error::SetStringFmt(error, TRANSLATE_FS("VMManager", "The arcade game's boot program '{}' is missing."), elf);
+		return false;
+	}
+	if (!FileSystem::FileExists(media.c_str()))
+	{
+		Error::SetStringFmt(error, TRANSLATE_FS("VMManager", "The arcade game's media image '{}' is missing."), media);
+		return false;
+	}
+
+	// The memory cards. Missing ones would otherwise be made, blank, by the memory card code, and a blank
+	// dongle boots nothing.
+	std::string dongle = ini.GetStringValue("data", "dongle", "");
+	if (dongle.empty())
+		dongle = gameid + ".ps2";
+	std::string card = ini.GetStringValue("data", "card", "");
+	// Soul Calibur II is the one game that reads a card of its own in slot 2, its Conquest card, and
+	// its opponents' AI goes wrong without one. An .acgame that names no card gets the one named after
+	// the game in the memory cards folder, when there is one. It is a raw card, its spare bytes the
+	// game's own checksums, so never a .bin (converted as a card without ECC). Every other game keeps
+	// slot 2 empty unless its .acgame names a card.
+	if (card.empty() && gameid == "NM00007" &&
+		FileSystem::FileExists(Path::Combine(EmuFolders::MemoryCards, "NM00007.conquestcard").c_str()))
+	{
+		card = "NM00007.conquestcard";
+	}
+	if (!FileSystem::FileExists(Path::Combine(EmuFolders::MemoryCards, dongle).c_str()))
+	{
+		Error::SetStringFmt(error,
+			TRANSLATE_FS("VMManager", "The arcade game's security dongle '{}' is not in the memory cards folder."), dongle);
+		return false;
+	}
+	if (!card.empty() && !FileSystem::FileExists(Path::Combine(EmuFolders::MemoryCards, card).c_str()))
+	{
+		Error::SetStringFmt(error,
+			TRANSLATE_FS("VMManager", "The arcade game's memory card '{}' is not in the memory cards folder."), card);
+		return false;
+	}
+
+	// The board's BIOS (FindArcadeBiosFor): every arcade BIOS in the BIOS folder is in use, the System 256 one
+	// for every game and the System 246 one for a game that refuses it (Battle Gear 3), so none is picked.
+	std::string picked;
+	{
+		auto lock = Host::GetSettingsLock();
+		picked = Host::GetSettingsInterface()->GetStringValue("Filenames", "ArcadeBIOS", "");
+	}
+	std::string needs;
+	std::string bios = FindArcadeBiosFor(gameid, picked, &needs);
+	if (bios.empty() && !needs.empty())
+	{
+		Error::SetStringFmt(error,
+			TRANSLATE_FS("VMManager", "This game does not run on the arcade BIOS in the BIOS folder. It needs the {} BIOS."), needs);
+		return false;
+	}
+
+	// From here on the board exists, for this boot and every reset of it. It starts as a freshly started
+	// emulator would have it, whatever the last arcade game left behind.
+	ResetArcadeBoard();
+	Arcade::s_session = true;
+	s_arcade_gameid = gameid;
+	s_arcade_title = ini.GetStringValue("game", "name", "");
+	s_arcade_dongle = std::move(dongle);
+	s_arcade_card = std::move(card);
+	s_arcade_bios = std::move(bios);
+	ArcadeiLinkID = region;
+	SetEmulatedClocks(clock, PSXCLK);
+
+	if (!ACRAM::Allocate())
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Not enough memory for the arcade board's RAM."));
+		return false;
+	}
+
+	ACJV::SetGameId(gameid);
+	ACJV::SetMode(mode);
+	{
+		auto lock = Host::GetSettingsLock();
+		ACJV::LoadConfig(*Host::GetSettingsInterface());
+		// The BIOS and the memory cards are read before the game's settings are, so the board's go in now.
+		ApplyArcadeSessionSettings(*Host::GetSettingsInterface());
+	}
+
+	ACATA::SetImage(media, media_type);
+	// What the game writes to a hard drive that is a CHD is kept beside its SRAM (ChdWrites).
+	ACATA::SetWritesFile(Path::Combine(Path::GetDirectory(sram), "hdd-writes.bin"));
+	if (ACATA::TH::IO_OpenImage() != 0)
+	{
+		if (!ACATA::TH::open_error.empty())
+			Error::SetString(error, ACATA::TH::open_error);
+		else
+			Error::SetStringFmt(error, TRANSLATE_FS("VMManager", "Cannot open the arcade game's media image '{}'."), media);
+		return false;
+	}
+
+	// The board has no disc drive of its own (PCSX2x6); a CD game's disc is in the console's drive as well.
+	if (media_type == ACMEDIATYPE::ACCD)
+	{
+		CDVDsys_SetFile(CDVD_SourceType::Iso, media);
+		CDVDsys_ChangeSource(CDVD_SourceType::Iso);
+	}
+	else
+	{
+		CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
+	}
+
+	s_elf_override = elf;
+	EmuConfig.CurrentGameArgs = ini.GetStringValue("data", "args", "");
+	ACSRAM::filepath = sram;
+
+	Console.WriteLn(Color_StrongGreen, fmt::format("Arcade game {} ({}): platform {}, media {}, JVS mode {}{}",
+		gameid, s_arcade_title, platform.empty() ? "246" : platform, media_name, static_cast<int>(mode),
+		region.empty() ? std::string() : fmt::format(", System 256 region {}", region)));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  elf: {}", elf));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  media: {}", media));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  dongle: {}{}", s_arcade_dongle,
+		s_arcade_card.empty() ? std::string() : fmt::format(", card: {}", s_arcade_card)));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  sram: {}", sram));
+	Console.WriteLn(Color_StrongGreen, fmt::format("  bios: {}", s_arcade_bios.empty() ? std::string("(searched at boot)") : s_arcade_bios));
+	return true;
+}
+
+// Takes the board down again: everything OpenArcadeGame() set up, in a boot that failed half way too. Only
+// does anything after an arcade session, so a console game's boot and shutdown pass straight through.
+void VMManager::CloseArcadeGame()
+{
+	if (!Arcade::IsActive())
+		return;
+
+	ACATA::TH::IO_CloseImage();
+	ACATAPI::Reset(); // the next game gets a fresh MODE SENSE page
+	ACRAM::Release();
+	ACSRAM::filepath = {};
+	ArcadeiLinkID = {};
+	SetEmulatedClocks(PS2CLK_DEFAULT, 36864000);
+	EmuConfig.CurrentGameArgs = {};
+	s_arcade_gameid = {};
+	s_arcade_title = {};
+	s_arcade_dongle = {};
+	s_arcade_card = {};
+	s_arcade_bios = {};
+	Arcade::s_session = false;
+}
+
+bool VMManager::IsArcadeGameFileName(const std::string_view path)
+{
+	return StringUtil::EndsWithNoCase(path, ".acgame");
+}
+
+void VMManager::PrecacheCDVDFile()
+{
+	Error error;
+	std::unique_ptr<ProgressCallback> progress = Host::CreateHostProgressCallback();
+	if (!DoCDVDprecache(progress.get(), &error))
+	{
+		if (progress->IsCancelled())
+		{
+			Host::AddIconOSDMessage("PrecacheCDVDFile", ICON_FA_COMPACT_DISC,
+				TRANSLATE_STR("VMManager", "CDVD precaching was cancelled."),
+				Host::OSD_WARNING_DURATION);
+		}
+		else
+		{
+			Host::AddIconOSDMessage("PrecacheCDVDFile", ICON_FA_TRIANGLE_EXCLAMATION,
+				fmt::format(TRANSLATE_FS("VMManager", "CDVD precaching failed: {}"), error.GetDescription()),
+				Host::OSD_ERROR_DURATION);
+		}
+	}
+}
+
+void VMManager::InitializeAsync(
+	const VMBootParameters& boot_params,
+	VMBootHardcoreDisableCallback hardcore_disable_callback,
+	VMBootDoneCallback done_callback)
+{
+	Error error;
+	VMBootResult result = VMManager::Initialize(boot_params, &error);
+
+	if (result == VMBootResult::PromptDisableHardcoreMode)
+	{
+		std::string reason;
+		if (DebugInterface::getPauseOnEntry())
+			reason = TRANSLATE_STR("VMManager", "Boot and Debug");
+		else
+			reason = TRANSLATE_STR("VMManager", "Resuming state");
+
+		hardcore_disable_callback(reason,
+			[boot_params, done_callback = std::move(done_callback)]() {
+				VMBootParameters new_boot_params = std::move(boot_params);
+				new_boot_params.disable_achievements_hardcore_mode = true;
+
+				Error error;
+				VMBootResult result = VMManager::Initialize(new_boot_params, &error);
+				done_callback(result, error);
+			});
+
+		return;
+	}
+
+	done_callback(result, error);
+}
+
+VMBootResult VMManager::Initialize(const VMBootParameters& boot_params, Error* error)
+{
+	const Common::Timer init_timer;
+	if (s_state.load(std::memory_order_acquire) != VMState::Shutdown)
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "The virtual machine is already running."));
+		return VMBootResult::StartupFailure;
+	}
+
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+	NativeLimiterWaitReset();
+#endif
+
+#if PS2_NATIVE_IOP_THREADED
+	s_native_iop_vm_failure_reason = 0;
+#endif
+	s_emulation_only_mode.store(false, std::memory_order_release);
+	s_emulation_only_release_flags.store(EMULATION_ONLY_RELEASE_ALL, std::memory_order_release);
+	s_boot_patches_applied.store(false, std::memory_order_release);
+	s_texture_replacement_startup_complete.store(false, std::memory_order_release);
+	s_emulation_only_startup_notification_posted.store(false, std::memory_order_release);
+
+	// cancel any game list scanning, we need to use CDVD!
+	// TODO: we can get rid of this once, we make CDVD not use globals...
+	// (or make it thread-local, but that seems silly.)
+	Host::CancelGameListRefresh();
+
+	s_state.store(VMState::Initializing, std::memory_order_release);
+	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
+	Host::OnVMStarting();
+	VMManager::Internal::ResetVMHotkeyState();
+
+	ScopedGuard close_state = [] {
+		CloseArcadeGame();
+
+		if (GSDumpReplayer::IsReplayingDump())
+			GSDumpReplayer::Shutdown();
+
+		s_elf_override = {};
+		s_game_settings_override = {};
+		ClearELFInfo();
+		ClearDiscDetails();
+
+		Achievements::GameChanged(0, 0);
+		FullscreenUI::GameChanged(s_title, std::string(), s_disc_serial, 0, 0);
+		UpdateDiscordPresence(true);
+		Host::OnGameChanged(s_title, std::string(), std::string(), s_disc_serial, 0, 0);
+
+		UpdateGameSettingsLayer();
+		s_state.store(VMState::Shutdown, std::memory_order_release);
+		IopThread::StopThread();
+		Host::OnVMDestroyed();
+		ApplySettings();
+	};
+
+	std::string state_to_load;
+
+	s_elf_override = boot_params.elf_override;
+	if (!boot_params.save_state.empty())
+		state_to_load = boot_params.save_state;
+
+	// if we're loading an indexed save state, we need to get the serial/crc from the disc.
+	if (boot_params.state_index.has_value())
+	{
+		if (boot_params.filename.empty())
+		{
+			Error::SetString(error,
+				TRANSLATE_STR("VMManager", "Cannot load an indexed save state without a boot filename."));
+			return VMBootResult::StartupFailure;
+		}
+
+		state_to_load = GetSaveStateFileName(boot_params.filename.c_str(), boot_params.state_index.value());
+		if (state_to_load.empty())
+		{
+			Error::SetString(error,
+				TRANSLATE_STR("VMManager", "Could not resolve path for indexed save state load."));
+			return VMBootResult::StartupFailure;
+		}
+	}
+
+	if (!cdvdLock(error))
+		return VMBootResult::StartupFailure;
+
+	ScopedGuard unlock_cdvd = &cdvdUnlock;
+
+	// resolve source type
+	if (boot_params.source_type.has_value())
+	{
+		if (boot_params.source_type.value() == CDVD_SourceType::Iso &&
+			!FileSystem::FileExists(boot_params.filename.c_str()))
+		{
+			Error::SetStringFmt(error,
+				TRANSLATE_FS("VMManager", "Requested filename '{}' does not exist."), boot_params.filename);
+			return VMBootResult::StartupFailure;
+		}
+
+		// Use specified source type.
+		CDVDsys_SetFile(boot_params.source_type.value(), boot_params.filename);
+		CDVDsys_ChangeSource(boot_params.source_type.value());
+	}
+	else if (IsArcadeGameFileName(boot_params.filename) || !boot_params.arcade_elf.empty())
+	{
+		// A Namco System 246/256 game: the board comes up with it. A host that found the game's files
+		// says so even when the .acgame's URI does not carry its name (a document with an opaque ID).
+		if (!OpenArcadeGame(boot_params, error))
+			return VMBootResult::StartupFailure;
+	}
+	else
+	{
+		// Automatic type detection of boot parameter based on filename.
+		if (!AutoDetectSource(boot_params.filename, error))
+			return VMBootResult::StartupFailure;
+	}
+
+	ScopedGuard close_cdvd_files(&CDVDsys_ClearFiles);
+
+	// Playing GS dumps don't need a BIOS.
+	if (!GSDumpReplayer::IsReplayingDump())
+	{
+		Console.WriteLn("Loading BIOS...");
+		if (!LoadBIOS())
+		{
+			if (Arcade::IsActive())
+			{
+				Error::SetString(error, TRANSLATE_STR("VMManager",
+					"Arcade games need the BIOS of a Namco System 246 or 256 board (a COH-H BIOS) in the BIOS folder."));
+				return VMBootResult::StartupFailure;
+			}
+			Error::SetStringFmt(error,
+				TRANSLATE_FS("VMManager",
+					"PCSX2 requires a PlayStation 2 BIOS in order to run.\n\n"
+					"For legal reasons, you will need to obtain this BIOS from a PlayStation 2 unit which you own.\n\n"
+					"For step-by-step help with this process, please consult the setup guide at {}.\n\n"
+					"PCSX2 will be able to run once you've placed your BIOS image inside the folder named \"bios\" within the data directory "
+					"(Tools Menu -> Open Data Directory)."),
+				PCSX2_DOCUMENTATION_BIOS_URL_SHORTENED);
+			return VMBootResult::StartupFailure;
+		}
+
+		// Must happen after BIOS load, depends on BIOS version.
+		cdvdLoadNVRAM();
+
+		// The arcade board's settings memory (its test menu's settings), kept per game.
+		if (Arcade::IsActive())
+			ACSRAM::ReadFile();
+	}
+
+	Error cdvd_error;
+	Console.WriteLn("Opening CDVD...");
+	if (!DoCDVDopen(&cdvd_error))
+	{
+		Error::SetStringFmt(error, TRANSLATE_FS("VMManager", "Failed to open CDVD '{}': {}."),
+			Path::GetFileName(CDVDsys_GetFile(CDVDsys_GetSourceType())),
+			cdvd_error.GetDescription());
+		return VMBootResult::StartupFailure;
+	}
+	ScopedGuard close_cdvd(&DoCDVDclose);
+
+	if (!boot_params.game_config.empty())
+	{
+		if (!StringUtil::compareNoCase(Path::GetExtension(boot_params.game_config), "ini"))
+		{
+			Error::SetStringFmt(error,
+				TRANSLATE_FS("VMManager", "Requested game config '{}' is not an INI file."), boot_params.game_config);
+			return VMBootResult::StartupFailure;
+		}
+		else if (!FileSystem::FileExists(boot_params.game_config.c_str()))
+		{
+			Error::SetStringFmt(error,
+				TRANSLATE_FS("VMManager", "Requested game config '{}' does not exist."), boot_params.game_config);
+			return VMBootResult::StartupFailure;
+		}
+		s_game_settings_override = boot_params.game_config;
+	}
+
+	// Figure out which game we're running! This also loads game settings.
+	UpdateDiscDetails(true);
+
+	ScopedGuard close_memcards(&FileMcd_EmuClose);
+
+	// Read fast boot setting late so it can be overridden per-game.
+	// ELFs must be fast booted, and GS dumps are never fast booted.
+	s_fast_boot_requested =
+		(boot_params.fast_boot.value_or(static_cast<bool>(EmuConfig.EnableFastBoot)) || !s_elf_override.empty()) &&
+		(CDVDsys_GetSourceType() != CDVD_SourceType::NoDisc || !s_elf_override.empty()) &&
+		!GSDumpReplayer::IsReplayingDump();
+
+	if (!s_elf_override.empty())
+	{
+		if (!FileSystem::FileExists(s_elf_override.c_str()))
+		{
+			Error::SetStringFmt(error,
+				TRANSLATE_FS("VMManager", "Requested boot ELF '{}' does not exist."), s_elf_override);
+			return VMBootResult::StartupFailure;
+		}
+
+		Hle_SetHostRoot(s_elf_override.c_str());
+	}
+	else if (CDVDsys_GetSourceType() == CDVD_SourceType::Iso)
+	{
+		Hle_SetHostRoot(CDVDsys_GetFile(CDVDsys_GetSourceType()).c_str());
+	}
+	else
+	{
+		Hle_ClearHostRoot();
+	}
+
+	// Check for resuming and 'Boot and Debug' with hardcore mode.
+	// Why do we need the boot param? Because we need some way of telling BootSystem() that
+	// the user allowed HC mode to be disabled, because otherwise we'll ResetHardcoreMode()
+	// and send ourselves into an infinite loop.
+	if (boot_params.disable_achievements_hardcore_mode || GSDumpReplayer::IsReplayingDump())
+		Achievements::DisableHardcoreMode();
+	else
+		Achievements::ResetHardcoreMode(true);
+
+	if (Achievements::IsHardcoreModeActive() && (!state_to_load.empty() || DebugInterface::getPauseOnEntry()))
+		return VMBootResult::PromptDisableHardcoreMode;
+
+	if (boot_params.start_unlimited.value_or(false))
+		s_limiter_mode = LimiterModeType::Unlimited;
+	else if (boot_params.start_turbo.value_or(false))
+		s_limiter_mode = LimiterModeType::Turbo;
+	else
+		s_limiter_mode = LimiterModeType::Nominal;
+
+	s_target_speed = GetTargetSpeedForLimiterMode(s_limiter_mode);
+	s_use_vsync_for_timing = false;
+
+	s_cpu_implementation_changed = false;
+	// The IOP thread mode is chosen before the recompilers are reset: the EE JIT's dispatcher is
+	// generated for it. The thread itself starts once the devices are open.
+	IopThread::ChooseMode();
+	UpdateCPUImplementations();
+	mmap_ResetBlockTracking();
+	memSetExtraMemMode(EmuConfig.Cpu.ExtraMemory);
+	vuAotResetStickyTripwire();
+	EECycleRate::SyncToConfigured();
+	EECycleRateSampler::OnVMStart();
+	Internal::ClearCPUExecutionCaches();
+	FPControlRegister::SetCurrent(EmuConfig.Cpu.FPUFPCR);
+	memBindConditionalHandlers();
+	SysMemory::Reset();
+	cpuReset();
+
+	Console.WriteLn("Opening GS...");
+	s_gs_open_on_initialize = MTGS::IsOpen();
+	if (!s_gs_open_on_initialize && !MTGS::WaitForOpen())
+	{
+		// we assume GS is going to report its own error
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Failed to initialize GS."));
+		return VMBootResult::StartupFailure;
+	}
+
+	ScopedGuard close_gs = []() {
+		if (!s_gs_open_on_initialize)
+			MTGS::WaitForClose();
+	};
+
+	Console.WriteLn("Opening SPU2...");
+	if (!SPU2::Open())
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Failed to initialize SPU2."));
+		return VMBootResult::StartupFailure;
+	}
+	ScopedGuard close_spu2(&SPU2::Close);
+
+
+	Console.WriteLn("Initializing Pad...");
+	if (!Pad::Initialize())
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Failed to initialize PAD."));
+		return VMBootResult::StartupFailure;
+	}
+	WarnAboutUnconfiguredController();
+	ScopedGuard close_pad = &Pad::Shutdown;
+
+	Console.WriteLn("Initializing SIO2...");
+	if (!g_Sio2.Initialize())
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Failed to initialize SIO2."));
+		return VMBootResult::StartupFailure;
+	}
+	ScopedGuard close_sio2 = []() {
+		g_Sio2.Shutdown();
+	};
+
+	Console.WriteLn("Initializing SIO0...");
+	if (!g_Sio0.Initialize())
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Failed to initialize SIO0."));
+		return VMBootResult::StartupFailure;
+	}
+	ScopedGuard close_sio0 = []() {
+		g_Sio0.Shutdown();
+	};
+
+	Console.WriteLn("Opening DEV9...");
+	if (DEV9init() != 0 || DEV9open() != 0)
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Failed to initialize DEV9."));
+		return VMBootResult::StartupFailure;
+	}
+	ScopedGuard close_dev9 = []() {
+		DEV9close();
+		DEV9shutdown();
+	};
+
+	Console.WriteLn("Opening USB...");
+	if (!USBopen())
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Failed to initialize USB."));
+		return VMBootResult::StartupFailure;
+	}
+	ScopedGuard close_usb = []() { USBclose(); };
+
+	Console.WriteLn("Opening FW...");
+	if (FWopen() != 0)
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Failed to initialize FW."));
+		return VMBootResult::StartupFailure;
+	}
+	ScopedGuard close_fw = []() { FWclose(); };
+
+	if (EmuConfig.CdvdPrecache)
+		PrecacheCDVDFile();
+
+	// The devices are open and the CPU state is reset: the IOP thread, if the mode has one, takes its
+	// clocks from it.
+	IopThread::SyncThread();
+#if PS2_NATIVE_IOP_THREADED
+	if (NativeIopStartFailed())
+	{
+		Console.Error("Native IOP startup failed (reason 0x%08x).", s_native_iop_vm_failure_reason);
+		Error::SetString(error, "Could not start the game.");
+		// These guards still own every opened VM device. Their reverse-order
+		// rollback ends in Shutdown; the frontend then joins CPU/MTVU/AV.
+		return VMBootResult::StartupFailure;
+	}
+#endif
+
+	// Don't close when we return
+	close_fw.Cancel();
+	close_usb.Cancel();
+	close_dev9.Cancel();
+	close_pad.Cancel();
+	close_sio2.Cancel();
+	close_sio0.Cancel();
+	close_spu2.Cancel();
+	close_gs.Cancel();
+	close_memcards.Cancel();
+	close_cdvd.Cancel();
+	close_cdvd_files.Cancel();
+	unlock_cdvd.Cancel();
+	close_state.Cancel();
+
+	hwReset();
+
+	Console.WriteLn("VM subsystems initialized in %.2f ms", init_timer.GetTimeMilliseconds());
+	s_state.store(VMState::Paused, std::memory_order_release);
+	// A paused VM holds the IOP for as long as it stays paused (SetState does the same when it enters Paused). This
+	// store bypasses SetState, and the first resume goes through SetState, which calls SPU2::SetOutputPaused(false)
+	// and touches the audio stream the IOP thread started above writes.
+	IopThread::OnVmPaused(true);
+	Host::OnVMStarted();
+	FullscreenUI::OnVMStarted();
+	UpdateInhibitScreensaver(EmuConfig.InhibitScreensaver);
+
+	// A BIOS-only boot has no game ELF or replacement-texture map to signal the
+	// normal readiness barriers. Its optional-resource teardown may begin once
+	// all VM subsystems above have finished initializing.
+	if (boot_params.filename.empty())
+	{
+		NotifyBootPatchesApplied();
+		NotifyTextureReplacementStartupComplete();
+	}
+
+	SetEmuThreadAffinities();
+
+	// do we want to load state?
+	if (!GSDumpReplayer::IsReplayingDump() && !state_to_load.empty())
+	{
+		if (!DoLoadState(state_to_load.c_str(), error))
+		{
+			Shutdown(false);
+			return VMBootResult::StartupFailure;
+		}
+	}
+
+#if PS2_NATIVE_IOP_THREADED
+	if (s_native_iop_vm_failure_reason)
+	{
+		// An explicit resume can fail to restart IOP inside DoLoadState,
+		// after the initial device guards have transferred to the VM.
+		Error::SetString(error, "Could not start the game.");
+		Shutdown(false);
+		return VMBootResult::StartupFailure;
+	}
+#endif
+	PerformanceMetrics::Clear();
+	AutoTune::OnVMStarted();
+	return VMBootResult::StartupSuccess;
+}
+
+struct IzNativeApp;
+extern "C" void izps2_boot_stage(IzNativeApp*, const char*, uint32_t);
+#define EXIT_STAGE(message) izps2_boot_stage(nullptr, "26 " message "\n", sizeof("26 " message "\n") - 1)
+
+void VMManager::Shutdown(bool save_resume_state)
+{
+	// we'll probably already be stopping (this is how Qt calls shutdown),
+	// but just in case, so any of the stuff we call here knows we don't have a valid VM.
+	s_state.store(VMState::Stopping, std::memory_order_release);
+
+	// Empties and removes auto-tune's trial layer before anything below applies settings.
+	AutoTune::OnVMShutdown();
+
+	PerformanceMetrics::LogSessionSummary();
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+	NativeLimiterWaitSummary();
+#endif
+	EECycleRateSampler::OnVMShutdown();
+
+	SetTimerResolutionIncreased(false);
+
+	// Everything below touches the devices the IOP owns; the thread is gone before any of them close.
+	IopThread::VmHold iop_hold;
+
+	// sync everything
+	if (THREAD_VU1)
+		vu1Thread.WaitVU();
+	MTGS::WaitGS();
+
+	if (!GSDumpReplayer::IsReplayingDump() && save_resume_state)
+	{
+		std::string resume_file_name(GetCurrentSaveStateFileName(-1));
+		if (!resume_file_name.empty())
+		{
+			DoSaveState(resume_file_name.c_str(), -1, true, false, [](const std::string& error) {
+				Host::AddIconOSDMessage("SaveResumeState", ICON_FA_TRIANGLE_EXCLAMATION,
+					fmt::format(TRANSLATE_FS("VMManager", "Failed to save resume state: {}"), error), Host::OSD_QUICK_DURATION);
+			});
+		}
+	}
+
+	Autosave::OnShutdown();
+
+	// end input recording before clearing state
+	if (g_InputRecording.isActive())
+		g_InputRecording.stop();
+
+	SaveSessionTime(s_disc_serial);
+	EXIT_STAGE("session time returned");
+	s_elf_override = {};
+	s_game_settings_override = {};
+	ClearELFInfo();
+	CDVDsys_ClearFiles();
+
+	{
+		std::unique_lock lock(s_info_mutex);
+		ClearDiscDetails();
+	}
+
+	Achievements::GameChanged(0, 0);
+	FullscreenUI::GameChanged(s_title, std::string(), s_disc_serial, 0, 0);
+	UpdateDiscordPresence(true);
+	Host::OnGameChanged(s_title, std::string(), std::string(), s_disc_serial, 0, 0);
+
+	s_fast_boot_requested = false;
+
+	UpdateGameSettingsLayer();
+	EXIT_STAGE("close game settings returned");
+
+	FPControlRegister::SetCurrent(FPControlRegister::GetDefault());
+	EXIT_STAGE("FP control restored");
+
+	IopThread::StopThread();
+	EXIT_STAGE("IOP stop returned");
+	Patch::UnloadPatches();
+	EXIT_STAGE("patch unload returned");
+	R3000A::ioman::reset();
+	EXIT_STAGE("IOP file reset returned");
+	vtlb_Shutdown();
+	EXIT_STAGE("VTLB shutdown returned");
+	USBclose();
+	EXIT_STAGE("USB close returned");
+	SPU2::Close();
+	EXIT_STAGE("SPU2 close returned");
+	Pad::Shutdown();
+	g_Sio2.Shutdown();
+	g_Sio0.Shutdown();
+	MemcardBusy::ClearBusy();
+	DEV9close();
+	DoCDVDclose();
+	FWclose();
+	FileMcd_EmuClose();
+	EXIT_STAGE("memcards closed");
+
+	// If the fullscreen UI is running, do a hardware reset on the GS
+	// so that the texture cache and targets are all cleared.
+	if (s_gs_open_on_initialize)
+	{
+		MTGS::WaitGS(false, false, false);
+		MTGS::ResetGS(true);
+		MTGS::GameChanged();
+	}
+	else
+	{
+		MTGS::WaitForClose();
+	}
+
+	DEV9shutdown();
+	EXIT_STAGE("GS and DEV9 closed");
+
+	if (GSDumpReplayer::IsReplayingDump())
+		GSDumpReplayer::Shutdown();
+	else
+		cdvdSaveNVRAM();
+
+	if (Arcade::IsActive())
+		ACSRAM::WriteFile();
+	CloseArcadeGame();
+
+	cdvdUnlock();
+	EXIT_STAGE("CDVD and firmware closed");
+
+	s_state.store(VMState::Shutdown, std::memory_order_release);
+	FullscreenUI::OnVMDestroyed();
+	SaveStateSelectorUI::Clear();
+	UpdateInhibitScreensaver(false);
+	SetEmuThreadAffinities();
+	Host::OnVMDestroyed();
+
+	// clear out any potentially-incorrect settings from the last game
+	LoadSettings();
+	EXIT_STAGE("VM reload settings returned");
+	// (the global setting may have been changed while the game ran: that is not a change made with no VM)
+	vuAotNoteGlobalSetting(GetGlobalVuAot());
+}
+
+#undef EXIT_STAGE
+
+bool VMManager::RequestReset()
+{
+	if (MemcardBusy::IsBusy())
+	{
+		Host::AddIconOSDMessage("RequestReset", ICON_FA_TRIANGLE_EXCLAMATION,
+			TRANSLATE_STR("VMManager",
+				"The memory card is busy, so the reset operation has been cancelled to prevent data loss."),
+			Host::OSD_WARNING_DURATION);
+		return false;
+	}
+
+	VMManager::Reset();
+
+	return true;
+}
+
+void VMManager::Reset()
+{
+	pxAssert(HasValidVM());
+
+	// If we're running, we're probably going to be executing this at event test time,
+	// at vsync, which happens in the middle of event handling. Resetting everything
+	// immediately here is a bad idea (tm), in fact, it breaks some games (e.g. TC:NYC).
+	// So, instead, we tell the rec to exit execution, _then_ reset. Paused is fine here,
+	// since the rec won't be running, so it's safe to immediately reset there.
+	if (s_state.load(std::memory_order_acquire) == VMState::Running)
+	{
+		s_state.store(VMState::Resetting, std::memory_order_release);
+		return;
+	}
+
+	if (!Achievements::ConfirmSystemReset())
+		return;
+
+	// Re-enforce hardcode mode constraints if we're now enabling it.
+	if (!GSDumpReplayer::IsReplayingDump() && Achievements::ResetHardcoreMode(false))
+		ApplySettings();
+
+	IopThread::VmHold iop_hold;
+
+	vu1Thread.WaitVU();
+	vu1Thread.Reset();
+	MTGS::WaitGS();
+
+	const bool elf_was_changed = (s_current_crc != 0);
+	ClearELFInfo();
+	if (elf_was_changed)
+		HandleELFChange(false);
+
+	Achievements::ResetClient();
+
+	mmap_ResetBlockTracking();
+	memSetExtraMemMode(EmuConfig.Cpu.ExtraMemory);
+	vuAotResetStickyTripwire();
+	// The reset puts the IOP back in PS2 mode, so a VM that a PS1 game demoted to Off gets its IOP
+	// thread back. The mode is chosen before the recompilers are reset, which generates the EE
+	// dispatcher for it.
+	IopThread::ChooseModeForReset();
+	EECycleRate::SyncToConfigured();
+	EECycleRateSampler::OnLifecycleReset("VM reset");
+	Internal::ClearCPUExecutionCaches();
+	memBindConditionalHandlers();
+	SysMemory::Reset();
+	cpuReset();
+	IopThread::SyncThread();
+#if PS2_NATIVE_IOP_THREADED
+	if (NativeIopStartFailed())
+	{
+		NativeIopRequestCleanStop("VM reset");
+		return;
+	}
+#endif
+	IopThread::ResyncClocks();
+	// A thread that has just started is on the CPU thread's affinity until it is placed.
+	if (IopThread::PlacementToken() != s_iop_placement_token)
+		SetEmuThreadAffinities();
+	hwReset();
+	if (Arcade::IsActive())
+		ResetArcadeBoard();
+
+	if (g_InputRecording.isActive())
+	{
+		g_InputRecording.handleReset();
+		MTGS::PresentCurrentFrame();
+	}
+
+	ResetFrameLimiter();
+	AutoTune::OnSceneChanged();
+
+	// If we were paused, state won't be resetting, so don't flip back to running.
+	if (s_state.load(std::memory_order_acquire) == VMState::Resetting)
+		s_state.store(VMState::Running, std::memory_order_release);
+}
+
+bool SaveStateBase::vmFreeze()
+{
+	const u32 prev_crc = s_current_crc;
+	const std::string prev_elf = s_elf_path;
+	const bool prev_elf_executed = s_elf_executed;
+	Freeze(s_current_crc);
+	FreezeString(s_elf_path);
+	Freeze(s_elf_executed);
+
+	// We have to test all the variables here, because we could be loading a state created during ELF load, after the ELF has loaded.
+	if (IsLoading())
+	{
+		// Might need new ELF info.
+		if (s_elf_path != prev_elf)
+		{
+			if (s_elf_path.empty())
+			{
+				// Shouldn't have executed a non-existant ELF.. unless you load state created from a deleted ELF override I guess.
+				if (s_elf_executed)
+					Console.Error("Somehow executed a non-existant ELF");
+				VMManager::ClearELFInfo();
+			}
+			else
+			{
+				VMManager::UpdateELFInfo(std::move(s_elf_path));
+			}
+		}
+
+		if (s_current_crc != prev_crc || s_elf_path != prev_elf || s_elf_executed != prev_elf_executed)
+			VMManager::HandleELFChange(true);
+	}
+
+	return IsOkay();
+}
+
+std::string VMManager::GetSaveStateFileName(const char* game_serial, u32 game_crc, s32 slot, bool backup)
+{
+	std::string filename;
+	if (std::strlen(game_serial) > 0)
+	{
+		if (slot == SAVESTATE_SLOT_AUTOSAVE)
+			filename = fmt::format("{} ({:08X}).autosave.p2s", game_serial, game_crc);
+		else if (slot < 0)
+			filename = fmt::format("{} ({:08X}).resume.p2s", game_serial, game_crc);
+		else if (backup)
+			filename = fmt::format("{} ({:08X}).{:02d}.p2s.backup", game_serial, game_crc, slot);
+		else
+			filename = fmt::format("{} ({:08X}).{:02d}.p2s", game_serial, game_crc, slot);
+
+		filename = Path::Combine(EmuFolders::Savestates, filename);
+	}
+
+	return filename;
+}
+
+std::string VMManager::GetSaveStateFileName(const char* filename, s32 slot, bool backup)
+{
+	pxAssertRel(!HasValidVM(), "Should not have a VM when calling the non-gamelist GetSaveStateFileName()");
+
+	std::string ret;
+	std::string serial;
+	u32 crc;
+	if (GameList::GetSerialAndCRCForFilename(filename, &serial, &crc))
+		ret = GetSaveStateFileName(serial.c_str(), crc, slot, backup);
+
+	return ret;
+}
+
+bool VMManager::HasSaveStateInSlot(const char* game_serial, u32 game_crc, s32 slot)
+{
+	std::string filename(GetSaveStateFileName(game_serial, game_crc, slot));
+	return (!filename.empty() && FileSystem::FileExists(filename.c_str()));
+}
+
+std::string VMManager::GetCurrentSaveStateFileName(s32 slot, bool backup)
+{
+	std::unique_lock lock(s_info_mutex);
+	return GetSaveStateFileName(s_disc_serial.c_str(), s_disc_crc, slot, backup);
+}
+
+bool VMManager::DoLoadState(const char* filename, Error* error)
+{
+	if (GSDumpReplayer::IsReplayingDump())
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "Cannot load state while replaying a GS dump."));
+		return false;
+	}
+
+	Host::OnSaveStateLoading(filename);
+
+	if (!SaveState_UnzipFromDisk(filename, error))
+		return false;
+
+	Host::OnSaveStateLoaded(filename, true);
+	if (g_InputRecording.isActive())
+	{
+		g_InputRecording.handleLoadingSavestate();
+		MTGS::PresentCurrentFrame();
+	}
+
+	MemcardBusy::CheckSaveStateDependency();
+	AutoTune::OnSceneChanged();
+
+	// A state load replaces the guest wholesale, so every window of evidence about the one
+	// that was running describes a scene that is gone.
+	EECycleRateSampler::OnLifecycleReset("save-state load");
+	return true;
+}
+
+void VMManager::DoSaveState(const char* filename, s32 slot_for_message, bool zip_on_thread, bool backup_old_state, std::function<void(const std::string&)> error_callback)
+{
+	if (GSDumpReplayer::IsReplayingDump())
+	{
+		error_callback(TRANSLATE_STR("VMManager", "Cannot save state while replaying a GS dump."));
+		return;
+	}
+
+	IopThread::VmHold iop_hold;
+
+	Error error;
+	std::unique_ptr<ArchiveEntryList> elist = SaveState_DownloadState(&error);
+	if (!elist)
+	{
+		error_callback(error.GetDescription());
+		return;
+	}
+
+	std::unique_ptr<SaveStateScreenshotData> screenshot = SaveState_SaveScreenshot();
+
+#ifdef __SWITCH2__
+	const bool scoped = ps2_sb4_vm_fs_state_is_scoped(filename);
+#else
+	constexpr bool scoped = false;
+#endif
+	if (!scoped && FileSystem::FileExists(filename) && backup_old_state)
+	{
+		const std::string backup_filename(fmt::format("{}.backup", filename));
+		Console.WriteLn(fmt::format("Creating save state backup {}...", backup_filename));
+		if (!FileSystem::RenamePath(filename, backup_filename.c_str()))
+		{
+			error_callback(fmt::format(
+				TRANSLATE_FS("VMManager", "Cannot back up old save state '{}'."),
+				Path::GetFileName(filename)));
+			return;
+		}
+	}
+
+	if (zip_on_thread && !scoped)
+	{
+		// lock order here is important; the thread could exit before we resume here.
+		std::unique_lock lock(s_save_state_threads_mutex);
+		s_save_state_threads.emplace_back(&VMManager::ZipSaveStateOnThread, std::move(elist), std::move(screenshot),
+			std::string(filename), slot_for_message, std::move(error_callback));
+	}
+	else
+	{
+		if (!ZipSaveState(std::move(elist), std::move(screenshot), filename, slot_for_message,
+				 std::move(error_callback), scoped && backup_old_state) && scoped)
+			return;
+	}
+
+	Host::OnSaveStateSaved(filename);
+	MemcardBusy::CheckSaveStateDependency();
+	return;
+}
+
+bool VMManager::ZipSaveState(std::unique_ptr<ArchiveEntryList> elist,
+	std::unique_ptr<SaveStateScreenshotData> screenshot, const char* filename,
+	s32 slot_for_message, std::function<void(const std::string&)> error_callback, bool keep_scoped_backup)
+{
+	Common::Timer timer;
+
+	Error error;
+	if (!SaveState_ZipToDisk(std::move(elist), std::move(screenshot), filename, &error, keep_scoped_backup))
+	{
+		error_callback(error.GetDescription());
+		return false;
+	}
+
+	if (slot_for_message >= 0 && VMManager::HasValidVM())
+	{
+		Host::AddIconOSDMessage(fmt::format("SaveStateSlot{}", slot_for_message), ICON_FA_FLOPPY_DISK,
+			fmt::format(TRANSLATE_FS("VMManager", "Saved state to slot {}."), slot_for_message),
+			Host::OSD_QUICK_DURATION);
+	}
+	else if (slot_for_message < 0)
+	{
+		// Autosave / resume slots (negative, e.g. SAVESTATE_SLOT_AUTOSAVE = -2)
+		// get no "Saved to slot N" toast, but SaveStateToSlot posted a keyed
+		// "Saving state to slot N..." progress message under this same key. The
+		// completion callback only fires on error, so on success that keyed
+		// message is never cleared — it lingers for its full 60s duration AND
+		// survives VM shutdown, so it reappears stuck in the corner the next time
+		// you boot a game (the "Save State And Exit then it's stuck saving on the
+		// next boot" symptom). Clear it explicitly here.
+		Host::RemoveKeyedOSDMessage(fmt::format("SaveStateSlot{}", slot_for_message));
+	}
+
+	DevCon.WriteLn("Zipping save state to '%s' took %.2f ms", filename, timer.GetTimeMilliseconds());
+	return true;
+}
+
+void VMManager::ZipSaveStateOnThread(std::unique_ptr<ArchiveEntryList> elist,
+	std::unique_ptr<SaveStateScreenshotData> screenshot, std::string filename,
+	s32 slot_for_message, std::function<void(const std::string&)> error_callback)
+{
+	ZipSaveState(
+		std::move(elist), std::move(screenshot), filename.c_str(), slot_for_message, std::move(error_callback));
+
+	// remove ourselves from the thread list. if we're joining, we might not be in there.
+	const auto this_id = std::this_thread::get_id();
+	std::unique_lock lock(s_save_state_threads_mutex);
+	for (auto it = s_save_state_threads.begin(); it != s_save_state_threads.end(); ++it)
+	{
+		if (it->get_id() == this_id)
+		{
+			it->detach();
+			s_save_state_threads.erase(it);
+			break;
+		}
+	}
+}
+
+void VMManager::WaitForSaveStateFlush()
+{
+	std::unique_lock lock(s_save_state_threads_mutex);
+	while (!s_save_state_threads.empty())
+	{
+		// take a thread from the list and join with it. it won't self detatch then, but that's okay,
+		// since we're joining with it here.
+		std::thread save_thread(std::move(s_save_state_threads.front()));
+		s_save_state_threads.pop_front();
+		lock.unlock();
+		save_thread.join();
+		lock.lock();
+	}
+}
+
+u32 VMManager::DeleteSaveStates(const char* game_serial, u32 game_crc, bool also_backups /* = true */)
+{
+	WaitForSaveStateFlush();
+
+	u32 deleted = 0;
+	for (s32 i = -1; i <= NUM_SAVE_STATE_SLOTS; i++)
+	{
+		std::string filename(GetSaveStateFileName(game_serial, game_crc, i));
+		if (FileSystem::FileExists(filename.c_str()) && FileSystem::DeleteFilePath(filename.c_str()))
+			deleted++;
+
+		if (also_backups)
+		{
+			filename += ".backup";
+			if (FileSystem::FileExists(filename.c_str()) && FileSystem::DeleteFilePath(filename.c_str()))
+				deleted++;
+		}
+	}
+
+	return deleted;
+}
+
+bool VMManager::LoadState(const char* filename, Error* error)
+{
+	if (Achievements::IsHardcoreModeActive())
+	{
+		Error::SetString(error,
+			TRANSLATE_STR("VMManager", "Cannot load state while RetroAchievements Hardcore Mode is active."));
+		return false;
+	}
+
+	if (MemcardBusy::IsBusy())
+	{
+		Error::SetString(error,
+			TRANSLATE_STR("VMManager", "The memory card is busy, so the state load operation has been cancelled to prevent data loss."));
+		return false;
+	}
+
+	// TODO: Save the current state so we don't need to reset.
+	if (!DoLoadState(filename, error))
+	{
+		Reset();
+		return false;
+	}
+
+	return true;
+}
+
+bool VMManager::LoadStateFromSlot(s32 slot, bool backup, Error* error)
+{
+	const std::string filename = GetCurrentSaveStateFileName(slot, backup);
+	if (filename.empty() || !FileSystem::FileExists(filename.c_str()))
+	{
+		Error::SetString(error, TRANSLATE_STR("VMManager", "The save slot is empty."));
+		return false;
+	}
+
+	if (Achievements::IsHardcoreModeActive())
+	{
+		Error::SetString(error,
+			TRANSLATE_STR("VMManager", "Cannot load state while RetroAchievements Hardcore Mode is active."));
+		return false;
+	}
+
+	if (MemcardBusy::IsBusy())
+	{
+		Error::SetString(error,
+			TRANSLATE_STR("VMManager",
+				"The memory card is busy, so the state load operation has been cancelled to prevent data loss."));
+		return false;
+	}
+
+	if (!DoLoadState(filename.c_str(), error))
+		return false;
+
+	if (backup)
+	{
+		Host::AddIconOSDMessage("LoadStateFromSlot", ICON_FA_FOLDER_OPEN,
+			fmt::format(TRANSLATE_FS("VMManager", "Loaded state from backup slot {}."), slot),
+			Host::OSD_QUICK_DURATION);
+	}
+	else
+	{
+		Host::AddIconOSDMessage("LoadStateFromSlot", ICON_FA_FOLDER_OPEN,
+			fmt::format(TRANSLATE_FS("VMManager", "Loaded state from slot {}."), slot),
+			Host::OSD_QUICK_DURATION);
+	}
+
+	return true;
+}
+
+void VMManager::SaveState(
+	const char* filename, bool zip_on_thread, bool backup_old_state, std::function<void(const std::string&)> error_callback)
+{
+	if (MemcardBusy::IsBusy())
+	{
+		error_callback(TRANSLATE_STR("VMManager",
+			"The memory card is busy, so the state save operation has been cancelled to prevent data loss."));
+		return;
+	}
+
+	DoSaveState(filename, -1, zip_on_thread, backup_old_state, std::move(error_callback));
+}
+
+void VMManager::SaveStateToSlot(s32 slot, bool zip_on_thread, std::function<void(const std::string&)> error_callback)
+{
+	const std::string filename(GetCurrentSaveStateFileName(slot));
+	if (filename.empty())
+	{
+		error_callback(TRANSLATE_STR("VMManager", "Cannot generate filename for save state."));
+		return;
+	}
+
+	if (MemcardBusy::IsBusy())
+	{
+		error_callback(TRANSLATE_STR("VMManager",
+			"The memory card is busy, so the state save operation has been cancelled to prevent data loss."));
+		return;
+	}
+
+	// if it takes more than a minute.. well.. wtf.
+	Host::AddIconOSDMessage(fmt::format("SaveStateSlot{}", slot), ICON_FA_FLOPPY_DISK,
+		fmt::format(TRANSLATE_FS("VMManager", "Saving state to slot {}..."), slot), 60.0f);
+
+	auto callback = [error_callback = std::move(error_callback), slot](const std::string& error) {
+		Host::RemoveKeyedOSDMessage(fmt::format("SaveStateSlot{}", slot));
+		error_callback(error);
+	};
+
+	return DoSaveState(
+		filename.c_str(), slot, zip_on_thread, EmuConfig.BackupSavestate, std::move(callback));
+}
+
+LimiterModeType VMManager::GetLimiterMode()
+{
+	return s_limiter_mode;
+}
+
+void VMManager::SetLimiterMode(LimiterModeType type)
+{
+	if (s_limiter_mode == type)
+		return;
+
+	s_limiter_mode = type;
+	UpdateTargetSpeed();
+}
+
+float VMManager::GetTargetSpeed()
+{
+	return s_target_speed;
+}
+
+float VMManager::GetTargetSpeedForLimiterMode(LimiterModeType mode)
+{
+	if (EmuConfig.EnableFastBootFastForward && VMManager::Internal::IsFastBootInProgress())
+		return 0.0f;
+
+	switch (s_limiter_mode)
+	{
+		case LimiterModeType::Nominal:
+			return EmuConfig.EmulationSpeed.NominalScalar;
+
+		case LimiterModeType::Slomo:
+			return EmuConfig.EmulationSpeed.SlomoScalar;
+
+		case LimiterModeType::Turbo:
+			return EmuConfig.EmulationSpeed.TurboScalar;
+
+		case LimiterModeType::Unlimited:
+			return 0.0f;
+
+		default:
+			ASSUME(false);
+	}
+}
+
+void VMManager::UpdateTargetSpeed()
+{
+	// Captured before anything below is recomputed: most calls here (fullscreen toggle, vsync
+	// settings apply, ELF executed, FrameRateChanged) leave the deadline unchanged. The cycle-rate
+	// governor treats a moved deadline as a lifecycle reset, which costs it its chosen rate and a
+	// full warm-up.
+	const s64 old_limiter_ticks_per_frame = s_limiter_ticks_per_frame;
+	const float old_target_speed = s_target_speed;
+	const bool old_use_vsync_for_timing = s_use_vsync_for_timing;
+
+	const float frame_rate = GetFrameRate();
+	float target_speed = GetTargetSpeedForLimiterMode(s_limiter_mode);
+
+	s_target_speed_can_sync_to_host = false;
+	s_target_speed_synced_to_host = false;
+	s_use_vsync_for_timing = false;
+
+	if (EmuConfig.EmulationSpeed.SyncToHostRefreshRate)
+	{
+		// TODO: This is accessing GS thread state.. I _think_ it should be okay, but I still hate it.
+		// We can at least avoid the query in the first place if we're not using sync to host.
+		if (const std::optional<float> host_refresh_rate = GSGetHostRefreshRate(); host_refresh_rate.has_value())
+		{
+			const float host_to_guest_ratio = host_refresh_rate.value() / frame_rate;
+
+			s_target_speed_can_sync_to_host = (host_to_guest_ratio >= 0.95f && host_to_guest_ratio <= 1.05f);
+			s_target_speed_synced_to_host = (s_target_speed_can_sync_to_host && target_speed == 1.0f);
+			target_speed = s_target_speed_synced_to_host ? host_to_guest_ratio : target_speed;
+			s_use_vsync_for_timing = (s_target_speed_synced_to_host && !EmuConfig.GS.SkipDuplicateFrames && EmuConfig.GS.VsyncEnable &&
+									  EmuConfig.EmulationSpeed.UseVSyncForTiming);
+
+			Console.WriteLn("Refresh rate: Host=%fhz Guest=%fhz Ratio=%f - %s %s",
+				host_refresh_rate.value(), frame_rate, host_to_guest_ratio,
+				s_target_speed_can_sync_to_host ? "can sync" : "can't sync",
+				s_use_vsync_for_timing ? "and using vsync for pacing" : "and using sleep for pacing");
+		}
+		else
+		{
+			ERROR_LOG("Failed to query host refresh rate.");
+		}
+	}
+
+	const float target_frame_rate = frame_rate * target_speed;
+
+	s_limiter_ticks_per_frame =
+		static_cast<s64>(static_cast<double>(GetTickFrequency()) / static_cast<double>(std::max(frame_rate * target_speed, 1.0f)));
+
+	DevCon.WriteLn(fmt::format("Frame rate: {}, target speed: {}, target frame rate: {}, ticks per frame: {}", frame_rate, target_speed,
+		target_frame_rate, s_limiter_ticks_per_frame));
+
+	if (s_target_speed != target_speed)
+	{
+		s_target_speed = target_speed;
+
+		MTGS::UpdateVSyncMode();
+		{
+			// Empties the audio buffer and changes its rate and volume from the producer's side, which is the
+			// IOP thread's. Reached from the event test (a frame rate change), so a hold that never sleeps.
+			IopThread::VmHold iop_hold(IopThread::HoldKind::Emulation);
+			SPU2::OnTargetSpeedChanged();
+		}
+		ResetFrameLimiter();
+	}
+
+	// Only when the deadline actually moved or stopped existing: whatever the governor inferred
+	// from the old one no longer holds. If the limiter has gone unlimited or host-vsync paced,
+	// Throttle() will not close another window, so this is also the only chance to hand back a
+	// rate it had lowered.
+	if (s_limiter_ticks_per_frame != old_limiter_ticks_per_frame || s_target_speed != old_target_speed ||
+		s_use_vsync_for_timing != old_use_vsync_for_timing)
+	{
+		EECycleRateSampler::OnLifecycleReset("the frame limiter changed");
+	}
+}
+
+bool VMManager::IsTargetSpeedAdjustedToHost()
+{
+	return s_target_speed_synced_to_host;
+}
+
+bool VMManager::IsUsingVSyncForTiming()
+{
+	return s_use_vsync_for_timing;
+}
+
+float VMManager::GetFrameRate()
+{
+	return GetVerticalFrequency();
+}
+
+void VMManager::ResetFrameLimiter()
+{
+	s_limiter_frame_start = GetCPUTicks();
+}
+
+void VMManager::Internal::Throttle(bool vsync_start)
+{
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+	++s_native_limiter_wait.calls;
+	if (vsync_start) ++s_native_limiter_wait.earlyPhaseCalls;
+	else ++s_native_limiter_wait.endPhaseCalls;
+	s_native_limiter_wait.lastTicksPerFrame = s_limiter_ticks_per_frame;
+	s_native_limiter_wait.lastTargetSpeed = s_target_speed;
+	s_native_limiter_wait.lastLimiterMode = static_cast<u32>(s_limiter_mode);
+#endif
+	if (s_target_speed == 0.0f || s_use_vsync_for_timing)
+	{
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+		if (s_target_speed == 0.0f) ++s_native_limiter_wait.skippedUnlimited;
+		else ++s_native_limiter_wait.skippedVsync;
+#endif
+		// Not frame-limiting this frame (unlimited / host-vsync pacing): invalidate the frame-work
+		// period so no wall-time-with-wait duration is measured.
+		PerformanceMetrics::OnFrameWorkPaused();
+		EECycleRateSampler::OnFrameNotThrottled();
+		return;
+	}
+
+
+#if defined(__SWITCH2__)
+	// A frame without an early wait has one continuous work interval.
+	// Keep it open until vsync-end; pause and host pacing still invalidate
+	// it above. The unused early deadline also cannot mark this frame late.
+	if (vsync_start && s_frame_end_pacing)
+	{
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+		++s_native_limiter_wait.skippedEarlyPhase;
+#endif
+		return;
+	}
+#endif
+
+	const u64 iEnd = GetCPUTicks();
+
+	// Close the active-work segment that just ended (before the limiter sleep below), then re-open
+	// one after the sleep. A frame's work is the two segments, one per wait; `frame_end` marks the
+	// vsync-end wait that completes it. The ScopedGuard fires on every exit past here, including
+	// the missed-frame early return.
+	const u64 segment_ticks = PerformanceMetrics::OnFrameWorkSegmentComplete(iEnd, !vsync_start);
+	ScopedGuard begin_next_frame_work([]() { PerformanceMetrics::OnFrameWorkBegin(); });
+
+	const u64 uExpectedEnd =
+		s_limiter_frame_start +
+		(vsync_start ? (s_limiter_ticks_per_frame * 0.9) : s_limiter_ticks_per_frame); // Compute when we would expect this frame to end, assuming everything goes perfectly perfect.
+	const s64 sDeltaTime = iEnd - uExpectedEnd; // The diff between when we stopped and when we expected to.
+
+	// The frame's segment boundary for the dynamic EE cycle-rate governor and auto-tune's tally.
+	// It sits before the sleep so the governor's "active" time excludes the wait for the deadline,
+	// and before the missed-frame return because an overrun frame is the one both most need to see.
+	//
+	// This is the only place a frame is judged late (Late or worse for the governor, Overran for
+	// auto-tune). The verdict comes from the vsync-end wait against the full-frame deadline. The
+	// vsync-start wait's deadline is 0.9 of that and says nothing about the frame, except when it
+	// overran by a whole frame: the missed-frame branch below moves the frame start forward, and
+	// the vsync-end verdict would then be taken against the moved deadline.
+	EECycleRateLateness lateness = EECycleRateLateness::OnTime;
+	if (sDeltaTime >= s_limiter_ticks_per_frame)
+		lateness = EECycleRateLateness::Overran;
+	else if (!vsync_start && sDeltaTime >= 0)
+		lateness = EECycleRateLateness::Late;
+	EECycleRateSampler::OnSegmentThrottled(segment_ticks, static_cast<u64>(s_limiter_ticks_per_frame), !vsync_start, lateness);
+
+#if !defined(__SWITCH2__)
+	// Keep the full-frame deadline. VBlank work may use the remaining budget;
+	// the vsync-end phase below remains the sole pacing and overrun owner.
+	if (vsync_start && s_frame_end_pacing)
+	{
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+		++s_native_limiter_wait.skippedEarlyPhase;
+#endif
+		return;
+	}
+#endif
+
+	// If frame ran too long...
+	if (sDeltaTime >= s_limiter_ticks_per_frame)
+	{
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+		++s_native_limiter_wait.overrunReturns;
+#endif
+		// ... Fudge the next frame start over a bit. Prevents fast forward zoomies.
+		s_limiter_frame_start += (sDeltaTime / s_limiter_ticks_per_frame) * s_limiter_ticks_per_frame;
+		return;
+	}
+
+	// The monotonic host clock was already at or past this deadline at entry.
+	// Preserve overrun accounting above and advance the end-frame phase once.
+	if (sDeltaTime >= 0)
+	{
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+		++s_native_limiter_wait.waitEntries;
+		++s_native_limiter_wait.spinOnlyCalls;
+		++s_native_limiter_wait.zeroWaitEntries;
+#endif
+		if (!vsync_start)
+			s_limiter_frame_start = uExpectedEnd;
+		return;
+	}
+
+	// Conversion of delta from CPU ticks to milliseconds; a tick's time value is
+	// host-defined, so this has to divide by GetTickFrequency() rather than scale by a constant.
+	const s32 msec = static_cast<s32>((sDeltaTime * -1000) / static_cast<s64>(GetTickFrequency()));
+
+	// If any integer value of milliseconds exists, sleep it off.
+	// Prior comments suggested that 1-2 ms sleeps were inaccurate on some OSes;
+	// further testing suggests instead that this was utter bullshit.
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+	++s_native_limiter_wait.waitEntries;
+	if (msec > 1) ++s_native_limiter_wait.sleepPathCalls;
+	else ++s_native_limiter_wait.spinOnlyCalls;
+	const u64 native_wait_begin = GetCPUTicks();
+	u64 native_wait_end;
+#endif
+	if (msec > 1)
+	{
+		Threading::Sleep(msec - 1);
+	}
+
+	// Conversion to milliseconds loses some precision; after sleeping off whole milliseconds,
+	// spin the thread without sleeping until we finally reach our expected end time. Hint the
+	// spin with the calibrated pause bursts (pause on x86, isb on AArch64) instead of hammering
+	// the counter bare - the hint keeps the co-resident cores' throughput and cuts power.
+#if defined(PS2_NATIVE_LIMITER_WAIT_TIMING) && PS2_NATIVE_LIMITER_WAIT_TIMING
+	while ((native_wait_end = GetCPUTicks()) < uExpectedEnd)
+		ShortSpin();
+	NativeLimiterWaitRecord(native_wait_begin, native_wait_end, msec > 1 || native_wait_begin < uExpectedEnd);
+#else
+	while (GetCPUTicks() < uExpectedEnd)
+		ShortSpin();
+#endif
+
+	if (!vsync_start)
+	{
+		// Finally, set our next frame start to when this one ends
+		s_limiter_frame_start = uExpectedEnd;
+	}
+}
+
+bool VMManager::Internal::IsFrameAdvancing()
+{
+	return s_frame_advance_count > 0;
+}
+
+void VMManager::Internal::FrameRateChanged()
+{
+	UpdateTargetSpeed();
+}
+
+void VMManager::FrameAdvance(u32 num_frames /*= 1*/)
+{
+	if (!HasValidVM())
+		return;
+
+	if (Achievements::IsHardcoreModeActive())
+	{
+		Host::AddIconOSDMessage("FrameAdvanceHardcoreBlocked", ICON_FA_TRIANGLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "Cannot frame advance while RetroAchievements Hardcore Mode is active."),
+			Host::OSD_WARNING_DURATION);
+		return;
+	}
+
+	EECycleRateSampler::OnLifecycleReset("frame advance");
+	s_frame_advance_count = num_frames;
+	SetState(VMState::Running);
+}
+
+bool VMManager::IsFrameAdvancing()
+{
+	return s_frame_advance_count > 0;
+}
+
+bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
+{
+	// Reopens the disc backend and writes the CDVD tray state, which the IOP's CDVD code reads.
+	IopThread::VmHold iop_hold;
+
+	const CDVD_SourceType old_type = CDVDsys_GetSourceType();
+	const std::string old_path(CDVDsys_GetFile(old_type));
+
+	CDVDsys_ChangeSource(source);
+	if (!path.empty())
+		CDVDsys_SetFile(source, path);
+
+	Error error;
+	const bool result = DoCDVDopen(&error);
+	if (result)
+	{
+		if (source == CDVD_SourceType::NoDisc)
+		{
+			if (old_path.empty())
+				Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC, TRANSLATE_SV("VMManager", "No disc to remove."),
+					Host::OSD_INFO_DURATION);
+			else
+			{
+				Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC, TRANSLATE_SV("VMManager", "Disc removed."),
+					Host::OSD_INFO_DURATION);
+				Console.WriteLnFmt("Removed disc: '{}'", old_path);
+			}
+		}
+		else
+		{
+			Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC,
+				fmt::format(TRANSLATE_FS("VMManager", "Disc changed to '{}'."),
+					Path::GetFileName(CDVDsys_GetFile(CDVDsys_GetSourceType()))),
+				Host::OSD_INFO_DURATION);
+		}
+	}
+	else
+	{
+		Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC,
+			fmt::format(
+				TRANSLATE_FS("VMManager", "Failed to open new disc image '{}'. Reverting to old image.\nError was: {}"),
+				Path::GetFileName(path), error.GetDescription()),
+			Host::OSD_ERROR_DURATION);
+		CDVDsys_ChangeSource(old_type);
+		if (!old_path.empty())
+			CDVDsys_SetFile(old_type, std::move(old_path));
+		if (!DoCDVDopen(&error))
+		{
+			Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC,
+				fmt::format(TRANSLATE_FS("VMManager", "Failed to switch back to old disc image. Removing disc.\nError was: {}"),
+					error.GetDescription()),
+				Host::OSD_CRITICAL_ERROR_DURATION);
+			CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
+			DoCDVDopen(nullptr);
+		}
+	}
+	cdvd.Tray.cdvdActionSeconds = 1;
+	cdvd.Tray.trayState = CDVD_DISC_OPEN;
+	UpdateDiscDetails(false);
+	return result;
+}
+
+bool VMManager::SetELFOverride(std::string path)
+{
+	if (!HasValidVM() || (!path.empty() && !FileSystem::FileExists(path.c_str())))
+		return false;
+
+	s_elf_override = std::move(path);
+	UpdateDiscDetails(false);
+
+	s_fast_boot_requested = !s_elf_override.empty() || EmuConfig.EnableFastBoot;
+	if (s_elf_override.empty())
+		Hle_ClearHostRoot();
+	else
+		Hle_SetHostRoot(s_elf_override.c_str());
+
+	Reset();
+	return true;
+}
+
+bool VMManager::ChangeGSDump(const std::string& path)
+{
+	if (!HasValidVM() || !GSDumpReplayer::IsReplayingDump() || !IsGSDumpFileName(path))
+		return false;
+
+	if (!GSDumpReplayer::ChangeDump(path.c_str()))
+		return false;
+
+	UpdateDiscDetails(false);
+	return true;
+}
+
+bool VMManager::IsElfFileName(const std::string_view path)
+{
+	return StringUtil::EndsWithNoCase(path, ".elf");
+}
+
+bool VMManager::IsBlockDumpFileName(const std::string_view path)
+{
+	return StringUtil::EndsWithNoCase(path, ".dump");
+}
+
+bool VMManager::IsGSDumpFileName(const std::string_view path)
+{
+	return (StringUtil::EndsWithNoCase(path, ".gs") || StringUtil::EndsWithNoCase(path, ".gs.xz") ||
+			StringUtil::EndsWithNoCase(path, ".gs.zst"));
+}
+
+bool VMManager::IsSaveStateFileName(const std::string_view path)
+{
+	return StringUtil::EndsWithNoCase(path, ".p2s");
+}
+
+bool VMManager::IsDiscFileName(const std::string_view path)
+{
+	static const char* extensions[] = {".iso", ".bin", ".img", ".mdf", ".gz", ".cso", ".zso", ".chd"};
+
+	for (const char* test_extension : extensions)
+	{
+		if (StringUtil::EndsWithNoCase(path, test_extension))
+			return true;
+	}
+
+	return false;
+}
+
+bool VMManager::IsLoadableFileName(const std::string_view path)
+{
+	return IsDiscFileName(path) || IsElfFileName(path) || IsArcadeGameFileName(path) || IsGSDumpFileName(path) ||
+	       IsBlockDumpFileName(path);
+}
+
+#ifdef _WIN32
+inline void LogUserPowerPlan()
+{
+	wil::unique_any<GUID*, decltype(&::LocalFree), ::LocalFree> pPwrGUID;
+	DWORD ret = PowerGetActiveScheme(NULL, pPwrGUID.put());
+	if (ret != ERROR_SUCCESS)
+		return;
+
+	UCHAR aBuffer[2048];
+	DWORD aBufferSize = sizeof(aBuffer);
+	ret = PowerReadFriendlyName(NULL, pPwrGUID.get(), &NO_SUBGROUP_GUID, NULL, aBuffer, &aBufferSize);
+	std::string friendlyName(StringUtil::WideStringToUTF8String((wchar_t*)aBuffer));
+	if (ret != ERROR_SUCCESS)
+		return;
+
+	DWORD acMax = 0, acMin = 0, dcMax = 0, dcMin = 0;
+
+	if (PowerReadACValueIndex(NULL, pPwrGUID.get(), &GUID_PROCESSOR_SETTINGS_SUBGROUP, &GUID_PROCESSOR_THROTTLE_MAXIMUM, &acMax) ||
+		PowerReadACValueIndex(NULL, pPwrGUID.get(), &GUID_PROCESSOR_SETTINGS_SUBGROUP, &GUID_PROCESSOR_THROTTLE_MINIMUM, &acMin) ||
+		PowerReadDCValueIndex(NULL, pPwrGUID.get(), &GUID_PROCESSOR_SETTINGS_SUBGROUP, &GUID_PROCESSOR_THROTTLE_MAXIMUM, &dcMax) ||
+		PowerReadDCValueIndex(NULL, pPwrGUID.get(), &GUID_PROCESSOR_SETTINGS_SUBGROUP, &GUID_PROCESSOR_THROTTLE_MINIMUM, &dcMin))
+		return;
+
+	Console.WriteLnFmt(
+		"  Power Profile    = '{}'\n"
+		"  Power States (min/max)\n"
+		"    AC             = {}% / {}%\n"
+		"    Battery        = {}% / {}%\n",
+		friendlyName.c_str(), acMin, acMax, dcMin, dcMax);
+}
+#endif
+
+#if defined(_WIN32)
+void LogGPUCapabilities()
+{
+	Console.WriteLn(Color_StrongBlack, "Graphics Adapters Detected:");
+#if defined(_WIN32)
+	wil::com_ptr_nothrow<IDXGIFactory1> pFactory;
+	if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(pFactory.put()))))
+		return;
+
+	UINT i = 0;
+	wil::com_ptr_nothrow<IDXGIAdapter> pAdapter;
+	while (pFactory->EnumAdapters(i, pAdapter.put()) != DXGI_ERROR_NOT_FOUND)
+	{
+		DXGI_ADAPTER_DESC desc;
+		LARGE_INTEGER umdver;
+		if (SUCCEEDED(pAdapter->GetDesc(&desc)) && SUCCEEDED(pAdapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umdver)))
+		{
+			Console.WriteLnFmt(
+				"  GPU              = {}\n"
+				"  Driver Version   = {}.{}.{}.{}\n",
+				StringUtil::WideStringToUTF8String(desc.Description),
+				umdver.QuadPart >> 48,
+				(umdver.QuadPart >> 32) & 0xFFFF,
+				(umdver.QuadPart >> 16) & 0xFFFF,
+				umdver.QuadPart & 0xFFFF);
+
+			i++;
+		}
+		else
+		{
+			break;
+		}
+	}
+#else
+	// Credits to neofetch for the following (modified) script
+	std::string gpu_script = R"gpu_script(
+	lspci -mm |
+	awk -F '\"|\" \"|\\(' \
+	'/"Display|"3D|"VGA/ {
+		a[$0] = $1 "" $3 " " ($(NF-1) ~ /^$|^Device [[:xdigit:]]+$/ ? $4 : $(NF-1))
+	}
+	END { for (i in a) {
+	if (!seen[a[i]]++) {
+		sub("^[^ ]+ ", "", a[i]);
+		print a[i]
+	}
+	}}'
+	)gpu_script";
+
+	FILE* f = popen(gpu_script.c_str(), "r");
+	if (f)
+	{
+		char buffer[1024];
+		while (fgets(buffer, sizeof(buffer), f))
+		{
+			std::string card(buffer);
+			std::string version = "Unknown\n";
+			if (card.find("NVIDIA") != std::string::npos)
+			{
+				// Assumes that all NVIDIA cards use the same driver
+				FILE* fnsmi = popen("nvidia-smi --query-gpu=driver_version --format=csv,noheader", "r");
+				if (fnsmi)
+				{
+					if (fgets(buffer, sizeof(buffer), fnsmi))
+					{
+						version = std::string(buffer);
+					}
+					pclose(fnsmi);
+				}
+			}
+			else
+			{
+				// Assuming non-NVIDIA cards are using the mesa driver
+				FILE* fglxinfo = popen("glxinfo | sed -n 's/OpenGL version string:/OGL/p'", "r");
+				if (fglxinfo)
+				{
+					if (fgets(buffer, sizeof(buffer), fglxinfo))
+					{
+						version = std::string(buffer);
+
+						// This path is taken if the card was Intel or AMD
+						// If glxinfo is reporting NVIDIA, then it's likely that this is a multi-gpu system
+						// and that this version doesn't apply to this AMD / Intel device
+						// Alternatively we could use vulkaninfo, which allows us to select the device
+						// But I was unable to get that to work on my system
+						// So for now, we cannot get the iGPU version on NVIDIA dGPU systems
+						if (version.find("NVIDIA") != std::string::npos)
+						{
+							version = "Unknown (OpenGL default is NVIDIA)\n";
+						}
+					}
+					pclose(fglxinfo);
+				}
+			}
+			Console.WriteLnFmt(
+				"  GPU              = {}"
+				"  Driver  Version  = {}",
+				card, version);
+		}
+		pclose(f);
+	}
+#endif
+}
+#endif
+
+void VMManager::LogCPUCapabilities()
+{
+	Console.WriteLn(Color_StrongGreen, "PCSX2 %s", BuildVersion::GitRev);
+	Console.WriteLnFmt("Savestate version: 0x{:x}\n", g_SaveVersion);
+	Console.WriteLn();
+
+	Console.WriteLn(Color_StrongBlack, "Host Machine Init:");
+
+	Console.WriteLnFmt(
+		"  Operating System = {}\n"
+#ifdef __SWITCH2__
+		"  Free app heap    = {} MB ({:.2f} GB)\n"
+		"  App memory limit = {} MB ({:.2f} GB)\n",
+#else
+		"  Available RAM    = {} MB ({:.2f} GB)\n"
+		"  Physical RAM     = {} MB ({:.2f} GB)\n",
+#endif
+		GetOSVersionString(),
+		GetAvailablePhysicalMemory() / _1mb,
+		static_cast<double>(GetAvailablePhysicalMemory()) / static_cast<double>(_1gb),
+		GetPhysicalMemory() / _1mb,
+		static_cast<double>(GetPhysicalMemory()) / static_cast<double>(_1gb));
+
+	const CPUInfo& cpuinfo = GetCPUInfo();
+	Console.WriteLnFmt("  Processor        = {}", cpuinfo.name);
+#ifdef __SWITCH2__
+	Console.WriteLnFmt("  Available CPUs   = {} (process core mask)", cpuinfo.num_threads);
+#else
+	Console.WriteLnFmt("  Core Count       = {} cores", cpuinfo.num_big_cores + cpuinfo.num_small_cores);
+	Console.WriteLnFmt("  Thread Count     = {} threads", cpuinfo.num_threads);
+	Console.WriteLnFmt("  Cluster Count    = {} clusters", cpuinfo.num_clusters);
+#endif
+#ifdef _WIN32
+	LogUserPowerPlan();
+#endif
+
+#ifdef ARCH_X86
+	std::string extensions;
+	if (g_cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX)
+		extensions += "AVX ";
+	if (g_cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX2)
+		extensions += "AVX2 ";
+	if (g_cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX512F)
+		extensions += "AVX512F ";
+#elif defined(ARCH_ARM64) && defined(__SWITCH2__)
+	std::string extensions = "NEON (AArch64 baseline; optional ISA discovery unavailable)";
+#elif defined(ARCH_ARM64)
+	// This arm used to sit nested *inside* the ARCH_X86 block, so it never
+	// compiled and the whole "CPU Extensions Detected" section never printed
+	// on ARM. NEON on its own says nothing — it is architectural on AArch64 —
+	// so report what actually varies across our targets: LSE (absent on the
+	// ARMv8.0 handhelds) and SVE (SPU2 selects its SVE2 path at compile time,
+	// making a mismatch here the first thing to check on a SIGILL report).
+	// cpuinfo_initialize() has already run unconditionally in
+	// CPUThreadInitialize, immediately before this function is called.
+	std::string extensions;
+	if (cpuinfo_has_arm_neon())
+		extensions += "NEON ";
+	if (cpuinfo_has_arm_atomics())
+		extensions += "LSE ";
+	if (cpuinfo_has_arm_crc32())
+		extensions += "CRC32 ";
+	if (cpuinfo_has_arm_sve())
+		extensions += "SVE ";
+	if (cpuinfo_has_arm_sve2())
+		extensions += "SVE2 ";
+#endif
+
+	StringUtil::StripWhitespace(&extensions);
+
+	Console.WriteLn(Color_StrongBlack, "CPU Extensions Detected:");
+	Console.WriteLnFmt("  {}", extensions);
+	Console.WriteLn();
+
+#ifdef ARCH_ARM64
+	const size_t runtime_cache_line_size = HostSys::GetRuntimeCacheLineSize();
+	if (__cachelinesize != runtime_cache_line_size)
+	{
+		// Not fatal, but does have performance implications.
+		WARNING_LOG(
+			"Cache line size mismatch. This build was compiled with {} byte lines, but the system has {} byte lines.",
+			__cachelinesize, runtime_cache_line_size);
+	}
+#endif
+
+#if defined(_WIN32)
+	LogGPUCapabilities();
+#endif
+}
+
+
+void VMManager::InitializeCPUProviders()
+{
+	pxAssert(!s_cpu_providers_initialized);
+	if (!SysMemory::HasCodeMemory())
+	{
+		Console.Warning("Executable code memory is unavailable; skipping recompiler provider initialization");
+		return;
+	}
+
+	recCpu.Reserve();
+	psxRec.Reserve();
+
+	CpuMicroVU0.Reserve();
+	CpuMicroVU1.Reserve();
+
+	VifUnpackSSE_Init();
+	s_cpu_providers_initialized = true;
+}
+
+void VMManager::ShutdownCPUProviders()
+{
+	if (!s_cpu_providers_initialized)
+		return;
+
+	if (newVifDynaRec)
+	{
+		dVifRelease(1);
+		dVifRelease(0);
+	}
+
+	CpuMicroVU1.Shutdown();
+	CpuMicroVU0.Shutdown();
+
+	psxRec.Shutdown();
+	recCpu.Shutdown();
+
+	s_cpu_providers_initialized = false;
+}
+
+void VMManager::UpdateCPUImplementations()
+{
+	if (GSDumpReplayer::IsReplayingDump())
+	{
+		Cpu = &GSDumpReplayerCpu;
+		psxCpu = &psxInt;
+		CpuVU0 = &CpuIntVU0;
+		CpuVU1 = &CpuIntVU1;
+		return;
+	}
+
+	if (!SysMemory::HasCodeMemory())
+	{
+		Cpu = &intCpu;
+		psxCpu = &psxInt;
+		CpuVU0 = &CpuIntVU0;
+		CpuVU1 = &CpuIntVU1;
+		return;
+	}
+
+	Cpu = CHECK_EEREC ? &recCpu : &intCpu;
+	psxCpu = CHECK_IOPREC ? &psxRec : &psxInt;
+
+	CpuVU0 = EmuConfig.Cpu.Recompiler.EnableVU0 ? static_cast<BaseVUmicroCPU*>(&CpuMicroVU0) : static_cast<BaseVUmicroCPU*>(&CpuIntVU0);
+	CpuVU1 = EmuConfig.Cpu.Recompiler.EnableVU1 ? static_cast<BaseVUmicroCPU*>(&CpuMicroVU1) : static_cast<BaseVUmicroCPU*>(&CpuIntVU1);
+}
+
+void VMManager::Internal::ClearCPUExecutionCaches()
+{
+	ps2_mtvu_lifecycle_cpu_quiesce(); // attachment, not mutable THREAD_VU1, is authoritative
+	// Resets the IOP's code cache with the rest, so the IOP must be held or not running.
+	IopThread::AssertHeldOrStopped();
+
+	Cpu->Reset();
+	psxCpu->Reset();
+
+	if (s_cpu_providers_initialized)
+	{
+		// mVU's VU0 needs to be properly initialized for macro mode even if it's not used for micro mode!
+		if (CHECK_EEREC && !EmuConfig.Cpu.Recompiler.EnableVU0)
+			CpuMicroVU0.Reset();
+
+		if constexpr (newVifDynaRec)
+		{
+			dVifReset(0);
+			dVifReset(1);
+		}
+	}
+
+	CpuVU0->Reset();
+	CpuVU1->Reset();
+}
+
+void VMManager::ClampRuntimeConfigToAvailableCPUProviders()
+{
+	// LoadCoreSettings also runs during app startup, before CPUThreadInitialize
+	// establishes the VM memory capability. Do not interpret that unallocated
+	// state as an interpreter-only session.
+	if (!SysMemory::IsAllocated() || SysMemory::HasCodeMemory())
+		return;
+
+	const bool was_using_recompiler =
+		EmuConfig.Cpu.Recompiler.EnableEE ||
+		EmuConfig.Cpu.Recompiler.EnableIOP ||
+		EmuConfig.Cpu.Recompiler.EnableVU0 ||
+		EmuConfig.Cpu.Recompiler.EnableVU1 ||
+		EmuConfig.Cpu.Recompiler.EnableFastmem ||
+		EmuConfig.Speedhacks.vuThread;
+
+	EmuConfig.Cpu.Recompiler.EnableEE = false;
+	EmuConfig.Cpu.Recompiler.EnableIOP = false;
+	EmuConfig.Cpu.Recompiler.EnableVU0 = false;
+	EmuConfig.Cpu.Recompiler.EnableVU1 = false;
+	EmuConfig.Cpu.Recompiler.EnableFastmem = false;
+	EmuConfig.Speedhacks.vuThread = false;
+#ifdef __SWITCH2__
+	EmuConfig.Speedhacks.iopThread = false;
+	EmuConfig.Cpu.Recompiler.EnableVUAot = false;
+	EmuConfig.Cpu.Recompiler.EnableVUProgramCache = false;
+#endif
+
+	if (was_using_recompiler)
+	{
+		Console.Warning(
+			"Executable code memory is unavailable; using EE, IOP, VU0, and VU1 interpreters with fastmem and MTVU disabled");
+	}
+}
+
+void VMManager::Execute()
+{
+	// Check for interpreter<->recompiler switches.
+	if (std::exchange(s_cpu_implementation_changed, false))
+	{
+		// We need to switch the cpus out, and reset the new ones if so.
+		IopThread::VmHold iop_hold;
+		UpdateCPUImplementations();
+		Internal::ClearCPUExecutionCaches();
+		vtlb_ResetFastmem();
+	}
+
+	// Execute until we're asked to stop.
+	Cpu->Execute();
+}
+
+void VMManager::IdlePollUpdate()
+{
+	Achievements::IdleUpdate();
+
+	PollDiscordPresence();
+
+	InputManager::PollSources();
+}
+
+void VMManager::SetPaused(bool paused)
+{
+	if (!HasValidVM())
+		return;
+
+	Console.WriteLn(paused ? "(VMManager) Pausing..." : "(VMManager) Resuming...");
+	SetState(paused ? VMState::Paused : VMState::Running);
+}
+
+GSVSyncMode VMManager::GetEffectiveVSyncMode()
+{
+	// Vsync off => always disabled.
+	if (!EmuConfig.GS.VsyncEnable)
+		return GSVSyncMode::Disabled;
+
+	// If there's no VM, or we're using vsync for timing, then we always use double-buffered (blocking).
+	// Try to keep the same present mode whether we're running or not, since it'll avoid flicker.
+	const VMState state = GetState();
+	const bool valid_vm = (state != VMState::Shutdown && state != VMState::Stopping);
+	if (s_target_speed_can_sync_to_host || (!valid_vm && EmuConfig.EmulationSpeed.SyncToHostRefreshRate) ||
+		EmuConfig.GS.DisableMailboxPresentation)
+	{
+		return GSVSyncMode::FIFO;
+	}
+
+	// For PAL games, we always want to triple buffer, because otherwise we'll be tearing.
+	// Or for when we aren't using sync-to-host-refresh, to avoid dropping frames.
+	// Allow present skipping when running outside of normal speed, if mailbox isn't supported.
+	return GSVSyncMode::Mailbox;
+}
+
+bool VMManager::ShouldAllowPresentThrottle()
+{
+	const VMState state = GetState();
+	const bool valid_vm = (state != VMState::Shutdown && state != VMState::Stopping);
+	return (!valid_vm || (!s_target_speed_synced_to_host && s_target_speed != 1.0f));
+}
+
+bool VMManager::Internal::WasFastBooted()
+{
+	return s_fast_boot_requested;
+}
+
+bool VMManager::Internal::IsFastBootInProgress()
+{
+	return s_fast_boot_requested && !HasBootedELF();
+}
+
+std::string VMManager::Internal::GetCurrentRegion()
+{
+	return s_cur_region;
+}
+
+void VMManager::Internal::DisableFastBoot()
+{
+	if (!s_fast_boot_requested)
+		return;
+
+	s_fast_boot_requested = false;
+
+	// Stop fast forwarding boot if enabled.
+	if (EmuConfig.EnableFastBootFastForward && !s_elf_executed)
+		UpdateTargetSpeed();
+}
+
+bool VMManager::Internal::HasBootedELF()
+{
+	return VMManager::HasBootedELF();
+}
+
+u32 VMManager::Internal::GetCurrentELFEntryPoint()
+{
+	return s_elf_entry_point;
+}
+
+const std::string& VMManager::Internal::GetELFOverride()
+{
+	return s_elf_override;
+}
+
+VMState VMManager::Internal::GetStateForEventTest()
+{
+	// Relaxed: the caller adds the acquire as a fence where it relies on the value (_cpuEventTest_Shared).
+	return s_state.load(std::memory_order_relaxed);
+}
+
+bool VMManager::Internal::IsExecutionInterrupted()
+{
+	return s_state.load(std::memory_order_relaxed) != VMState::Running || s_cpu_implementation_changed;
+}
+
+void VMManager::Internal::ELFLoadingOnCPUThread(std::string elf_path)
+{
+	const bool was_running_bios = (s_current_crc == 0);
+
+	UpdateELFInfo(std::move(elf_path));
+	Console.WriteLn(Color_StrongBlue, fmt::format("ELF Loading: {}, Game CRC = {:08X}, EntryPoint = 0x{:08X}",
+										  s_elf_path, s_current_crc, s_elf_entry_point));
+	s_elf_executed = false;
+
+	// Remove patches, if we're changing games, we don't want to be applying the patch for the old game while it's loading.
+	if (!was_running_bios)
+	{
+		if (!ArePatchesDisabledByEmulationOnlyMode())
+			Patch::ReloadPatches(s_disc_serial, 0, false, false, false, true);
+		ApplyCoreSettings();
+	}
+}
+
+void VMManager::Internal::EntryPointCompilingOnCPUThread()
+{
+	if (s_elf_executed)
+		return;
+
+	// Runs inside the EE JIT's compile of the entry point block, with the IOP thread alive. It applies the
+	// game's settings, writes the boot patches (IOP patch lines write IOP RAM) and resets the recompilers,
+	// the IOP's included, so the IOP is held for all of it.
+	IopThread::VmHold iop_hold;
+
+	const bool reset_speed_limiter = (EmuConfig.EnableFastBootFastForward && IsFastBootInProgress());
+
+	Console.WriteLn(
+		Color_StrongGreen, fmt::format("ELF {} with entry point at 0x{:08X} is executing.", s_elf_path, s_elf_entry_point));
+	s_elf_executed = true;
+	AutoTune::OnSceneChanged();
+
+	if (reset_speed_limiter)
+	{
+		UpdateTargetSpeed();
+		PerformanceMetrics::Reset();
+	}
+
+	HandleELFChange(true);
+
+	Patch::ApplyBootPatches();
+	NotifyBootPatchesApplied();
+
+	// If the config changes at this point, it's a reset, so the game doesn't currently know about the memcard
+	// so there's no need to leave the eject running.
+	FileMcd_CancelEject();
+
+	// Toss all the recs, we're going to be executing new code.
+	mmap_ResetBlockTracking();
+	ClearCPUExecutionCaches();
+
+	R5900SymbolImporter.OnElfLoadedInMemory();
+}
+
+void VMManager::Internal::VSyncOnCPUThread()
+{
+	Pad::UpdateMacroButtons();
+
+	Patch::ApplyVsyncPatches();
+
+	// Frame advance must be done *before* pumping messages, because otherwise
+	// we'll immediately reduce the counter we just set.
+	if (s_frame_advance_count > 0)
+	{
+		s_frame_advance_count--;
+		if (s_frame_advance_count == 0)
+		{
+			// auto pause at the end of frame advance
+			SetState(VMState::Paused);
+		}
+	}
+
+	Achievements::FrameUpdate();
+
+	PollDiscordPresence();
+
+	AutoTune::OnVSync();
+}
+
+void VMManager::Internal::PollInputOnCPUThread()
+{
+	Host::PumpMessagesOnCPUThread();
+	InputManager::PollSources();
+	Autosave::OnPollInput();
+
+	if (EmuConfig.EnableRecordingTools)
+	{
+		// This code is called _before_ Counter's vsync end, and _after_ vsync start
+		if (g_InputRecording.isActive())
+		{
+			// Process any outstanding recording actions (ie. toggle mode, stop the recording, etc)
+			g_InputRecording.processRecordQueue();
+			g_InputRecording.getControls().processControlQueue();
+			// Increment our internal frame counter, used to keep track of when we hit the end, etc.
+			g_InputRecording.incFrameCounter();
+			g_InputRecording.handleExceededFrameCounter();
+		}
+		// At this point, the PAD data has been read from the user for the current frame
+		// so we can either read from it, or overwrite it!
+		g_InputRecording.handleControllerDataUpdate();
+	}
+}
+
+void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
+{
+	if (EmuConfig.Cpu == old_config.Cpu && EmuConfig.Gamefixes == old_config.Gamefixes &&
+		EmuConfig.Speedhacks == old_config.Speedhacks && EmuConfig.Profiler == old_config.Profiler)
+	{
+		return;
+	}
+
+	Console.WriteLn("Updating CPU configuration...");
+	FPControlRegister::SetCurrent(EmuConfig.Cpu.FPUFPCR);
+
+	// Before the code cache is thrown away below, so no emitted code and the
+	// file it works on can disagree about what a slot holds.
+	eeFprSyncSlotFormat();
+
+	// The IOP thread mode may have changed, and the EE JIT's dispatcher is generated for the mode in
+	// effect, so it is chosen before the caches are reset below.
+	IopThread::OnCpuConfigChanged();
+#if PS2_NATIVE_IOP_THREADED
+	if (NativeIopStartFailed())
+	{
+		NativeIopRequestCleanStop("CPU configuration change");
+		return;
+	}
+#endif
+
+	// The VU program cache toggle (EnableVUProgramCache, and EnableVUAot, which
+	// turns the cache on) is picked up by the mVUreset that ClearCPUExecutionCaches
+	// triggers below — recording and the disk cache are re-synced there from the
+	// live config, so no explicit sync is needed here.
+	// A settings apply resolves the configured selector afresh; the governor's
+	// transient choice does not survive it, and the caches are going anyway.
+	EECycleRate::SyncToConfigured();
+	EECycleRateSampler::OnLifecycleReset("settings apply");
+	Internal::ClearCPUExecutionCaches();
+	memBindConditionalHandlers();
+
+	// The reset above has closed the disk cache if nothing asks for it any more and stopped its threads;
+	// what vu-aot saved is deleted now that nothing uses it.
+	vuAotSettingChanged(old_config.Cpu.Recompiler.EnableVUAot, EmuConfig.Cpu.Recompiler.EnableVUAot,
+		EmuConfig.Cpu.Recompiler.EnableVUProgramCache);
+
+	if (EmuConfig.Cpu.Recompiler.EnableFastmem != old_config.Cpu.Recompiler.EnableFastmem)
+		vtlb_ResetFastmem();
+
+	// did we toggle recompilers?
+	if (EmuConfig.Cpu.CpusChanged(old_config.Cpu))
+	{
+		// This has to be done asynchronously, since we're still executing the
+		// cpu when this function is called. Break the execution as soon as
+		// possible and reset next time we're called.
+		s_cpu_implementation_changed = true;
+	}
+}
+
+void VMManager::CheckForGSConfigChanges(const Pcsx2Config& old_config)
+{
+	if (EmuConfig.GS == old_config.GS)
+		return;
+
+	Console.WriteLn("Updating GS configuration...");
+
+	// We could just check whichever NTSC or PAL is appropriate for our current mode,
+	// but people _really_ shouldn't be screwing with framerate, so whatever.
+	if (EmuConfig.GS.FramerateNTSC != old_config.GS.FramerateNTSC ||
+		EmuConfig.GS.FrameratePAL != old_config.GS.FrameratePAL)
+	{
+		UpdateVSyncRate(false);
+		UpdateTargetSpeed();
+	}
+	else if (EmuConfig.GS.VsyncEnable != old_config.GS.VsyncEnable ||
+			 EmuConfig.GS.DisableMailboxPresentation != old_config.GS.DisableMailboxPresentation)
+	{
+		// Still need to update target speed, because of sync-to-host-refresh.
+		UpdateTargetSpeed();
+		MTGS::UpdateVSyncMode();
+	}
+
+	MTGS::ApplySettings();
+}
+
+void VMManager::CheckForEmulationSpeedConfigChanges(const Pcsx2Config& old_config)
+{
+	if (EmuConfig.EmulationSpeed == old_config.EmulationSpeed)
+		return;
+
+	Console.WriteLn("Updating emulation speed configuration");
+	UpdateTargetSpeed();
+}
+
+void VMManager::CheckForPatchConfigChanges(const Pcsx2Config& old_config)
+{
+	if (EmuConfig.EnableCheats == old_config.EnableCheats &&
+		EmuConfig.EnableWideScreenPatches == old_config.EnableWideScreenPatches &&
+		EmuConfig.EnableNoInterlacingPatches == old_config.EnableNoInterlacingPatches &&
+		EmuConfig.EnablePatches == old_config.EnablePatches)
+	{
+		return;
+	}
+
+	Patch::UpdateActivePatches(true, false, true, HasValidVM());
+
+	// This is a bit messy, because the patch config update happens after the settings are loaded,
+	// if we disable widescreen patches, we have to reload the original settings again.
+	if (Patch::ReloadPatchAffectingOptions())
+		MTGS::ApplySettings();
+}
+
+void VMManager::CheckForDEV9ConfigChanges(const Pcsx2Config& old_config)
+{
+	if (EmuConfig.DEV9 == old_config.DEV9)
+		return;
+
+	DEV9CheckChanges(old_config);
+}
+
+void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
+{
+	bool changed = false;
+
+	for (size_t i = 0; i < std::size(EmuConfig.Mcd); i++)
+	{
+		if (EmuConfig.Mcd[i].Enabled != old_config.Mcd[i].Enabled ||
+			EmuConfig.Mcd[i].Filename != old_config.Mcd[i].Filename)
+		{
+			changed = true;
+			break;
+		}
+	}
+
+	if (!changed)
+		return;
+
+	Console.WriteLn("Updating memory card configuration");
+
+	// force card eject when files change
+	for (u32 port = 0; port < 2; port++)
+	{
+		for (u32 slot = 0; slot < 4; slot++)
+		{
+			const uint index = FileMcd_ConvertToSlot(port, slot);
+			if (EmuConfig.Mcd[index].Enabled != old_config.Mcd[index].Enabled ||
+				EmuConfig.Mcd[index].Filename != old_config.Mcd[index].Filename)
+			{
+				Console.WriteLn("Ejecting memory card %u (port %u slot %u) due to source change", index, port, slot);
+				AutoEject::Set(port, slot);
+			}
+		}
+	}
+	// force reindexing, mc folder code is janky
+	std::string sioSerial;
+	{
+		std::unique_lock lock(s_info_mutex);
+		if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_disc_serial))
+			sioSerial = game->memcardFiltersAsString();
+		if (sioSerial.empty())
+			sioSerial = s_disc_serial;
+	}
+
+	if (!GSDumpReplayer::IsReplayingDump())
+		FileMcd_Reopen(sioSerial);
+}
+
+void VMManager::CheckForMiscConfigChanges(const Pcsx2Config& old_config)
+{
+	if (EmuConfig.EnableFastBootFastForward && !old_config.EnableFastBootFastForward &&
+		VMManager::Internal::IsFastBootInProgress())
+	{
+		UpdateTargetSpeed();
+	}
+
+	if (EmuConfig.InhibitScreensaver != old_config.InhibitScreensaver)
+		UpdateInhibitScreensaver(EmuConfig.InhibitScreensaver && VMManager::GetState() == VMState::Running);
+
+	if (EmuConfig.EnableDiscordPresence != old_config.EnableDiscordPresence)
+	{
+		if (EmuConfig.EnableDiscordPresence)
+			InitializeDiscordPresence();
+		else
+			ShutdownDiscordPresence();
+	}
+
+	// PINE is the same shape of thing as the Discord integration above -- an optional external
+	// service whose entire lifecycle is one bool plus a port -- but it was never wired to the
+	// settings path. ReloadPINE() had exactly two callers, CPUThreadInitialize() and
+	// UpdateDiscDetails(), so a toggle only took effect at the next app start or game change.
+	// On a handheld that reads as a broken switch: the UI says enabled, nothing is listening,
+	// and there is no separate window to restart into to discover otherwise.
+	//
+	// Called unconditionally rather than gated on old_config, because ReloadPINE() compares the
+	// request against the LIVE server -- is one initialized, and on which slot -- which is
+	// strictly stronger than a config diff. It early-returns when they already agree, and it
+	// recovers a server that lost an earlier bind (the port still in TIME_WAIT from a previous
+	// run is the usual way that happens) instead of trusting a config value that never changed.
+	ReloadPINE();
+
+	// The IOP thread starts and stops with a settings change (CheckForCPUConfigChanges ran first), and a thread
+	// that has just started is on the CPU thread's affinity until it is placed. It also counts as one of the
+	// threads to place, so the others' places can change with it.
+	if (HasValidVM() && (EmuConfig.EnableThreadPinning != old_config.EnableThreadPinning ||
+							EmuConfig.EnablePrimeCorePlacement != old_config.EnablePrimeCorePlacement ||
+							(s_thread_affinities_set && EmuConfig.Speedhacks.vuThread != old_config.Speedhacks.vuThread) ||
+							IopThread::PlacementToken() != s_iop_placement_token))
+	{
+		SetEmuThreadAffinities();
+	}
+}
+
+void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
+{
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+	// GSreopen would recreate the Metal device under the running game, so a
+	// renderer change brought in by a reload waits for the next boot.
+	if (MTGS::IsOpen())
+		EmuConfig.GS.Renderer = old_config.GS.Renderer;
+#endif
+
+	if (HasValidVM())
+	{
+		CheckForCPUConfigChanges(old_config);
+#if PS2_NATIVE_IOP_THREADED
+		if (s_native_iop_vm_failure_reason)
+			return;
+#endif
+		CheckForEmulationSpeedConfigChanges(old_config);
+		CheckForPatchConfigChanges(old_config);
+		SPU2::CheckForConfigChanges(old_config);
+		CheckForDEV9ConfigChanges(old_config);
+		CheckForMemoryCardConfigChanges(old_config);
+		USB::CheckForConfigChanges(old_config);
+	}
+	else if (GetState() == VMState::Shutdown)
+	{
+		// The desktop settings window and Big Picture apply settings with no VM too. Nothing is running to
+		// reset, but turning vu-aot off still clears what it saved. The test is a change of the global
+		// setting since it was last seen with no VM, not old_config against the new one: after a failed
+		// boot old_config holds the game's settings layered over the global ones, and leaving a game must
+		// never clear the cache, which is shared between games.
+		vuAotNoVmSettingsApplied(GetGlobalVuAot(), EmuConfig.Cpu.Recompiler.EnableVUProgramCache);
+	}
+
+	// For the big picture UI, we still need to update GS settings, since it's running,
+	// and we don't update its config when we start the VM.
+	if (HasValidVM() || MTGS::IsOpen())
+		CheckForGSConfigChanges(old_config);
+
+	if (EmuConfig.Achievements != old_config.Achievements)
+		Achievements::UpdateSettings(old_config.Achievements);
+
+	FullscreenUI::CheckForConfigChanges(old_config);
+
+	CheckForMiscConfigChanges(old_config);
+
+	Host::CheckForSettingsChanges(old_config);
+}
+
+void VMManager::ReloadPatches(bool reload_files, bool reload_enabled_list, bool verbose, bool verbose_if_changed)
+{
+	if (!HasValidVM() || ArePatchesDisabledByEmulationOnlyMode())
+		return;
+
+	Patch::ReloadPatches(s_disc_serial, HasBootedELF() ? GetCRCForPatches() : 0, reload_files, reload_enabled_list, verbose, verbose_if_changed);
+
+	// Might change widescreen mode.
+	if (Patch::ReloadPatchAffectingOptions())
+		ApplyCoreSettings();
+}
+
+bool VMManager::IsEmulationOnlyMode()
+{
+	return s_emulation_only_mode.load(std::memory_order_acquire);
+}
+
+static void TryPostEmulationOnlyStartupReady()
+{
+	if (!s_boot_patches_applied.load(std::memory_order_acquire) ||
+		!s_texture_replacement_startup_complete.load(std::memory_order_acquire))
+	{
+		return;
+	}
+
+	bool expected = false;
+	if (!s_emulation_only_startup_notification_posted.compare_exchange_strong(
+			expected, true, std::memory_order_acq_rel, std::memory_order_acquire))
+	{
+		return;
+	}
+
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+	ARMSX2_PostEmulationOnlyStartupReady();
+#endif
+}
+
+void VMManager::NotifyBootPatchesApplied()
+{
+	s_boot_patches_applied.store(true, std::memory_order_release);
+	TryPostEmulationOnlyStartupReady();
+}
+
+void VMManager::NotifyTextureReplacementStartupComplete()
+{
+	s_texture_replacement_startup_complete.store(true, std::memory_order_release);
+	TryPostEmulationOnlyStartupReady();
+}
+
+void VMManager::ReleaseNonEssentialRuntimeResources(u32 release_flags)
+{
+	if (!HasValidVM())
+		return;
+
+	release_flags &= EMULATION_ONLY_RELEASE_ALL;
+	s_emulation_only_release_flags.store(release_flags, std::memory_order_release);
+	s_emulation_only_mode.store(true, std::memory_order_release);
+
+	// These are runtime copies. Persistent user settings are intentionally unchanged and
+	// LoadSettings() restores them for the next VM session.
+	if (release_flags & EMULATION_ONLY_RELEASE_PINE)
+		EmuConfig.EnablePINE = false;
+	if (release_flags & EMULATION_ONLY_RELEASE_DISCORD_PRESENCE)
+		EmuConfig.EnableDiscordPresence = false;
+	if (release_flags & EMULATION_ONLY_RELEASE_ACHIEVEMENTS)
+		EmuConfig.Achievements.Enabled = false;
+	if (release_flags & EMULATION_ONLY_RELEASE_PATCHES)
+	{
+		EmuConfig.EnablePatches = false;
+		EmuConfig.EnableCheats = false;
+		EmuConfig.EnableWideScreenPatches = false;
+		EmuConfig.EnableNoInterlacingPatches = false;
+	}
+
+	if (release_flags & EMULATION_ONLY_RELEASE_PINE)
+		PINEServer::Deinitialize();
+	if (release_flags & EMULATION_ONLY_RELEASE_DISCORD_PRESENCE)
+		ShutdownDiscordPresence();
+	if (release_flags & EMULATION_ONLY_RELEASE_ACHIEVEMENTS)
+		Achievements::Shutdown(false);
+
+	if ((release_flags & EMULATION_ONLY_RELEASE_INPUT_RECORDING) && g_InputRecording.isActive())
+		g_InputRecording.stop();
+
+	if (release_flags & EMULATION_ONLY_RELEASE_PATCHES)
+		Patch::UnloadPatches();
+
+	if (release_flags & EMULATION_ONLY_RELEASE_OSD)
+	{
+		Host::ClearOSDMessages();
+
+		// Disable every live OSD feed without persisting the user's selected preset.
+		GSConfig.OsdMessagesPos = OsdOverlayPos::None;
+		GSConfig.OsdPerformancePos = OsdOverlayPos::None;
+		GSConfig.OsdShowSpeed = false;
+		GSConfig.OsdShowFPS = false;
+		GSConfig.OsdShowVPS = false;
+		GSConfig.OsdShowResolution = false;
+		GSConfig.OsdShowGSStats = false;
+		GSConfig.OsdShowCPU = false;
+		GSConfig.OsdShowGPU = false;
+		GSConfig.OsdShowGPUDebug = false;
+		GSConfig.OsdShowGPUStats = false;
+		GSConfig.OsdShowIndicators = false;
+		GSConfig.OsdShowFrameTimes = false;
+		GSConfig.OsdShowHardwareInfo = false;
+		GSConfig.OsdShowVersion = false;
+		GSConfig.OsdShowSettings = false;
+		GSConfig.OsdshowPatches = false;
+		GSConfig.OsdShowInputs = false;
+		GSConfig.OsdShowInputRec = false;
+		GSConfig.OsdShowTextureReplacements = false;
+	}
+
+	Console.WriteLn("Emulation-only mode: released optional runtime services and overlays.");
+}
+
+void VMManager::EnforceAchievementsChallengeModeSettings()
+{
+	if (!Achievements::IsHardcoreModeActive())
+	{
+		return;
+	}
+
+	static constexpr auto ClampSpeed = [](float& rate) {
+		if (rate > 0.0f && rate < 1.0f)
+			rate = 1.0f;
+	};
+
+	// Can't use slow motion.
+	ClampSpeed(EmuConfig.EmulationSpeed.NominalScalar);
+	ClampSpeed(EmuConfig.EmulationSpeed.TurboScalar);
+	ClampSpeed(EmuConfig.EmulationSpeed.SlomoScalar);
+
+	// Can't use cheats.
+	if (EmuConfig.EnableCheats)
+	{
+		Host::AddIconOSDMessage("ChallengeDisableCheats", ICON_FA_TRIANGLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "Cheats have been disabled due to RetroAchievements Hardcore Mode."),
+			Host::OSD_WARNING_DURATION);
+		EmuConfig.EnableCheats = false;
+	}
+
+	// Input recording/playback is probably an issue.
+	EmuConfig.EnableRecordingTools = false;
+	EmuConfig.EnablePINE = false;
+
+	// Framerates should be at default.
+	EmuConfig.GS.FramerateNTSC = Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_NTSC;
+	EmuConfig.GS.FrameratePAL = Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_PAL;
+
+	// You can overclock, but not underclock (since that might slow down the game and make it easier).
+	EmuConfig.Speedhacks.ClampForHardcoreMode();
+}
+
+void VMManager::LogUnsafeSettingsToConsole(const std::string& messages)
+{
+	// a not-great way of getting rid of the icons for the console message
+	std::string console_messages(messages);
+	for (;;)
+	{
+		const std::string::size_type pos = console_messages.find("\xef");
+		if (pos != std::string::npos)
+		{
+			console_messages.erase(pos, pos + 3);
+			console_messages.insert(pos, "[Unsafe Settings]");
+		}
+		else
+		{
+			break;
+		}
+	}
+	Console.Warning(console_messages);
+}
+
+void VMManager::WarnAboutUnsafeSettings()
+{
+	if (!EmuConfig.WarnAboutUnsafeSettings)
+		return;
+
+	// Auto-tune applies settings six to nine times in a convergence; a toast for each would bury its own message.
+	if (AutoTune::IsApplyingSettings())
+		return;
+
+	std::string messages;
+	auto append = [&messages](const char* icon, const std::string_view msg) {
+		messages += icon;
+		messages += ' ';
+		messages += msg;
+		messages += '\n';
+	};
+
+	if (EmuConfig.Speedhacks.fastCDVD)
+		append(ICON_FA_COMPACT_DISC, TRANSLATE_SV("VMManager", "Fast CDVD is enabled, this may break games."));
+	if (EmuConfig.Speedhacks.EECycleRate != 0 || EmuConfig.Speedhacks.EECycleSkip != 0)
+	{
+		append(ICON_FA_GAUGE_SIMPLE_HIGH,
+			TRANSLATE_SV("VMManager", "Cycle rate/skip is not at default, this may crash or make games run too slow."));
+	}
+
+	const bool is_sw_renderer = EmuConfig.GS.Renderer == GSRendererType::SW;
+	if (!is_sw_renderer)
+	{
+		// HW renderer settings.
+		if (EmuConfig.GS.UpscaleMultiplier < 1.0f)
+		{
+			append(ICON_FA_TV,
+				TRANSLATE_SV("VMManager", "Upscale multiplier is below native, this will break rendering."));
+		}
+		if (EmuConfig.GS.TriFilter != TriFiltering::Automatic)
+		{
+			append(ICON_FA_PAGER,
+				TRANSLATE_SV("VMManager", "Trilinear filtering is not set to automatic. This may break rendering in some games."));
+		}
+		if (EmuConfig.GS.AccurateBlendingUnit <= AccBlendLevel::Minimum)
+		{
+			append(ICON_FA_PAINTBRUSH,
+				TRANSLATE_SV("VMManager", "Blending Accuracy is below Basic, this may break effects in some games."));
+		}
+		// NOT a relational comparison: Asynchronous (5) was appended after Disabled (4), so the
+		// enum is no longer ordered by accuracy and `> EnabledForceFull` wrongly flags Async while
+		// the ordering trap is exactly what the rest of the port was rewritten to avoid.
+		if (!IsHardwareDownloadReadbackEnabled(EmuConfig.GS.HWDownloadMode))
+		{
+			append(ICON_FA_DOWNLOAD,
+				TRANSLATE_SV("VMManager", "Hardware Download Mode is not set to Accurate, this may break rendering in some games."));
+		}
+		if (EmuConfig.GS.GPUPaletteConversion)
+		{
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "GPU Palette Conversion is enabled, this may reduce performance."));
+		}
+		if (EmuConfig.GS.TexturePreloading != TexturePreloadingLevel::Full)
+		{
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "Texture Preloading is not Full, this may reduce performance."));
+		}
+		if (EmuConfig.GS.UserHacks_EstimateTextureRegion)
+		{
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "Estimate texture region is enabled, this may reduce performance."));
+		}
+		if (EmuConfig.GS.UserHacks_DrawBuffering)
+		{
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "Draw Buffering is enabled, this may result in graphical errors."));
+		}
+		if (EmuConfig.GS.UserHacks_RewriteLargeSTCoords)
+		{
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "Rewrite large ST is enabled, this may reduce performance."));
+		}
+		if (EmuConfig.GS.DumpReplaceableTextures)
+		{
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "Texture dumping is enabled, this will continually dump textures to disk."));
+		}
+		if (!EmuConfig.GS.HWMipmap)
+		{
+			append(ICON_FA_IMAGES,
+				TRANSLATE_SV("VMManager", "Mipmapping is disabled. This may break rendering in some games."));
+		}
+		if (EmuConfig.GS.HWAccurateAlphaTest)
+		{
+			append(ICON_FA_IMAGES,
+				TRANSLATE_SV("VMManager", "Accurate Alpha Test is enabled, this may reduce performance."));
+		}
+		if (EmuConfig.GS.HWAA1)
+		{
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "AA1 is enabled, this may severely degrade performance."));
+		}
+		if (EmuConfig.GS.DepthFeedbackMode != GSDepthFeedbackMode::Auto)
+		{
+			append(ICON_FA_IMAGES,
+				TRANSLATE_SV("VMManager", "Overriding default depth feedback mode, this may break rendering in some games."));
+		}
+		if (EmuConfig.GS.UseDebugDevice)
+		{
+			append(ICON_FA_BUG,
+				TRANSLATE_SV("VMManager", "Debug device is enabled. This will massively reduce performance."));
+		}
+		if (EmuConfig.GS.Dithering == 3)
+		{
+			append(ICON_FA_TV,
+				TRANSLATE_SV("VMManager", "Dithering is set to Force 32 bit. This will break rendering in some games."));
+		}
+		if (EmuConfig.GS.Dithering == 0)
+		{
+			append(ICON_FA_TV,
+				TRANSLATE_SV("VMManager", "Dithering is disabled. This will cause color banding in some games."));
+		}
+		if (EmuConfig.GS.IntegerScaling)
+		{
+			append(ICON_FA_TV,
+				TRANSLATE_SV("VMManager", "Integer scaling is enabled. This may shrink the image."));
+		}
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+		// iOS always renders with Metal; "Automatic" is not a meaningful choice
+		// there, so this desktop-only warning is a false positive and is omitted.
+		static bool render_change_warn = false;
+		if (EmuConfig.GS.Renderer != GSRendererType::Auto && EmuConfig.GS.Renderer != GSRendererType::SW &&
+#if defined(PS2_NATIVE_VULKAN_ONLY) && PS2_NATIVE_VULKAN_ONLY
+			EmuConfig.GS.Renderer != GSRendererType::VK &&
+#endif
+			!render_change_warn)
+		{
+			// show messagesbox
+			render_change_warn = true;
+
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "Graphics API is not set to Automatic. This may cause performance problems and graphical issues."));
+		}
+#endif
+	}
+	if (EmuConfig.GS.DumpGSData)
+	{
+		const std::string& dir = is_sw_renderer ? EmuConfig.GS.SWDumpDirectory : EmuConfig.GS.HWDumpDirectory;
+		append(ICON_FA_LAYER_GROUP, fmt::format(TRANSLATE_FS("VMManager", "Dumping draw data to {}."), dir));
+	}
+	if (EmuConfig.GS.TextureFiltering != BiFiltering::PS2)
+	{
+		append(ICON_FA_FILTER,
+			TRANSLATE_SV("VMManager",
+				"Texture filtering is not set to Bilinear (PS2). This will break rendering in some games."));
+	}
+	if (EmuConfig.Cpu.FPUFPCR.GetRoundMode() != FPRoundMode::ChopZero)
+	{
+		append(ICON_PF_MICROCHIP,
+			TRANSLATE_SV("VMManager", "EE FPU Round Mode is not set to default, this may break some games."));
+	}
+	if (!EmuConfig.Cpu.Recompiler.fpuOverflow || EmuConfig.Cpu.Recompiler.fpuExtraOverflow ||
+		EmuConfig.Cpu.Recompiler.fpuFullMode)
+	{
+		append(ICON_PF_MICROCHIP,
+			TRANSLATE_SV("VMManager", "EE FPU Clamp Mode is not set to default, this may break some games."));
+	}
+	if (EmuConfig.Cpu.VU0FPCR.GetRoundMode() != FPRoundMode::ChopZero)
+	{
+		append(ICON_PF_MICROCHIP,
+			TRANSLATE_SV("VMManager", "VU0 Round Mode is not set to default, this may break some games."));
+	}
+	if (EmuConfig.Cpu.VU1FPCR.GetRoundMode() != FPRoundMode::ChopZero)
+	{
+		append(ICON_PF_MICROCHIP,
+			TRANSLATE_SV("VMManager", "VU1 Round Mode is not set to default, this may break some games."));
+	}
+	if (!EmuConfig.Cpu.Recompiler.vu0Overflow || EmuConfig.Cpu.Recompiler.vu0ExtraOverflow ||
+		EmuConfig.Cpu.Recompiler.vu0SignOverflow || EmuConfig.Cpu.Recompiler.vu0ExactMode ||
+		!EmuConfig.Cpu.Recompiler.vu1Overflow || EmuConfig.Cpu.Recompiler.vu1ExtraOverflow ||
+		EmuConfig.Cpu.Recompiler.vu1SignOverflow || EmuConfig.Cpu.Recompiler.vu1ExactMode)
+	{
+		append(ICON_PF_MICROCHIP,
+			TRANSLATE_SV("VMManager", "VU Clamp Mode is not set to default, this may break some games."));
+	}
+	// An arcade board runs with Extended RAM because it has it (ApplyArcadeSessionSettings).
+	if (EmuConfig.Cpu.ExtraMemory && !Arcade::IsActive())
+	{
+		append(ICON_PF_MICROCHIP,
+			TRANSLATE_SV("VMManager", "Extended RAM is enabled. Compatibility with some games may be affected."));
+	}
+	if (!EmuConfig.EnableGameFixes)
+	{
+		append(ICON_FA_GAMEPAD,
+			TRANSLATE_SV("VMManager", "Game Fixes are not enabled. Compatibility with some games may be affected."));
+	}
+	if (!EmuConfig.EnablePatches)
+	{
+		append(ICON_FA_GAMEPAD,
+			TRANSLATE_SV(
+				"VMManager", "Compatibility Patches are not enabled. Compatibility with some games may be affected."));
+	}
+	if (EmuConfig.GS.FramerateNTSC != Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_NTSC)
+		append(ICON_FA_TV, TRANSLATE_SV("VMManager", "Frame rate for NTSC is not default. This may break some games."));
+	if (EmuConfig.GS.FrameratePAL != Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_PAL)
+		append(ICON_FA_TV, TRANSLATE_SV("VMManager", "Frame rate for PAL is not default. This may break some games."));
+
+	if (!messages.empty())
+	{
+		if (messages.back() == '\n')
+			messages.pop_back();
+
+		LogUnsafeSettingsToConsole(messages);
+		Host::AddKeyedOSDMessage("unsafe_settings_warning", std::move(messages), Host::OSD_WARNING_DURATION);
+	}
+	else
+	{
+		Host::RemoveKeyedOSDMessage("unsafe_settings_warning");
+	}
+
+	messages.clear();
+	if (!EmuConfig.Cpu.Recompiler.EnableEE)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "EE Recompiler is not enabled, this will significantly reduce performance."));
+	}
+	if (!EmuConfig.Cpu.Recompiler.EnableVU0)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "VU0 Recompiler is not enabled, this will significantly reduce performance."));
+	}
+	if (!EmuConfig.Cpu.Recompiler.EnableVU1)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "VU1 Recompiler is not enabled, this will significantly reduce performance."));
+	}
+	if (!EmuConfig.Cpu.Recompiler.EnableIOP)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "IOP Recompiler is not enabled, this will significantly reduce performance."));
+	}
+	if (EmuConfig.Cpu.Recompiler.EnableEECache)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "EE Cache is enabled, this will significantly reduce performance."));
+	}
+	if (!EmuConfig.Speedhacks.WaitLoop)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "EE Wait Loop Detection is not enabled, this may reduce performance."));
+	}
+	if (!EmuConfig.Speedhacks.IntcStat)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "INTC Spin Detection is not enabled, this may reduce performance."));
+	}
+	// The hosted Switch build reserves no Fastmem area. The warning should
+	// describe a setting the player can change on the current platform.
+#ifdef __SWITCH2__
+	if (!EmuConfig.Cpu.Recompiler.EnableFastmem && !vtlb_FastmemAreaUnavailable())
+#else
+	if (!EmuConfig.Cpu.Recompiler.EnableFastmem)
+#endif
+		append(ICON_FA_CIRCLE_EXCLAMATION, TRANSLATE_SV("VMManager", "Fastmem is not enabled, this will reduce performance."));
+	if (!EmuConfig.Speedhacks.vu1Instant)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "Instant VU1 is disabled, this may reduce performance."));
+	}
+	if (!EmuConfig.Speedhacks.vuFlagHack)
+	{
+		append(ICON_FA_CIRCLE_EXCLAMATION,
+			TRANSLATE_SV("VMManager", "mVU Flag Hack is not enabled, this may reduce performance."));
+	}
+
+	if (!messages.empty())
+	{
+		if (messages.back() == '\n')
+			messages.pop_back();
+
+		LogUnsafeSettingsToConsole(messages);
+		Host::AddKeyedOSDMessage("performance_settings_warning", std::move(messages), Host::OSD_WARNING_DURATION);
+	}
+	else
+	{
+		Host::RemoveKeyedOSDMessage("performance_settings_warning");
+	}
+}
+
+void VMManager::UpdateInhibitScreensaver(bool inhibit)
+{
+	if (s_screensaver_inhibited == inhibit)
+		return;
+
+	if (Common::InhibitScreensaver(inhibit))
+		s_screensaver_inhibited = inhibit;
+	else if (inhibit)
+		Console.Warning("Failed to inhibit screen saver.");
+}
+
+void VMManager::SaveSessionTime(const std::string& prev_serial)
+{
+	// Don't save time when running dumps, just messes up your list.
+	if (GSDumpReplayer::IsReplayingDump())
+		return;
+
+	if (!prev_serial.empty())
+	{
+		// round up to seconds
+		const std::time_t etime =
+			static_cast<std::time_t>(std::round(Common::Timer::ConvertValueToSeconds(std::exchange(s_session_accumulated_playtime, 0))));
+		const std::time_t wtime = std::time(nullptr);
+		GameList::AddPlayedTimeForSerial(prev_serial, wtime, etime);
+	}
+}
+
+u64 VMManager::GetSessionPlayedTime()
+{
+	u64 played = s_session_accumulated_playtime;
+	// The stretch since the last resume is only added on pause.
+	if (s_state.load(std::memory_order_acquire) == VMState::Running)
+		played += static_cast<u64>(Common::Timer::GetCurrentValue()) - s_session_resume_timestamp;
+	return static_cast<u64>(std::round(Common::Timer::ConvertValueToSeconds(played)));
+}
+
+#ifdef _WIN32
+
+#include "common/RedtapeWindows.h"
+
+static bool s_timer_resolution_increased = false;
+
+void VMManager::SetTimerResolutionIncreased(bool enabled)
+{
+	if (s_timer_resolution_increased == enabled)
+		return;
+
+	if (enabled)
+	{
+		s_timer_resolution_increased = (timeBeginPeriod(1) == TIMERR_NOERROR);
+	}
+	else if (s_timer_resolution_increased)
+	{
+		timeEndPeriod(1);
+		s_timer_resolution_increased = false;
+	}
+}
+
+#else
+
+void VMManager::SetTimerResolutionIncreased(bool enabled)
+{
+}
+
+#endif
+
+static std::vector<u32> s_processor_list;
+static std::vector<u32> s_software_renderer_processor_list;
+static std::once_flag s_processor_list_initialized;
+
+#if defined(__linux__) || defined(_WIN32)
+
+static u32 GetProcessorIdForProcessor(const cpuinfo_processor* proc)
+{
+#if defined(__linux__)
+	return static_cast<u32>(proc->linux_id);
+#elif defined(_WIN32)
+	return static_cast<u32>(proc->windows_processor_id);
+#else
+	return 0;
+#endif
+}
+
+#if defined(__linux__)
+// Per-CPU scheduler capacity, as the kernel's own EAS uses it. Read with plain POSIX I/O:
+// these sysfs nodes report st_size == 0, so any size-based read comes back EMPTY.
+// Returns 0 when the node is missing (older kernels) or unreadable.
+static u32 ReadCpuSysfsU32(u32 cpu, const char* node)
+{
+	char path[128];
+	std::snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%u/%s", cpu, node);
+
+	const int fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return 0;
+
+	char buf[32] = {};
+	const ssize_t got = read(fd, buf, sizeof(buf) - 1);
+	close(fd);
+	if (got <= 0)
+		return 0;
+
+	return static_cast<u32>(std::strtoul(buf, nullptr, 10));
+}
+
+// How "fast" each processor is, on whatever scale we can actually read. Only the RATIO between
+// entries matters, so the three sources never mix within one call:
+//   1. cpu_capacity   — what EAS itself ranks by, and present on Android where the others aren't
+//   2. cpuinfo_max_freq — every cpufreq kernel has it, even without capacity-aware scheduling
+//   3. cpuinfo's frequency — last resort, and 0 on many Android SoCs (hence the two above)
+// An all-zero result means "we cannot tell the clusters apart", which callers must treat as
+// "do not confine anything" rather than guessing.
+static std::vector<u32> GetProcessorWeights()
+{
+	const u32 count = cpuinfo_get_processors_count();
+	std::vector<u32> weights(count, 0);
+
+	for (const char* node : {"cpu_capacity", "cpufreq/cpuinfo_max_freq"})
+	{
+		bool any = false;
+		for (u32 i = 0; i < count; i++)
+		{
+			const cpuinfo_processor* proc = cpuinfo_get_processor(i);
+			if (!proc)
+				continue;
+			weights[i] = ReadCpuSysfsU32(GetProcessorIdForProcessor(proc), node);
+			any |= (weights[i] != 0);
+		}
+		if (any)
+			return weights;
+	}
+
+	for (u32 i = 0; i < count; i++)
+	{
+		const cpuinfo_processor* proc = cpuinfo_get_processor(i);
+		weights[i] = (proc && proc->core) ? proc->core->frequency : 0;
+	}
+	return weights;
+}
+
+// Reads each processor's capacity and hands the table to IopThread::PerformanceMask, which decides the tier
+// (and says why it is not simply the fastest cluster).
+static std::vector<IopThread::CpuCapacity> ReadCpuCapacities()
+{
+	const std::vector<u32> weights = GetProcessorWeights();
+	std::vector<IopThread::CpuCapacity> cpus;
+	cpus.reserve(weights.size());
+	for (u32 i = 0; i < weights.size(); i++)
+	{
+		const cpuinfo_processor* proc = cpuinfo_get_processor(i);
+		if (!proc)
+			continue;
+		cpus.push_back({GetProcessorIdForProcessor(proc), weights[i], proc->smt_id == 0});
+	}
+	return cpus;
+}
+
+static u64 GetPerformanceCoresMask()
+{
+	return IopThread::PerformanceMask(ReadCpuCapacities());
+}
+
+// The prime core and the rest of the performance tier, empty when the host has no single core that clearly outruns
+// the others (IopThread::PrimeCoreSplit says what clearly means).
+static IopThread::PrimeSplit GetPrimeCoreSplit()
+{
+	return IopThread::PrimeCoreSplit(ReadCpuCapacities());
+}
+#endif
+
+// Widen a mask of individual processors to every processor sharing their clusters. cpuinfo
+// splits ARM clusters by MIDR, so this is "the same core type", which is what a helper thread
+// wants: near the emu threads' cache, without stealing one of their specific cores.
+static u64 ClusterMaskForProcessorMask(u64 processor_mask)
+{
+	if (processor_mask == 0)
+		return 0;
+
+	const u32 count = cpuinfo_get_processors_count();
+	u64 mask = 0;
+	for (u32 i = 0; i < count; i++)
+	{
+		const cpuinfo_processor* seed = cpuinfo_get_processor(i);
+		if (!seed || !seed->cluster)
+			continue;
+		if (!(processor_mask & (static_cast<u64>(1) << GetProcessorIdForProcessor(seed))))
+			continue;
+
+		for (u32 j = 0; j < count; j++)
+		{
+			const cpuinfo_processor* peer = cpuinfo_get_processor(j);
+			if (peer && peer->cluster == seed->cluster)
+				mask |= static_cast<u64>(1) << GetProcessorIdForProcessor(peer);
+		}
+	}
+	return mask;
+}
+
+// Where the back thread goes when the MTGS (front) thread is confined to gs_mask and the
+// processors in occupied are pinned to other busy emu threads. Every draw crosses between
+// front and back through a shared ring, so the back wants the front's cache. So, in order: the
+// rest of the front's cluster if it is in the performance tier, then the rest of the tier, each
+// first without the occupied processors and then with them. Never the front's own core(s) while
+// anything else is left: both threads are busy, and a back thread allowed onto a single-core
+// front's core gets migrated there whenever the front sleeps and then preempted by every front
+// wake. If the topology gives no answer, every processor except the front's; 0 (unpinned) only
+// when there is nothing else.
+static u64 ChooseGSBackThreadAffinity(u64 gs_mask, u64 occupied, bool* shares_busy_core = nullptr)
+{
+	if (shares_busy_core)
+		*shares_busy_core = false;
+	if (gs_mask == 0)
+		return 0;
+
+#if defined(__linux__)
+	const u64 tier = GetPerformanceCoresMask();
+#else
+	const u64 tier = 0; // No capacity source on Windows; the cluster alone decides.
+#endif
+	const u64 cluster = ClusterMaskForProcessorMask(gs_mask) & ~gs_mask;
+	const u64 fast_cluster = tier ? (cluster & tier) : cluster;
+	const u64 fast_rest = tier & ~gs_mask;
+	u64 others = 0;
+	const u32 count = cpuinfo_get_processors_count();
+	for (u32 i = 0; i < count; i++)
+	{
+		if (const cpuinfo_processor* proc = cpuinfo_get_processor(i))
+			others |= static_cast<u64>(1) << GetProcessorIdForProcessor(proc);
+	}
+	others &= ~gs_mask;
+	const GSBackThreadPlacement placement = GSPlaceBackThread(fast_cluster, fast_rest, others, occupied);
+	if (shares_busy_core)
+		*shares_busy_core = placement.shares_busy_core;
+	return placement.mask;
+}
+
+#if defined(__linux__) && !defined(__ANDROID__)
+// Desktop Linux with thread pinning off: the performance tier, or 0 when the machine has no
+// slower tier to keep away from (every processor qualifies) or it cannot be read.
+static u64 GetUnpinnedGSTierMask()
+{
+	const u64 tier = GetPerformanceCoresMask();
+	u64 all = 0;
+	const u32 count = cpuinfo_get_processors_count();
+	for (u32 i = 0; i < count; i++)
+	{
+		const cpuinfo_processor* proc = cpuinfo_get_processor(i);
+		if (proc && proc->smt_id == 0)
+			all |= static_cast<u64>(1) << GetProcessorIdForProcessor(proc);
+	}
+	return (tier != 0 && tier != all && std::popcount(tier) >= 2) ? tier : 0;
+}
+#endif
+
+static void InitializeProcessorList()
+{
+	if (!cpuinfo_initialize())
+	{
+		ERROR_LOG("cpuinfo_initialize() failed");
+		return;
+	}
+
+	INFO_LOG("Processor count: {} cores, {} processors, {} clusters",
+		cpuinfo_get_cores_count(), cpuinfo_get_processors_count(), cpuinfo_get_clusters_count());
+
+	// Prioritize faster cores in heterogeneous CPUs, ignoring hyperthreads/SMT (they're not helpful for pinning).
+	// The order comes from the kernel's capacity table where there is one (IopThread::OrderProcessors says why the
+	// frequency cpuinfo reports is not enough).
+	const u32 processor_count = cpuinfo_get_processors_count();
+#if defined(__linux__)
+	const std::vector<u32> capacities = GetProcessorWeights();
+#endif
+	std::vector<IopThread::CpuCapacity> cpus;
+	cpus.reserve(processor_count);
+	for (u32 i = 0; i < processor_count; i++)
+	{
+		const cpuinfo_processor* proc = cpuinfo_get_processor(i);
+		if (!proc)
+			continue;
+
+		u32 capacity = 0;
+#if defined(__linux__)
+		capacity = (i < capacities.size()) ? capacities[i] : 0;
+#endif
+		cpus.push_back({GetProcessorIdForProcessor(proc), capacity, proc->smt_id == 0,
+			(proc->core ? static_cast<u64>(proc->core->frequency) : 0)});
+	}
+	s_processor_list = IopThread::OrderProcessors(cpus);
+
+	SmallString str;
+	str.assign("Ordered processor list: ");
+	for (size_t i = 0; i < s_processor_list.size(); i++)
+		str.append_format("{}{}", (i == 0) ? "" : ", ", s_processor_list[i]);
+	Console.WriteLn(str.view());
+}
+
+void VMManager::SetHardwareDependentDefaultSettings(SettingsInterface& si)
+{
+	VMManager::EnsureCPUInfoInitialized();
+
+	const u32 core_count = cpuinfo_get_cores_count();
+	if (core_count == 0)
+	{
+		Console.Error("Invalid CPU count returned");
+		return;
+	}
+
+	Console.WriteLn(fmt::format("CPU cores count: {}", core_count));
+
+	if (core_count >= 3)
+	{
+		Console.WriteLn("  Enabling MTVU.");
+		si.SetBoolValue("EmuCore/Speedhacks", "vuThread", true);
+	}
+	else
+	{
+		Console.WriteLn("  Disabling MTVU.");
+		si.SetBoolValue("EmuCore/Speedhacks", "vuThread", false);
+	}
+
+	const int extra_threads = (core_count > 3) ? 3 : 2;
+	Console.WriteLn(fmt::format("  Setting Extra Software Rendering Threads to {}.", extra_threads));
+	si.SetIntValue("EmuCore/GS", "extrathreads", extra_threads);
+
+	// Enable thread pinning by default on heterogeneous CPUs (big.LITTLE).
+	// Without it, the kernel may migrate the EE / VU / GS threads to E-cores
+	// mid-frame — even one such migration is enough to miss the 60fps deadline
+	// on Apple Silicon under Asahi and Intel Alder Lake-class hybrid systems.
+	// SetEmuThreadAffinities already sorts processors by frequency, so pinning
+	// to indices 0..2 lands on the fastest cores.
+	if (cpuinfo_get_clusters_count() > 1 && core_count >= 3)
+	{
+		Console.WriteLn(fmt::format("  Heterogeneous CPU detected ({} clusters); enabling thread pinning.",
+			cpuinfo_get_clusters_count()));
+		si.SetBoolValue("EmuCore", "EnableThreadPinning", true);
+	}
+}
+
+#elif defined(__APPLE__)
+
+static u32 s_big_cores;
+static u32 s_small_cores;
+
+static void InitializeProcessorList()
+{
+	s_big_cores = 0;
+	s_small_cores = 0;
+	std::vector<DarwinMisc::CPUClass> classes = DarwinMisc::GetCPUClasses();
+	for (size_t i = 0; i < classes.size(); i++)
+	{
+		const DarwinMisc::CPUClass& cls = classes[i];
+		const bool is_big = i == 0 || i < classes.size() - 1; // Assume only one group is small
+		DevCon.WriteLn("(VMManager) Found %u physical cores and %u logical cores in perf level %u (%s), assuming %s",
+			cls.num_physical, cls.num_logical, i, cls.name.c_str(), is_big ? "big" : "small");
+		(is_big ? s_big_cores : s_small_cores) += cls.num_physical;
+	}
+}
+
+void VMManager::SetHardwareDependentDefaultSettings(SettingsInterface& si)
+{
+	VMManager::EnsureCPUInfoInitialized();
+
+	Console.WriteLn("Detected %u big cores", s_big_cores);
+
+	if (s_big_cores >= 3)
+	{
+		Console.WriteLn("  So enabling MTVU.");
+		si.SetBoolValue("EmuCore/Speedhacks", "vuThread", true);
+	}
+	else
+	{
+		Console.WriteLn("  So disabling MTVU.");
+		si.SetBoolValue("EmuCore/Speedhacks", "vuThread", false);
+	}
+}
+
+#else
+
+static void InitializeProcessorList()
+{
+	DevCon.WriteLn("(VMManager) InitializeCPUInfo() not implemented.");
+}
+
+void VMManager::SetHardwareDependentDefaultSettings(SettingsInterface& si)
+{
+	si.SetBoolValue("EmuCore/Speedhacks", "vuThread", true);
+}
+
+#endif
+
+u64 VMManager::Internal::GetPerformanceCoreMask()
+{
+#if defined(__linux__)
+	return GetPerformanceCoresMask();
+#else
+	return 0; // no capacity source: the cores cannot be told apart, so Threaded is not offered
+#endif
+}
+
+u32 VMManager::Internal::GetPerformanceCoreCount()
+{
+	return static_cast<u32>(std::popcount(GetPerformanceCoreMask()));
+}
+
+bool VMManager::Internal::CanSplitGS()
+{
+#if defined(__linux__)
+	EnsureCPUInfoInitialized();
+	// EE, VU1, GS front and GS back, plus the IOP thread when it is asked for: that one is busy 40 to 99% of a core, and a
+	// split beside it needs a fifth performance core: with the IOP thread on and only four big cores, the split
+	// measured slower than a single GS thread in most games tried, even with the prime core rule.
+	const u32 needed = 4 + (EmuConfig.Speedhacks.iopThread ? 1 : 0);
+	const u32 tier = GetPerformanceCoreCount();
+	return tier >= needed && tier < cpuinfo_get_processors_count();
+#else
+	return false;
+#endif
+}
+
+void VMManager::EnsureCPUInfoInitialized()
+{
+	std::call_once(s_processor_list_initialized, InitializeProcessorList);
+}
+
+// The GS back thread (GS multi-threading) belongs to the renderer, which the MTGS thread creates
+// and destroys whenever a renderer opens, so the thread registers itself here instead of
+// VMManager holding its handle. One mutex covers the handle and the mask: a placement change on
+// the CPU thread can coincide with the back thread starting or exiting, and SetAffinity must
+// never be handed the id of a thread that has already exited. A thread that registers after a
+// placement was chosen picks that placement up; one that registers before gets it pushed.
+static std::mutex s_gs_back_thread_mutex;
+static Threading::ThreadHandle s_gs_back_thread_handle;
+static u64 s_gs_back_thread_affinity = 0; // 0 = any processor
+
+static void SetGSBackThreadAffinityLocked(u64 mask)
+{
+	std::unique_lock lock(s_gs_back_thread_mutex);
+	s_gs_back_thread_affinity = mask;
+	if (s_gs_back_thread_handle)
+		s_gs_back_thread_handle.SetAffinity(mask);
+}
+
+u64 VMManager::Internal::RegisterGSBackThread(const Threading::ThreadHandle* handle)
+{
+	std::unique_lock lock(s_gs_back_thread_mutex);
+	s_gs_back_thread_handle = handle ? *handle : Threading::ThreadHandle();
+	// Applied even when 0: the new thread inherited the MTGS thread's mask, which may be a
+	// single core, and sharing that core would serialize the split again.
+	if (s_gs_back_thread_handle)
+		s_gs_back_thread_handle.SetAffinity(s_gs_back_thread_affinity);
+	return s_gs_back_thread_affinity;
+}
+
+void VMManager::Internal::SetGSBackThreadAffinity(u64 mask)
+{
+	SetGSBackThreadAffinityLocked(mask);
+}
+
+// Where the MTGS thread is pinned now, and the processors the other busy emu threads are pinned to (with the MTGS
+// thread's own): the inputs of the back thread's placement.
+static void GetGSBackThreadPlacementInputs(u64* gs_mask, u64* occupied)
+{
+	const auto pinned = [](const Threading::ThreadHandle& h) -> u64 {
+		const u64 mask = h ? h.GetAffinity() : 0;
+		return (std::popcount(mask) == 1) ? mask : 0;
+	};
+	*gs_mask = MTGS::GetThreadHandle() ? MTGS::GetThreadHandle().GetAffinity() : 0;
+	*occupied = *gs_mask | pinned(s_vm_thread_handle) | pinned(vu1Thread.GetThreadHandle()) |
+	            pinned(IopThread::g_thread.GetThreadHandle());
+}
+
+u64 VMManager::Internal::PlaceGSBackThreadNearGSThread()
+{
+	EnsureCPUInfoInitialized();
+	u64 gs_mask, occupied;
+	GetGSBackThreadPlacementInputs(&gs_mask, &occupied);
+#if defined(__linux__) || defined(_WIN32)
+	const u64 mask = ChooseGSBackThreadAffinity(gs_mask, occupied);
+#else
+	const u64 mask = 0; // No topology here (Darwin cannot pin threads anyway).
+#endif
+	SetGSBackThreadAffinityLocked(mask);
+	return mask;
+}
+
+bool VMManager::Internal::GSBackThreadWouldShareBusyCore()
+{
+	EnsureCPUInfoInitialized();
+#if defined(__linux__) || defined(_WIN32)
+	u64 gs_mask, occupied;
+	GetGSBackThreadPlacementInputs(&gs_mask, &occupied);
+	bool shares = false;
+	ChooseGSBackThreadAffinity(gs_mask, occupied, &shares);
+	return shares;
+#else
+	return false; // The back thread is not pinned here, so it is not placed on anyone's processor.
+#endif
+}
+
+#if defined(__ANDROID__)
+// Android "Affinity Control Mode", set by the app from NativeApp.setAffinityMode() before the VM
+// boots (see SetEmuThreadAffinities below for the semantics of each value):
+//   0 Disabled (default — scheduler decides)   1 EE>VU>GS   2 EE>GS>VU   3 VU>EE>GS
+//   4 VU>GS>EE   5 GS>EE>VU   6 GS>VU>EE       7 Performance Cores
+// A plain int like g_gs_android_prefer_vk: written once at startup/boot, read on the CPU thread.
+// Default 7 = Performance Cores; see the Kotlin Settings.affinityMode doc. The app pushes
+// the user's value before runVMThread, so this only applies if that push never happened.
+int g_android_affinity_mode = 7;
+#endif
+
+// The IOP thread's place. The thread begins with the affinity of the thread that created it, which is the CPU
+// thread, and that may have been narrowed to one core, so a thread that exists is always given a mask explicitly
+// (0 meaning any processor) rather than left to inherit one. Without a thread there is nothing to place.
+static void SetIopThreadAffinity(u64 mask)
+{
+	if (IopThread::g_thread.IsRunning())
+		IopThread::g_thread.GetThreadHandle().SetAffinity(mask);
+}
+
+// The prime core. On a part with one core clearly faster than the rest of its performance tier, the
+// thread the frame waits on should have that core to itself. Which thread that is changes with the game:
+// the GS back thread in a GS-heavy scene, the EE thread in an EE-bound one, the MTVU thread in a
+// VU1-heavy one. The kernel's own balancing puts the busiest single thread on the prime core, but with the
+// GS split on it does not keep the back thread there: the back thread shares the prime core with the EE
+// thread and changes processors about a hundred times a second. So while the GS back thread is running,
+// the busiest of EE, VU1, GS front and GS back gets the prime core alone and every other emulation thread
+// is kept to the rest of the tier. The choice is made from the usage figures PerformanceMetrics already
+// samples, with a margin and a streak (IopThread::PrimeArbiterUpdate) so equally busy threads do not
+// trade the core.
+//
+// It applies only where nothing placed the threads by hand: the unpinned Linux placement (which already
+// confines the GS threads to the tier) and Android's Performance Cores mode (the default). Pinned
+// placements and the ranked Android modes are the user's choice and are left alone.
+static std::mutex s_prime_mutex; // SetEmuThreadAffinities and the arbiter both write the threads' masks
+static IopThread::PrimeSplit s_prime_split; // set by SetEmuThreadAffinities when the arbiter applies to the placement it made
+static IopThread::PrimeArbiter s_prime_arbiter;
+static bool s_prime_engaged = false;
+static int s_prime_applied_owner = -1;
+static bool s_prime_disabled_by_host = false; // the gsrunner places threads by hand
+static struct
+{
+	u64 ee = 0, vu = 0, front = 0, iop = 0, back = 0;
+} s_prime_baseline;
+
+static void ApplyPrimeOwnerLocked(int owner)
+{
+	const u64 prime = s_prime_split.prime;
+	const u64 rest = s_prime_split.rest;
+	const auto mask_for = [&](int who) { return owner == who ? prime : rest; };
+	s_vm_thread_handle.SetAffinity(mask_for(IopThread::kPrimeEE));
+	if (EmuConfig.Speedhacks.vuThread)
+		vu1Thread.GetThreadHandle().SetAffinity(mask_for(IopThread::kPrimeVU));
+	MTGS::GetThreadHandle().SetAffinity(mask_for(IopThread::kPrimeGSFront));
+	SetGSBackThreadAffinityLocked(mask_for(IopThread::kPrimeGSBack));
+	if (IopThread::g_thread.IsRunning())
+		SetIopThreadAffinity(rest);
+	s_prime_applied_owner = owner;
+}
+
+static void DisengagePrimeLocked()
+{
+	if (!s_prime_engaged)
+		return;
+	s_vm_thread_handle.SetAffinity(s_prime_baseline.ee);
+	if (EmuConfig.Speedhacks.vuThread)
+		vu1Thread.GetThreadHandle().SetAffinity(s_prime_baseline.vu);
+	MTGS::GetThreadHandle().SetAffinity(s_prime_baseline.front);
+	SetGSBackThreadAffinityLocked(s_prime_baseline.back);
+	if (IopThread::g_thread.IsRunning())
+		SetIopThreadAffinity(s_prime_baseline.iop);
+	s_prime_engaged = false;
+	s_prime_applied_owner = -1;
+}
+
+void VMManager::Internal::DisablePrimeCorePlacement()
+{
+	std::unique_lock lock(s_prime_mutex);
+	DisengagePrimeLocked();
+	s_prime_split = {};
+	s_prime_disabled_by_host = true;
+}
+
+void VMManager::Internal::UpdatePrimeCorePlacement(const IopThread::PrimeLoad& load)
+{
+	std::unique_lock lock(s_prime_mutex);
+	if (s_prime_disabled_by_host || s_prime_split.prime == 0)
+		return;
+
+	// Only the split puts a second heavy thread beside the EE thread; with it off the kernel's placement is left alone.
+	if (!load.present[IopThread::kPrimeGSBack])
+	{
+		DisengagePrimeLocked();
+		return;
+	}
+
+	if (!s_prime_engaged)
+	{
+		s_prime_baseline.ee = s_vm_thread_handle.GetAffinity();
+		s_prime_baseline.vu = vu1Thread.GetThreadHandle().GetAffinity();
+		s_prime_baseline.front = MTGS::GetThreadHandle().GetAffinity();
+		s_prime_baseline.iop = IopThread::g_thread.IsRunning() ? IopThread::g_thread.GetThreadHandle().GetAffinity() : 0;
+		s_prime_baseline.back = s_gs_back_thread_affinity;
+		s_prime_arbiter = {};
+		s_prime_engaged = true;
+	}
+
+	const int owner = IopThread::PrimeArbiterUpdate(s_prime_arbiter, load);
+	if (owner != s_prime_applied_owner)
+	{
+		INFO_LOG("Prime core 0x{:x}: owner {} (busy EE {:.0f} VU {:.0f} GS {:.0f} GSB {:.0f}%)", s_prime_split.prime, owner,
+			load.busy[IopThread::kPrimeEE], load.busy[IopThread::kPrimeVU], load.busy[IopThread::kPrimeGSFront],
+			load.busy[IopThread::kPrimeGSBack]);
+		ApplyPrimeOwnerLocked(owner);
+	}
+}
+
+void VMManager::SetEmuThreadAffinities()
+{
+	// The arbiter's masks are the result of the last placement, which this call replaces; it engages again on its next
+	// window. Held for the whole call so the two never write the same thread at once.
+	std::unique_lock prime_lock(s_prime_mutex);
+	DisengagePrimeLocked(); // back to the placement that was in force before the arbiter took over
+	s_prime_split = {};
+
+	// The IOP thread runs beside the EE, so it is one more busy thread that wants a processor of its own. In
+	// Lockstep the two take strict turns and it does not. Remembered before anything below can return, so that
+	// the thread this call places is the one the token names.
+	const bool iop_thread = IopThread::PlacesThread();
+	s_iop_placement_token = IopThread::PlacementToken();
+
+#if defined(__ANDROID__)
+	// Android: never hard-pin the emu threads to fixed cores. Under Android's EAS
+	// scheduler the busiest thread (VU1 sits at ~99% in VU-bound titles like GoW2)
+	// is placed on the highest-capacity core — the prime (Cortex-X3). The desktop
+	// pinning path (used when a stale EnableThreadPinning=1 is in the ini) instead
+	// hands the prime to EE via s_processor_list[0] and locks VU onto a mid-tier big
+	// core (measured: VU pinned to an A7xx runs ~1.4x slower than floating to the X3,
+	// which slams GoW2). cpuinfo also can't read per-core frequency on many Android
+	// devices (all clusters report 0 MHz), so the frequency-ordered pin is unreliable
+	// anyway. Release any affinity so the scheduler can use the prime for VU.
+	//
+	// All of the above is about modes 1-6, which hand out INDIVIDUAL cores. They stay
+	// EXPERIMENTAL and opt-in: they exist because the reasoning is not universal (on GS-bound
+	// titles an unpinned GS thread measurably regressed on Burnout 3, and community testers on
+	// other SoCs report gains from explicit placement), but the VU hazard above is real.
+	//
+	// Mode 7 (Performance Cores) is the DEFAULT and is a different mechanism: it confines the
+	// emu threads to the big/prime TIER and lets EAS keep placing them within it, so VU can
+	// still float to the prime. It never selects fewer processors than there are threads to
+	// place, and falls back to fully unpinned when it cannot resolve the tier at all.
+	if (g_android_affinity_mode == 0)
+	{
+		MTGS::GetThreadHandle().SetAffinity(0);
+		vu1Thread.GetThreadHandle().SetAffinity(0);
+		s_vm_thread_handle.SetAffinity(0);
+		SetIopThreadAffinity(0);
+		SetGSBackThreadAffinityLocked(0);
+		s_software_renderer_processor_list = {};
+		s_thread_affinities_set = false;
+		s_perf_cluster_mask.store(0, std::memory_order_relaxed);
+		return;
+	}
+
+	EnsureCPUInfoInitialized();
+	if (s_processor_list.empty())
+	{
+		// cpuinfo gave us nothing to place threads on — behave exactly like Disabled.
+		MTGS::GetThreadHandle().SetAffinity(0);
+		vu1Thread.GetThreadHandle().SetAffinity(0);
+		s_vm_thread_handle.SetAffinity(0);
+		SetIopThreadAffinity(0);
+		SetGSBackThreadAffinityLocked(0);
+		s_software_renderer_processor_list = {};
+		s_thread_affinities_set = false;
+		s_perf_cluster_mask.store(0, std::memory_order_relaxed);
+		return;
+	}
+
+	const bool android_mtvu = EmuConfig.Speedhacks.vuThread;
+
+	// Mode 7 = "Performance Cores": don't hand out individual cores at all, just confine the
+	// emu threads to the big/prime tier and let EAS place them within it. This is the safest
+	// of the pinning modes because it never pins VU to a specific mid-tier core.
+	if (g_android_affinity_mode == 7)
+	{
+		const u64 perf_mask = GetPerformanceCoresMask();
+		// Confining N busy threads to fewer than N processors is strictly worse than leaving
+		// them alone — they end up timesharing one core instead of running concurrently. This
+		// is the guard that makes the mode safe enough to be the default: when the topology
+		// can't be read, or the fast tier is too narrow, we do NOTHING rather than something
+		// harmful. Note this deliberately does NOT fall through to the ordered per-core path
+		// below; that path is the pinning this mode exists to avoid.
+		// The IOP thread, when it runs beside the EE, is one more of them.
+		const IopThread::TierPlan tier = IopThread::PlanTier(perf_mask, android_mtvu, iop_thread);
+		const u32 threads_to_place = tier.threads_to_place;
+		if (tier.tier_fits)
+		{
+			INFO_LOG("Affinity mode: Performance Cores (mask 0x{:x}, {} processors, mtvu={}, iop thread={})",
+				perf_mask, std::popcount(perf_mask), android_mtvu ? 1 : 0, iop_thread ? 1 : 0);
+			s_vm_thread_handle.SetAffinity(perf_mask);
+			MTGS::GetThreadHandle().SetAffinity(perf_mask);
+			vu1Thread.GetThreadHandle().SetAffinity(android_mtvu ? perf_mask : 0);
+			SetIopThreadAffinity(perf_mask);
+			// The GS back thread (GS multi-threading) is busy 50-100% of the frame in GS-heavy
+			// titles, so it joins the tier only when the tier has a processor for it as well;
+			// otherwise it stays unpinned. It is placed separately so that it can never cost the
+			// other threads their placement. Set whether or not multi-threading is on: the mask
+			// is only used if a back thread starts.
+			const bool back_fits = tier.back_thread_fits;
+			INFO_LOG("  GS back thread {}", back_fits ? "shares the performance cores" :
+														"left unpinned (no processor left for it in the tier)");
+			SetGSBackThreadAffinityLocked(back_fits ? perf_mask : 0);
+			s_thread_affinities_set = true;
+			// With the GS back thread running, the busiest thread gets the prime core alone (see the prime core block above).
+			// Only a part with one core clearly faster than the rest of its tier has a prime core to give; where the
+			// fast cores are close in capacity there is none, and the scheduler keeps placing the threads.
+			if (EmuConfig.EnablePrimeCorePlacement)
+			{
+				s_prime_split = GetPrimeCoreSplit();
+				if (s_prime_split.prime != 0)
+					INFO_LOG("Prime core 0x{:x} goes to the busiest thread while the GS back thread runs (rest of the tier 0x{:x})",
+						s_prime_split.prime, s_prime_split.rest);
+			}
+			// Already a whole tier — hand it to helper threads unchanged.
+			s_perf_cluster_mask.store(perf_mask, std::memory_order_relaxed);
+			return;
+		}
+
+		INFO_LOG("Affinity mode: Performance Cores unavailable (mask 0x{:x} covers {} of the {} "
+				 "threads to place) — leaving threads unpinned.",
+			perf_mask, std::popcount(perf_mask), threads_to_place);
+		MTGS::GetThreadHandle().SetAffinity(0);
+		vu1Thread.GetThreadHandle().SetAffinity(0);
+		s_vm_thread_handle.SetAffinity(0);
+		SetIopThreadAffinity(0);
+		SetGSBackThreadAffinityLocked(0);
+		s_software_renderer_processor_list = {};
+		s_thread_affinities_set = false;
+		s_perf_cluster_mask.store(0, std::memory_order_relaxed);
+		return;
+	}
+
+	// Modes 1-6: explicit EE/VU/GS priority over s_processor_list, which is ordered fastest
+	// core first. The ranks are the rows of IopThread::PlanRanks, in the UI's order:
+	//   1 EE>VU>GS   2 EE>GS>VU   3 VU>EE>GS   4 VU>GS>EE   5 GS>EE>VU   6 GS>VU>EE
+	// With MTVU off there is no VU thread to place, so GS inherits VU's slot when VU ranked
+	// higher — otherwise the faster core sits idle. Mirrors the desktop path's "steal vu's
+	// thread if mtvu is off". The IOP thread takes the first rank none of the others uses.
+	const IopThread::RankPlan ranks = IopThread::PlanRanks(g_android_affinity_mode, android_mtvu, iop_thread, s_processor_list.size());
+	const int ee_rank = ranks.ee;
+	const int vu_rank = ranks.vu;
+	const int gs_rank = ranks.gs;
+
+	// cpuinfo frequently reports fewer usable processors than ranks; clamp rather than
+	// running off the end of the list.
+	const auto affinity_for_rank = [](int rank) -> u64 {
+		const size_t idx = std::min(static_cast<size_t>(rank), s_processor_list.size() - 1);
+		return static_cast<u64>(1) << s_processor_list[idx];
+	};
+
+	const u64 android_ee_affinity = affinity_for_rank(ee_rank);
+	const u64 android_gs_affinity = affinity_for_rank(gs_rank);
+	// The IOP thread is never clamped onto another thread's processor: a list with no rank left for it leaves it
+	// to the scheduler.
+	const u64 android_iop_affinity = ranks.iop >= 0 ? affinity_for_rank(ranks.iop) : 0;
+	INFO_LOG("Affinity mode {}: EE rank {} (0x{:x}), VU rank {}, GS rank {} (0x{:x}), IOP rank {} (0x{:x}), mtvu={}",
+		g_android_affinity_mode, ee_rank, android_ee_affinity, vu_rank, gs_rank,
+		android_gs_affinity, ranks.iop, android_iop_affinity, android_mtvu ? 1 : 0);
+
+	s_vm_thread_handle.SetAffinity(android_ee_affinity);
+	MTGS::GetThreadHandle().SetAffinity(android_gs_affinity);
+	const u64 android_vu_affinity = android_mtvu ? affinity_for_rank(vu_rank) : 0;
+	vu1Thread.GetThreadHandle().SetAffinity(android_vu_affinity);
+	SetIopThreadAffinity(android_iop_affinity);
+	const u64 android_gs_back_affinity = ChooseGSBackThreadAffinity(
+		android_gs_affinity, android_ee_affinity | android_gs_affinity | android_vu_affinity | android_iop_affinity);
+	INFO_LOG("  GS back thread may run on 0x{:x}", android_gs_back_affinity);
+	SetGSBackThreadAffinityLocked(android_gs_back_affinity);
+	s_thread_affinities_set = true;
+	s_perf_cluster_mask.store(
+		ClusterMaskForProcessorMask(android_ee_affinity | android_gs_affinity | android_vu_affinity | android_iop_affinity),
+		std::memory_order_relaxed);
+	return;
+#else
+	// Runs on every call rather than only when pinning toggles: the GS pair is placed even with
+	// pinning off, and a VM boot with pinning off is exactly the call a toggle check would skip.
+	// Threads we never narrowed are left alone, so a mask inherited from taskset survives.
+	const bool vm_running = (GetState() != VMState::Shutdown);
+	const bool new_pin_enable = (vm_running && EmuConfig.EnableThreadPinning);
+	const bool was_pinned = s_thread_affinities_set;
+	static bool s_gs_tier_confined = false;
+
+	// Track whether pinning is *currently effective*, not just EmuConfig.EnableThreadPinning
+	// (matches refresh-experimental — a shutdown call with pinning enabled must not leave this
+	// flag true while the affinity + SW-renderer proc list get cleared).
+	s_thread_affinities_set = new_pin_enable;
+
+	EnsureCPUInfoInitialized();
+
+	if (s_processor_list.empty())
+	{
+		// not supported on this platform
+		return;
+	}
+
+	const bool mtvu = EmuConfig.Speedhacks.vuThread;
+	if (!new_pin_enable || s_processor_list.size() < (mtvu ? 3 : 2))
+	{
+		if (new_pin_enable)
+			ERROR_LOG("Insufficient processors for thread pinning.");
+
+		if (was_pinned)
+		{
+			vu1Thread.GetThreadHandle().SetAffinity(0);
+			s_vm_thread_handle.SetAffinity(0);
+			SetIopThreadAffinity(0);
+		}
+		s_software_renderer_processor_list = {};
+
+		// With pinning off, the GS front and back threads still stay off the slow tier of a
+		// big.LITTLE part, where the back thread runs far slower and an unpinned scheduler tends
+		// to put it. Both get the same mask so the pair stays consistent. EE and VU are left to
+		// the scheduler.
+#if defined(__linux__)
+		const u64 gs_tier = vm_running ? GetUnpinnedGSTierMask() : 0;
+#else
+		const u64 gs_tier = 0;
+#endif
+		if (gs_tier != 0)
+		{
+			INFO_LOG("Thread pinning off: GS thread and GS back thread confined to the performance tier 0x{:x}", gs_tier);
+#if defined(__linux__)
+			if (EmuConfig.EnablePrimeCorePlacement)
+			{
+				s_prime_split = GetPrimeCoreSplit();
+				if (s_prime_split.prime != 0)
+					INFO_LOG("Prime core 0x{:x} goes to the busiest thread while the GS back thread runs (rest of the tier 0x{:x})",
+						s_prime_split.prime, s_prime_split.rest);
+			}
+#endif
+		}
+		if (gs_tier != 0 || was_pinned || s_gs_tier_confined)
+			MTGS::GetThreadHandle().SetAffinity(gs_tier);
+		SetGSBackThreadAffinityLocked(gs_tier);
+		s_gs_tier_confined = (gs_tier != 0);
+		return;
+	}
+	s_gs_tier_confined = false;
+
+	// steal vu's thread if mtvu is off; the IOP thread, when it runs beside the EE, takes the next slot
+	const IopThread::OrderedPlan plan = IopThread::PlanOrdered(s_processor_list.size(), mtvu, iop_thread);
+	const u32 ee_index = s_processor_list[plan.ee];
+	const u32 vu_index = s_processor_list[plan.vu];
+	const u32 gs_index = s_processor_list[plan.gs];
+	INFO_LOG("Processor order assignment: EE={}, VU={}, GS={}", ee_index, vu_index, gs_index);
+
+	const u64 ee_affinity = static_cast<u64>(1) << ee_index;
+	INFO_LOG("  EE thread is on processor {} (0x{:x})", ee_index, ee_affinity);
+	s_vm_thread_handle.SetAffinity(ee_affinity);
+
+	if (EmuConfig.Speedhacks.vuThread)
+	{
+		const u64 vu_affinity = static_cast<u64>(1) << vu_index;
+		INFO_LOG("  VU thread is on processor {} (0x{:x})", vu_index, vu_affinity);
+		vu1Thread.GetThreadHandle().SetAffinity(vu_affinity);
+	}
+	else
+	{
+		vu1Thread.GetThreadHandle().SetAffinity(0);
+	}
+
+	const u64 gs_affinity = static_cast<u64>(1) << gs_index;
+	INFO_LOG("  GS thread is on processor {} (0x{:x})", gs_index, gs_affinity);
+	MTGS::GetThreadHandle().SetAffinity(gs_affinity);
+
+	// A thread that exists but has no slot (Lockstep, or a list with none left) is released rather than left on the
+	// EE's processor, which it inherited.
+	const u64 iop_affinity = plan.iop >= 0 ? (static_cast<u64>(1) << s_processor_list[plan.iop]) : 0;
+	if (IopThread::g_thread.IsRunning())
+	{
+		if (iop_affinity != 0)
+			INFO_LOG("  IOP thread is on processor {} (0x{:x})", s_processor_list[plan.iop], iop_affinity);
+		else
+			INFO_LOG("  IOP thread is not pinned");
+	}
+	SetIopThreadAffinity(iop_affinity);
+
+	const u64 occupied = ee_affinity | gs_affinity | iop_affinity | (mtvu ? (static_cast<u64>(1) << vu_index) : 0);
+#if defined(__linux__) || defined(_WIN32)
+	const u64 gs_back_affinity = ChooseGSBackThreadAffinity(gs_affinity, occupied);
+#else
+	const u64 gs_back_affinity = 0; // No topology here (Darwin cannot pin threads anyway).
+#endif
+	INFO_LOG("  GS back thread may run on 0x{:x}", gs_back_affinity);
+	SetGSBackThreadAffinityLocked(gs_back_affinity);
+
+#ifdef __ANDROID__
+	// Bump the emu-critical threads slightly above default so Android's
+	// scheduler favors them over app/UI housekeeping under load. EPERM is
+	// tolerated inside SetNicePriority (rlimit may forbid negative nice).
+	s_vm_thread_handle.SetNicePriority(-1);
+	if (EmuConfig.Speedhacks.vuThread)
+		vu1Thread.GetThreadHandle().SetNicePriority(-1);
+	MTGS::GetThreadHandle().SetNicePriority(-1);
+#endif
+
+	// Try to find some threads for the software renderer.
+	// They should be in the same cluster as the main GS thread. If they're not, for example,
+	// we had 4 P cores and 6 E cores, let the OS schedule them instead.
+	s_software_renderer_processor_list.clear();
+	s_software_renderer_processor_list.reserve(s_processor_list.size() - plan.first_software_thread);
+	const u32 gs_cluster_id = cpuinfo_get_processor(gs_index)->cluster->cluster_id;
+	for (size_t i = plan.first_software_thread; i < s_processor_list.size(); i++)
+	{
+		const u32 proc_index = s_processor_list[i];
+		const u32 proc_cluster_id = cpuinfo_get_processor(proc_index)->cluster->cluster_id;
+		if (proc_cluster_id != gs_cluster_id)
+		{
+			WARNING_LOG("  Only using {} SW threads, processor {} is in cluster {}, but the GS thread is in cluster {}",
+				s_software_renderer_processor_list.size(), proc_index, proc_cluster_id, gs_cluster_id);
+			break;
+		}
+
+		s_software_renderer_processor_list.push_back(proc_index);
+	}
+#endif // __ANDROID__ (else branch of the top-level guard)
+}
+
+const std::vector<u32>& VMManager::Internal::GetSoftwareRendererProcessorList()
+{
+	EnsureCPUInfoInitialized();
+	return s_software_renderer_processor_list;
+}
+
+std::string VMManager::Internal::GetThreadPlacementDebug()
+{
+	const auto describe = [](const char* name, const Threading::ThreadHandle& h) {
+		const int cpu = h.GetCurrentCpu();
+		const u64 mask = h.GetAffinity();
+		return fmt::format("{}=c{}/m{:x}", name, cpu, mask);
+	};
+
+	std::string out = describe("EE", s_vm_thread_handle);
+	out += ' ';
+	out += describe("VU", vu1Thread.GetThreadHandle());
+	out += ' ';
+	out += describe("GS", MTGS::GetThreadHandle());
+	out += ' ';
+	out += IopThread::g_thread.IsRunning() ? describe("IOP", IopThread::g_thread.GetThreadHandle()) : std::string("IOP=off");
+
+#if defined(__linux__) || defined(_WIN32)
+	if (cpuinfo_initialize())
+	{
+		const u32 clusters = cpuinfo_get_clusters_count();
+		out += " |";
+		for (u32 i = 0; i < clusters; i++)
+		{
+			const cpuinfo_cluster* cl = cpuinfo_get_cluster(i);
+			if (!cl)
+				continue;
+			// cpuinfo frequency is in Hz; show MHz (0 = cpuinfo couldn't read sysfs cpufreq).
+			out += fmt::format(" {}x{}MHz", cl->processor_count, static_cast<u32>(cl->frequency / 1000000));
+		}
+	}
+#endif
+
+	return out;
+}
+
+void VMManager::ReloadPINE()
+{
+	const bool needs_reinit = (EmuConfig.EnablePINE != PINEServer::IsInitialized() ||
+							   PINEServer::GetSlot() != EmuConfig.PINESlot);
+	if (!needs_reinit)
+		return;
+
+	PINEServer::Deinitialize();
+
+	if (EmuConfig.EnablePINE)
+		PINEServer::Initialize(EmuConfig.PINESlot);
+}
+
+#ifdef __SWITCH2__
+void VMManager::InitializeDiscordPresence() { EmuConfig.EnableDiscordPresence = false; Console.Warning("Discord IPC is unavailable on Switch 2."); }
+void VMManager::ShutdownDiscordPresence() {}
+void VMManager::UpdateDiscordPresence(bool) {}
+void VMManager::PollDiscordPresence() {}
+#else
+void VMManager::InitializeDiscordPresence()
+{
+	if (s_discord_presence_active)
+		return;
+
+	DiscordEventHandlers handlers = {};
+	Discord_Initialize(s_discord_presence_app_id, &handlers, 0, nullptr);
+	s_discord_presence_active = true;
+
+	UpdateDiscordPresence(true);
+}
+
+void VMManager::ShutdownDiscordPresence()
+{
+	if (!s_discord_presence_active)
+		return;
+
+	Discord_ClearPresence();
+	Discord_RunCallbacks();
+	Discord_Shutdown();
+	s_discord_presence_active = false;
+}
+
+void VMManager::UpdateDiscordPresence(bool update_session_time)
+{
+	if (!s_discord_presence_active)
+		return;
+
+	if (update_session_time)
+		s_discord_presence_time_epoch = std::time(nullptr);
+
+	std::string rp_title;
+	const bool prefer_english = Host::GetBaseBoolSettingValue("UI", "PreferEnglishGameList", false);
+	if (!s_title.empty())
+		rp_title = GetTitle(prefer_english);
+
+	// https://discord.com/developers/docs/rich-presence/how-to#updating-presence-update-presence-payload-fields
+	DiscordRichPresence rp = {};
+	rp.largeImageKey = s_discord_presence_large_image_key;
+	rp.largeImageText = s_discord_presence_large_image_text;
+	rp.startTimestamp = s_discord_presence_time_epoch;
+
+	if (rp_title.empty())
+		rp.details = TRANSLATE("VMManager", "No Game Running");
+	else
+		rp.details = rp_title.c_str();
+
+	std::string state_string;
+
+	auto lock = Achievements::GetLock();
+
+	if (Achievements::HasActiveGame() && Achievements::HasAchievementsOrLeaderboards())
+	{
+		if (const std::string& icon_url = Achievements::GetGameIconURL(); !icon_url.empty())
+		{
+			rp.largeImageKey = icon_url.c_str();
+			rp.largeImageText = s_title.c_str();
+		}
+
+		if (Achievements::HasRichPresence())
+			rp.state = (state_string = StringUtil::Ellipsise(Achievements::GetRichPresenceString(), 128)).c_str();
+	}
+
+	Discord_UpdatePresence(&rp);
+	Discord_RunCallbacks();
+}
+
+void VMManager::PollDiscordPresence()
+{
+	if (!s_discord_presence_active)
+		return;
+
+	Discord_RunCallbacks();
+}
+
+#endif
+
+bool VMManager::WriteBytesToEESIORXFIFO(const std::span<const u8> data)
+{
+	if(ee_sio_rx_fifo.size() + data.size() > 1024)
+	{
+		Console.Warning("EE RX FIFO is full, not appending more bytes.");
+		return false;
+	}
+
+	ee_sio_rx_fifo.insert(ee_sio_rx_fifo.end(), data.begin(), data.end());
+	return true;
+}

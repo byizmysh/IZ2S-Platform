@@ -9,7 +9,7 @@ static bool damage;
 bool __wrap_github_download(const char *url,uint64_t size,DownloadSink sink,void *context,
                            const atomic_bool *cancel,char out[DOWNLOAD_MESSAGE]) {
     (void)out;
-    const char prefix[] = "https://github.com/byizmysh/iz2s-cheese/releases/download/v0.8.1/";
+    const char prefix[] = "https://github.com/byizmysh/iz2s-cheese/releases/download/v0.8.2/";
     assert(!strncmp(url, prefix, sizeof prefix - 1));
     const char *file=strrchr(url,'/');assert(file);
     char path[1024];snprintf(path,sizeof path,"%s%s",getenv("STORE_TEST_RELEASE"),file);
@@ -27,9 +27,9 @@ int main(int argc,char **argv) {
     assert(store_load(&store,argv[1],message)&&store.count==1);
     App *app=&store.apps[0];assert(app==store_self_entry(&store));
 #ifdef IZ_STORE_STANDALONE
-    store_set_running_nro("sdmc:/switch/iz2s-cheese/iz2s-cheese.nro","0.8.2");
+    store_set_running_nro("sdmc:/switch/iz2s-cheese/iz2s-cheese.nro","0.8.3");
 #else
-    store_set_running_iza("0.8.2");
+    store_set_running_iza("0.8.3");
 #endif
     store_refresh(&store,app);assert(app->state==SELF_ENTRY);
 #ifdef IZ_STORE_STANDALONE
@@ -38,16 +38,20 @@ int main(int argc,char **argv) {
     store_set_running_iza("0.8.0");
 #endif
     store_refresh(&store,app);assert(app->state==UPDATE_AVAILABLE);
-    View view={.screen=SETTINGS,.settings_row=4};assert(view_input(&view,&store,BTN_A)==UPDATE_STORE);
+    /* The settings updater uses its checked release, outside the catalog array. */
+    store.update=*app;store.update_checked=true;app=&store.update;
+    assert(store_self_entry(&store)==app);
+    View view={.screen=SETTINGS,.settings_row=SETTINGS_CHEESE_UPDATE};assert(view_input(&view,&store,BTN_A)==CHECK_STORE_UPDATE);
+    view.screen=SETTINGS_RESULT;view.update_result=true;assert(view_input(&view,&store,BTN_A)==UPDATE_STORE);
     assert(!store_remove(&store,app,message));
     damage=true;assert(!store_install(&store,app,(Progress){0},message));assert(strstr(message,"SHA-256"));
     damage=false;atomic_bool cancel=true;assert(!store_install(&store,app,(Progress){.cancel=&cancel},message));
     assert(store_install(&store,app,(Progress){0},message));assert(strstr(message,"Reopen IZ2S Cheese"));
     store_refresh(&store,app);assert(app->state==UPDATE_AVAILABLE);
 #ifdef IZ_STORE_STANDALONE
-    store_set_running_nro("sdmc:/switch/iz2s-cheese/iz2s-cheese.nro","0.8.1");
+    store_set_running_nro("sdmc:/switch/iz2s-cheese/iz2s-cheese.nro","0.8.2");
 #else
-    store_set_running_iza("0.8.1");
+    store_set_running_iza("0.8.2");
 #endif
     store_refresh(&store,app);assert(app->state==SELF_ENTRY);
     assert(!store_install(&store,app,(Progress){0},message));

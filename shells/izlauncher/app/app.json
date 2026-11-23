@@ -3,7 +3,7 @@
   "abi": 1,
   "id": "izlauncher",
   "name": "IZ2S",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Lightweight animated console launcher",
   "icon": "assets/icon.png",
   "initialState": "assets/state.bin",

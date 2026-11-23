@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1198-gta-guest-frame-witness/IZPS2-R1198.iza",
+  "bytes": 11418166,
+  "sha256": "fffbe0995f889d1412e641f427f97c8a7e7b272321f04874a130ee0048405ed2",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "a2faccabb8e2a54ec6f987c24472ca9cf2ee91f497ccc799b3fe3a4c55e1eba7"
+  },
+  "engine": {
+    "file": "asset-73b87ae2dee571a8927a1fb3afe09580e7ba382bc022cedbb2ebe58e34cbe6fd.izdata",
+    "path": "asset-73b87ae2dee571a8927a1fb3afe09580e7ba382bc022cedbb2ebe58e34cbe6fd.izdata",
+    "bytes": 28247056,
+    "sha256": "73b87ae2dee571a8927a1fb3afe09580e7ba382bc022cedbb2ebe58e34cbe6fd"
+  }
+}

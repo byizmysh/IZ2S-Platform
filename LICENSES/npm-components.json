@@ -397,7 +397,7 @@
   {
     "path": "engines/IzCivSwitchFS/package.json",
     "name": "iz2sciv-core",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "license": "MIT"
   },
   {
@@ -663,7 +663,7 @@
   {
     "path": "package.json",
     "name": "iz2s-platform",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "license": "GPL-2.0-or-later",
     "repository": {
       "type": "git",
@@ -687,9 +687,27 @@
     "license": "SEE LICENSE IN ../../LICENSE"
   },
   {
+    "path": "sources/izps2/source/dependencies/spirv-tools/source/wasm/package.json",
+    "name": "spirv-tools",
+    "version": "VERSION",
+    "license": "Apache-2.0",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/KhronosGroup/SPIRV-Tools"
+    },
+    "homepage": "https://github.com/KhronosGroup/SPIRV-Tools"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/spirv-tools/utils/vscode/package.json",
+    "name": "spirvls",
+    "version": "0.0.1",
+    "license": "Apache-2.0",
+    "author": "Google"
+  },
+  {
     "path": "sources/izpsx/package.json",
     "name": "izpsx-emulator",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "license": "GPL-2.0-only",
     "repository": {
       "type": "git",

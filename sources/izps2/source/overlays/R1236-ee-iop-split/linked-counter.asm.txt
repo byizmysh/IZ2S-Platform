@@ -1,0 +1,22 @@
+
+IZ-R799/run25/jit-single-range/R1236-ee-iop-split/engine.elf:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+00000001007a3460 <iz_system_ticks>:
+1007a3460:     	mrs	x0, CNTPCT_EL0
+1007a3464:     	ret
+		...
+
+00000001007a3480 <iz_tick_frequency>:
+1007a3480:     	mrs	x0, CNTFRQ_EL0
+1007a3484:     	ret
+		...
+
+0000000100bebfc0 <_Z16GetTickFrequencyv>:
+100bebfc0:     	b	0x1007a3480 <iz_tick_frequency>
+		...
+
+0000000100bebfd0 <_Z11GetCPUTicksv>:
+100bebfd0:     	b	0x1007a3460 <iz_system_ticks>
+		...

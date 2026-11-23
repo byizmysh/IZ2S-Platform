@@ -1,0 +1,408 @@
+// OverlayDesignSystem.swift — Shared in-game overlay design tokens + components.
+// SPDX-License-Identifier: GPL-3.0+
+
+import SwiftUI
+
+// MARK: - Overlay Theme
+
+/// In-game overlay design tokens. Scoped to overlays presented over gameplay (the pause menu and
+/// Per-Game Settings) — this is NOT a global app theme.
+///
+/// The clear glass shell uses lightly tinted section cards for grouping while allowing paused
+/// gameplay to remain visible. The gameplay scrim stays a plain tinted color and never uses
+/// Material. The user-selected semantic accent is injected through the SwiftUI
+/// environment; red remains destructive only.
+enum OverlayTheme {
+    // MARK: Surfaces — opaque graphite ladder (darkest -> lightest)
+
+    /// Panel/shell root surface (darkest). Replaces `Color(.systemBackground)` on overlays.
+    static let shell = Color(red: 0.110, green: 0.122, blue: 0.149)          // #1C1F26
+    /// Section/card surface — one step lighter than the shell for grouping depth.
+    static let card = Color(red: 0.149, green: 0.165, blue: 0.200)           // #262A33
+    /// Hairline separator / divider stroke between rows and above a footer.
+    static let separator = Color(red: 0.227, green: 0.247, blue: 0.290)      // #3A3F4A
+    /// Top stop of the shell gradient, a step lighter so the panel reads as lit from above.
+    static let shellGradientTop = Color(red: 0.149, green: 0.165, blue: 0.200) // #262A33
+
+    // MARK: Gameplay scrim — lighter, controlled, decoupled from panel opacity
+
+    /// Tinted near-black base for the gameplay dim (NOT pure `Color.black`). Apply at a controlled
+    /// opacity, see below, so the dim only signals paused while the panel carries the look.
+    static let scrimBase = Color(red: 0.039, green: 0.047, blue: 0.063)      // #0A0C10
+    static let scrimPad = 0.30
+    static let scrimPhoneLandscape = 0.34
+    static let scrimPhonePortrait = 0.32
+    /// Reduce-Transparency fallbacks (heavier, so RT users still get a strong dim).
+    static let scrimPadReduceTransparency = 0.55
+    static let scrimPhoneLandscapeReduceTransparency = 0.58
+    static let scrimPhonePortraitReduceTransparency = 0.56
+
+    // MARK: Accents — used sparingly
+
+    /// Status / warning ONLY (e.g. "Start this game once before saving").
+    static let warm = Color(red: 0.941, green: 0.627, blue: 0.125)           // #F0A020
+
+    // MARK: Text
+
+    /// Primary labels, headers, primary button title.
+    static let textPrimary = Color(red: 0.925, green: 0.933, blue: 0.949)   // #ECEEF2
+    /// Trailing values, captions, subtitles.
+    static let textSecondary = Color(red: 0.66, green: 0.69, blue: 0.74)  // #A8B0BD
+
+    // MARK: Glass — controlled frosted chrome (panel shell + cards; never the gameplay scrim)
+
+    static let shellGlassTint: Double = 0.72
+    static let cardGlassTint: Double = 0.28
+    static let glassTopHighlight = Color.white.opacity(0.10)
+    static let cardTopHighlight = Color.white.opacity(0.07)
+    static let cardShadow = Color.black.opacity(0.18)
+
+    // MARK: Row metrics — the icon column every overlay row shares
+
+    /// Icon column width. Every row title starts at `rowLabelInset` so they line up down the card.
+    static let rowIconWidth: CGFloat = 22
+    static let rowIconSpacing: CGFloat = 12
+    /// Where a row title starts. Use this to hang anything under a row, don't re-add the two.
+    static let rowLabelInset: CGFloat = rowIconWidth + rowIconSpacing
+}
+
+// MARK: - Overlay Components
+
+/// Controlled frosted graphite panel surface: a subtle blur layered under a mostly-opaque graphite
+/// tint, so the panel reads as premium frosted glass that holds a stable graphite hue instead of
+/// picking up muddy game colors. Falls back to a fully opaque shell under Reduce Transparency.
+struct OverlayFrostBackground: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    var body: some View {
+        let gradient = LinearGradient(
+            colors: [OverlayTheme.shellGradientTop, OverlayTheme.shell],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        if reduceTransparency || colorSchemeContrast == .increased {
+            gradient
+        } else {
+            ZStack {
+                Rectangle().fill(.regularMaterial)
+                gradient.opacity(OverlayTheme.shellGlassTint)
+            }
+            .overlay(alignment: .top) {
+                OverlayTheme.glassTopHighlight
+                    .frame(height: 1)
+                    .padding(.horizontal, 1)
+                    .padding(.top, 0.5)
+            }
+        }
+    }
+}
+
+private struct OverlayCompactKey: EnvironmentKey {
+    static let defaultValue: Bool = false
+}
+
+private struct OverlayKeyboardOverlapKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+/// The two leaves of a card opened at iPhone Duo's fold, in the hosted frame's space.
+struct OverlayFoldSplit: Equatable {
+    var vertical: Bool
+    /// Leading leaf in book pose, top leaf in tabletop.
+    var first: CGRect
+    var second: CGRect
+}
+
+private struct OverlayFoldSplitKey: EnvironmentKey {
+    static let defaultValue: OverlayFoldSplit? = nil
+}
+
+extension EnvironmentValues {
+    var overlayCompact: Bool {
+        get { self[OverlayCompactKey.self] }
+        set { self[OverlayCompactKey.self] = newValue }
+    }
+
+    /// How much of the overlay card the keyboard covers. The panel insets itself by this,
+    /// since an inset applied out here would shrink the box it measures itself in.
+    var overlayKeyboardOverlap: CGFloat {
+        get { self[OverlayKeyboardOverlapKey.self] }
+        set { self[OverlayKeyboardOverlapKey.self] = newValue }
+    }
+
+    var overlayFoldSplit: OverlayFoldSplit? {
+        get { self[OverlayFoldSplitKey.self] }
+        set { self[OverlayFoldSplitKey.self] = newValue }
+    }
+}
+
+/// Clear glass overlay shell content. Host this INSIDE `GameOverlayContainer` (which supplies the
+/// scrim, bounded card, corner clipping, and shadow); the scaffold is the panel's CONTENT, not the
+/// card frame. One shared glass surface avoids stacking a separate material renderer under every
+/// section. It also clamps Dynamic Type and scopes the accent tint locally.
+struct OverlayPanelScaffold<Content: View>: View {
+    private let content: Content
+    private let usesRegularGlass: Bool
+    private let cornerRadii: RectangleCornerRadii?
+    @Environment(\.uiAccentColour) private var accentColour
+
+    init(usesRegularGlass: Bool = false, cornerRadii: RectangleCornerRadii? = nil, @ViewBuilder content: () -> Content) {
+        self.usesRegularGlass = usesRegularGlass
+        self.cornerRadii = cornerRadii
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+            .tint(accentColour)
+            .glassSurface(
+                clear: !usesRegularGlass,
+                cornerRadius: 26,
+                cornerRadii: cornerRadii
+            )
+    }
+}
+
+/// A lighter-graphite grouping card with an optional small caption header. Gives a consistent depth
+/// step on the shell and replaces the ad-hoc `secondarySystemBackground` menu-card pattern.
+struct OverlaySectionCard<Content: View>: View {
+    @Environment(\.overlayCompact) private var compact
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.controllerTextAppearance) private var textAppearance
+    private let title: String?
+    private let content: Content
+
+    init(title: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    private var accessible: Bool {
+        reduceTransparency || colorSchemeContrast == .increased
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? 6 : 10) {
+            if let title {
+                Text(title)
+                    .font(compact ? .caption2 : .caption)
+                    .foregroundStyle(
+                        textAppearance.secondaryColor
+                            ?? OverlayTheme.textSecondary
+                    )
+                    .textCase(.uppercase)
+                    .padding(.horizontal, 4)
+            }
+            // Wrap the rows so they are spaced (a bare @ViewBuilder tuple would pack tight).
+            VStack(alignment: .leading, spacing: compact ? 5 : 8) {
+                content
+            }
+        }
+        .padding(compact ? 8 : 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            OverlayTheme.card.opacity(accessible ? 1.0 : OverlayTheme.cardGlassTint),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(OverlayTheme.cardTopHighlight, lineWidth: 1)
+                .opacity(accessible ? 0 : 1)
+        }
+        .shadow(color: OverlayTheme.cardShadow.opacity(accessible ? 0 : 1), radius: 4, x: 0, y: 2)
+    }
+}
+
+// MARK: - Header
+
+/// Command-deck header for an overlay: an accent glyph, a primary title, and an optional subtitle
+/// (e.g. the game title, middle-truncated). Blue is used only for the glyph; the title stays
+/// `textPrimary` so blue never becomes a row/title color.
+struct OverlayHeader: View {
+    private let systemImage: String
+    private let title: String
+    private let subtitle: String?
+    private let compact: Bool
+    @Environment(\.uiAccentColour) private var accentColour
+    @Environment(\.controllerTextAppearance) private var textAppearance
+
+    init(systemImage: String, title: String, subtitle: String? = nil, compact: Bool) {
+        self.systemImage = systemImage
+        self.title = title
+        self.subtitle = subtitle
+        self.compact = compact
+    }
+
+    var body: some View {
+        HStack(spacing: compact ? 10 : 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: compact ? 24 : 30))
+                .foregroundStyle(accentColour)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(compact ? .headline : .title3)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(
+                        textAppearance.normalColor
+                            ?? OverlayTheme.textPrimary
+                    )
+                    .lineLimit(1)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(
+                            textAppearance.secondaryColor
+                                ?? OverlayTheme.textSecondary
+                        )
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, compact ? 18 : 20)
+        .padding(.top, compact ? 12 : 18)
+        .padding(.bottom, compact ? 6 : 10)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Rows
+
+/// A fixed-min-height overlay action row that GUARANTEES the main label wins over a trailing
+/// value: the label gets `layoutPriority(1)` and the trailing value `layoutPriority(-1)` with tail
+/// truncation, so on a narrow width the trailing value elides first while the label stays intact.
+/// `keepsTrailingValue` reverses that for a short status such as "In drive".
+/// The label is never blue (`textPrimary`); red is used only when `isDestructive`.
+struct OverlayActionRow: View {
+    private let controllerNavigationID: String?
+    private let label: String
+    private let systemImage: String?
+    private let trailingValue: String?
+    private let isDestructive: Bool
+    private let keepsTrailingValue: Bool
+    private let action: () -> Void
+    @Environment(\.uiCriticalTextColour) private var criticalTextColour
+    @Environment(\.uiAccentColour) private var accentColour
+    @Environment(\.controllerTextAppearance) private var textAppearance
+
+    init(
+        controllerNavigationID: String? = nil,
+        label: String,
+        systemImage: String? = nil,
+        trailingValue: String? = nil,
+        isDestructive: Bool = false,
+        keepsTrailingValue: Bool = false,
+        action: @escaping () -> Void
+    ) {
+        self.controllerNavigationID = controllerNavigationID
+        self.label = label
+        self.systemImage = systemImage
+        self.trailingValue = trailingValue
+        self.isDestructive = isDestructive
+        self.keepsTrailingValue = keepsTrailingValue
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: OverlayTheme.rowIconSpacing) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .frame(width: OverlayTheme.rowIconWidth)
+                        .foregroundStyle(
+                            isDestructive
+                                ? criticalTextColour
+                                : accentColour
+                        )
+                }
+                Text(label)
+                    .controllerFocusedTextColor(
+                        normal: isDestructive
+                            ? criticalTextColour
+                            : (textAppearance.normalColor
+                                ?? OverlayTheme.textPrimary),
+                        allowsFocusedBlue: !isDestructive
+                    )
+                    .lineLimit(1)
+                    .layoutPriority(keepsTrailingValue ? 0 : 1)
+                Spacer(minLength: 0)
+                if let trailingValue {
+                    Text(trailingValue)
+                        .foregroundStyle(
+                            textAppearance.secondaryColor
+                                ?? OverlayTheme.textSecondary
+                        )
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .layoutPriority(keepsTrailingValue ? 2 : -1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .controllerAccessibilityActionTarget(
+            id: controllerNavigationID,
+            label: label,
+            focusedColor: isDestructive ? criticalTextColour : nil,
+            action: action
+        )
+    }
+}
+
+/// A toggle row on the graphite card: graphite label + accent switch (accent comes from the
+/// scaffold's local `.tint`). Matches `OverlayActionRow` height so toggles and actions align.
+struct OverlayToggleRow: View {
+    private let controllerNavigationID: String?
+    private let label: String
+    private let systemImage: String
+    @Binding private var isOn: Bool
+    @Environment(\.uiAccentColour) private var accentColour
+    @Environment(\.controllerTextAppearance) private var textAppearance
+
+    init(
+        controllerNavigationID: String? = nil,
+        label: String,
+        systemImage: String,
+        isOn: Binding<Bool>
+    ) {
+        self.controllerNavigationID = controllerNavigationID
+        self.label = label
+        self.systemImage = systemImage
+        self._isOn = isOn
+    }
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            HStack(spacing: OverlayTheme.rowIconSpacing) {
+                Image(systemName: systemImage)
+                    .frame(width: OverlayTheme.rowIconWidth)
+                    .foregroundStyle(accentColour)
+                Text(label)
+                    .controllerFocusedTextColor(
+                        normal: textAppearance.normalColor
+                            ?? OverlayTheme.textPrimary
+                    )
+                    .lineLimit(1)
+                    .layoutPriority(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 44)
+        // Quick Menu uses horizontal geometry to cross between its two
+        // columns. Register Cross as the toggle action without `.adjustable`
+        // traits so Left/Right remain spatial navigation commands.
+        .controllerAccessibilityActionTarget(
+            id: controllerNavigationID,
+            label: label,
+            activationFeedback: .toggle(isOn: !isOn),
+            action: { isOn.toggle() }
+        )
+    }
+}

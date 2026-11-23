@@ -1,0 +1,507 @@
+# Extra preprocessor definitions that will be added to all pcsx2 builds
+set(PCSX2_DEFS "")
+
+include(GNUInstallDirs)
+
+#-------------------------------------------------------------------------------
+# Misc option
+#-------------------------------------------------------------------------------
+option(ENABLE_TESTS "Enables building the unit tests" ON)
+option(ENABLE_RECOMPILER_TEST_HOOKS
+	"Compile harness hooks (recEeExecuteBlock, recEeIsBlockLinked, etc.) into the EE recompiler. Required by tests/ctest/core/recompilers; release builds should turn this off."
+	${ENABLE_TESTS})
+option(ENABLE_QT_UI "Enables building the PCSX2 Qt interface." ON)
+option(ENABLE_GSRUNNER "Enables building the GSRunner by default.  It can still be built with `make pcsx2-gsrunner` otherwise." OFF)
+option(ENABLE_VURUNNER "Enables building pcsx2-vurunner (headless VU microprogram replayer for codegen iteration). Requires ENABLE_RECOMPILER_TEST_HOOKS=ON." OFF)
+option(ENABLE_EERUNNER "Enables building pcsx2-eerunner (headless EE JIT-vs-interpreter divergence localizer) by default.  It can still be built with `make pcsx2-eerunner` otherwise." OFF)
+option(ENABLE_SDL_FRONTEND "Enables building the SDL3 / kmsdrm frontend (pcsx2-sdl) by default.  It can still be built with `make pcsx2-sdl` otherwise." OFF)
+option(ENABLE_LIBRETRO "Build the libretro core (pcsx2-libretro / armsx2_libretro.so). Opt-in: when OFF the subdirectory is not added at all, so it never gets built or installed alongside the Qt/SDL frontends. Reconfigure with -DENABLE_LIBRETRO=ON to build it." OFF)
+option(LTO_PCSX2_CORE "Enable LTO/IPO/LTCG on the subset of pcsx2 that benefits most from it but not anything else")
+option(USE_VTUNE "Plug VTUNE to profile GS JIT.")
+option(USE_PERF_JITDUMP "Emit Linux perf jitdump (jit-<pid>.dump) for recompiled JIT blocks; use with perf record/inject." OFF)
+option(USE_PERF_MAP "Emit simple /tmp/perf-<pid>.map symbol table for recompiled JIT blocks." OFF)
+option(ENABLE_GS_DEBUG_LABELS "Compile the GS debug-label markers (GL_INS/GL_CACHE/GL_PUSH and friends) into Debug/Devel builds. Their arguments are assembled on every call whether or not a debugger is attached, which measured 1.6-6.1% of the GS thread by title (Sly 3 5.9%, Sly 1 6.1%, NASCAR 3.3%, CoD2 2.5%, Jak II 2.0%, Katamari 1.6%) and biases every Devel perf number against the Release build that ships. Default ON so ordinary Devel builds are unchanged; the perf suite configures a second build with this OFF to measure without that bias." ON)
+option(PACKAGE_MODE "Use this option to ease packaging of PCSX2 (developer/distribution option)")
+set(ARMSX2_VERSION "" CACHE STRING "Reported version for builds without a git checkout")
+option(BUNDLE_EMOJI_FONT "Bundles Noto Color Emoji for systems whose system emoji font isn't usable by freetype" ON)
+option(POSITION_INDEPENDENT_CODE "Generate position-independent code. It is recommended that you leave this on." ON)
+
+# iOS and tvOS are Apple but not macOS, and the difference decides a few things
+# here and in 3rdparty: no AppKit, no IOKit, no AudioHardware, no optical drive.
+# CMake tells them apart by system name - APPLE is true for all of them.
+if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+	set(APPLE_EMBEDDED TRUE)
+else()
+	set(APPLE_EMBEDDED FALSE)
+endif()
+
+#-------------------------------------------------------------------------------
+# Graphical option
+#-------------------------------------------------------------------------------
+if(NOT APPLE)
+	option(USE_OPENGL "Enable OpenGL GS renderer" ON)
+endif()
+option(USE_VULKAN "Enable Vulkan GS renderer" ON)
+# What the GL renderer asks the host for. Android is GL ES whether this is set
+# or not; it exists for the other platforms that have only ES - webOS, and the
+# embedded frontends - where a desktop GL request is refused and the core then
+# has no context at all. Off by default, because a desktop asking for ES gets a
+# renderer with fewer features than it could have had.
+option(USE_GLES "Ask the host for an OpenGL ES context rather than desktop GL" OFF)
+
+#-------------------------------------------------------------------------------
+# Path and lib option
+#-------------------------------------------------------------------------------
+if(UNIX AND NOT APPLE)
+	option(ENABLE_SETCAP "Enable networking capability for DEV9" OFF)
+	option(X11_API "Enable X11 support" ON)
+	option(WAYLAND_API "Enable Wayland support" ON)
+	option(USE_BACKTRACE "Enable libbacktrace support" ON)
+endif()
+
+if(UNIX)
+endif()
+
+if(APPLE)
+	option(OSX_USE_DEFAULT_SEARCH_PATH "Don't prioritize system library paths" OFF)
+	option(SKIP_POSTPROCESS_BUNDLE "Skip postprocessing bundle for redistributability" OFF)
+endif()
+
+#-------------------------------------------------------------------------------
+# Compiler extra
+#-------------------------------------------------------------------------------
+option(USE_ASAN "Enable address sanitizer")
+option(USE_COVERAGE "Instrument the build with clang source-based coverage (-fprofile-instr-generate -fcoverage-mapping). Use with tools/coverage.sh; requires clang." OFF)
+
+#-------------------------------------------------------------------------------
+# if no build type is set, use Devel as default
+# Note without the CMAKE_BUILD_TYPE options the value is still defined to ""
+# Ensure that the value set by the User is correct to avoid some bad behavior later
+#-------------------------------------------------------------------------------
+if(NOT CMAKE_BUILD_TYPE MATCHES "Debug|Devel|MinSizeRel|RelWithDebInfo|Release")
+	set(CMAKE_BUILD_TYPE Devel)
+	message(STATUS "BuildType set to ${CMAKE_BUILD_TYPE} by default")
+endif()
+# Add Devel build type
+set(CMAKE_C_FLAGS_DEVEL "${CMAKE_C_FLAGS_RELWITHDEBINFO}"
+	CACHE STRING "Flags used by the C compiler during development builds" FORCE)
+set(CMAKE_CXX_FLAGS_DEVEL "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}"
+	CACHE STRING "Flags used by the C++ compiler during development builds" FORCE)
+set(CMAKE_LINKER_FLAGS_DEVEL "${CMAKE_LINKER_FLAGS_RELWITHDEBINFO}"
+	CACHE STRING "Flags used for linking binaries during development builds" FORCE)
+set(CMAKE_SHARED_LINKER_FLAGS_DEVEL "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}"
+	CACHE STRING "Flags used for linking shared libraries during development builds" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS_DEVEL "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}"
+	CACHE STRING "Flags used for linking executables during development builds" FORCE)
+# Exclude Debug from the configurations we can import from
+set(CMAKE_MAP_IMPORTED_CONFIG_DEVEL "RelWithDebInfo" "Release" "MinSizeRel" "None" "NoConfig" ""
+	CACHE STRING "Configurations used when importing packages for development builds" FORCE)
+if(CMAKE_CONFIGURATION_TYPES)
+	list(INSERT CMAKE_CONFIGURATION_TYPES 0 Devel)
+endif()
+mark_as_advanced(CMAKE_C_FLAGS_DEVEL CMAKE_CXX_FLAGS_DEVEL CMAKE_LINKER_FLAGS_DEVEL CMAKE_SHARED_LINKER_FLAGS_DEVEL CMAKE_EXE_LINKER_FLAGS_DEVEL CMAKE_MAP_IMPORTED_CONFIG_DEVEL)
+
+#-------------------------------------------------------------------------------
+# Select the architecture
+#-------------------------------------------------------------------------------
+# Detection keys off the *target* processor (CMAKE_SYSTEM_PROCESSOR), not the
+# host, so both native and cross builds select the right arch. The spelling
+# varies by toolchain (native MSVC reports "ARM64"/"AMD64"; other toolchains use
+# lowercase "arm64"/"aarch64"), so each branch matches all the casings.
+if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "amd64" OR
+   "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64" OR "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
+	# Multi-ISA only exists on x86.
+	option(DISABLE_ADVANCE_SIMD "Disable advance use of SIMD (SSE2+ & AVX)" OFF)
+
+	list(APPEND PCSX2_DEFS _M_X86=1)
+	set(ARCH_X86 TRUE)
+	if(DISABLE_ADVANCE_SIMD)
+		message(STATUS "Building for x86-64 (Multi-ISA).")
+	else()
+		message(STATUS "Building for x86-64.")
+	endif()
+
+	if(MSVC)
+		# SSE4.1 is not set by MSVC, it uses _M_SSE instead.
+		list(APPEND PCSX2_DEFS __SSE4_1__=1)
+
+		if(USE_CLANG_CL)
+			# clang-cl => need to explicitly enable SSE4.1.
+			add_compile_options("-msse4.1")
+		endif()
+	else()
+		# Multi-ISA => SSE4, otherwise native.
+		if (DISABLE_ADVANCE_SIMD)
+			add_compile_options("-msse" "-msse2" "-msse4.1" "-mfxsr")
+		else()
+			# Can't use march=native on Apple Silicon.
+			if(NOT APPLE OR "${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+				add_compile_options("-march=native")
+			endif()
+		endif()
+	endif()
+elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "arm64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "ARM64" OR
+       "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AARCH64" OR
+       "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
+	message(STATUS "Building for ARM64.")
+	set(ARCH_ARM64 TRUE)
+	if(APPLE)
+		# Min spec is an M1. +crypto because -march is the flag clang resolves
+		# the feature set from here, and armv8.4-a alone leaves the crypto
+		# extension off: 3rdparty/lzma's AesOpt.c then fails to compile its
+		# vaeseq_u8 intrinsics ("requires target feature 'aes'") even though
+		# every Apple Silicon part has them. Older clang (Xcode 15) trips on
+		# this; newer ones happen to take the feature set from -mcpu instead.
+		add_compile_options("-march=armv8.4-a+crypto" "-mcpu=apple-m1")
+	elseif(NOT MSVC AND NOT NINTENDO_SWITCH2)
+		# Require atomic rmw instructions (LSE, ARMv8.1+). This is the upstream
+		# default and targets the broad arm64 ecosystem. MSVC (and clang-cl)
+		# reject -march; their arm64 baseline already includes what we need.
+		# In-order ARMv8.0 cores without LSE (e.g. Cortex-A53 handhelds, RK3562)
+		# must build with -march=armv8-a (+ -moutline-atomics) in CMAKE_CXX_FLAGS
+		# — LSE atomics fault on them. Only apply the v8.1 default when the user
+		# hasn't chosen an -march: add_compile_options lands AFTER CMAKE_CXX_FLAGS
+		# on the compile line, so unconditionally adding it here silently
+		# overrides any user -march (proven by a casal SIGILL on a real A53 device).
+		if(NOT CMAKE_CXX_FLAGS MATCHES "-march=")
+			add_compile_options("-march=armv8.1-a")
+		endif()
+	endif()
+
+	# If we're running on Linux, we need to detect the page/cache line size.
+	# It could be a virtual machine with 4K pages, or 16K with Asahi.
+	if(LINUX)
+		detect_page_size()
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=${HOST_PAGE_SIZE})
+		detect_cache_line_size()
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_CACHE_LINE_SIZE=${HOST_CACHE_LINE_SIZE})
+	endif()
+
+	if(NINTENDO_SWITCH2)
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=4096 OVERRIDE_HOST_CACHE_LINE_SIZE=64)
+	endif()
+
+	# Android is neither LINUX nor WIN32 to CMake, so without this branch it
+	# falls through to the ARM64 default in Pcsx2Defs.h — 16K pages — while
+	# every current Android device runs a 4K kernel. The ARM64 memory manager
+	# needs its compile-time page size to match the kernel's at runtime, and a
+	# mismatch is a hard failure on the device, not a build warning. Detection
+	# is not an option here (cross-compile), so it is a knob, defaulted to 4K
+	# and named the same as in the APK's own copy of this file.
+	if(ANDROID)
+		set(ARMSX2_ANDROID_HOST_PAGE_SIZE "0x1000" CACHE STRING "Compile-time Android host page size for the PCSX2 core")
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=${ARMSX2_ANDROID_HOST_PAGE_SIZE})
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_CACHE_LINE_SIZE=64)
+		# 16K-page compatibility for the ELF itself: a 4K-internal-page build
+		# still has to load on a 16K kernel, which requires the segments be
+		# aligned to 16K. Independent of the page size above.
+		add_link_options(
+			"LINKER:-z,max-page-size=16384"
+			"LINKER:-z,common-page-size=16384"
+		)
+	endif()
+
+	# Windows page size matches x86-64 (4K).
+	if(WIN32)
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=0x1000)
+		# Ship a single unified binary that is optimal on both 64- and 128-byte
+		# cache line machines. Cache line size is only used for alignas() on hot
+		# cross-thread structures to avoid false sharing, so over-aligning is a
+		# strict superset: 128-aligned data is also 64-aligned, avoiding false
+		# sharing on 64-byte hosts too, at the cost of a few padding bytes.
+		# Compiling with the smaller value (64) would instead cause real false
+		# sharing when run on a 128-byte host (e.g. Windows-on-ARM in an Apple
+		# Silicon VM), so we always target the larger line size here.
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_CACHE_LINE_SIZE=128)
+	endif()
+else()
+	message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
+# The Qt debugger UI depends on KDDockWidgets. Handheld/ARM64 targets don't ship
+# the debugger, so default it off there to drop the dependency; on elsewhere to
+# match upstream. Only meaningful when ENABLE_QT_UI is on.
+if(ARCH_ARM64)
+	set(_ENABLE_QT_DEBUGGER_DEFAULT OFF)
+else()
+	set(_ENABLE_QT_DEBUGGER_DEFAULT ON)
+endif()
+option(ENABLE_QT_DEBUGGER "Build the Qt debugger UI (requires KDDockWidgets)." ${_ENABLE_QT_DEBUGGER_DEFAULT})
+
+# Mobile-GPU GameDB overlay. bin/resources-overlay/armsx2_overrides.yaml carries
+# GS/JIT tuning that is correct on tiler GPUs (Adreno/Mali/PowerVR) but would
+# regress a desktop/immediate-mode GPU. Android and iOS pack it via their own
+# asset build; on ARM64 Linux — where nearly every target is a Qualcomm/Mali
+# handheld (Rocknix/Batocera) or a Raspberry Pi tiler — ship it too, regardless
+# of frontend (both Qt and SDL Linux builds run on handhelds). Off on
+# x86/Windows/macOS. The GameDatabase override loader reads it from
+# EmuFolders::Resources and no-ops when it is absent, so this only gates the copy.
+if(ARCH_ARM64 AND UNIX AND NOT APPLE)
+	set(_ENABLE_MOBILE_GAMEDB_OVERLAY_DEFAULT ON)
+else()
+	set(_ENABLE_MOBILE_GAMEDB_OVERLAY_DEFAULT OFF)
+endif()
+option(ENABLE_MOBILE_GAMEDB_OVERLAY "Ship the mobile-GPU GameDB overlay next to the executable (ARM64 Linux handheld tilers). Default ON for ARM64 Linux, OFF elsewhere." ${_ENABLE_MOBILE_GAMEDB_OVERLAY_DEFAULT})
+
+# Require C++20.
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(MSVC AND NOT USE_CLANG_CL)
+	add_compile_options(
+		"$<$<COMPILE_LANGUAGE:CXX>:/Zc:externConstexpr>"
+		"$<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>"
+		"$<$<COMPILE_LANGUAGE:CXX>:/permissive->"
+		"$<$<COMPILE_LANGUAGE:CXX>:/Zc:preprocessor>"
+		# C/C++ codegen flags only: the armasm64 assembler (ASM_MARMASM, used for
+		# the arm64 FastJmp) rejects /Zo and doesn't want /utf-8.
+		"$<$<COMPILE_LANGUAGE:C,CXX>:/Zo>"
+		"$<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>"
+	)
+endif()
+
+if(MSVC)
+	# Disable Exceptions
+	string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+else()
+	add_compile_options(-pipe -fvisibility=hidden -pthread)
+	add_compile_options(
+		"$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>"
+	)
+	# GCC/Clang warn on every __fi (always_inline) function definition that lacks
+	# an explicit `inline` keyword. PCSX2 deliberately defines __fi without
+	# `inline` so that .cpp-defined __fi functions still emit a strong external
+	# symbol; adding `inline` to the macro globally breaks linkage for those. The
+	# attribute itself works correctly either way, so suppress the noise.
+	# Unconditional (not the GNU-only DEFAULT_WARNINGS entry below) because the
+	# primary toolchain here is Clang, which the GCC-gated list does not cover.
+	add_compile_options(-Wno-attributes)
+endif()
+
+set(CONFIG_REL_NO_DEB $<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>)
+set(CONFIG_ANY_REL $<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>,$<CONFIG:RelWithDebInfo>>)
+
+if(WIN32)
+	add_compile_definitions(
+		$<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=2>
+		$<$<CONFIG:Devel>:_ITERATOR_DEBUG_LEVEL=1>
+		$<${CONFIG_ANY_REL}:_ITERATOR_DEBUG_LEVEL=0>
+		_HAS_EXCEPTIONS=0
+	)
+	list(APPEND PCSX2_DEFS
+		_CRT_NONSTDC_NO_WARNINGS
+		_CRT_SECURE_NO_WARNINGS
+		CRT_SECURE_NO_DEPRECATE
+		_SCL_SECURE_NO_WARNINGS
+		_UNICODE
+		UNICODE
+	)
+else()
+	# Assume everything else is POSIX.
+	list(APPEND PCSX2_DEFS
+		__POSIX__
+	)
+endif()
+
+# Enable debug information in release builds for Linux.
+# Makes the backtrace actually meaningful.
+if(LINUX)
+	add_compile_options($<$<CONFIG:Release>:-g1>)
+endif()
+
+if(MSVC)
+	# Enable PDB generation in release builds (C/C++ only; armasm64 doesn't take /Zi)
+	add_compile_options(
+		$<$<AND:${CONFIG_REL_NO_DEB},$<COMPILE_LANGUAGE:C,CXX>>:/Zi>
+	)
+	add_link_options(
+		$<${CONFIG_REL_NO_DEB}:/DEBUG>
+		$<${CONFIG_REL_NO_DEB}:/OPT:REF>
+		$<${CONFIG_REL_NO_DEB}:/OPT:ICF>
+	)
+endif()
+
+if(PACKAGE_MODE)
+	file(RELATIVE_PATH relative_datadir ${CMAKE_INSTALL_FULL_BINDIR} ${CMAKE_INSTALL_FULL_DATADIR}/PCSX2)
+
+	# Compile all source codes with those defines
+	list(APPEND PCSX2_DEFS
+		PCSX2_APP_DATADIR="${relative_datadir}")
+endif()
+
+
+if(USE_VTUNE)
+	list(APPEND PCSX2_DEFS ENABLE_VTUNE)
+endif()
+
+if(USE_PERF_JITDUMP AND USE_PERF_MAP)
+	message(FATAL_ERROR "USE_PERF_JITDUMP and USE_PERF_MAP are mutually exclusive; pick one.")
+endif()
+if(USE_PERF_JITDUMP)
+	if(NOT UNIX OR APPLE)
+		message(FATAL_ERROR "USE_PERF_JITDUMP is Linux-only.")
+	endif()
+	list(APPEND PCSX2_DEFS ENABLE_PERF_JITDUMP)
+endif()
+if(USE_PERF_MAP)
+	if(NOT UNIX OR APPLE)
+		message(FATAL_ERROR "USE_PERF_MAP is Linux-only.")
+	endif()
+	list(APPEND PCSX2_DEFS ENABLE_PERF_MAP)
+endif()
+
+if(USE_OPENGL)
+	list(APPEND PCSX2_DEFS ENABLE_OPENGL)
+	if(USE_GLES)
+		list(APPEND PCSX2_DEFS USE_GLES)
+	endif()
+endif()
+
+if(NOT ENABLE_GS_DEBUG_LABELS)
+	list(APPEND PCSX2_DEFS PCSX2_GS_NO_DEBUG_LABELS)
+endif()
+
+if(ENABLE_LIBRETRO)
+	# Guards the pieces that only exist for the core - the frontend-owned GL
+	# context, for one - so a Qt or SDL build never compiles them.
+	list(APPEND PCSX2_DEFS ENABLE_LIBRETRO)
+endif()
+
+if(USE_VULKAN)
+	list(APPEND PCSX2_DEFS ENABLE_VULKAN)
+endif()
+
+if(X11_API)
+	list(APPEND PCSX2_DEFS X11_API)
+endif()
+
+if(WAYLAND_API)
+	list(APPEND PCSX2_DEFS WAYLAND_API)
+endif()
+
+if(ENABLE_SDL_FRONTEND)
+	list(APPEND PCSX2_DEFS ENABLE_SDL_FRONTEND)
+endif()
+
+# -Wno-attributes: "always_inline function might not be inlinable" <= real spam (thousand of warnings!!!)
+# -Wno-missing-field-initializers: standard allow to init only the begin of struct/array in static init. Just a silly warning.
+# -Wno-unused-function: warn for function not used in release build
+
+if (MSVC)
+	set(DEFAULT_WARNINGS)
+else()
+	set(DEFAULT_WARNINGS -Wall -Wextra -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers)
+endif()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	list(APPEND DEFAULT_WARNINGS -Wno-attributes)
+endif()
+
+if (USE_PGO_GENERATE OR USE_PGO_OPTIMIZE)
+	add_compile_options("-fprofile-dir=${CMAKE_SOURCE_DIR}/profile")
+endif()
+
+if (USE_PGO_GENERATE)
+	add_compile_options(-fprofile-generate)
+endif()
+
+if(USE_PGO_OPTIMIZE)
+	add_compile_options(-fprofile-use)
+endif()
+
+list(APPEND PCSX2_DEFS
+	"$<$<CONFIG:Debug>:PCSX2_DEVBUILD;PCSX2_DEBUG;_DEBUG>"
+	"$<$<CONFIG:Devel>:PCSX2_DEVBUILD;_DEVEL>")
+
+if (USE_ASAN)
+	add_compile_options(-fsanitize=address)
+	add_link_options(-fsanitize=address)
+	list(APPEND PCSX2_DEFS ASAN_WORKAROUND)
+endif()
+
+if (USE_COVERAGE)
+	if(NOT USE_CLANG)
+		message(FATAL_ERROR "USE_COVERAGE requires clang (source-based coverage). Configure with the clang-coverage preset.")
+	endif()
+	# Instrument everything rather than just pcsx2/arm64: the emitters are reached
+	# through core and common call paths, and scoping the *report* (tools/coverage.sh
+	# passes -sources) is exact where scoping the *build* would silently drop
+	# counters for inline code that lives in headers outside the filter.
+	add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+	add_link_options(-fprofile-instr-generate)
+endif()
+
+if(USE_CLANG AND TIMETRACE)
+	add_compile_options(-ftime-trace)
+endif()
+
+set(PCSX2_WARNINGS ${DEFAULT_WARNINGS})
+
+if(POSITION_INDEPENDENT_CODE)
+	# Make sure position-independent code is enabled properly.
+	# Without this check, on some platforms (e.g. Fedora 43) the right flags
+	# won't be passed to the linker, resulting in a broken build when link time
+	# optimization is enabled (even with a cmake version >= 3.14).
+	if(NOT MSVC)
+		include(CheckPIESupported)
+		check_pie_supported(OUTPUT_VARIABLE PIE_SUPPORTED_OUTPUT LANGUAGES C CXX)
+
+		if((NOT CMAKE_C_LINK_PIE_SUPPORTED) OR (NOT CMAKE_CXX_LINK_PIE_SUPPORTED))
+			message(WARNING
+				"The POSITION_INDEPENDENT_CODE option is enabled but is not "
+				"supported at link time:\n${PIE_SUPPORTED_OUTPUT}")
+		endif()
+	endif()
+
+	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+else()
+	if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+		message(WARNING
+			"The CMAKE_INTERPROCEDURAL_OPTIMIZATION option is enabled but the "
+			"POSITION_INDEPENDENT_CODE option is disabled. This has been found "
+			"to result in broken builds on certain platforms.")
+	endif()
+
+	set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+endif()
+
+#-------------------------------------------------------------------------------
+# MacOS-specific things
+#-------------------------------------------------------------------------------
+
+if(NOT CMAKE_GENERATOR MATCHES "Xcode")
+	# Assume Xcode builds aren't being used for distribution
+	# Helpful because Xcode builds don't build multiple metallibs for different macOS versions
+	# Also helpful because Xcode's interactive shader debugger requires apps be built for the latest macOS
+	#
+	# 11.0 is a macOS version number, and setting it on iOS or tvOS says
+	# "iOS 11", which is neither what the caller asked for nor what the
+	# dependencies were built against: everything then links with a deployment
+	# target older than the SDK calls it uses, which is a warning per object
+	# file and a real availability error on anything introduced since. So the
+	# embedded platforms keep whatever they were configured with.
+	if(NOT APPLE_EMBEDDED)
+		set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
+	endif()
+endif()
+
+# CMake defaults the suffix for modules to .so on macOS but wx tells us that the
+# extension is .dylib (so that's what we search for)
+if(APPLE)
+	set(CMAKE_SHARED_MODULE_SUFFIX ".dylib")
+endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+	if(NOT OSX_USE_DEFAULT_SEARCH_PATH)
+		# Hack up the path to prioritize the path to built-in OS libraries to
+		# increase the chance of not depending on a bunch of copies of them
+		# installed by MacPorts, Fink, Homebrew, etc, and ending up copying
+		# them into the bundle.  Since we depend on libraries which are not
+		# part of OS X (wx, etc.), however, don't remove the default path
+		# entirely.  This is still kinda evil, since it defeats the user's
+		# path settings...
+		# See http://www.cmake.org/cmake/help/v3.0/command/find_program.html
+		list(APPEND CMAKE_PREFIX_PATH "/usr")
+	endif()
+
+	add_link_options(-Wl,-dead_strip,-dead_strip_dylibs)
+endif()

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1231-gta-embedded-spirv/IZPS2-R1231.iza",
+  "bytes": 11794813,
+  "sha256": "b1f2aee1bad171d09ccc9ee6ec7a5e7bbb2c3cd8c7a7621205570a3e96cc8b09",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "af10c99259ecf76d2d2faacfd888db0234f2deee7bd0e32d2bbd37f310c17658"
+  },
+  "engine": {
+    "file": "asset-6a4f296bbeb8e5b96f62de1510688c09e591cdee28fac5c20c6ceb201d0bd7fb.izdata",
+    "path": "asset-6a4f296bbeb8e5b96f62de1510688c09e591cdee28fac5c20c6ceb201d0bd7fb.izdata",
+    "bytes": 29155672,
+    "sha256": "6a4f296bbeb8e5b96f62de1510688c09e591cdee28fac5c20c6ceb201d0bd7fb"
+  }
+}

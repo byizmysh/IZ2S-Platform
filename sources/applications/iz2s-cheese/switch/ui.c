@@ -8,6 +8,13 @@ enum { FILTER_ALL, FILTER_INSTALLED, FILTER_UPDATES, FILTER_TOOLS,
     FILTER_MEDIA, FILTER_EMULATORS, FILTER_GAMES, FILTERS };
 enum { PAGE_SIZE = STORE_PAGE_SIZE, CARD_X = 272, CARD_Y = 142, CARD_H = 302, CARD_GAP = 14 };
 enum { PAGE_Y = 585, PAGE_PREV_X = 1024, PAGE_NEXT_X = 1182, PAGE_BUTTON_W = 52, PAGE_BUTTON_H = 42 };
+enum { RAIL_FULL = 246, RAIL_COMPACT = 82 };
+enum { RAIL_ROW_Y = 114, RAIL_ROW_STEP = 53, RAIL_ROW_H = 43 };
+enum {
+    HEADER_ACTION_Y = 40, SEARCH_X = 832, SEARCH_W = 192, CATALOGS_X = 1038, CATALOGS_W = 196,
+    WELCOME_ACTION_Y = 270, WELCOME_INSET = 24, WELCOME_PRIMARY_W = 336,
+    WELCOME_GAP = 18, WELCOME_CATALOGS_W = 192
+};
 enum { SMALL, NORMAL, MEDIUM, LARGE };
 
 static const char *const filters[FILTERS] = {
@@ -17,7 +24,7 @@ static const unsigned font_height[] = { 24, 28, 34, 42 };
 static const uint32_t background = 0xff321832, panel = 0xff512f37, edge = 0xff815e71,
     bar = 0xff2c1931, sidebar = 0xff42294b, accent = 0xfff8e5a3,
     ink = 0xfffcf7fa, muted = 0xffe4d1d9, dim = 0xffc7afbf,
-    success = 0xff9aedaa, warning = 0xff8bd5ff;
+    success = 0xff9aedaa, warning = 0xff8bd5ff, nro_ink = 0xff93deff;
 
 typedef struct {
     uint32_t *pixels;
@@ -73,9 +80,11 @@ static void rounded(Canvas *canvas, int x, int y, int w, int h, int radius,
     }
 }
 
-static int rail_width(const View *view) { return view->compact ? 82 : 222; }
-static int catalog_x(const View *view) { return rail_width(view) + 30; }
-static int card_width(const View *view) { return (1234-catalog_x(view)-(PAGE_SIZE-1)*CARD_GAP)/PAGE_SIZE; }
+static int rail_width(const View *view, const Store *store) {
+    return view->screen == CATALOG && store->count && view->compact ? RAIL_COMPACT : RAIL_FULL;
+}
+static int catalog_x(int rail) { return rail + 30; }
+static int card_width(int left) { return (1234-left-(PAGE_SIZE-1)*CARD_GAP)/PAGE_SIZE; }
 
 static unsigned glyph_index(unsigned char ch) { return ch >= 32 && ch <= 126 ? ch - 32 : '?' - 32; }
 
@@ -83,6 +92,19 @@ static int text_width(const Canvas *canvas, int size, const char *text) {
     int width = 0;
     for (const unsigned char *in = (const unsigned char *)text; *in; ++in)
         if ((*in & 0xc0) != 0x80) width += canvas->art->fonts[size].advance[glyph_index(*in)];
+    return width;
+}
+
+static int text_ink_width(const Canvas *canvas, int size, const char *text) {
+    int width = text_width(canvas, size, text);
+    if (!width) return 0;
+    const Face *font = &canvas->art->fonts[size];
+    unsigned glyph = glyph_index((unsigned char)text[strlen(text) - 1]);
+    int advance = font->advance[glyph];
+    int last = advance + 1 < FONT_CELL_WIDTH ? advance + 1 : FONT_CELL_WIDTH - 1;
+    for (int col = last; col >= 0; --col)
+        for (unsigned row = 0; row < font_height[size]; ++row)
+            if (font->mask[glyph][row][col]) return width - advance + col + 1;
     return width;
 }
 
@@ -137,7 +159,9 @@ static void cover(Canvas *canvas, int x, int y, int index, int size) {
     const uint32_t *pixels = canvas->art->icons[index];
     for (int row = 0; row < size; ++row)
         for (int col = 0; col < size; ++col) {
-            uint32_t color = pixels[row*ART_SIZE/size*ART_SIZE + col*ART_SIZE/size];
+            int source_row = (2 * row + 1) * ART_SIZE / (2 * size);
+            int source_col = (2 * col + 1) * ART_SIZE / (2 * size);
+            uint32_t color = pixels[source_row * ART_SIZE + source_col];
             uint32_t *target = &canvas->pixels[(y+row)*canvas->stride+x+col];
             *target = color >> 24 == 255 ? color : blend(*target, color, color >> 24);
         }
@@ -180,9 +204,73 @@ static void action_button(Canvas *canvas, int x, int y, int width, const char *l
                           const char *caption, bool filled) {
     rounded(canvas,x,y,width,46,12,accent,accent);
     if (!filled) rounded(canvas,x+1,y+1,width-2,44,11,bar,bar);
-    rounded(canvas,x+12,y+8,30,30,13,filled?background:edge,filled?background:edge);
-    label(canvas,x+21,y+12,20,SMALL,accent,letter);
-    label(canvas,x+53,y+7,width-61,NORMAL,filled?background:ink,caption);
+    int text = text_width(canvas,SMALL,letter);
+    int key_width = text > 18 ? text + 12 : 30;
+    rounded(canvas,x+12,y+8,key_width,30,13,filled?background:edge,filled?background:edge);
+    label(canvas,x+12+(key_width-text)/2,y+12,text+2,SMALL,accent,letter);
+    int caption_x = 23+key_width;
+    label(canvas,x+caption_x,y+7,width-caption_x-8,NORMAL,filled?background:ink,caption);
+}
+
+static void icon_path(Canvas *canvas, int x, int y, const uint8_t points[][2],
+                      size_t count, uint32_t color) {
+    for (size_t i = 1; i < count; ++i) {
+        int col = points[i-1][0], row = points[i-1][1];
+        int end_col = points[i][0], end_row = points[i][1];
+        int sx = col < end_col ? 1 : -1, sy = row < end_row ? 1 : -1;
+        int dx = (end_col-col)*sx, dy = (row-end_row)*sy;
+        int error = dx+dy;
+        for (;;) {
+            rectangle(canvas,x+col-1,y+row-1,3,3,color);
+            if (col == end_col && row == end_row) break;
+            int twice = 2*error;
+            if (twice >= dy) { error += dy; col += sx; }
+            if (twice <= dx) { error += dx; row += sy; }
+        }
+    }
+}
+
+static void category_icon(Canvas *canvas, unsigned filter, int x, int y, uint32_t color) {
+    switch (filter) {
+        case FILTER_ALL:
+            for (int row = 0; row < 2; ++row)
+                for (int col = 0; col < 2; ++col)
+                    rounded(canvas,x+2+col*11,y+2+row*11,8,8,2,color,color);
+            break;
+        case FILTER_INSTALLED:
+            outline(canvas,x+2,y+2,20,20,2,color);
+            icon_path(canvas,x,y,(const uint8_t[][2]){{7,12},{10,15},{16,9}},3,color);
+            break;
+        case FILTER_UPDATES:
+            icon_path(canvas,x,y,(const uint8_t[][2]){{3,10},{6,5},{12,3},{17,5},{20,8}},5,color);
+            icon_path(canvas,x,y,(const uint8_t[][2]){{20,3},{20,8},{15,8}},3,color);
+            icon_path(canvas,x,y,(const uint8_t[][2]){{20,13},{17,18},{12,20},{7,18},{3,15}},5,color);
+            icon_path(canvas,x,y,(const uint8_t[][2]){{3,20},{3,15},{8,15}},3,color);
+            break;
+        case FILTER_TOOLS:
+            icon_path(canvas,x,y,(const uint8_t[][2]){{4,20},{2,18},{10,10},{9,6},{12,3},{16,2},
+                {13,6},{17,10},{21,7},{20,11},{17,14},{13,13},{6,21},{4,20}},14,color);
+            break;
+        case FILTER_MEDIA:
+            outline(canvas,x+1,y+4,22,16,2,color);
+            for (int i = 0; i < 6; ++i) rectangle(canvas,x+10+i,y+8+i/2,1,8-i,color);
+            break;
+        case FILTER_EMULATORS:
+            outline(canvas,x+4,y+1,16,22,2,color);
+            outline(canvas,x+7,y+4,10,8,2,color);
+            rectangle(canvas,x+7,y+16,6,2,color);
+            rectangle(canvas,x+9,y+14,2,6,color);
+            rectangle(canvas,x+15,y+17,2,2,color);
+            break;
+        case FILTER_GAMES:
+            icon_path(canvas,x,y,(const uint8_t[][2]){{7,6},{16,6},{19,8},{22,16},{20,18},{15,14},
+                {8,14},{3,18},{1,16},{4,8},{7,6}},11,color);
+            rectangle(canvas,x+5,y+10,6,2,color);
+            rectangle(canvas,x+7,y+8,2,6,color);
+            rectangle(canvas,x+14,y+10,2,2,color);
+            rectangle(canvas,x+17,y+12,2,2,color);
+            break;
+    }
 }
 
 static void footer_key(Canvas *canvas, int x, const char *letter, const char *caption, bool primary_button) {
@@ -195,6 +283,7 @@ static void footer_key(Canvas *canvas, int x, const char *letter, const char *ca
 }
 
 static const char *kind(const App *app) { return app->package.kind == PACKAGE_IZM ? "IZA" : "NRO"; }
+static uint32_t kind_color(const App *app) { return app->package.kind == PACKAGE_IZM ? accent : nro_ink; }
 
 static void tile_title(Canvas *canvas, int x, int y, int width, const char *title) {
     const Face *font = &canvas->art->fonts[NORMAL];
@@ -222,16 +311,17 @@ static void card(Canvas *canvas, int x, int y, int width, const App *app, bool f
     int border = focused ? 3 : 1;
     rounded(canvas,x+border,y+border,width-2*border,CARD_H-2*border,14,
             tones[color%5],0xff170e22);
-    bool online = app->package.release_url[0];
-    rounded(canvas,x+12,y+14,online?72:42,28,7,bar,bar);
-    label(canvas,x+20,y+16,72,SMALL,online?accent:warning,online?"GitHub":"SD");
-    rounded(canvas,x+width-58,y+14,46,28,7,bar,bar);
-    label(canvas,x+width-52,y+16,39,SMALL,accent,kind(app));
-    int size = width - 44;
-    if (size > 154) size = 154;
-    int cover_x = x+(width-size)/2;
-    rounded(canvas,x+12,y+54,width-24,166,14,0xff35223e,0xff28162f);
-    cover(canvas,cover_x,y+60+(154-size)/2,app->icon,size);
+    enum { FORMAT_W = 48, FRAME_MAX = 166, FRAME_PAD = 6 };
+    const char *format = kind(app);
+    int format_x = x + width - FORMAT_W - 12;
+    int format_width = text_ink_width(canvas,SMALL,format);
+    rounded(canvas,format_x,y+14,FORMAT_W,28,7,bar,bar);
+    label(canvas,format_x+(FORMAT_W-format_width)/2,y+16,FORMAT_W,SMALL,kind_color(app),format);
+    int frame = width - 24;
+    if (frame > FRAME_MAX) frame = FRAME_MAX;
+    int frame_x = x + (width-frame)/2, frame_y = y + 137 - frame/2;
+    rounded(canvas,frame_x,frame_y,frame,frame,14,0xff35223e,0xff28162f);
+    cover(canvas,frame_x+FRAME_PAD,frame_y+FRAME_PAD,app->icon,frame-2*FRAME_PAD);
     rectangle(canvas,x+16,y+231,width-32,1,focused?accent:edge);
     tile_title(canvas,x+14,y+239,width-28,app->package.title);
     if (check_mark(app->state)) check(canvas,x+16,y+272);
@@ -260,7 +350,7 @@ static void detail(Canvas *canvas, const App *app, const View *view) {
     rectangle(canvas,CARD_X,105,952,1,edge);
     rectangle(canvas,CARD_X,132,222,386,panel);
     cover(canvas,CARD_X+21,153,app->icon,180);
-    label(canvas,CARD_X+22,356,178,NORMAL,muted,kind(app));
+    label(canvas,CARD_X+22,356,178,NORMAL,kind_color(app),kind(app));
     label(canvas,CARD_X+22,400,188,SMALL,check_mark(app->state)?success:muted,state_name(app));
     if (check_mark(app->state)) check(canvas,CARD_X+23,448);
 
@@ -307,51 +397,135 @@ static void detail(Canvas *canvas, const App *app, const View *view) {
     }
 }
 
-enum { SETTINGS_Y = 282, SETTINGS_STEP = 66, SETTINGS_W = 952, SETTINGS_H = 59, SETTINGS_COUNT = 5 };
+enum {
+    SETTINGS_Y = 124, SETTINGS_STEP = 80, SETTINGS_W = 952, SETTINGS_H = 70,
+    CATALOG_SETTINGS_Y = 112, CATALOG_SETTINGS_STEP = 54, CATALOG_SETTINGS_H = 49,
+    CATALOG_TOGGLE_X = 1102, CATALOG_TOGGLE_W = 103
+};
+
+static const char raw_github_prefix[] = "https://raw.githubusercontent.com/";
+
+static const char *catalog_address_label(const CatalogSource *source) {
+    if (!strncmp(source->url, raw_github_prefix, sizeof raw_github_prefix - 1))
+        return source->url + sizeof raw_github_prefix - 1;
+    return source->url;
+}
+
+static const char *catalog_title(const CatalogSource *source, char title[RELEASE_URL_MAX]) {
+    if (source->community) return "Switch 2 Homebrew Catalog";
+    const char *owner = catalog_address_label(source);
+    if (owner != source->url) {
+        const char *repo = strchr(owner, '/');
+        const char *end = repo ? strchr(repo + 1, '/') : NULL;
+        if (end) {
+            snprintf(title, RELEASE_URL_MAX, "%.*s", (int)(end - owner), owner);
+            return title;
+        }
+    }
+    const char *host = strstr(source->url, "://");
+    host = host ? host + 3 : source->url;
+    snprintf(title, RELEASE_URL_MAX, "%.*s", (int)strcspn(host, "/"), host);
+    return title;
+}
 
 static void settings(Canvas *canvas, const Store *store, const View *view) {
-    label(canvas,CARD_X,48,800,LARGE,ink,"Settings");
-    rectangle(canvas,CARD_X,105,952,1,edge);
-    label(canvas,CARD_X,128,952,MEDIUM,ink,"Network");
-    label(canvas,CARD_X,169,952,SMALL,muted,view->network[0] ? view->network : "Switch system connection");
-    label(canvas,CARD_X,200,952,SMALL,muted,view->addresses);
-    label(canvas,CARD_X,230,952,SMALL,dim,"Change Wi-Fi and DNS in HOME > System Settings > Internet.");
-    const char *titles[SETTINGS_COUNT] = {view->settings.online ? "Catalog source: Online" : "Catalog source: SD card",
-        "Catalog URL", view->settings.online ? "Download catalog" : "Reload SD catalog", "Test GitHub connection",
-        "Cheese update"};
+    label(canvas,CARD_X,34,850,LARGE,ink,"Settings");
+    rectangle(canvas,CARD_X,97,SETTINGS_W,1,edge);
+    const char *titles[SETTINGS_COUNT] = {
+        "Catalogs", "Refresh catalogs", "Test GitHub connection", "Check for Cheese updates", "About"
+    };
     const App *self = store_self_entry(store);
-    const char *update_status = !self ? "Load a catalog with an IZ2S Cheese entry" :
-        self->state == UPDATE_AVAILABLE ? "An official Cheese update is available" :
-        self->installed_version[0] ? "No newer Cheese version in this catalog" :
-        "Use the official release to update this copy";
-    char list_status[90];
-    if (store->remote_count)
-        snprintf(list_status,sizeof list_status,"%u cached entries from the configured source",store->remote_count);
-    else snprintf(list_status,sizeof list_status,"%s", view->settings.online ?
-                  "Download catalog and thumbnails" : "Reload catalog.tsv and artwork.bin");
+    const char *update_status = !store->update_checked ? "Check the latest official release" :
+        self && self->state == UPDATE_AVAILABLE ? "An official Cheese update is available" :
+        "Latest stable release checked";
+    char source_status[96];
+    snprintf(source_status, sizeof source_status, "%u of %u sources enabled",
+             store_enabled_online_catalogs(&view->settings) + view->settings.sd_enabled, view->settings.count + 1);
     const char *descriptions[SETTINGS_COUNT] = {
-        view->settings.online ? "Use the configured URL and its cached files" : "sdmc:" STORE_CATALOG_DIR "/",
-        view->settings.url[0] ? view->settings.url : "No URL configured",
-        list_status,
-        view->github[0] ? view->github : "Checks DNS, HTTPS and the GitHub release server",
-        update_status,
+        source_status,
+        "Update apps and thumbnails from enabled sources",
+        view->github[0] ? view->github : "Check DNS, HTTPS and the GitHub release server",
+        update_status, "Project and author links"
     };
     for (unsigned i = 0; i < SETTINGS_COUNT; ++i) {
         int y = SETTINGS_Y + (int)i * SETTINGS_STEP;
         rectangle(canvas,CARD_X,y,SETTINGS_W,SETTINGS_H,panel);
         outline(canvas,CARD_X,y,SETTINGS_W,SETTINGS_H,view->settings_row == i ? 2 : 1,
-            view->settings_row == i ? ink : edge);
-        label(canvas,CARD_X+16,y+5,880,NORMAL,ink,titles[i]);
-        label(canvas,CARD_X+16,y+33,918,SMALL,muted,descriptions[i]);
+                view->settings_row == i ? accent : edge);
+        label(canvas,CARD_X+18,y+8,880,NORMAL,ink,titles[i]);
+        label(canvas,CARD_X+18,y+37,908,SMALL,muted,descriptions[i]);
+        if (i == SETTINGS_CATALOGS) label(canvas,1191,y+18,21,NORMAL,accent,">");
     }
+    label(canvas,CARD_X,540,SETTINGS_W,SMALL,muted,view->network[0] ? view->network : "Switch system connection");
+    label(canvas,CARD_X,565,SETTINGS_W,SMALL,dim,view->addresses);
+}
 
+static void catalog_settings(Canvas *canvas, const Store *store, const View *view) {
+    label(canvas,CARD_X,30,850,LARGE,ink,"Catalogs");
+    char count[96];
+    snprintf(count, sizeof count, "%u of %u sources enabled",
+             store_enabled_online_catalogs(&view->settings) + view->settings.sd_enabled, view->settings.count + 1);
+    label(canvas,CARD_X,78,SETTINGS_W,SMALL,muted,count);
+    for (unsigned i = 0; i <= view->settings.count; ++i) {
+        bool sd = i == view->settings.count;
+        const CatalogSource *source = sd ? NULL : &view->settings.sources[i];
+        bool selected = i == view->catalog_row;
+        bool enabled = sd ? view->settings.sd_enabled : source->enabled;
+        int y = CATALOG_SETTINGS_Y + (int)i * CATALOG_SETTINGS_STEP;
+        rectangle(canvas,CARD_X,y,SETTINGS_W,CATALOG_SETTINGS_H,panel);
+        outline(canvas,CARD_X,y,SETTINGS_W,CATALOG_SETTINGS_H,selected ? 2 : 1,selected ? accent : edge);
+        char title[RELEASE_URL_MAX];
+        const char *name = sd ? "SD card" : catalog_title(source, title);
+        const char *description = sd ? (store->local_catalog_available ? "Local catalog.tsv found" :
+            "Copy catalog.tsv to SD:" STORE_CATALOG_DIR "/") : catalog_address_label(source);
+        label(canvas,CARD_X+18,y,778,NORMAL,ink,name);
+        label(canvas,CARD_X+18,y+24,794,SMALL,muted,description);
+        uint32_t color = enabled ? success : bar;
+        rounded(canvas,CATALOG_TOGGLE_X,y+8,CATALOG_TOGGLE_W,33,8,color,color);
+        const char *status = enabled ? "On" : "Off";
+        int width = text_width(canvas,SMALL,status);
+        label(canvas,CATALOG_TOGGLE_X+(CATALOG_TOGGLE_W-width)/2,y+12,width+2,SMALL,
+              enabled ? background : muted,status);
+    }
+}
+
+static Command empty_catalog_action(const View *view) {
+    if (store_enabled_online_catalogs(&view->settings)) return REFRESH;
+    if (store_community_catalog(&view->settings) < view->settings.count) return ENABLE_COMMUNITY;
+    return NO_JOB;
+}
+
+static void empty_catalog(Canvas *canvas, const View *view, int left) {
+    Command action = empty_catalog_action(view);
+    rounded(canvas,left,154,1234-left,192,14,panel,bar);
+    const char *title = action == REFRESH ? "Catalog unavailable" : "Browse homebrew";
+    const char *description = action == REFRESH ? "Retry the connection or choose another catalog." :
+        action == ENABLE_COMMUNITY ? "Open the Switch 2 Homebrew Catalog to see available apps." :
+        "Choose or add a source to see available apps.";
+    label(canvas,left+WELCOME_INSET,177,850,MEDIUM,ink,title);
+    label(canvas,left+WELCOME_INSET,223,850,NORMAL,muted,description);
+    int catalog_x = left + WELCOME_INSET;
+    if (action != NO_JOB) {
+        action_button(canvas,catalog_x,WELCOME_ACTION_Y,WELCOME_PRIMARY_W,
+                      action == REFRESH ? "Y" : "A",action == REFRESH ? "Retry" : "Open community catalog",true);
+        catalog_x += WELCOME_PRIMARY_W + WELCOME_GAP;
+    }
+    action_button(canvas,catalog_x,WELCOME_ACTION_Y,WELCOME_CATALOGS_W,"X","Catalogs",action == NO_JOB);
 }
 
 static bool settings_screen(Screen screen) {
-    return screen == SETTINGS || screen == CATALOG_INFO || screen == SETTINGS_RESULT;
+    return screen == SETTINGS || screen == CATALOG_SETTINGS || screen == SETTINGS_RESULT;
 }
 
-static void dialog(Canvas *canvas, const App *app, const View *view) {
+static void draw_github_mark(Canvas *canvas, int x, int y, uint32_t color) {
+    for (int row = 0; row < 24; ++row)
+        for (int col = 0; col < 24; ++col) {
+            uint32_t *pixel = &canvas->pixels[(y+row)*canvas->stride+x+col];
+            *pixel = blend(*pixel,color,github_mark[row][col]);
+        }
+}
+
+static void dialog(Canvas *canvas, const Store *store, const App *app, const View *view) {
     for (int y = 0; y < SCREEN_HEIGHT; ++y)
         for (int x = 0; x < SCREEN_WIDTH; ++x) {
             uint32_t *pixel = &canvas->pixels[y*canvas->stride+x];
@@ -362,18 +536,17 @@ static void dialog(Canvas *canvas, const App *app, const View *view) {
         rounded(canvas,220,114,840,472,16,panel,bar);
         label(canvas,252,140,760,LARGE,ink,"IZ2S Cheese");
         label(canvas,252,200,760,NORMAL,muted,"Developer: IZMYSH");
-        const char *const links[] = {"https://github.com/byizmysh", "https://github.com/byizmysh/IZ2S-Platform"};
-        const char *const titles[] = {"Author", "Project"};
-        for (int i = 0; i < 2; ++i) {
-            int y = 261 + i * 86;
-            rounded(canvas,252,y,776,70,10,panel,bar);
-            for (int row = 0; row < 24; ++row)
-                for (int col = 0; col < 24; ++col) {
-                    uint32_t *pixel = &canvas->pixels[(y+23+row)*canvas->stride+268+col];
-                    *pixel = blend(*pixel,ink,github_mark[row][col]);
-                }
-            label(canvas,310,y+8,700,SMALL,muted,titles[i]);
-            label(canvas,310,y+30,700,NORMAL,ink,links[i]);
+        const struct { const char *title, *url; } links[] = {
+            {"Author", "https://github.com/byizmysh"},
+            {"IZ2S Cheese", "https://github.com/byizmysh/iz2s-cheese"},
+            {"IZ2S Platform", "https://github.com/byizmysh/IZ2S-Platform"}
+        };
+        for (unsigned i = 0; i < sizeof links / sizeof links[0]; ++i) {
+            int y = 247 + (int)i * 81;
+            rounded(canvas,252,y,776,67,10,panel,bar);
+            draw_github_mark(canvas,268,y+21,ink);
+            label(canvas,310,y+6,700,SMALL,muted,links[i].title);
+            label(canvas,310,y+29,700,NORMAL,ink,links[i].url);
         }
         action_button(canvas,795,508,232,"B","Back",false);
         return;
@@ -389,24 +562,15 @@ static void dialog(Canvas *canvas, const App *app, const View *view) {
         action_button(canvas,920,549,225,"B","Back",false);
         return;
     }
-    if (!view->busy && view->screen == CATALOG_INFO) {
-        rounded(canvas,102,80,1076,532,16,panel,bar);
-        label(canvas,132,105,1016,MEDIUM,ink,"Download catalog");
-        label(canvas,132,155,1016,NORMAL,muted,"Publish catalog.tsv and artwork.bin in the same directory.");
-        label(canvas,132,190,1016,NORMAL,muted,"Enter its raw GitHub HTTPS URL or private LAN HTTP URL in Catalog URL.");
-        label(canvas,132,235,1016,SMALL,dim,"Download from");
-        wrap(canvas,132,270,1016,8,SMALL,ink,view->settings.url[0] ? view->settings.url : "Set Catalog URL in Settings first.");
-        label(canvas,132,490,1016,SMALL,muted,"The catalog and thumbnails are saved on SD for offline browsing.");
-        if (view->settings.url[0]) action_button(canvas,660,549,235,"A","Download",true);
-        action_button(canvas,920,549,225,"B","Back",false);
-        return;
-    }
     if (!view->busy && view->screen == SETTINGS_RESULT) {
         rounded(canvas,182,150,916,420,16,panel,bar);
         label(canvas,212,180,856,MEDIUM,ink,view->result_title);
         wrap(canvas,212,240,856,6,NORMAL,view->failure?warning:success,view->message);
         label(canvas,212,440,856,SMALL,muted,view->network);
         label(canvas,212,472,856,SMALL,muted,view->addresses);
+        const App *self = store_self_entry(store);
+        if (view->update_result && self && self->state == UPDATE_AVAILABLE)
+            action_button(canvas,590,510,225,"A","Update",true);
         action_button(canvas,842,510,225,"B","Back",false);
         return;
     }
@@ -462,37 +626,66 @@ void view_draw(uint32_t *pixels, unsigned stride, const Artwork *art, const Stor
         for (int x = 0; x < SCREEN_WIDTH; ++x)
             pixels[y*stride+x] = blend(left,right,(unsigned)(255*x/SCREEN_WIDTH));
     }
-    int rail = rail_width(view);
+    int rail = rail_width(view, store);
+    bool compact = rail == RAIL_COMPACT;
     rounded(&canvas,12,16,rail-20,625,18,sidebar,bar);
-    if (art->brand_loaded)
+    const char *brand_title = "IZ2S Cheese";
+    int title_width = text_width(&canvas,NORMAL,brand_title);
+    int group_width = BRAND_SIZE;
+    if (!compact) group_width += 12 + text_ink_width(&canvas,NORMAL,brand_title);
+    if (group_width > rail-20) group_width = rail-20;
+    int brand_x = 12 + (rail-20-group_width)/2;
+    const int brand_y = 32;
+    if (art->brand_loaded) {
         for (int row = 0; row < BRAND_SIZE; ++row)
-            memcpy(&pixels[(33+row)*stride+22],art->brand[row],sizeof art->brand[row]);
-    if (view->compact && !art->brand_loaded) label(&canvas,25,36,46,MEDIUM,accent,"IZ");
-    if (!view->compact) {
-        label(&canvas,76,38,138,NORMAL,ink,"IZ2S Cheese");
-        label(&canvas,76,65,124,SMALL,dim,"Homebrew");
+            for (int col = 0; col < BRAND_SIZE; ++col) {
+                uint32_t icon = art->brand[row][col];
+                uint32_t *target = &pixels[(brand_y+row)*stride+brand_x+col];
+                *target = blend(*target, icon, icon >> 24);
+            }
+    } else label(&canvas,brand_x+8,brand_y+9,BRAND_SIZE-8,MEDIUM,accent,"IZ");
+    if (!compact) {
+        int text_x = brand_x+BRAND_SIZE+12;
+        label(&canvas,text_x,brand_y+5,title_width+2,NORMAL,ink,brand_title);
+        label(&canvas,text_x,brand_y+29,title_width+2,SMALL,muted,"Homebrew");
     }
-    rounded(&canvas,24,110,rail-44,31,8,panel,panel);
-    label(&canvas,34,113,rail-50,SMALL,accent,view->compact?">":"<   Collapse");
-    const char *short_filters[] = {"All", "IN", "UP", "TL", "AV", "EM", "GM"};
-    for (unsigned i = 0; i < FILTERS; ++i) {
-        int y = 158 + (int)i*53;
-        bool active = view->screen == CATALOG && view->filter == i;
-        if (active) rounded(&canvas,22,y,rail-40,43,10,accent,accent);
-        label(&canvas,31,y+8,rail-52,view->compact?SMALL:NORMAL,active?background:muted,
-              view->compact?short_filters[i]:filters[i]);
+    if (view->screen == CATALOG && store->count) {
+        for (unsigned i = 0; i < FILTERS; ++i) {
+            int y = RAIL_ROW_Y + (int)i*RAIL_ROW_STEP;
+            bool active = view->filter == i;
+            uint32_t color = active ? background : muted;
+            if (active) rounded(&canvas,compact?18:22,y,rail-(compact?32:40),RAIL_ROW_H,10,accent,accent);
+            category_icon(&canvas,i,compact?31:33,y+10,color);
+            if (!compact) label(&canvas,70,y+8,rail-90,NORMAL,color,filters[i]);
+        }
     }
-    if (!view->compact) label(&canvas,29,605,176,SMALL,dim,"by IZMYSH");
+    if (!compact) {
+        draw_github_mark(&canvas,31,601,muted);
+        label(&canvas,65,602,153,SMALL,muted,"@byizmysh");
+    }
     const App *app = view->count ? &store->apps[view->visible[view->cursor]] : NULL;
     bool modal = view->screen == ABOUT || view->screen == REPOSITORY ||
-        view->screen == CATALOG_INFO || view->screen == SETTINGS_RESULT ||
+        view->screen == SETTINGS_RESULT ||
         (view->busy && !view->minimized) ||
         (app && (view->screen == CONFIRM_REMOVE || view->screen == CONFIRM_COMPATIBILITY));
-    if (settings_screen(view->screen)) settings(&canvas,store,view);
+    if (view->screen == CATALOG_SETTINGS) catalog_settings(&canvas,store,view);
+    else if (settings_screen(view->screen) || view->screen == ABOUT) settings(&canvas,store,view);
     else if (app && view->screen != CATALOG) detail(&canvas,app,view);
     else {
-        int left = catalog_x(view), width = card_width(view);
-        label(&canvas,left,42,670,LARGE,ink,filters[view->filter]);
+        int left = catalog_x(rail), width = card_width(left);
+        label(&canvas,left,view->search[0]?24:42,SEARCH_X-left-20,LARGE,ink,filters[view->filter]);
+        if (view->search[0] && store->count) {
+            char results[32];
+            snprintf(results,sizeof results,"%u %s",view->count,view->count == 1 ? "match" : "matches");
+            int results_width = text_width(&canvas,SMALL,results);
+            label(&canvas,left,72,results_width+2,SMALL,accent,results);
+            int query_x = left+results_width+18;
+            label(&canvas,query_x,72,SEARCH_X-query_x-20,SMALL,muted,view->search);
+        }
+        if (store->count && !view->busy) {
+            action_button(&canvas,SEARCH_X,HEADER_ACTION_Y,SEARCH_W,"ZR",view->search[0]?"Edit search":"Search",false);
+            action_button(&canvas,CATALOGS_X,HEADER_ACTION_Y,CATALOGS_W,"X","Catalogs",false);
+        }
         rectangle(&canvas,left,104,1234-left,1,edge);
         unsigned start = view->cursor / PAGE_SIZE * PAGE_SIZE;
         for (unsigned i = 0; i < PAGE_SIZE && start+i < view->count; ++i)
@@ -510,9 +703,11 @@ void view_draw(uint32_t *pixels, unsigned stride, const Artwork *art, const Stor
             }
             wrap(&canvas,left+20,511,1234-left-42,2,NORMAL,muted,app->package.description);
             label(&canvas,905,485,288,SMALL,accent,state_name(app));
-        } else if (!view->busy)
-            label(&canvas,left,170,940,MEDIUM,muted,store->count ? "No applications in this view" :
-                  "Open Settings to add a catalog.");
+        } else if (!view->busy) {
+            if (store->count) label(&canvas,left,170,940,MEDIUM,muted,
+                view->search[0] ? "No apps match this search" : "No applications in this view");
+            else empty_catalog(&canvas,view,left);
+        }
         if (view->count > PAGE_SIZE) {
             int page_y = view->busy && view->minimized ? 576 : PAGE_Y;
             int page_height = view->busy && view->minimized ? 30 : PAGE_BUTTON_H;
@@ -541,22 +736,36 @@ void view_draw(uint32_t *pixels, unsigned stride, const Artwork *art, const Stor
         label(&canvas,1068,612,65,SMALL,muted,percent);
         label(&canvas,1142,612,80,SMALL,accent,"Y Open");
     }
-    if (!view->busy && view->message[0] && !settings_screen(view->screen))
+    if (!view->busy && view->message[0] && view->screen != SETTINGS_RESULT)
         label(&canvas,CARD_X,619,952,SMALL,view->failure?warning:success,view->message);
     rectangle(&canvas,0,654,SCREEN_WIDTH,66,bar);
     rectangle(&canvas,0,654,SCREEN_WIDTH,1,edge);
     if (modal) {
-        dialog(&canvas,app,view);
+        dialog(&canvas,store,app,view);
         return;
     }
     if (view->screen == CATALOG) {
-        footer_key(&canvas,27,"L / R","Categories",false);
-        footer_key(&canvas,264,"ZL","Sidebar",false);
-        if (!view->busy) footer_key(&canvas,420,"X","About",false);
-        footer_key(&canvas,570,"Y",view->busy?"Download":"Refresh",false);
-        footer_key(&canvas,773,"A","Details",true);
+        if (store->count) {
+            footer_key(&canvas,27,"L / R","Categories",false);
+            footer_key(&canvas,264,"ZL",compact?"Expand":"Compact",false);
+        }
+        if (store->count || view->busy) footer_key(&canvas,490,"Y",view->busy?"Download":"Refresh",false);
+        if (view->count) footer_key(&canvas,773,"A","Details",true);
         footer_key(&canvas,916,"-","Settings",false);
-        footer_key(&canvas,1071,"B",view->busy?"Download":"Exit",false);
+        footer_key(&canvas,1071,"B",view->busy?"Download":view->search[0]?"Clear search":"Exit",false);
+    } else if (view->screen == CATALOG_SETTINGS) {
+        if (view->settings.count < STORE_MAX_CATALOGS) footer_key(&canvas,272,"X","Add URL",false);
+        if (view->catalog_row == view->settings.count) {
+            footer_key(&canvas,826,"A",view->settings.sd_enabled ? "Disable" : "Enable",true);
+        } else if (view->catalog_row < view->settings.count) {
+            const CatalogSource *source = &view->settings.sources[view->catalog_row];
+            if (!source->community) {
+                footer_key(&canvas,453,"Y","Edit URL",false);
+                footer_key(&canvas,628,"R","Remove",false);
+            }
+            footer_key(&canvas,826,"A",source->enabled ? "Disable" : "Enable",true);
+        }
+        footer_key(&canvas,1071,"B","Back",false);
     } else if (view->screen == SETTINGS) {
         if (view->busy) footer_key(&canvas,824,"Y","Download",true);
         else footer_key(&canvas,824,"A","Select",true);
@@ -584,6 +793,48 @@ static bool selected_filter(unsigned filter, const App *app) {
     }
 }
 
+static unsigned char search_fold(unsigned char ch) {
+    return ch >= 'A' && ch <= 'Z' ? ch + 'a' - 'A' : ch;
+}
+
+static bool search_contains(const char *text, const char *word, size_t length) {
+    for (; *text; ++text) {
+        size_t i = 0;
+        while (i < length && text[i] && search_fold(text[i]) == search_fold(word[i])) ++i;
+        if (i == length) return true;
+    }
+    return false;
+}
+
+static const char search_spaces[] = " \t\r\n";
+
+static bool search_matches(const Package *package, const char *query) {
+    while (*query) {
+        size_t length = strcspn(query,search_spaces);
+        if (!search_contains(package->title,query,length) &&
+            !search_contains(package->author,query,length) &&
+            !search_contains(package->id,query,length)) return false;
+        query += length;
+        query += strspn(query,search_spaces);
+    }
+    return true;
+}
+
+void view_search(View *view, const Store *store, const char *query) {
+    query += strspn(query,search_spaces);
+    size_t length = strlen(query);
+    while (length && strchr(search_spaces,query[length-1])) --length;
+    if (length >= sizeof view->search) {
+        length = sizeof view->search - 1;
+        while (((unsigned char)query[length] & 0xc0) == 0x80) --length;
+    }
+    if (length && !view->search[0]) view->filter = FILTER_ALL;
+    memcpy(view->search,query,length);
+    view->search[length] = 0;
+    view->cursor = 0;
+    view_filter(view,store);
+}
+
 void view_filter(View *view, const Store *store) {
     view->count = 0;
     if (view->visible_capacity < store->count) {
@@ -592,31 +843,41 @@ void view_filter(View *view, const Store *store) {
         free(view->visible); view->visible = next; view->visible_capacity = store->count;
     }
     for (unsigned i = 0; i < store->count; ++i)
-        if (selected_filter(view->filter, &store->apps[i])) view->visible[view->count++] = i;
+        if (
+#ifdef IZ_STORE_STANDALONE
+            store->apps[i].package.kind != PACKAGE_IZM &&
+#endif
+            (strcmp(store->apps[i].package.id, "iz2s-cheese") ||
+#ifdef IZ_STORE_STANDALONE
+             store->apps[i].package.kind == PACKAGE_NRO) &&
+#else
+             store->apps[i].package.kind == PACKAGE_IZM) &&
+#endif
+            selected_filter(view->filter, &store->apps[i]) &&
+            search_matches(&store->apps[i].package, view->search)) view->visible[view->count++] = i;
     if (view->cursor >= view->count) view->cursor = view->count ? view->count-1 : 0;
     if (!view->count && !settings_screen(view->screen) && view->screen != ABOUT) view->screen = CATALOG;
 }
 
-static Command settings_action(View *view, const Store *store) {
-    if (view->settings_row == 4) {
-        const App *self = store_self_entry(store);
-        if (self && self->state == UPDATE_AVAILABLE) return UPDATE_STORE;
-        view->screen = SETTINGS_RESULT;
-        view->failure = false;
-        snprintf(view->result_title, sizeof view->result_title, "Cheese update");
-        snprintf(view->message, sizeof view->message, "%s",
-            !self ? "Load a catalog that contains an IZ2S Cheese entry." :
-            self->installed_version[0] ? "This catalog has no newer Store version." :
-            "Use the official release to update a nonstandard Cheese path.");
-        return NO_JOB;
+static void open_catalogs(View *view) {
+    view->catalogs_back = view->screen;
+    view->screen = CATALOG_SETTINGS;
+}
+
+static Command settings_action(View *view) {
+    switch (view->settings_row) {
+    case SETTINGS_CHEESE_UPDATE:
+        view->update_result = false;
+        return CHECK_STORE_UPDATE;
+    case SETTINGS_CATALOGS: open_catalogs(view); break;
+    case SETTINGS_NETWORK: return CHECK_NETWORK;
+    case SETTINGS_ABOUT: view->screen = ABOUT; break;
+    case SETTINGS_DOWNLOAD:
+        if (view->settings.sd_enabled || store_enabled_online_catalogs(&view->settings)) return FETCH_LIST;
+        open_catalogs(view);
+        break;
     }
-    if (view->settings_row == 0) return TOGGLE_CATALOG_SOURCE;
-    if (view->settings_row == 2) {
-        if (!view->settings.online) { view->screen = CATALOG; return REFRESH; }
-        view->screen = CATALOG_INFO;
-        return NO_JOB;
-    }
-    return view->settings_row == 1 ? EDIT_URL : CHECK_NETWORK;
+    return NO_JOB;
 }
 
 Command view_input(View *view, const Store *store, unsigned buttons) {
@@ -629,23 +890,42 @@ Command view_input(View *view, const Store *store, unsigned buttons) {
             view->minimized = false;
             return NO_JOB;
         }
-        buttons &= ~BTN_X;
-        if (view->screen == DETAILS || view->screen == SETTINGS) buttons &= ~BTN_A;
+        buttons &= ~(BTN_X | BTN_ZR);
+        if (view->screen == DETAILS || settings_screen(view->screen)) buttons &= ~BTN_A;
+        if (view->screen == CATALOG_SETTINGS) buttons &= ~BTN_R;
     }
     if (!buttons) return NO_JOB;
     if (view->screen == ABOUT) {
-        if (buttons & (BTN_B | BTN_X | BTN_PLUS)) view->screen = CATALOG;
+        if (buttons & (BTN_B | BTN_X | BTN_PLUS)) view->screen = SETTINGS;
         return NO_JOB;
     }
     if (view->screen == REPOSITORY) {
         if (buttons & (BTN_B | BTN_R | BTN_PLUS)) view->screen = DETAILS;
         return NO_JOB;
     }
-    if (view->screen == CATALOG_INFO || view->screen == SETTINGS_RESULT) {
-        if (buttons & (BTN_B | BTN_PLUS)) view->screen = SETTINGS;
-        else if (buttons & BTN_A) {
-            if (view->screen == CATALOG_INFO && view->settings.url[0]) return FETCH_LIST;
-            if (view->screen == SETTINGS_RESULT) view->screen = SETTINGS;
+    if (view->screen == SETTINGS_RESULT) {
+        if (buttons & (BTN_B | BTN_PLUS)) {
+            view->screen = SETTINGS;
+            view->update_result = false;
+        } else if (buttons & BTN_A) {
+            const App *self = store_self_entry(store);
+            if (view->update_result && self && self->state == UPDATE_AVAILABLE) return UPDATE_STORE;
+            view->screen = SETTINGS;
+        }
+        return NO_JOB;
+    }
+    if (view->screen == CATALOG_SETTINGS) {
+        if (buttons & (BTN_B | BTN_MINUS | BTN_PLUS)) view->screen = view->catalogs_back;
+        else if ((buttons & BTN_UP) && view->catalog_row) --view->catalog_row;
+        else if ((buttons & BTN_DOWN) && view->catalog_row < view->settings.count) ++view->catalog_row;
+        else if ((buttons & BTN_X) && view->settings.count < STORE_MAX_CATALOGS) return ADD_CATALOG;
+        else if ((buttons & BTN_A) && view->catalog_row <= view->settings.count) return TOGGLE_CATALOG;
+        else if (view->catalog_row < view->settings.count) {
+            const CatalogSource *source = &view->settings.sources[view->catalog_row];
+            if (!source->community) {
+                if (buttons & BTN_Y) return EDIT_CATALOG;
+                if (buttons & BTN_R) return REMOVE_CATALOG;
+            }
         }
         return NO_JOB;
     }
@@ -656,12 +936,12 @@ Command view_input(View *view, const Store *store, unsigned buttons) {
         return NO_JOB;
     }
     if (buttons & BTN_PLUS) return EXIT;
-    if (buttons & BTN_ZL) { view->compact = !view->compact; return NO_JOB; }
+    if ((buttons & BTN_ZL) && view->screen == CATALOG && store->count) { view->compact = !view->compact; return NO_JOB; }
     if (view->screen == SETTINGS) {
         if (buttons & (BTN_B | BTN_MINUS)) view->screen = CATALOG;
         else if ((buttons & BTN_UP) && view->settings_row) --view->settings_row;
         else if ((buttons & BTN_DOWN) && view->settings_row+1 < SETTINGS_COUNT) ++view->settings_row;
-        else if (buttons & BTN_A) return settings_action(view, store);
+        else if (buttons & BTN_A) return settings_action(view);
         return NO_JOB;
     }
     if (view->screen == DETAILS) {
@@ -679,10 +959,20 @@ Command view_input(View *view, const Store *store, unsigned buttons) {
         }
         return NO_JOB;
     }
-    if (buttons & BTN_B) return EXIT;
+    if (buttons & BTN_B) {
+        if (!view->search[0]) return EXIT;
+        view_search(view,store,"");
+        return NO_JOB;
+    }
     if (buttons & BTN_MINUS) { view->screen = SETTINGS; return NO_JOB; }
-    if (buttons & BTN_X) { view->screen = ABOUT; return NO_JOB; }
+    if (buttons & BTN_X) { open_catalogs(view); return NO_JOB; }
     if (buttons & BTN_Y) return REFRESH;
+    if ((buttons & BTN_A) && !store->count && empty_catalog_action(view) == ENABLE_COMMUNITY) {
+        view->filter = FILTER_ALL;
+        return ENABLE_COMMUNITY;
+    }
+    if (!store->count) return NO_JOB;
+    if (buttons & BTN_ZR) return EDIT_SEARCH;
     if (buttons & (BTN_L | BTN_R)) {
         view->filter = (view->filter + (buttons & BTN_R ? 1 : FILTERS-1)) % FILTERS;
         view->cursor = 0;
@@ -722,23 +1012,35 @@ Command view_touch(View *view, const Store *store, int x, int y) {
         if (hit(x,y,795,508,232,46) || hit(x,y,1062,654,218,66)) return view_input(view,store,BTN_B);
         return NO_JOB;
     }
-    if (view->screen == CATALOG_INFO) {
-        if (hit(x,y,660,549,235,46)) return view_input(view,store,BTN_A);
-        if (hit(x,y,920,549,225,46)) return view_input(view,store,BTN_B);
-        return NO_JOB;
-    }
     if (view->screen == SETTINGS_RESULT) {
+        const App *self = store_self_entry(store);
+        if (view->update_result && self && self->state == UPDATE_AVAILABLE &&
+            hit(x,y,590,510,225,46)) return view_input(view,store,BTN_A);
         if (hit(x,y,842,510,225,46)) return view_input(view,store,BTN_B);
         return NO_JOB;
     }
-    if (hit(x,y,24,110,rail_width(view)-44,31)) return view_input(view,store,BTN_ZL);
     if (hit(x,y,1062,654,218,66)) return view_input(view,store,BTN_B);
+    if (view->screen == CATALOG_SETTINGS) {
+        if (hit(x,y,264,654,170,66)) return view_input(view,store,BTN_X);
+        if (hit(x,y,445,654,165,66)) return view_input(view,store,BTN_Y);
+        if (hit(x,y,620,654,165,66)) return view_input(view,store,BTN_R);
+        if (hit(x,y,818,654,196,66)) return view_input(view,store,BTN_A);
+        for (unsigned i = 0; i <= view->settings.count; ++i) {
+            int top = CATALOG_SETTINGS_Y+(int)i*CATALOG_SETTINGS_STEP;
+            if (!hit(x,y,CARD_X,top,SETTINGS_W,CATALOG_SETTINGS_H)) continue;
+            view->catalog_row = i;
+            if (hit(x,y,CATALOG_TOGGLE_X,top,CATALOG_TOGGLE_W,CATALOG_SETTINGS_H))
+                return view_input(view,store,BTN_A);
+            break;
+        }
+        return NO_JOB;
+    }
     if (view->screen == SETTINGS) {
         if (hit(x,y,813,654,190,66)) return view_input(view,store,BTN_A);
         for (unsigned i = 0; i < SETTINGS_COUNT; ++i)
             if (hit(x,y,CARD_X,SETTINGS_Y+(int)i*SETTINGS_STEP,SETTINGS_W,SETTINGS_H)) {
                 view->settings_row = i;
-                return view->busy ? NO_JOB : settings_action(view, store);
+                return view->busy ? NO_JOB : settings_action(view);
             }
         return NO_JOB;
     }
@@ -750,17 +1052,30 @@ Command view_touch(View *view, const Store *store, int x, int y) {
         if (managed(app) && hit(x,y,download?737:530,550,180,46)) return view_input(view,store,BTN_X);
         return NO_JOB;
     }
+    int rail = rail_width(view, store);
     if (hit(x,y,901,654,156,66)) return view_input(view,store,BTN_MINUS);
     if (hit(x,y,260,654,145,66)) return view_input(view,store,BTN_ZL);
-    if (hit(x,y,420,654,140,66)) return view_input(view,store,BTN_X);
-    if (hit(x,y,768,654,126,66)) return view_input(view,store,BTN_A);
+    if (view->count && hit(x,y,768,654,126,66)) return view_input(view,store,BTN_A);
     if (hit(x,y,24,654,195,66)) return view_input(view,store,BTN_R);
-    if (hit(x,y,14,158,rail_width(view)-22,FILTERS*53)) {
-        view->filter = (unsigned)(y-158)/53;
+    if (store->count && hit(x,y,SEARCH_X,HEADER_ACTION_Y,SEARCH_W,46)) return view_input(view,store,BTN_ZR);
+    if (store->count && hit(x,y,CATALOGS_X,HEADER_ACTION_Y,CATALOGS_W,46)) return view_input(view,store,BTN_X);
+    if (!view->busy && !store->count) {
+        Command action = empty_catalog_action(view);
+        int left = catalog_x(rail) + WELCOME_INSET;
+        if (action != NO_JOB) {
+            if (hit(x,y,left,WELCOME_ACTION_Y,WELCOME_PRIMARY_W,46))
+                return view_input(view,store,action == REFRESH ? BTN_Y : BTN_A);
+            left += WELCOME_PRIMARY_W + WELCOME_GAP;
+        }
+        if (hit(x,y,left,WELCOME_ACTION_Y,WELCOME_CATALOGS_W,46)) return view_input(view,store,BTN_X);
+    }
+    if (store->count && hit(x,y,14,RAIL_ROW_Y,rail-22,FILTERS*RAIL_ROW_STEP) &&
+        (y-RAIL_ROW_Y)%RAIL_ROW_STEP < RAIL_ROW_H) {
+        view->filter = (unsigned)(y-RAIL_ROW_Y)/RAIL_ROW_STEP;
         view->cursor = 0;
         view_filter(view,store);
     }
-    if (hit(x,y,560,654,195,66)) return view_input(view,store,BTN_Y);
+    if ((store->count || view->busy) && hit(x,y,479,654,195,66)) return view_input(view,store,BTN_Y);
     unsigned start = view->cursor / PAGE_SIZE * PAGE_SIZE;
     int page_y = view->busy && view->minimized ? 576 : PAGE_Y;
     int page_height = view->busy && view->minimized ? 30 : PAGE_BUTTON_H;
@@ -772,9 +1087,9 @@ Command view_touch(View *view, const Store *store, int x, int y) {
         view->cursor = start + PAGE_SIZE;
         return NO_JOB;
     }
-    int width = card_width(view);
+    int left = catalog_x(rail), width = card_width(left);
     for (unsigned i = 0; i < PAGE_SIZE && start+i < view->count; ++i)
-        if (hit(x,y,catalog_x(view)+(int)i*(width+CARD_GAP),CARD_Y,width,CARD_H)) {
+        if (hit(x,y,left+(int)i*(width+CARD_GAP),CARD_Y,width,CARD_H)) {
             view->cursor = start+i;
             view->screen = DETAILS;
             break;

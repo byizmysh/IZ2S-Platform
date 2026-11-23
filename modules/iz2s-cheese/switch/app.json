@@ -1,0 +1,32 @@
+{
+  "format": "hblauncher.gpu-app",
+  "abi": 1,
+  "id": "iz2s-cheese",
+  "name": "IZ2S Cheese",
+  "version": "0.8.7",
+  "description": "Browse and install homebrew applications from online catalogs.",
+  "transition": "none",
+  "category": "tool",
+  "shaders": {
+    "vertex": "app.vert.spv",
+    "fragment": "app.frag.spv",
+    "compute": "app.comp.spv"
+  },
+  "initialState": "state.bin",
+  "data": "data.bin",
+  "icon": "icon.png",
+  "native": {
+    "format": "iz2s.native-app",
+    "abi": 7,
+    "code": "native.bin",
+    "dataBytes": 4096,
+    "assets": [
+      {
+        "file": "asset-f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426.izdata",
+        "path": "asset-f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426.izdata",
+        "bytes": 113816,
+        "sha256": "f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426"
+      }
+    ]
+  }
+}

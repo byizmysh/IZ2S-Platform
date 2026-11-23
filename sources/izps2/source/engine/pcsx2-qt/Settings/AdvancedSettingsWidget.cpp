@@ -1,0 +1,288 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#include <QtWidgets/QMessageBox>
+
+#include "AdvancedSettingsWidget.h"
+#include "IopThread/IopThreadMode.h"
+#include "QtHost.h"
+#include "QtUtils.h"
+#include "SettingWidgetBinder.h"
+#include "SettingsWindow.h"
+
+AdvancedSettingsWidget::AdvancedSettingsWidget(SettingsWindow* settings_dialog, QWidget* parent)
+	: SettingsWidget(settings_dialog, parent)
+{
+	SettingsInterface* sif = dialog()->getSettingsInterface();
+
+	setupTab(m_ui);
+
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.eeRecompiler, "EmuCore/CPU/Recompiler", "EnableEE", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.eeCache, "EmuCore/CPU/Recompiler", "EnableEECache", false);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.eeINTCSpinDetection, "EmuCore/Speedhacks", "IntcStat", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.eeWaitLoopDetection, "EmuCore/Speedhacks", "WaitLoop", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.eeFastmem, "EmuCore/CPU/Recompiler", "EnableFastmem", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.pauseOnTLBMiss, "EmuCore/CPU/Recompiler", "PauseOnTLBMiss", false);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.extraMemory, "EmuCore/CPU", "ExtraMemory", false);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.eeFpuGuardedAddSub, "EmuCore/CPU/Recompiler", "fpuGuardedAddSub", true);
+
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.vu0Recompiler, "EmuCore/CPU/Recompiler", "EnableVU0", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.vu1Recompiler, "EmuCore/CPU/Recompiler", "EnableVU1", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.vuFlagHack, "EmuCore/Speedhacks", "vuFlagHack", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.instantVU1, "EmuCore/Speedhacks", "vu1Instant", true);
+	// vu-aot only exists in the ARM64 recompilers. The setting is read and written everywhere, and does nothing elsewhere.
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.vuAot, "EmuCore/CPU/Recompiler", "EnableVUAot", true);
+#ifndef ARCH_ARM64
+	m_ui.vuAot->hide();
+#endif
+
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.eeRoundingMode, "EmuCore/CPU", "FPU.Roundmode", static_cast<int>(FPRoundMode::ChopZero));
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.eeDivRoundingMode, "EmuCore/CPU", "FPUDiv.Roundmode", static_cast<int>(FPRoundMode::Nearest));
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.vu0RoundingMode, "EmuCore/CPU", "VU0.Roundmode", static_cast<int>(FPRoundMode::ChopZero));
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.vu1RoundingMode, "EmuCore/CPU", "VU1.Roundmode", static_cast<int>(FPRoundMode::ChopZero));
+	if (dialog()->isPerGameSettings())
+	{
+		m_ui.eeClampMode->insertItem(0, tr("Use Global Setting [%1]").arg(m_ui.eeClampMode->itemText(getGlobalClampingModeIndex(-1))));
+		m_ui.vu0ClampMode->insertItem(0, tr("Use Global Setting [%1]").arg(m_ui.vu0ClampMode->itemText(getGlobalClampingModeIndex(0))));
+		m_ui.vu1ClampMode->insertItem(0, tr("Use Global Setting [%1]").arg(m_ui.vu1ClampMode->itemText(getGlobalClampingModeIndex(1))));
+	}
+	m_ui.eeClampMode->setCurrentIndex(getClampingModeIndex(-1));
+	m_ui.vu0ClampMode->setCurrentIndex(getClampingModeIndex(0));
+	m_ui.vu1ClampMode->setCurrentIndex(getClampingModeIndex(1));
+	connect(m_ui.eeClampMode, &QComboBox::currentIndexChanged, [this](int index) { setClampingMode(-1, index); });
+	connect(m_ui.vu0ClampMode, &QComboBox::currentIndexChanged, [this](int index) { setClampingMode(0, index); });
+	connect(m_ui.vu1ClampMode, &QComboBox::currentIndexChanged, [this](int index) { setClampingMode(1, index); });
+
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.iopRecompiler, "EmuCore/CPU/Recompiler", "EnableIOP", true);
+	// The bounds are the ones the core clamps the setting to, so the box never offers a value that would be changed.
+	m_ui.iopThreadLag->setRange(IopThread::kMinLag, IopThread::kMaxLag);
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.iopThreadLag, "EmuCore/Speedhacks", "iopThreadLag", IopThread::kDefaultLag);
+
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.gameFixes, "EmuCore", "EnableGameFixes", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.patches, "EmuCore", "EnablePatches", true);
+
+	SettingWidgetBinder::BindWidgetToIntSetting(
+		sif, m_ui.savestateCompressionMethod, "EmuCore", "SavestateCompressionType", static_cast<int>(SavestateCompressionMethod::Zstandard));
+
+	SettingWidgetBinder::BindWidgetToIntSetting(
+		sif, m_ui.savestateCompressionLevel, "EmuCore", "SavestateCompressionRatio", static_cast<int>(SavestateCompressionLevel::Medium));
+
+	connect(m_ui.savestateCompressionMethod, &QComboBox::currentIndexChanged, this,
+		&AdvancedSettingsWidget::onSavestateCompressionTypeChanged);
+
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.backupSaveStates, "EmuCore", "BackupSavestate", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.saveStateOnShutdown, "EmuCore", "SaveStateOnShutdown", false);
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.autosaveInterval, "EmuCore", "AutosaveIntervalMinutes", 0);
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.autosaveKeep, "EmuCore", "AutosaveKeep", 3);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.autosaveOnShutdown, "EmuCore", "AutosaveOnShutdown", false);
+
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.pineEnable, "EmuCore", "EnablePINE", false);
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.pineSlot, "EmuCore", "PINESlot", 28011);
+
+	dialog()->registerWidgetHelp(m_ui.eeRoundingMode, tr("Rounding Mode"), tr("Chop/Zero (Default)"), tr("Changes how ARMSX2 handles rounding while emulating the Emotion Engine's Floating Point Unit (EE FPU). "
+																										 "Because the various FPUs in the PS2 are non-compliant with international standards, some games may need different modes to do math correctly. The default value handles the vast majority of games; <b>modifying this setting when a game is not having a visible problem can cause instability.</b>"));
+	dialog()->registerWidgetHelp(m_ui.eeDivRoundingMode, tr("Division Rounding Mode"), tr("Nearest (Default)"), tr("Determines how the results of floating-point division are rounded. Some games need specific settings; <b>modifying this setting when a game is not having a visible problem can cause instability.</b>"));
+
+	dialog()->registerWidgetHelp(m_ui.eeClampMode, tr("Clamping Mode"), tr("Normal (Default)"),
+		tr("Changes how ARMSX2 handles keeping floats in a standard x86 range. "
+		   "Exact is Full plus the rest of the EE multiplier's one-ULP deficit, and is slower than Full. "
+		   "The default value handles the vast majority of games; <b>modifying this setting when a game is not having a visible problem can cause instability.</b>"));
+
+	dialog()->registerWidgetHelp(m_ui.eeRecompiler, tr("Enable Recompiler"), tr("Checked"),
+		tr("Performs just-in-time binary translation of 64-bit MIPS-IV machine code to native code."));
+
+	//: Wait loop: When the game makes the CPU do nothing (loop/spin) while it waits for something to happen (usually an interrupt).
+	dialog()->registerWidgetHelp(m_ui.eeWaitLoopDetection, tr("Wait Loop Detection"), tr("Checked"),
+		tr("Moderate speedup for some games, with no known side effects."));
+
+	dialog()->registerWidgetHelp(m_ui.eeCache, tr("Enable Cache (Slow)"), tr("Unchecked"),
+		tr("Enables emulation of the EE's hardware cache. Interpreter only, provided for diagnostics."));
+
+	//: INTC = Name of a PS2 register, leave as-is. "spin" = to make a cpu (or gpu) actively do nothing while you wait for something.  Like spinning in a circle, you're moving but not actually going anywhere.
+	dialog()->registerWidgetHelp(m_ui.eeINTCSpinDetection, tr("INTC Spin Detection"), tr("Checked"),
+		tr("Huge speedup for some games, with almost no compatibility side effects."));
+
+	dialog()->registerWidgetHelp(m_ui.eeFastmem, tr("Enable Fast Memory Access"), tr("Checked"),
+		//: "Backpatching" = To edit previously generated code to change what it does (in this case, we generate direct memory accesses, then backpatch them to jump to a fancier handler function when we realize they need the fancier handler function)
+		tr("Uses backpatching to avoid register flushing on every memory access."));
+
+	dialog()->registerWidgetHelp(m_ui.pauseOnTLBMiss, tr("Pause On TLB Miss"), tr("Unchecked"),
+		tr("Pauses the virtual machine when a TLB miss occurs, instead of ignoring it and continuing. Note that the VM will pause after the "
+		   "end of the block, not on the instruction which caused the exception. Refer to the console to see the address where the invalid "
+		   "access occurred."));
+
+	dialog()->registerWidgetHelp(m_ui.extraMemory, tr("Enable Extended RAM (Dev Console)"), tr("Unchecked"),
+		tr("Exposes additional memory to the virtual machine, expanding the EE and IOP memory to 128MB and 8MB respectively."));
+
+	dialog()->registerWidgetHelp(m_ui.eeFpuGuardedAddSub, tr("FPU Add/Sub Guard Bits"), tr("Checked"),
+		//: "Guard bits" = extra low mantissa bits a standards-compliant FPU keeps during add/sub; the PS2's EE FPU does not, so the recompiler masks them to match.
+		tr("Emulates the EE FPU's missing add/sub mantissa guard bits for hardware-accurate results. Leave checked; a few games (e.g. True Crime, Jak 3) misrender without it. "
+		   "Unchecking is a minor speedup for EE-FPU-heavy games verified to render correctly without it. Has no effect when the EE Clamping Mode is set to Full or Exact."));
+
+	dialog()->registerWidgetHelp(m_ui.vu0RoundingMode, tr("VU0 Rounding Mode"), tr("Chop/Zero (Default)"), tr("Changes how ARMSX2 handles rounding while emulating the Emotion Engine's Vector Unit 0 (EE VU0). "
+																											  "The default value handles the vast majority of games; <b>modifying this setting when a game is not having a visible problem will cause stability issues and/or crashes.</b>"));
+
+	dialog()->registerWidgetHelp(m_ui.vu1RoundingMode, tr("VU1 Rounding Mode"), tr("Chop/Zero (Default)"), tr("Changes how ARMSX2 handles rounding while emulating the Emotion Engine's Vector Unit 1 (EE VU1). "
+																											  "The default value handles the vast majority of games; <b>modifying this setting when a game is not having a visible problem will cause stability issues and/or crashes.</b>"));
+
+	dialog()->registerWidgetHelp(m_ui.vu0ClampMode, tr("VU0 Clamping Mode"), tr("Normal (Default)"),
+		tr("Changes how ARMSX2 handles keeping floats in a standard x86 range in the Emotion Engine's Vector Unit 0 (EE VU0). "
+		   "Exact is Extra + Preserve Sign plus the VU's own arithmetic and status flags, and is slower than Extra + Preserve Sign. "
+		   "The default value handles the vast majority of games; <b>modifying this setting when a game is not having a visible problem can cause instability.</b>"));
+	dialog()->registerWidgetHelp(m_ui.vu1ClampMode, tr("VU1 Clamping Mode"), tr("Normal (Default)"),
+		tr("Changes how ARMSX2 handles keeping floats in a standard x86 range in the Emotion Engine's Vector Unit 1 (EE VU1). "
+		   "Exact is Extra + Preserve Sign plus the VU's own arithmetic and status flags, and is slower than Extra + Preserve Sign. "
+		   "The default value handles the vast majority of games; <b>modifying this setting when a game is not having a visible problem can cause instability.</b>"));
+
+	dialog()->registerWidgetHelp(m_ui.instantVU1, tr("Enable Instant VU1"), tr("Checked"),
+		tr("Runs VU1 instantly. Provides a modest speed improvement in most games. "
+		   "Safe for most games, but a few games may exhibit graphical errors."));
+
+	//: VU0 = Vector Unit 0. One of the PS2's processors.
+	dialog()->registerWidgetHelp(m_ui.vu0Recompiler, tr("Enable VU0 Recompiler (Micro Mode)"), tr("Checked"),
+		tr("Performs just-in-time binary translation of Vector Unit 0 (VU0) microprograms to native code."));
+
+	//: VU1 = Vector Unit 1. One of the PS2's processors.
+	dialog()->registerWidgetHelp(m_ui.vu1Recompiler, tr("Enable VU1 Recompiler"), tr("Checked"),
+		tr("Performs just-in-time binary translation of Vector Unit 1 (VU1) microprograms to native code."));
+
+	dialog()->registerWidgetHelp(
+		//: mVU = PCSX2's recompiler for VU (Vector Unit) code (full name: microVU)
+		m_ui.vuFlagHack, tr("mVU Flag Hack"), tr("Checked"), tr("Good speedup and high compatibility, may cause graphical errors."));
+
+	//: VU1 = Vector Unit 1. One of the PS2's processors.
+	dialog()->registerWidgetHelp(m_ui.vuAot, tr("Enable VU1 Ahead-of-Time Compiler"), tr("Checked"),
+		tr("Optimises VU1 programs in the background and keeps the compiled VU code on disk, so later launches start with it. "
+		   "Faster in games that spend much of their time in VU1. Turning it off clears the compiled cache."));
+
+	dialog()->registerWidgetHelp(m_ui.iopRecompiler, tr("Enable Recompiler"), tr("Checked"),
+		tr("Performs just-in-time binary translation of 32-bit MIPS-I machine code to native code."));
+
+	dialog()->registerWidgetHelp(m_ui.iopThreadLag, tr("IOP Thread Lag Bound"), QString::number(IopThread::kDefaultLag),
+		tr("How many EE cycles the main game thread may run ahead of the IOP thread before it waits for it. "
+		   "Larger values wait less often, but let the IOP's answers reach the game later. "
+		   "Only used while the IOP thread is enabled."));
+
+	dialog()->registerWidgetHelp(m_ui.gameFixes, tr("Enable Game Fixes"), tr("Checked"),
+		tr("Automatically loads and applies fixes to known problematic games on game start."));
+
+	dialog()->registerWidgetHelp(m_ui.patches, tr("Enable Compatibility Patches"), tr("Checked"),
+		tr("Automatically loads and applies compatibility patches to known problematic games."));
+
+	dialog()->registerWidgetHelp(m_ui.savestateCompressionMethod, tr("Savestate Compression Method"), tr("Zstandard"),
+		tr("Determines the algorithm to be used when compressing savestates."));
+
+	dialog()->registerWidgetHelp(m_ui.savestateCompressionLevel, tr("Savestate Compression Level"), tr("Medium"),
+		tr("Determines the level to be used when compressing savestates."));
+
+	dialog()->registerWidgetHelp(m_ui.saveStateOnShutdown, tr("Save State On Shutdown"), tr("Unchecked"),
+		tr("Automatically saves the emulator state when powering down or exiting. You can then "
+		   "resume directly from where you left off next time."));
+
+	dialog()->registerWidgetHelp(m_ui.autosaveInterval, tr("Autosave Interval"), tr("Off"),
+		tr("Saves the game by itself every this many minutes while it runs. Autosaves are kept apart from the numbered slots "
+		   "and are listed in the Load State menu. A save is skipped (and tried again shortly) while the game is writing its memory card."));
+	dialog()->registerWidgetHelp(m_ui.autosaveKeep, tr("Autosaves To Keep"), tr("3"),
+		tr("How many autosaves are kept for each game, from 1 to 5. Each new autosave moves the older ones back one place and drops the oldest."));
+	dialog()->registerWidgetHelp(m_ui.autosaveOnShutdown, tr("Autosave On Shutdown"), tr("Unchecked"),
+		tr("Also writes an autosave when the game is closed. This is separate from Save State On Shutdown, which writes the single resume state "
+		   "offered the next time the game starts; both can be on."));
+
+	dialog()->registerWidgetHelp(m_ui.backupSaveStates, tr("Create Save State Backups"), tr("Checked"),
+		//: Do not translate the ".backup" extension.
+		tr("Creates a backup copy of a save state if it already exists when the save is created. The backup copy has a .backup suffix."));
+
+	dialog()->registerWidgetHelp(m_ui.pineEnable, tr("Enable PINE"), tr("Unchecked"),
+		tr("Enables the PINE Inter-Process Communication system, allowing external programs to interact with the emulator."));
+	dialog()->registerWidgetHelp(m_ui.pineSlot, tr("PINE Slot"), tr("28011"),
+		tr("The network port slot used for PINE IPC connections."));
+}
+
+AdvancedSettingsWidget::~AdvancedSettingsWidget() = default;
+
+int AdvancedSettingsWidget::getGlobalClampingModeIndex(int vunum) const
+{
+	if (Host::GetBaseBoolSettingValue("EmuCore/CPU/Recompiler",
+			(vunum >= 0 ? ((vunum == 0) ? "vu0ExactMode" : "vu1ExactMode") : "fpuExactMode"), false))
+		return 4;
+
+	if (Host::GetBaseBoolSettingValue(
+			"EmuCore/CPU/Recompiler", (vunum >= 0 ? ((vunum == 0) ? "vu0SignOverflow" : "vu1SignOverflow") : "fpuFullMode"), false))
+		return 3;
+
+	if (Host::GetBaseBoolSettingValue(
+			"EmuCore/CPU/Recompiler", (vunum >= 0 ? ((vunum == 0) ? "vu0ExtraOverflow" : "vu1ExtraOverflow") : "fpuExtraOverflow"), false))
+		return 2;
+
+	if (Host::GetBaseBoolSettingValue(
+			"EmuCore/CPU/Recompiler", (vunum >= 0 ? ((vunum == 0) ? "vu0Overflow" : "vu1Overflow") : "fpuOverflow"), true))
+		return 1;
+
+	return 0;
+}
+
+int AdvancedSettingsWidget::getClampingModeIndex(int vunum) const
+{
+	// This is so messy... maybe we should just make the mode an int in the settings too...
+	const bool base = dialog()->isPerGameSettings() ? 1 : 0;
+	std::optional<bool> default_false = dialog()->isPerGameSettings() ? std::nullopt : std::optional<bool>(false);
+	std::optional<bool> default_true = dialog()->isPerGameSettings() ? std::nullopt : std::optional<bool>(true);
+
+	std::optional<bool> fourth = dialog()->getBoolValue("EmuCore/CPU/Recompiler",
+		(vunum >= 0 ? ((vunum == 0) ? "vu0ExactMode" : "vu1ExactMode") : "fpuExactMode"), default_false);
+	std::optional<bool> third = dialog()->getBoolValue(
+		"EmuCore/CPU/Recompiler", (vunum >= 0 ? ((vunum == 0) ? "vu0SignOverflow" : "vu1SignOverflow") : "fpuFullMode"), default_false);
+	std::optional<bool> second = dialog()->getBoolValue("EmuCore/CPU/Recompiler",
+		(vunum >= 0 ? ((vunum == 0) ? "vu0ExtraOverflow" : "vu1ExtraOverflow") : "fpuExtraOverflow"), default_false);
+	std::optional<bool> first = dialog()->getBoolValue(
+		"EmuCore/CPU/Recompiler", (vunum >= 0 ? ((vunum == 0) ? "vu0Overflow" : "vu1Overflow") : "fpuOverflow"), default_true);
+
+	if (fourth.has_value() && fourth.value())
+		return base + 4;
+	if (third.has_value() && third.value())
+		return base + 3;
+	if (second.has_value() && second.value())
+		return base + 2;
+	if (first.has_value() && first.value())
+		return base + 1;
+	else if (first.has_value())
+		return base + 0; // none
+	else
+		return 0; // no per game override
+}
+
+void AdvancedSettingsWidget::setClampingMode(int vunum, int index)
+{
+	std::optional<bool> first, second, third, fourth;
+
+	if (!dialog()->isPerGameSettings() || index > 0)
+	{
+		const bool base = dialog()->isPerGameSettings() ? 1 : 0;
+		fourth = (index >= (base + 4));
+		third = (index >= (base + 3));
+		second = (index >= (base + 2));
+		first = (index >= (base + 1));
+	}
+
+	dialog()->setBoolSettingValue(
+		"EmuCore/CPU/Recompiler", (vunum >= 0 ? ((vunum == 0) ? "vu0SignOverflow" : "vu1SignOverflow") : "fpuFullMode"), third);
+	dialog()->setBoolSettingValue(
+		"EmuCore/CPU/Recompiler", (vunum >= 0 ? ((vunum == 0) ? "vu0ExtraOverflow" : "vu1ExtraOverflow") : "fpuExtraOverflow"), second);
+	dialog()->setBoolSettingValue(
+		"EmuCore/CPU/Recompiler", (vunum >= 0 ? ((vunum == 0) ? "vu0Overflow" : "vu1Overflow") : "fpuOverflow"), first);
+
+	// Written with the other three because ApplySanityCheck drops a config
+	// whose bits are not a whole mode to the default, not to the mode that was
+	// picked.
+	dialog()->setBoolSettingValue("EmuCore/CPU/Recompiler",
+		(vunum >= 0 ? ((vunum == 0) ? "vu0ExactMode" : "vu1ExactMode") : "fpuExactMode"), fourth);
+}
+
+void AdvancedSettingsWidget::onSavestateCompressionTypeChanged()
+{
+	const bool uncompressed = (dialog()->getEffectiveIntValue("EmuCore", "SavestateCompressionType", static_cast<int>(SavestateCompressionMethod::Zstandard)) ==
+							   static_cast<int>(SavestateCompressionMethod::Uncompressed));
+	m_ui.savestateCompressionLevel->setDisabled(uncompressed);
+}
+
+#include "moc_AdvancedSettingsWidget.cpp"

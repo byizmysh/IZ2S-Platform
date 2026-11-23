@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1309-nfs-spirv-snapshot/IZPS2-R1309.iza",
+  "bytes": 12079269,
+  "sha256": "d76b2f962481a81da8dec41ce7394165b9e060d2f5f05b2cfb0dd06b252a0759",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "a1aa63f4cf917e40a014d8a5c850a0fd0abcc570a1c7ef34c2befa2c47257624"
+  },
+  "engine": {
+    "file": "asset-3ec8e5ec1f68c771fed53503b7624c2a77ba7f52cf802f706233ca4333c995c4.izdata",
+    "path": "asset-3ec8e5ec1f68c771fed53503b7624c2a77ba7f52cf802f706233ca4333c995c4.izdata",
+    "bytes": 29643712,
+    "sha256": "3ec8e5ec1f68c771fed53503b7624c2a77ba7f52cf802f706233ca4333c995c4"
+  }
+}

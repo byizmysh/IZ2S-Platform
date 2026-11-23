@@ -1,0 +1,12 @@
+# Relocatable SDK prefix; no writes into DEVKITPRO are required.
+SB4SDK := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+SB4_CPPFLAGS := -I$(SB4SDK)/include
+SB4_LDFLAGS := -L$(SB4SDK)/lib
+SB4_LIBS := -lsb4 -lm
+SB4_HOST_HEAP_LDFLAGS := $(foreach symbol,$(file <$(SB4SDK)/host-heap.symbols),-Wl,--wrap=$(symbol))
+SB4_HOST_HEAP_LIBS := -lsb4-host-heap
+SB4_HOST_RUNTIME_LDFLAGS := $(SB4_HOST_HEAP_LDFLAGS) $(foreach symbol,$(file <$(SB4SDK)/host-runtime.symbols),-Wl,--wrap=$(symbol))
+SB4_HOST_RUNTIME_LIBS := -lsb4-host-runtime $(SB4_HOST_HEAP_LIBS)
+SB4_HOST_POSIX_SYMBOLS = ${shell sed -n 's/^SB4_POSIX[_A-Z]*(\([^,]*\),.*/\1/p' "$(SB4SDK)/source/host-posix.def"}
+SB4_HOST_POSIX_LDFLAGS = $(foreach symbol,$(SB4_HOST_POSIX_SYMBOLS),-Wl,--wrap=$(symbol))
+SB4_HOST_POSIX_LIBS := -lsb4-host-posix

@@ -1,0 +1,13 @@
+malloc
+calloc
+realloc
+free
+aligned_alloc
+memalign
+posix_memalign
+_malloc_r
+_calloc_r
+_realloc_r
+_free_r
+_memalign_r
+heapGetFreeSize

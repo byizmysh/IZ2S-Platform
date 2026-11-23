@@ -1,0 +1,26 @@
+{
+  "output": "izps2-emulator-0.5.0.iza",
+  "bytes": 17393780,
+  "sha256": "b60159db3d2111769d1392b85ee76cd6e07a839cabee12b99e1b92474f1eafde",
+  "engine": {
+    "file": "asset-b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60.izdata",
+    "path": "asset-b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60.izdata",
+    "bytes": 42534144,
+    "sha256": "b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60"
+  },
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "c57b8667a7165642f361d50752c7970c88975eb76bd7bc205dfa8f13165824cb"
+  },
+  "romOffset": 19527104,
+  "resourceFiles": 123,
+  "resourceSha256": "7d7f022b2d899bb5f8f840d5db52350b0294c63a4da8fd76072dbf2dc3b551d5",
+  "cleanImport": true,
+  "separateResourceFilesRequired": false,
+  "stagedFiles": [
+    "asset-b104b1fbb3fc4a50ea12d6966f4b512ed5fb6983c2bebd97ca9c10cdda41cb60.izdata",
+    "launcher.iza",
+    "sd-bundle.json"
+  ],
+  "deviceRunVerified": false
+}

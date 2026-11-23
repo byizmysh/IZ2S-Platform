@@ -1,0 +1,59 @@
+{
+  "compileAndLinkRecipes": {
+    "R1157": [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1157-checkpoint-warm-shutdown-trace/compile-recipes.json",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1157-checkpoint-warm-shutdown-trace/link-command.json"
+    ],
+    "R1158": [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1158-publish-range-budget/compile-recipes.json",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1158-publish-range-budget/link-command.json"
+    ],
+    "R1159": [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1159-exit-and-owner-profile/compile-recipes.json",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1159-exit-and-owner-profile/link-command.json"
+    ],
+    "R1160": [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1160-audio-native-thread/compile-recipes.json",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1160-audio-native-thread/link-command.json"
+    ],
+    "R1161": [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1161-audio-rebuffer/compile-recipes.json",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1161-audio-rebuffer/link-command.json"
+    ]
+  },
+  "archives": {
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a": "6e2f49c45c0a160ecc93d4a5934e844d109cfec339ce7cb73506af6b8a192fba",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-posix.a": "71e5896d342b0411445ceb0e97dfe8ee78f6f1c3ac1870daebefcb413bd1c4df",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a": "cc3e3f4698aaa7b2389b9652d536ff855026dc544d00ea318a306fdb8ba8745c",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a": "69a616fd8fd03ad6e80bde9b4824efc50f49c04526d3e264210f361040b738a0"
+  },
+  "audioProviderEvidence": {
+    "runtimeElf": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1043-prelinked-menu/izlauncher-sdk.elf",
+    "hostPosixSource": "${RUN23_ROOT}/engines/izhen/sdk/sb4/source/host-posix.c",
+    "audioServiceSource": "${RUN23_ROOT}/engines/izhen/sdk/sb4/source/audio.c",
+    "threadPrototypes": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/include/switch/kernel/thread.h",
+    "threadSymbols": [
+      "pthread_create",
+      "pthread_join",
+      "__syscall_thread_create",
+      "threadCreate",
+      "threadStart",
+      "threadClose",
+      "host_thread_signaled"
+    ],
+    "audioSymbols": [
+      "audoutAppendAudioOutBuffer",
+      "audoutGetReleasedAudioOutBuffer",
+      "audoutStopAudioOut",
+      "audoutFlushAudioOutBuffers"
+    ],
+    "catalogueRows": [
+      "Functions!1619",
+      "Functions!1894",
+      "S2 definitions!155",
+      "S2 definitions!19908"
+    ],
+    "note": "The catalogued nn::os and nn::audio signatures are separate from the libounce C ABI. The active launcher resolver exposes the pinned libounce service signatures."
+  }
+}

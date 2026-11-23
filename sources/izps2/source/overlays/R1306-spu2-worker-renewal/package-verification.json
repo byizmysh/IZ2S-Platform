@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1306-spu2-worker-renewal/IZPS2-R1306.iza",
+  "bytes": 12075745,
+  "sha256": "fa28fa81910281dcc01f11a66ca62d6777eb2ef6a5adfcc8f64be4c81cd7f3aa",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "0ccd4cff1c8b08359b7dc14a80bc95f415d390111c92e0416cc82ebf0de82e0c"
+  },
+  "engine": {
+    "file": "asset-6fbf3890eb34f20d943128bc27d8626b087f8f7c7d22be21e07f9e8129d3e5a0.izdata",
+    "path": "asset-6fbf3890eb34f20d943128bc27d8626b087f8f7c7d22be21e07f9e8129d3e5a0.izdata",
+    "bytes": 29642344,
+    "sha256": "6fbf3890eb34f20d943128bc27d8626b087f8f7c7d22be21e07f9e8129d3e5a0"
+  }
+}

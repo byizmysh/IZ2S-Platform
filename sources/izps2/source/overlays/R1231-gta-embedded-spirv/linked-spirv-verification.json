@@ -1,0 +1,24 @@
+{
+  "embeddedRecords": 190,
+  "embeddedBytes": 521988,
+  "embeddedSha256": "9c5e91f01ee905208f199c89691c90e65a2a8d2557a5d27f3beb827343d2159d",
+  "compilerStamp": "0dcf4d0017f71a97c45267e6153abdc4",
+  "compilerPolicy": {
+    "shader_cache_version": "129",
+    "compiler": "linked  413b728cd18698a506bb79a0f44f779b",
+    "target": "vulkan1.0",
+    "optimization": "performance",
+    "debug_info": "none"
+  },
+  "callersRedirected": {
+    "_ZN13VKShaderCache15GetVertexShaderESt17basic_string_viewIcSt11char_traitsIcEE": [
+      "_ZN10GSDeviceVK22GetUtilityVertexShaderERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPKc",
+      "_ZN10GSDeviceVK18GetTFXVertexShaderEN14GSHWDrawConfig10VSSelectorE"
+    ],
+    "_ZN13VKShaderCache17GetFragmentShaderESt17basic_string_viewIcSt11char_traitsIcEE": [
+      "_ZN10GSDeviceVK24GetUtilityFragmentShaderERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPKc",
+      "_ZZN10GSDeviceVK20GetTFXFragmentShaderERKN14GSHWDrawConfig10PSSelectorEENK3$_1clEv"
+    ]
+  },
+  "stockFallbacksLinked": true
+}

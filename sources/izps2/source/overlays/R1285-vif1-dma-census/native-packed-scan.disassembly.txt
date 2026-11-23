@@ -1,0 +1,387 @@
+
+${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1285-vif1-dma-census/engine.elf:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000100032f80 <_ZN8Gif_Path15ExecuteGSPacketERb>:
+100032f80: d503245f    	bti	c
+100032f84: d101c3ff    	sub	sp, sp, #0x70
+100032f88: b9407808    	ldr	w8, [x0, #0x78]
+100032f8c: a90557f6    	stp	x22, x21, [sp, #0x50]
+100032f90: aa0103f5    	mov	x21, x1
+100032f94: a9064ff4    	stp	x20, x19, [sp, #0x60]
+100032f98: aa0003f3    	mov	x19, x0
+100032f9c: a9017bfd    	stp	x29, x30, [sp, #0x10]
+100032fa0: 910043fd    	add	x29, sp, #0x10
+100032fa4: a9026ffc    	stp	x28, x27, [sp, #0x20]
+100032fa8: a90367fa    	stp	x26, x25, [sp, #0x30]
+100032fac: a9045ff8    	stp	x24, x23, [sp, #0x40]
+100032fb0: 340000e8    	cbz	w8, 0x100032fcc <_ZN8Gif_Path15ExecuteGSPacketERb+0x4c>
+100032fb4: 51000508    	sub	w8, w8, #0x1
+100032fb8: b9007a68    	str	w8, [x19, #0x78]
+100032fbc: 52800028    	mov	w8, #0x1                // =1
+100032fc0: 390002a8    	strb	w8, [x21]
+100032fc4: 3cc7c260    	ldur	q0, [x19, #0x7c]
+100032fc8: 1400011a    	b	0x100033430 <_ZN8Gif_Path15ExecuteGSPacketERb+0x4b0>
+100032fcc: b9401679    	ldr	w25, [x19, #0x14]
+100032fd0: 91012278    	add	x24, x19, #0x48
+100032fd4: f9400677    	ldr	x23, [x19, #0x8]
+100032fd8: 39416668    	ldrb	w8, [x19, #0x59]
+100032fdc: 36001108    	tbz	w8, #0x0, 0x1000331fc <_ZN8Gif_Path15ExecuteGSPacketERb+0x27c>
+100032fe0: 39416268    	ldrb	w8, [x19, #0x58]
+100032fe4: 360026c8    	tbz	w8, #0x0, 0x1000334bc <_ZN8Gif_Path15ExecuteGSPacketERb+0x53c>
+100032fe8: d000d3d4    	adrp	x20, 0x101aac000 <_GLOBAL_OFFSET_TABLE_+0x240>
+100032fec: b9406e68    	ldr	w8, [x19, #0x6c]
+100032ff0: f9429e94    	ldr	x20, [x20, #0x538]
+100032ff4: 34001948    	cbz	w8, 0x10003331c <_ZN8Gif_Path15ExecuteGSPacketERb+0x39c>
+100032ff8: b940367a    	ldr	w26, [x19, #0x34]
+100032ffc: 340026fa    	cbz	w26, 0x1000334d8 <_ZN8Gif_Path15ExecuteGSPacketERb+0x558>
+100033000: 29432269    	ldp	w9, w8, [x19, #0x18]
+100033004: 6b080129    	subs	w9, w9, w8
+100033008: 54000343    	b.lo	0x100033070 <_ZN8Gif_Path15ExecuteGSPacketERb+0xf0>
+10003300c: b9403a7c    	ldr	w28, [x19, #0x38]
+100033010: 5100078a    	sub	w10, w28, #0x1
+100033014: 71003d5f    	cmp	w10, #0xf
+100033018: 540002c8    	b.hi	0x100033070 <_ZN8Gif_Path15ExecuteGSPacketERb+0xf0>
+10003301c: b9403e7b    	ldr	w27, [x19, #0x3c]
+100033020: 6b1c037f    	cmp	w27, w28
+100033024: 54000262    	b.hs	0x100033070 <_ZN8Gif_Path15ExecuteGSPacketERb+0xf0>
+100033028: 53047d29    	lsr	w9, w9, #4
+10003302c: 7100079f    	cmp	w28, #0x1
+100033030: 54000481    	b.ne	0x1000330c0 <_ZN8Gif_Path15ExecuteGSPacketERb+0x140>
+100033034: 3940030a    	ldrb	w10, [x24]
+100033038: 7100395f    	cmp	w10, #0xe
+10003303c: 54000421    	b.ne	0x1000330c0 <_ZN8Gif_Path15ExecuteGSPacketERb+0x140>
+100033040: 4b1b034a    	sub	w10, w26, w27
+100033044: 2a1f03e0    	mov	w0, wzr
+100033048: 2a1f03f4    	mov	w20, wzr
+10003304c: 6b09015f    	cmp	w10, w9
+100033050: 1a893156    	csel	w22, w10, w9, lo
+100033054: 34000a36    	cbz	w22, 0x100033198 <_ZN8Gif_Path15ExecuteGSPacketERb+0x218>
+100033058: b81fc3b9    	stur	w25, [x29, #-0x4]
+10003305c: aa1503fc    	mov	x28, x21
+100033060: 2a1f03f9    	mov	w25, wzr
+100033064: 8b0802f5    	add	x21, x23, x8
+100033068: 52800034    	mov	w20, #0x1               // =1
+10003306c: 1400000a    	b	0x100033094 <_ZN8Gif_Path15ExecuteGSPacketERb+0x114>
+100033070: 2a1f03e0    	mov	w0, wzr
+100033074: 140000b0    	b	0x100033334 <_ZN8Gif_Path15ExecuteGSPacketERb+0x3b4>
+100033078: d503201f    	nop
+10003307c: d503201f    	nop
+100033080: 11000739    	add	w25, w25, #0x1
+100033084: 910042b5    	add	x21, x21, #0x10
+100033088: 6b16029f    	cmp	w20, w22
+10003308c: 11000694    	add	w20, w20, #0x1
+100033090: 540007a2    	b.hs	0x100033184 <_ZN8Gif_Path15ExecuteGSPacketERb+0x204>
+100033094: 394022a8    	ldrb	w8, [x21, #0x8]
+100033098: 121e1509    	and	w9, w8, #0xfc
+10003309c: 51018108    	sub	w8, w8, #0x60
+1000330a0: 7101413f    	cmp	w9, #0x50
+1000330a4: 7a421900    	ccmp	w8, #0x2, #0x0, ne
+1000330a8: 54fffec8    	b.hi	0x100033080 <_ZN8Gif_Path15ExecuteGSPacketERb+0x100>
+1000330ac: aa1503e0    	mov	x0, x21
+1000330b0: 94000d5c    	bl	0x100036620 <_Z13Gif_HandlerADPh>
+1000330b4: 3607fe60    	tbz	w0, #0x0, 0x100033080 <_ZN8Gif_Path15ExecuteGSPacketERb+0x100>
+1000330b8: 52800020    	mov	w0, #0x1                // =1
+1000330bc: 14000034    	b	0x10003318c <_ZN8Gif_Path15ExecuteGSPacketERb+0x20c>
+1000330c0: 4b1b03ea    	neg	w10, w27
+1000330c4: 1b1c2b4a    	madd	w10, w26, w28, w10
+1000330c8: 6b09015f    	cmp	w10, w9
+1000330cc: 1a893156    	csel	w22, w10, w9, lo
+1000330d0: 34000556    	cbz	w22, 0x100033178 <_ZN8Gif_Path15ExecuteGSPacketERb+0x1f8>
+1000330d4: b81fc3b9    	stur	w25, [x29, #-0x4]
+1000330d8: 2a1f03f9    	mov	w25, wzr
+1000330dc: 52800034    	mov	w20, #0x1               // =1
+1000330e0: f90003f5    	str	x21, [sp]
+1000330e4: 8b0802f5    	add	x21, x23, x8
+1000330e8: 1400000b    	b	0x100033114 <_ZN8Gif_Path15ExecuteGSPacketERb+0x194>
+1000330ec: 11000768    	add	w8, w27, #0x1
+1000330f0: 11000739    	add	w25, w25, #0x1
+1000330f4: 6b1c011f    	cmp	w8, w28
+1000330f8: 1a9f17e8    	cset	w8, eq
+1000330fc: 1a9b07fb    	csinc	w27, wzr, w27, eq
+100033100: 4b08035a    	sub	w26, w26, w8
+100033104: 910042b5    	add	x21, x21, #0x10
+100033108: 6b16029f    	cmp	w20, w22
+10003310c: 11000694    	add	w20, w20, #0x1
+100033110: 540002e2    	b.hs	0x10003316c <_ZN8Gif_Path15ExecuteGSPacketERb+0x1ec>
+100033114: 387b4b08    	ldrb	w8, [x24, w27, uxtw]
+100033118: 7100391f    	cmp	w8, #0xe
+10003311c: 54fffe81    	b.ne	0x1000330ec <_ZN8Gif_Path15ExecuteGSPacketERb+0x16c>
+100033120: 394022a8    	ldrb	w8, [x21, #0x8]
+100033124: 121e1509    	and	w9, w8, #0xfc
+100033128: 51018108    	sub	w8, w8, #0x60
+10003312c: 7101413f    	cmp	w9, #0x50
+100033130: 7a421900    	ccmp	w8, #0x2, #0x0, ne
+100033134: 54fffdc8    	b.hi	0x1000330ec <_ZN8Gif_Path15ExecuteGSPacketERb+0x16c>
+100033138: aa1503e0    	mov	x0, x21
+10003313c: 94000d39    	bl	0x100036620 <_Z13Gif_HandlerADPh>
+100033140: 11000768    	add	w8, w27, #0x1
+100033144: 6b1c011f    	cmp	w8, w28
+100033148: 1a9f17e8    	cset	w8, eq
+10003314c: 1a9b07fb    	csinc	w27, wzr, w27, eq
+100033150: 4b08035a    	sub	w26, w26, w8
+100033154: 37000360    	tbnz	w0, #0x0, 0x1000331c0 <_ZN8Gif_Path15ExecuteGSPacketERb+0x240>
+100033158: 11000739    	add	w25, w25, #0x1
+10003315c: 910042b5    	add	x21, x21, #0x10
+100033160: 6b16029f    	cmp	w20, w22
+100033164: 11000694    	add	w20, w20, #0x1
+100033168: 54fffd63    	b.lo	0x100033114 <_ZN8Gif_Path15ExecuteGSPacketERb+0x194>
+10003316c: 2a1f03e0    	mov	w0, wzr
+100033170: 2a1603f4    	mov	w20, w22
+100033174: 14000014    	b	0x1000331c4 <_ZN8Gif_Path15ExecuteGSPacketERb+0x244>
+100033178: 2a1f03e0    	mov	w0, wzr
+10003317c: 2a1f03e9    	mov	w9, wzr
+100033180: 14000017    	b	0x1000331dc <_ZN8Gif_Path15ExecuteGSPacketERb+0x25c>
+100033184: 2a1f03e0    	mov	w0, wzr
+100033188: 2a1603f4    	mov	w20, w22
+10003318c: b9401e68    	ldr	w8, [x19, #0x1c]
+100033190: aa1c03f5    	mov	x21, x28
+100033194: b85fc3b9    	ldur	w25, [x29, #-0x4]
+100033198: b9406269    	ldr	w9, [x19, #0x60]
+10003319c: 4b14035a    	sub	w26, w26, w20
+1000331a0: b9003e7b    	str	w27, [x19, #0x3c]
+1000331a4: b900367a    	str	w26, [x19, #0x34]
+1000331a8: 0b141108    	add	w8, w8, w20, lsl #4
+1000331ac: 0b141129    	add	w9, w9, w20, lsl #4
+1000331b0: b000d3d4    	adrp	x20, 0x101aac000 <_GLOBAL_OFFSET_TABLE_+0x240>
+1000331b4: b9006269    	str	w9, [x19, #0x60]
+1000331b8: f9429e94    	ldr	x20, [x20, #0x538]
+1000331bc: 1400000e    	b	0x1000331f4 <_ZN8Gif_Path15ExecuteGSPacketERb+0x274>
+1000331c0: 52800020    	mov	w0, #0x1                // =1
+1000331c4: 531c6e89    	lsl	w9, w20, #4
+1000331c8: b000d3d4    	adrp	x20, 0x101aac000 <_GLOBAL_OFFSET_TABLE_+0x240>
+1000331cc: b9401e68    	ldr	w8, [x19, #0x1c]
+1000331d0: f94003f5    	ldr	x21, [sp]
+1000331d4: b85fc3b9    	ldur	w25, [x29, #-0x4]
+1000331d8: f9429e94    	ldr	x20, [x20, #0x538]
+1000331dc: b940626a    	ldr	w10, [x19, #0x60]
+1000331e0: 0b090108    	add	w8, w8, w9
+1000331e4: b900367a    	str	w26, [x19, #0x34]
+1000331e8: b9003e7b    	str	w27, [x19, #0x3c]
+1000331ec: 0b09014a    	add	w10, w10, w9
+1000331f0: b900626a    	str	w10, [x19, #0x60]
+1000331f4: b9001e68    	str	w8, [x19, #0x1c]
+1000331f8: 1400004f    	b	0x100033334 <_ZN8Gif_Path15ExecuteGSPacketERb+0x3b4>
+1000331fc: 29432269    	ldp	w9, w8, [x19, #0x18]
+100033200: 1100410a    	add	w10, w8, #0x10
+100033204: 6b09015f    	cmp	w10, w9
+100033208: 54001128    	b.hi	0x10003342c <_ZN8Gif_Path15ExecuteGSPacketERb+0x4ac>
+10003320c: 6b19011f    	cmp	w8, w25
+100033210: 54000089    	b.ls	0x100033220 <_ZN8Gif_Path15ExecuteGSPacketERb+0x2a0>
+100033214: aa1303e0    	mov	x0, x19
+100033218: 940000da    	bl	0x100033580 <_ZN8Gif_Path13RealignPacketEv>
+10003321c: b9401e68    	ldr	w8, [x19, #0x1c]
+100033220: 3ce84ae0    	ldr	q0, [x23, w8, uxtw]
+100033224: 5280200b    	mov	w11, #0x100             // =256
+100033228: 7900b26b    	strh	w11, [x19, #0x58]
+10003322c: 2907fe7f    	stp	wzr, wzr, [x19, #0x3c]
+100033230: 3c824260    	stur	q0, [x19, #0x24]
+100033234: f842426a    	ldur	x10, [x19, #0x24]
+100033238: d37aed4b    	ubfx	x11, x10, #58, #2
+10003323c: 12003949    	and	w9, w10, #0x7fff
+100033240: 5100096c    	sub	w12, w11, #0x2
+100033244: b9003669    	str	w9, [x19, #0x34]
+100033248: 7100099f    	cmp	w12, #0x2
+10003324c: 54000122    	b.hs	0x100033270 <_ZN8Gif_Path15ExecuteGSPacketERb+0x2f0>
+100033250: 9244f54b    	and	x11, x10, #0xf3ffffffffffffff
+100033254: 531c3949    	ubfiz	w9, w10, #4, #15
+100033258: b9003a7f    	str	wzr, [x19, #0x38]
+10003325c: b245016b    	orr	x11, x11, #0x800000000000000
+100033260: 531e752a    	lsl	w10, w9, #2
+100033264: f802426b    	stur	x11, [x19, #0x24]
+100033268: 5280006b    	mov	w11, #0x3               // =3
+10003326c: 14000086    	b	0x100033484 <_ZN8Gif_Path15ExecuteGSPacketERb+0x504>
+100033270: 35000f4b    	cbnz	w11, 0x100033458 <_ZN8Gif_Path15ExecuteGSPacketERb+0x4d8>
+100033274: 1280000b    	mov	w11, #-0x1              // =-1
+100033278: f842c26c    	ldur	x12, [x19, #0x2c]
+10003327c: 6f00e400    	movi	v0.2d, #0000000000000000
+100033280: 8b4af16a    	add	x10, x11, x10, lsr #60
+100033284: 12000d4a    	and	w10, w10, #0xf
+100033288: 1100054b    	add	w11, w10, #0x1
+10003328c: b9003a6b    	str	w11, [x19, #0x38]
+100033290: 1b097d6a    	mul	w10, w11, w9
+100033294: 531e756b    	lsl	w11, w11, #2
+100033298: 4b0b03eb    	neg	w11, w11
+10003329c: 9acb218c    	lsl	x12, x12, x11
+1000332a0: 9acb258b    	lsr	x11, x12, x11
+1000332a4: 531c6d49    	lsl	w9, w10, #4
+1000332a8: 531b694a    	lsl	w10, w10, #5
+1000332ac: 29082a69    	stp	w9, w10, [x19, #0x40]
+1000332b0: 4e081d60    	mov	v0.d[0], x11
+1000332b4: 6f0c0401    	ushr	v1.16b, v0.16b, #0x4
+1000332b8: 4e013800    	zip1	v0.16b, v0.16b, v1.16b
+1000332bc: 4f00e5e1    	movi	v1.16b, #0xf
+1000332c0: 4e211c00    	and	v0.16b, v0.16b, v1.16b
+1000332c4: 4f00e5c1    	movi	v1.16b, #0xe
+1000332c8: 6e218c01    	cmeq	v1.16b, v0.16b, v1.16b
+1000332cc: 3c848260    	stur	q0, [x19, #0x48]
+1000332d0: 6e30a820    	umaxv	b0, v1.16b
+1000332d4: 1e26000b    	fmov	w11, s0
+1000332d8: 1200016c    	and	w12, w11, #0x1
+1000332dc: 3901626c    	strb	w12, [x19, #0x58]
+1000332e0: 5280002c    	mov	w12, #0x1               // =1
+1000332e4: b900726c    	str	w12, [x19, #0x70]
+1000332e8: 36000d2b    	tbz	w11, #0x0, 0x10003348c <_ZN8Gif_Path15ExecuteGSPacketERb+0x50c>
+1000332ec: 0f000600    	movi	v0.2s, #0x10
+1000332f0: 11004108    	add	w8, w8, #0x10
+1000332f4: fd403261    	ldr	d1, [x19, #0x60]
+1000332f8: b9001e68    	str	w8, [x19, #0x1c]
+1000332fc: 321f0148    	orr	w8, w10, #0x2
+100033300: 4e0c1d00    	mov	v0.s[1], w8
+100033304: 0ea18400    	add	v0.2s, v0.2s, v1.2s
+100033308: fd003260    	str	d0, [x19, #0x60]
+10003330c: b000d3d4    	adrp	x20, 0x101aac000 <_GLOBAL_OFFSET_TABLE_+0x240>
+100033310: b9406e68    	ldr	w8, [x19, #0x6c]
+100033314: f9429e94    	ldr	x20, [x20, #0x538]
+100033318: 35ffe708    	cbnz	w8, 0x100032ff8 <_ZN8Gif_Path15ExecuteGSPacketERb+0x78>
+10003331c: 79401a88    	ldrh	w8, [x20, #0xc]
+100033320: b940367a    	ldr	w26, [x19, #0x34]
+100033324: 361fe6c8    	tbz	w8, #0x3, 0x100032ffc <_ZN8Gif_Path15ExecuteGSPacketERb+0x7c>
+100033328: 7943c288    	ldrh	w8, [x20, #0x1e0]
+10003332c: 2a1f03e0    	mov	w0, wzr
+100033330: 3627e668    	tbz	w8, #0x4, 0x100032ffc <_ZN8Gif_Path15ExecuteGSPacketERb+0x7c>
+100033334: 7100035f    	cmp	w26, #0x0
+100033338: 1a9f17e9    	cset	w9, eq
+10003333c: 3400071a    	cbz	w26, 0x10003341c <_ZN8Gif_Path15ExecuteGSPacketERb+0x49c>
+100033340: 370006e0    	tbnz	w0, #0x0, 0x10003341c <_ZN8Gif_Path15ExecuteGSPacketERb+0x49c>
+100033344: b9401e68    	ldr	w8, [x19, #0x1c]
+100033348: 14000005    	b	0x10003335c <_ZN8Gif_Path15ExecuteGSPacketERb+0x3dc>
+10003334c: 7100035f    	cmp	w26, #0x0
+100033350: 1a9f17e9    	cset	w9, eq
+100033354: 2a00012a    	orr	w10, w9, w0
+100033358: 3700062a    	tbnz	w10, #0x0, 0x10003341c <_ZN8Gif_Path15ExecuteGSPacketERb+0x49c>
+10003335c: b9401a6a    	ldr	w10, [x19, #0x18]
+100033360: 11004109    	add	w9, w8, #0x10
+100033364: 6b0a013f    	cmp	w9, w10
+100033368: 54000628    	b.hi	0x10003342c <_ZN8Gif_Path15ExecuteGSPacketERb+0x4ac>
+10003336c: b9403e6a    	ldr	w10, [x19, #0x3c]
+100033370: 92400d4a    	and	x10, x10, #0xf
+100033374: 386a6b0a    	ldrb	w10, [x24, x10]
+100033378: 7100395f    	cmp	w10, #0xe
+10003337c: 54000321    	b.ne	0x1000333e0 <_ZN8Gif_Path15ExecuteGSPacketERb+0x460>
+100033380: b9406e6a    	ldr	w10, [x19, #0x6c]
+100033384: 3400022a    	cbz	w10, 0x1000333c8 <_ZN8Gif_Path15ExecuteGSPacketERb+0x448>
+100033388: 8b2842e0    	add	x0, x23, w8, uxtw
+10003338c: 94000ca5    	bl	0x100036620 <_Z13Gif_HandlerADPh>
+100033390: b9401e68    	ldr	w8, [x19, #0x1c]
+100033394: 11004108    	add	w8, w8, #0x10
+100033398: b9406269    	ldr	w9, [x19, #0x60]
+10003339c: b940367a    	ldr	w26, [x19, #0x34]
+1000333a0: 11004129    	add	w9, w9, #0x10
+1000333a4: b9006269    	str	w9, [x19, #0x60]
+1000333a8: b9001e68    	str	w8, [x19, #0x1c]
+1000333ac: 34000d1a    	cbz	w26, 0x10003354c <_ZN8Gif_Path15ExecuteGSPacketERb+0x5cc>
+1000333b0: 2947266a    	ldp	w10, w9, [x19, #0x38]
+1000333b4: 11000529    	add	w9, w9, #0x1
+1000333b8: b9003e69    	str	w9, [x19, #0x3c]
+1000333bc: 6b0a013f    	cmp	w9, w10
+1000333c0: 54fffc63    	b.lo	0x10003334c <_ZN8Gif_Path15ExecuteGSPacketERb+0x3cc>
+1000333c4: 14000012    	b	0x10003340c <_ZN8Gif_Path15ExecuteGSPacketERb+0x48c>
+1000333c8: 79401a8a    	ldrh	w10, [x20, #0xc]
+1000333cc: 361ffdea    	tbz	w10, #0x3, 0x100033388 <_ZN8Gif_Path15ExecuteGSPacketERb+0x408>
+1000333d0: 7943c28a    	ldrh	w10, [x20, #0x1e0]
+1000333d4: 3627fdaa    	tbz	w10, #0x4, 0x100033388 <_ZN8Gif_Path15ExecuteGSPacketERb+0x408>
+1000333d8: d503201f    	nop
+1000333dc: d503201f    	nop
+1000333e0: b9406268    	ldr	w8, [x19, #0x60]
+1000333e4: 2a1f03e0    	mov	w0, wzr
+1000333e8: b9001e69    	str	w9, [x19, #0x1c]
+1000333ec: 11004108    	add	w8, w8, #0x10
+1000333f0: b9006268    	str	w8, [x19, #0x60]
+1000333f4: 2a0903e8    	mov	w8, w9
+1000333f8: 2947266a    	ldp	w10, w9, [x19, #0x38]
+1000333fc: 11000529    	add	w9, w9, #0x1
+100033400: b9003e69    	str	w9, [x19, #0x3c]
+100033404: 6b0a013f    	cmp	w9, w10
+100033408: 54fffa23    	b.lo	0x10003334c <_ZN8Gif_Path15ExecuteGSPacketERb+0x3cc>
+10003340c: 5100075a    	sub	w26, w26, #0x1
+100033410: b9003e7f    	str	wzr, [x19, #0x3c]
+100033414: b900367a    	str	w26, [x19, #0x34]
+100033418: 17ffffcd    	b	0x10003334c <_ZN8Gif_Path15ExecuteGSPacketERb+0x3cc>
+10003341c: f8424268    	ldur	x8, [x19, #0x24]
+100033420: 360005e0    	tbz	w0, #0x0, 0x1000334dc <_ZN8Gif_Path15ExecuteGSPacketERb+0x55c>
+100033424: 34000049    	cbz	w9, 0x10003342c <_ZN8Gif_Path15ExecuteGSPacketERb+0x4ac>
+100033428: 377805a8    	tbnz	w8, #0xf, 0x1000334dc <_ZN8Gif_Path15ExecuteGSPacketERb+0x55c>
+10003342c: 3cc5c260    	ldur	q0, [x19, #0x5c]
+100033430: a9464ff4    	ldp	x20, x19, [sp, #0x60]
+100033434: 9e660000    	fmov	x0, d0
+100033438: a94557f6    	ldp	x22, x21, [sp, #0x50]
+10003343c: a9445ff8    	ldp	x24, x23, [sp, #0x40]
+100033440: a94367fa    	ldp	x26, x25, [sp, #0x30]
+100033444: a9426ffc    	ldp	x28, x27, [sp, #0x20]
+100033448: a9417bfd    	ldp	x29, x30, [sp, #0x10]
+10003344c: 4e183c01    	mov	x1, v0.d[1]
+100033450: 9101c3ff    	add	sp, sp, #0x70
+100033454: d65f03c0    	ret
+100033458: 1280000b    	mov	w11, #-0x1              // =-1
+10003345c: 8b4af16a    	add	x10, x11, x10, lsr #60
+100033460: 5280004b    	mov	w11, #0x2               // =2
+100033464: 12000d4a    	and	w10, w10, #0xf
+100033468: 1100054a    	add	w10, w10, #0x1
+10003346c: 1b0a7d29    	mul	w9, w9, w10
+100033470: b9003a6a    	str	w10, [x19, #0x38]
+100033474: 531d7129    	lsl	w9, w9, #3
+100033478: 11002129    	add	w9, w9, #0x8
+10003347c: 121c4d29    	and	w9, w9, #0xfffff0
+100033480: 531e752a    	lsl	w10, w9, #2
+100033484: 29082a69    	stp	w9, w10, [x19, #0x40]
+100033488: b900726b    	str	w11, [x19, #0x70]
+10003348c: b9401a6b    	ldr	w11, [x19, #0x18]
+100033490: 11004108    	add	w8, w8, #0x10
+100033494: 0b090109    	add	w9, w8, w9
+100033498: 6b0b013f    	cmp	w9, w11
+10003349c: 54000608    	b.hi	0x10003355c <_ZN8Gif_Path15ExecuteGSPacketERb+0x5dc>
+1000334a0: 0f000600    	movi	v0.2s, #0x10
+1000334a4: b9001e68    	str	w8, [x19, #0x1c]
+1000334a8: 321f0148    	orr	w8, w10, #0x2
+1000334ac: fd403261    	ldr	d1, [x19, #0x60]
+1000334b0: 4e0c1d00    	mov	v0.s[1], w8
+1000334b4: 0ea18400    	add	v0.2s, v0.2s, v1.2s
+1000334b8: fd003260    	str	d0, [x19, #0x60]
+1000334bc: b9404268    	ldr	w8, [x19, #0x40]
+1000334c0: b9406269    	ldr	w9, [x19, #0x60]
+1000334c4: 0b080129    	add	w9, w9, w8
+1000334c8: b9006269    	str	w9, [x19, #0x60]
+1000334cc: b9401e69    	ldr	w9, [x19, #0x1c]
+1000334d0: 0b080128    	add	w8, w9, w8
+1000334d4: b9001e68    	str	w8, [x19, #0x1c]
+1000334d8: f8424268    	ldur	x8, [x19, #0x24]
+1000334dc: 3901667f    	strb	wzr, [x19, #0x59]
+1000334e0: 367fe8e8    	tbz	w8, #0xf, 0x1000331fc <_ZN8Gif_Path15ExecuteGSPacketERb+0x27c>
+1000334e4: 52800028    	mov	w8, #0x1                // =1
+1000334e8: 3cc5c260    	ldur	q0, [x19, #0x5c]
+1000334ec: 9000d3e9    	adrp	x9, 0x101aaf000 <_GLOBAL_OFFSET_TABLE_+0x3240>
+1000334f0: 390002a8    	strb	w8, [x21]
+1000334f4: b900227f    	str	wzr, [x19, #0x20]
+1000334f8: 5281800b    	mov	w11, #0xc00             // =3072
+1000334fc: b9401e68    	ldr	w8, [x19, #0x1c]
+100033500: b9006a7f    	str	wzr, [x19, #0x68]
+100033504: f900327f    	str	xzr, [x19, #0x60]
+100033508: b9005e68    	str	w8, [x19, #0x5c]
+10003350c: f9410129    	ldr	x9, [x9, #0x200]
+100033510: b970212a    	ldr	w10, [x9, #0x3020]
+100033514: 6a2a017f    	bics	wzr, w11, w10
+100033518: 54000281    	b.ne	0x100033568 <_ZN8Gif_Path15ExecuteGSPacketERb+0x5e8>
+10003351c: 5280008a    	mov	w10, #0x4               // =4
+100033520: b900726a    	str	w10, [x19, #0x70]
+100033524: b9401a6a    	ldr	w10, [x19, #0x18]
+100033528: 6b08014a    	subs	w10, w10, w8
+10003352c: 54fff820    	b.eq	0x100033430 <_ZN8Gif_Path15ExecuteGSPacketERb+0x4b0>
+100033530: 5286040b    	mov	w11, #0x3020            // =12320
+100033534: 386b6929    	ldrb	w9, [x9, x11]
+100033538: 7200053f    	tst	w9, #0x3
+10003353c: 54fff7a0    	b.eq	0x100033430 <_ZN8Gif_Path15ExecuteGSPacketERb+0x4b0>
+100033540: b900226a    	str	w10, [x19, #0x20]
+100033544: b9001a68    	str	w8, [x19, #0x18]
+100033548: 17ffffba    	b	0x100033430 <_ZN8Gif_Path15ExecuteGSPacketERb+0x4b0>
+10003354c: f8424268    	ldur	x8, [x19, #0x24]
+100033550: 52800029    	mov	w9, #0x1                // =1
+100033554: 3707f680    	tbnz	w0, #0x0, 0x100033424 <_ZN8Gif_Path15ExecuteGSPacketERb+0x4a4>
+100033558: 17ffffe1    	b	0x1000334dc <_ZN8Gif_Path15ExecuteGSPacketERb+0x55c>
+10003355c: 3cc5c260    	ldur	q0, [x19, #0x5c]
+100033560: 3901667f    	strb	wzr, [x19, #0x59]
+100033564: 17ffffb3    	b	0x100033430 <_ZN8Gif_Path15ExecuteGSPacketERb+0x4b0>
+100033568: b900727f    	str	wzr, [x19, #0x70]
+10003356c: 17ffffb1    	b	0x100033430 <_ZN8Gif_Path15ExecuteGSPacketERb+0x4b0>
+		...

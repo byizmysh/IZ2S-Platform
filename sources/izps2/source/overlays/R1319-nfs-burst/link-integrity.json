@@ -1,0 +1,13 @@
+{
+  "onlyChangedMembers": [
+    "GSRendererHW.cpp.obj"
+  ],
+  "otherMembersIdentical": 391,
+  "linkChanges": [
+    "engine.map",
+    "ps2_vm_runner.cpp.obj",
+    "engine.elf",
+    "GSState.cpp.obj",
+    "libpcsx2-hosted.a"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "libounce": {
+    "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a",
+    "sha256": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da",
+    "membersNamedInLinkMap": [
+      "cache.o",
+      "levent.o",
+      "svc.o"
+    ]
+  },
+  "sdkHeader": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/include/switch/kernel/svc.h",
+  "symbols": [
+    "svcGetThreadCoreMask",
+    "svcSetThreadCoreMask"
+  ],
+  "knownVUMaskPolicy": "Change only the live EE worker mask after reading a fixed singleton from the MTVU worker. Worker ownership stays with its provider."
+}

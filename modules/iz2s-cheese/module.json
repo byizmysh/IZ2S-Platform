@@ -3,14 +3,13 @@
   "formatVersion": 1,
   "apiVersion": 1,
   "id": "iz2s-cheese",
-  "installationDirectory": "iz2s-cheese",
   "name": "IZ2S Cheese",
-  "version": "0.8.1",
-  "moduleVersion": "0.8.1",
-  "author": "IZMYSH",
+  "version": "0.8.7",
+  "author": "@byizmysh",
   "platforms": [
     "linux-x64",
-    "linux-arm64"
+    "linux-arm64",
+    "win32-x64"
   ],
   "requires": {
     "platformApi": 1,
@@ -18,21 +17,25 @@
     "consoleAbi": 1
   },
   "switch": {
+    "entry": "switch/app.json",
     "abi": 1,
-    "entry": "switch/iza/app.json",
+    "sdImage": "switch/launcher.iza",
     "files": [
-      "switch/iza/app.json",
-      "switch/iza/native.bin",
-      "switch/iza/app.vert.spv",
-      "switch/iza/app.frag.spv",
-      "switch/iza/app.comp.spv",
-      "switch/iza/assets/icon.png",
-      "switch/iza/assets/state.bin",
-      "switch/iza/assets/data.bin",
-      "switch/iza/asset-53ab0dd7f21f951f3673fa4e5c152f6a93f31179533676655a7f684caa17080a.izdata"
+      "switch/app.comp.spv",
+      "switch/app.frag.spv",
+      "switch/app.json",
+      "switch/app.vert.spv",
+      "switch/asset-f328dcb8b2ecdb4866c38dbb4328d804af07dafc7259d74686bd17d450450426.izdata",
+      "switch/data.bin",
+      "switch/icon.png",
+      "switch/launcher.iza",
+      "switch/native.bin",
+      "switch/sd-bundle.json",
+      "switch/state.bin"
     ]
   },
   "dependencies": [],
   "settingsSchema": [],
-  "license": "MIT"
+  "license": "MIT",
+  "installationDirectory": "iz2s-cheese"
 }

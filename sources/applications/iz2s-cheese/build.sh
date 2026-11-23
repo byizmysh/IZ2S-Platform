@@ -34,7 +34,7 @@ if [ "$build_nro" = 1 ]; then
     cp "$DEVKITPRO"/libounce/licenses/*.txt "$work/romfs/"
     cp "$module_dir/licenses/Octicons.txt" "$work/romfs/"
     "${cross}gcc" -std=gnu11 -O2 -Wall -Wextra -Werror -mcpu=cortex-a78c+crypto -mtp=soft \
-        -fPIE -ffunction-sections -fdata-sections -D__SWITCH__ -D__SWITCH2__ -DIZ_STORE_STANDALONE -DIZ_STORE_VERSION=\"0.8.1\" \
+        -fPIE -ffunction-sections -fdata-sections -D__SWITCH__ -D__SWITCH2__ -DIZ_STORE_STANDALONE -DIZ_STORE_VERSION=\"0.8.7\" \
         -isystem "$DEVKITPRO/libounce/include" -specs="$DEVKITPRO/libounce/switch.specs" \
         -L"$DEVKITPRO/libounce/lib" "$module_dir/switch/main.c" "$module_dir/switch/store.c" \
         "$module_dir/switch/ui.c" "$module_dir/switch/download.c" "$module_dir/switch/installed-artwork.c" \
@@ -85,11 +85,15 @@ const path = require('node:path');
 const [root, moduleDir, work] = process.argv.slice(2);
 const archive = require(path.join(root, 'core/archive.cjs'));
 const pkg = require(path.join(root, 'core/console/sd-launcher/package.cjs'));
+const {portableApp} = require(path.join(root, 'engines/iz2s-core/tools/prepare-sd-app.cjs'));
 (async () => {
   const packaged = path.join(moduleDir, 'iz2s-cheese.module.zip');
   const prepared = path.join(work, 'prepared');
   const result = await pkg.build(path.join(moduleDir, 'switch/iza'), prepared, {sb4:true, includeLibrary:false});
   if (pkg.decode(result.bytes).nativeAbi !== 7 || result.id !== 'iz2s-cheese') throw Error('Unexpected IZA layout');
+  const installer = await portableApp({...result, folder:prepared});
+  if (!installer.packed) throw Error('The Cheese installer must include its companion files');
+  await fs.writeFile(path.join(work, 'iz2s-cheese-install.iza'), installer.bytes);
   await fs.writeFile(packaged, await archive.pack(moduleDir));
   const folder = path.join(work, 'sd', 'iz2s', 'modules', result.id);
   await fs.mkdir(folder, {recursive:true});
@@ -116,6 +120,7 @@ PY
 
 cp "$work/sd/iz2s/modules/iz2s-cheese/launcher.iza" "$output/iz2s-cheese.iza"
 cp "$work/sd/iz2s/modules/iz2s-cheese/"*.izdata "$output/"
+cp "$work/iz2s-cheese-install.iza" "$output/"
 cp "$work/engine/engine-report.json" "$output/engine-report.json"
 fi
 

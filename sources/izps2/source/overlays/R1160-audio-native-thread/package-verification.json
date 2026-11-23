@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1160-audio-native-thread/IZPS2-R1160.iza",
+  "bytes": 11208501,
+  "sha256": "bc5e2907ebb7c25a49ecdd0ec8555f5c3f3d9fc04f8d4751b2971e7e54516f1f",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "f330948066494de17036836dfe2b2f8f9ca1c2c692d48d4682f3e95217763154"
+  },
+  "engine": {
+    "file": "asset-e4d15bbeb1fd61d765a35ee65c3d6c42adcc024726108dd1f7096b7505499e85.izdata",
+    "path": "asset-e4d15bbeb1fd61d765a35ee65c3d6c42adcc024726108dd1f7096b7505499e85.izdata",
+    "bytes": 27911104,
+    "sha256": "e4d15bbeb1fd61d765a35ee65c3d6c42adcc024726108dd1f7096b7505499e85"
+  }
+}

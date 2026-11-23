@@ -1,0 +1,33 @@
+{
+  "source": "two local ARM64 QEMU traces",
+  "checkpointSha256": "94dc6ef28c14a855dfc5924bd7299994d23eb7cd1695129eaa09bf6a9d87d3fd",
+  "continuousFields": 988,
+  "targetLocalProof": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1242-late-autosave-replay/model/comparison.json",
+  "rawTraces": [
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1237-ee-late-burst/model/capture/runtime.log.zst",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1242-late-autosave-replay/model/capture/runtime.log.zst"
+  ],
+  "baseEntries": 20666,
+  "records": 21333,
+  "residentCodeAtTargetUnknownOnSwitch2": true,
+  "selectedByGuestField": {
+    "6206": 4,
+    "6208": 10,
+    "6210": 142,
+    "6212": 511
+  },
+  "framedProfileSha256": "952e5173bf1006d1ca792ee315a0b63d712b1f160bce3cd1766fad0171e1c8e2",
+  "payloadSha256": "f85d337797fe9a84ea495011a6a96d255ddaa7e8c518797718b26d86ce5893d4",
+  "suffixSha256": "fcbba9c11ce8181da9d29ae0bf8aa0f7e597dd5f02d526883f1a7f2393ca267a",
+  "framerCommand": [
+    "/home/k2/Antigravity/MyLoveSwitch/modules/ns1-native/dependencies/hblauncher/root/usr/bin/qemu-aarch64",
+    "-cpu",
+    "max",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R965-ee-ordered-checkpoint-seed/model/frame-checkpoint-seed-arm64",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1243-embedded-late-ee-seed/checkpoint-late-trial.profile",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R965-ee-ordered-checkpoint-seed/model/checkpoint-ram.bin",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1243-embedded-late-ee-seed/checkpoint-late-trial.bin",
+    "0x34dffc",
+    "29738956762"
+  ]
+}

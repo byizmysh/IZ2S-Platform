@@ -164,7 +164,7 @@ test('PC Link pause and FTP controls stay independent during a network change',(
  assert.equal(f.$('ftp-open').textContent,'Reconnect FTP');
 });
 test('PC Link failure is visible and clears after recovery',()=>{
- const link={online:false,error:'PC Link belongs to another installation. Start the 0.3.0 PC Link service.'},f=fixture({link});
+ const link={online:false,error:'PC Link belongs to another installation. Start the 0.3.1 PC Link service.'},f=fixture({link});
  assert.equal(f.$('link-state').textContent,'PC Link unavailable');assert.equal(f.$('link-error').hidden,false);
  assert.equal(f.$('link-error').textContent,link.error);assert.equal(f.$('library').disabled,true);
  delete link.error;link.online=true;f.ui.render(f.state);

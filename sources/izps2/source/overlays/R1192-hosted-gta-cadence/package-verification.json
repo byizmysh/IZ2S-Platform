@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1192-hosted-gta-cadence/IZPS2-R1192.iza",
+  "bytes": 11227708,
+  "sha256": "e292823d96a6173425fd24d9c8a0f91f441b5fbe921c96dad570023401f309cc",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "a6aadb1a029984daf09d85a1d6cec5cbc61d922de0112f90e2b22d074b7638b5"
+  },
+  "engine": {
+    "file": "asset-06a1dddaf91aa322ec4cc4305329b2b42bb84091404a24b2bd5482266817dd4e.izdata",
+    "path": "asset-06a1dddaf91aa322ec4cc4305329b2b42bb84091404a24b2bd5482266817dd4e.izdata",
+    "bytes": 27984560,
+    "sha256": "06a1dddaf91aa322ec4cc4305329b2b42bb84091404a24b2bd5482266817dd4e"
+  }
+}

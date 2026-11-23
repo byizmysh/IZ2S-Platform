@@ -1,0 +1,250 @@
+# In-process differential test harness for the PS2 recompilers.
+#
+# Each test loads a short MIPS-I (IOP) or MIPS-III (EE) program at
+# kProgramPc, seeds register state, runs through both the JIT and the
+# interpreter, captures full architectural state, and gtest-diffs the
+# two — any divergence is a JIT bug. See harness/JitTestHarness.h
+# (IOP) and harness/EeRecTestHarness.h (EE) for the contracts.
+#
+# The EE harness drives the JIT via recEeExecuteBlock(cycles, park_pc),
+# a bounded-cycle entry point alongside the production recExecute().
+# recEeIsBlockLinked(src_pc, dst_pc) backs the multiblock tests'
+# block-link introspection.
+add_pcsx2_test(recompiler_tests
+	main.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/../StubHost.cpp
+	harness/RecompilerTestEnvironment.cpp
+	harness/JitTestHarness.cpp
+	harness/EeRecTestHarness.cpp
+	harness/StateSnapshot.cpp
+	harness/VuSnapshot.cpp
+	harness/VuTestHarness.cpp
+	harness/VuReplay.cpp
+	iop_alu_tests.cpp
+	iop_jit_fuzz_tests.cpp
+	iop_shift_tests.cpp
+	iop_muldiv_tests.cpp
+	iop_loadstore_tests.cpp
+	iop_jump_tests.cpp
+	iop_branch_tests.cpp
+	iop_cop0_tests.cpp
+	iop_memory_access_tests.cpp
+	iop_regalloc_pressure_tests.cpp
+	iop_multiblock_tests.cpp
+	iop_smc_tests.cpp
+	iop_cop0_exception_tests.cpp
+	iop_irx_hle_tests.cpp
+	arm64_baseblocks_link_tests.cpp
+	arm64_alloc_thread_tests.cpp
+	ee_rec_alu_tests.cpp
+	ee_rec_alu64_tests.cpp
+	ee_rec_fuzz_tests.cpp
+	ee_rec_alu_imm_tests.cpp
+	ee_rec_branch_tests.cpp
+	ee_rec_loop_residency_tests.cpp
+	ee_rec_mem_operand_tests.cpp
+	ee_rec_carbon_selfloop_store_tests.cpp
+	ee_rec_superblock_tests.cpp
+	ee_rec_branch_in_delay_tests.cpp
+	ee_rec_callret_tests.cpp
+	ee_rec_cond_veneer_tests.cpp
+	ee_rec_cop0_tests.cpp
+	ee_event_gate_tests.cpp
+	ee_event_test_quiet_path_tests.cpp
+	mtvu_savestate_load_tests.cpp
+	ee_rec_cycle_rate_tests.cpp
+	ee_rec_delay_slot_bracket_tests.cpp
+	ee_rec_divide_charge_tests.cpp
+	ee_rec_measured_charge_tests.cpp
+	ee_rec_fpu_tests.cpp
+	ee_rec_fpu_divunit_rounding_tests.cpp
+	ee_rec_fpu_full_mode_tests.cpp
+	ee_rec_fpu_guardbit_tests.cpp
+	ee_rec_fpu_rsqrt_tests.cpp
+	ee_rec_harness_validation_tests.cpp
+	ee_rec_gem2_coherence_tests.cpp
+	ee_rec_iop_handoff_tests.cpp
+	ee_rec_jump_tests.cpp
+	ee_rec_loadstore_tests.cpp
+	ee_rec_mmi_coherence_tests.cpp
+	ee_rec_mmi_simd_tests.cpp
+	ee_rec_mmi_tests.cpp
+	ee_rec_move_tests.cpp
+	ee_rec_pinned_gpr_tests.cpp
+	ee_rec_syscall_seam_tests.cpp
+	ee_rec_event_stub_tests.cpp
+	ee_rec_regalloc_coupling_tests.cpp
+	ee_rec_muldiv_tests.cpp
+	ee_rec_multiblock_tests.cpp
+	ee_rec_shift_tests.cpp
+	ee_rec_skipmpeg_tests.cpp
+	ee_rec_smc_manual_tests.cpp
+	ee_rec_smc_tests.cpp
+	ee_rec_timeout_loop_tests.cpp
+	ee_rec_tlb_divert_tests.cpp
+	ee_rec_traps_tests.cpp
+	ee_rec_unaligned_store_tests.cpp
+	ee_timer_count_read_race_tests.cpp
+	vtlb_get_guest_address_tests.cpp
+	vif_unpack_dynarec_tests.cpp
+	ee_vu0_cop2_maxmini_conv_tests.cpp
+	ee_vu0_cop2_madd_clamp_tests.cpp
+	ee_vu0_cop2_sub_mul_clamp_tests.cpp
+	ee_vu0_cop2_madda_bc_tests.cpp
+	ee_vu0_cop2_extra_clamp_tests.cpp
+	vu0_harness_validation_tests.cpp
+	vu0_alu_upper_tests.cpp
+	vu0_alu_lower_tests.cpp
+	vu0_q_pipeline_tests.cpp
+	vu0_integer_alu_tests.cpp
+	vu0_branch_delay_tests.cpp
+	vu0_flag_pipeline_tests.cpp
+	vu0_flag_link_reorder_tests.cpp
+	vu_end_program_status_broadcast_tests.cpp
+	vu0_e_d_t_m_bit_tests.cpp
+	vu0_clamp_modes_tests.cpp
+	vu_ftoi_saturation_tests.cpp
+	vu_madda_acc_lane_tests.cpp
+	vu_single_lane_inplace_tests.cpp
+	vu_ss_clamp_lane_tests.cpp
+	vu_clip_flag_tests.cpp
+	vu_clamp_consts_residency_tests.cpp
+	vu_merge_fold_tests.cpp
+	vu_flag_queue_reorder_tests.cpp
+	vu_preload_pair_tests.cpp
+	vu_mem_addressing_tests.cpp
+	vu_mem_addressing_console_tests.cpp
+	vu_broadcast_lane_tests.cpp
+	vu_minmax_order_tests.cpp
+	vu_pq_boundary_tests.cpp
+	vu_saturated_q_consumer_tests.cpp
+	vu_branch_condition_tests.cpp
+	vu_branch_terminator_tests.cpp
+	vu_overflow_hack_tests.cpp
+	vu_mac_flag_pack_tests.cpp
+	ee_vu0_cfc2_ctc2_tests.cpp
+	ee_vu0_qmfc2_qmtc2_tests.cpp
+	ee_vu0_runahead_floor_tests.cpp
+	ee_vu0_parked_sync_tests.cpp
+	ee_vu0_cop2_transfer_residency_tests.cpp
+	ee_vu0_cop2_clamp_residency_tests.cpp
+	ee_vu0_cop2_macro_tests.cpp
+	ee_vu0_cop2_guard_mask_tests.cpp
+	vu1_alu_upper_tests.cpp
+	vu1_alu_lower_tests.cpp
+	vu1_efu_p_pipeline_tests.cpp
+	vu1_xgkick_tests.cpp
+	vu1_xgkick_drain_tests.cpp
+	ee_vu1_vif_dispatch_tests.cpp
+	vu_capture_format_tests.cpp
+	vu_replay_tests.cpp
+	mvu_cache_exhaustion_tests.cpp
+	mvu_lpstate_invariant_tests.cpp
+	mvu_clear_occupied_tests.cpp
+	mvu_block_list_tests.cpp
+	mvu_empty_field_tests.cpp
+	mvu_vi_backup_tests.cpp
+	mvu_ilw_load_use_tests.cpp
+	vu_end_drain_console_tests.cpp
+	mvu_resume_dispatch_tests.cpp
+	mvu_spin_ff_tests.cpp
+	mvu_contentmap_drift_tests.cpp
+	mvu_lane_fmul_fold_tests.cpp
+	mvu_abi_digest_tests.cpp
+	mvu_persist_roundtrip_tests.cpp
+	mvu_persist_relocation_tests.cpp
+	mvu_block_sharing_cycles_tests.cpp
+	mvu_progcache_disk_tests.cpp
+	mvu_waitmtvu_stub_tests.cpp
+	mvu_ebit_exit_tests.cpp
+	vuaot_frontend_tests.cpp
+	vuaot_live_tests.cpp
+	vuaot_lowering_tests.cpp
+	vuaot_persist_tests.cpp
+	mvu_ebit_condbranch_status_tests.cpp
+	mvu_options_sentinel_tests.cpp
+	mvu_model_stub_tests.cpp
+	model_call_contract_tests.cpp
+	mvu_ibit_hack_tests.cpp
+	vu0_macro_zero_sign_console_tests.cpp
+	# Conformance against real-hardware captures rather than against the other
+	# engine: each case is scored on interp and JIT separately, so a mistake the
+	# two share is still visible. Case tables in autocases*.h are generated
+	# from the captures and are not edited by hand.
+	iop_lsu_branch_console_conformance_tests.cpp
+	ee_mmi_console_conformance_tests.cpp
+	ee_fpu_fcr_console_conformance_tests.cpp
+	ee_fpu_overflow_console_conformance_tests.cpp
+	ee_fpu_absneg_clamp_tests.cpp
+	ee_fpu_minmax_console_tests.cpp
+	ee_fpu_cascade_console_tests.cpp
+	ee_fpu_compare_console_tests.cpp
+	ee_fpu_divunit_console_tests.cpp
+	ee_fpu_divunit_exhaustive_tests.cpp
+	ee_fpu_divunit_arm64_form_tests.cpp
+	ee_fpu_guarded_addsub_console_tests.cpp
+	ee_fpu_ou_rounding_console_tests.cpp
+	ee_fpu_underflow_console_tests.cpp
+	ee_fpu_top_binade_console_tests.cpp
+	ee_fpu_zero_divisor_console_tests.cpp
+	ee_fpu_rsqrt_sign_console_tests.cpp
+	ee_lsu_console_conformance_tests.cpp
+	vu0_macro_console_conformance_tests.cpp
+	vu0_macro_fmac_range_console_tests.cpp
+	vu0_macro_fmac_underflow_console_tests.cpp
+	vu0_macro_guard_mask_console_tests.cpp
+	vu_madd_contract_console_tests.cpp
+	vu1_efu_band_console_tests.cpp
+	vu1_efu_console_conformance_tests.cpp
+	vu1_efu_sweep_console_tests.cpp
+	vu_sticky_console_conformance_tests.cpp
+	vu_rsqrt_divisor_sign_tests.cpp
+	vu_divunit_console_conformance_tests.cpp
+	vu_branch_console_conformance_tests.cpp
+	vu_pipeline_console_conformance_tests.cpp
+	vu_memory_xgkick_console_conformance_tests.cpp
+	ee_sa_perf_console_conformance_tests.cpp
+	ee_cache_console_conformance_tests.cpp
+	ee_cache2_console_conformance_tests.cpp
+	ee_cache3_console_conformance_tests.cpp
+	ee_vu0_cop2_mul_underflow_tests.cpp
+	ee_vu0_cop2_overflow_tests.cpp
+	vu_micro_fmac_uo_tests.cpp
+	vu_micro_guard_mask_console_tests.cpp
+	vu_micro_fmac_console_tests.cpp
+	vu_mul_deficit_tests.cpp
+)
+
+target_include_directories(recompiler_tests PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(recompiler_tests PUBLIC
+	PCSX2_FLAGS
+	PCSX2
+	common
+)
+
+# mVUProgCache VERSION-handshake / stale-cache eviction / INDEX-format
+# tests. Drives mVUProgCache::Init through a temp EmuFolders::Cache and
+# asserts that poisoned on-disk VERSION fields (magic / formatVersion /
+# compilerAbiVersion / optionsSentinel) all rename the cache aside
+# before the new run accepts INDEX entries, and that the variable-length
+# INDEX serializer round-trips / drops truncated tails / skips
+# tombstones. The disk scaffolding is the foundation of the
+# persisted-JIT program cache.
+add_pcsx2_test(mvu_progcache_versioning_tests
+	${CMAKE_CURRENT_SOURCE_DIR}/../StubHost.cpp
+	mvu_progcache_versioning_tests.cpp
+)
+target_include_directories(mvu_progcache_versioning_tests PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/..
+	${CMAKE_CURRENT_SOURCE_DIR}/../../../../pcsx2
+)
+target_link_libraries(mvu_progcache_versioning_tests PUBLIC
+	PCSX2_FLAGS
+	PCSX2
+	common
+)

@@ -141,9 +141,10 @@ int main(int argc,char **argv) {
     }
     memset(app->data,0,4096);assert(!entry(app,IZ_NATIVE_INIT));
     worker(worker_arg);completed=1;assert(!entry(app,IZ_NATIVE_FRAME));
-    press(entry,app,1u<<11); /* Settings */
-    press(entry,app,1u<<15);press(entry,app,1u); /* Catalog URL */
+    press(entry,app,1u<<2);press(entry,app,1u<<2); /* Catalogs > Add URL */
     assert(keyboard_open==1&&keyboard_show==1&&keyboard_close==1);
+    press(entry,app,1u<<1);
+    press(entry,app,1u<<11); /* Settings */
     press(entry,app,1u<<15);press(entry,app,1u<<15);press(entry,app,1u); /* Test GitHub */
     worker(worker_arg);completed=1;assert(!entry(app,IZ_NATIVE_FRAME));
     assert(tls_open==1&&tls_close==1&&dns_calls==1&&sockets_closed==0);

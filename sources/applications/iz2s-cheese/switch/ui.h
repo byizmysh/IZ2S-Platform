@@ -8,11 +8,12 @@
 #define ART_SIZE STORE_ICON_SIZE
 #define ART_CACHE_SIZE 16
 #define STORE_PAGE_SIZE 5
-#define BRAND_SIZE 44
+#define BRAND_SIZE 56
 #define FONT_CELL_WIDTH 40
 #define FONT_CELL_HEIGHT 44
 #define FONT_GLYPHS 95
 #define FONT_COUNT 4
+#define SEARCH_BYTES 96
 
 typedef struct {
     uint8_t advance[FONT_GLYPHS];
@@ -28,21 +29,34 @@ typedef struct {
     unsigned indices[ART_CACHE_SIZE];
 } Artwork;
 
-typedef enum { CATALOG, DETAILS, CONFIRM_REMOVE, SETTINGS, CONFIRM_COMPATIBILITY, CATALOG_INFO, SETTINGS_RESULT, REPOSITORY, ABOUT } Screen;
-typedef enum { NO_JOB, REFRESH, INSTALL, UPDATE_STORE, REMOVE, EXIT, EDIT_URL, FETCH_LIST, CHECK_NETWORK, STARTUP_CHECK, CANCEL_DOWNLOAD, TOGGLE_CATALOG_SOURCE, LOAD_CATALOG } Command;
+typedef enum { CATALOG, DETAILS, CONFIRM_REMOVE, SETTINGS, CONFIRM_COMPATIBILITY, CATALOG_SETTINGS, SETTINGS_RESULT, REPOSITORY, ABOUT } Screen;
+typedef enum {
+    NO_JOB, REFRESH, INSTALL, UPDATE_STORE, REMOVE, EXIT, FETCH_LIST, CHECK_NETWORK,
+    STARTUP_CHECK, CANCEL_DOWNLOAD, LOAD_CATALOG, OPEN_CATALOGS, CHECK_STORE_UPDATE,
+    ADD_CATALOG, EDIT_CATALOG, TOGGLE_CATALOG, REMOVE_CATALOG, ENABLE_COMMUNITY, EDIT_SEARCH
+} Command;
+enum {
+    SETTINGS_CATALOGS, SETTINGS_DOWNLOAD, SETTINGS_NETWORK, SETTINGS_CHEESE_UPDATE,
+    SETTINGS_ABOUT, SETTINGS_COUNT
+};
 typedef enum {
     BTN_UP = 1u, BTN_DOWN = 2u, BTN_LEFT = 4u, BTN_RIGHT = 8u,
     BTN_A = 16u, BTN_B = 32u, BTN_X = 64u, BTN_Y = 128u,
-    BTN_L = 256u, BTN_R = 512u, BTN_PLUS = 1024u, BTN_MINUS = 2048u, BTN_ZL = 4096u
+    BTN_L = 256u, BTN_R = 512u, BTN_PLUS = 1024u, BTN_MINUS = 2048u,
+    BTN_ZL = 4096u, BTN_ZR = 8192u
 } Button;
 
 typedef struct {
     Screen screen;
+    Screen catalogs_back;
     unsigned filter, cursor, count;
     unsigned settings_row;
+    unsigned catalog_row;
     unsigned *visible;
     size_t visible_capacity;
     bool busy, failure, compact, inside_iz2s, cancellable, minimized;
+    bool update_result;
+    char search[SEARCH_BYTES];
     char source[RELEASE_URL_MAX];
     char download_title[64];
     unsigned percent;
@@ -58,6 +72,7 @@ bool artwork_open(Artwork *art, const char *folder);
 bool artwork_read_icon(const char *folder, const App *app, uint32_t *pixels);
 void artwork_update(Artwork *art, const char *folder, const Store *store);
 void view_filter(View *view, const Store *store);
+void view_search(View *view, const Store *store, const char *query);
 Command view_input(View *view, const Store *store, unsigned buttons);
 Command view_touch(View *view, const Store *store, int x, int y);
 void view_draw(uint32_t *pixels, unsigned stride, const Artwork *art, const Store *store, const View *view);

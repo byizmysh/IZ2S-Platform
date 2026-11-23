@@ -1,0 +1,616 @@
+// GraphicsSettingsView.swift — Renderer, upscale, filter, and display settings
+// SPDX-License-Identifier: GPL-3.0+
+
+import SwiftUI
+
+struct GraphicsSettingsView: View {
+    @State private var settings = SettingsStore.shared
+    @State private var appState = AppState.shared
+    @State private var showingShaderSettings = false
+    @State private var showShaderCacheClearConfirm = false
+    @State private var shaderCacheResult: String?
+    @State private var showShaderCacheResult = false
+
+    // Returning to the menu only pauses the VM, so a game can still be loaded
+    // while this screen is open. Switching renderer then sends the next settings
+    // apply through a full GS teardown under that game.
+    private var gameIsLoaded: Bool {
+        appState.runningGameName != nil
+    }
+
+    private var manualAdvancedHacks: Bool {
+        !settings.enableGameDBHardwareFixes
+    }
+
+    /// Touching a hack claims it, which is what stops the game database overwriting that
+    /// one on the next apply. Without this the row writes the INI and the database wins.
+    private func claiming<T: Equatable>(_ key: String, _ value: Binding<T>) -> Binding<T> {
+        Binding(
+            get: { value.wrappedValue },
+            set: { newValue in
+                guard newValue != value.wrappedValue else { return }
+                value.wrappedValue = newValue
+                settings.setGraphicsHackPinned(key, true)
+            }
+        )
+    }
+
+    /// One line under a row when what the game is running isn't what the row says, plus
+    /// the way back to the database value once the player has claimed it.
+    @ViewBuilder
+    private func hackNote(_ key: String, shown: Int) -> some View {
+        if let status = settings.graphicsHack(key), status.reason != .noGame {
+            if status.effective != shown, let explanation = explanation(for: status.reason) {
+                Text(explanation)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if status.pinned {
+                Button(settings.localized("Use the game database value")) {
+                    // Reset first; the value write may pin again, so the unpin must come last.
+                    settings.resetGraphicsHackValue(key)
+                    settings.setGraphicsHackPinned(key, false)
+                }
+                .font(.caption)
+            }
+        }
+    }
+
+    private func explanation(for reason: SettingsStore.GraphicsHackReason) -> String? {
+        switch reason {
+        case .needsUpscaling:
+            return settings.localized("Ignored at 1x Internal Resolution.")
+        case .fromGameDatabase:
+            if let game = appState.runningGameName {
+                return String(format: settings.localized("The game database is setting this for %@."), game)
+            }
+            return settings.localized("The game database is setting this for this game.")
+        case .needsManualHacks:
+            return settings.localized("The automatic graphics fixes are in charge of this one.")
+        case .perGame:
+            // This screen edits the global value, so the row can honestly disagree with
+            // what the game is running. Change it in the game's own settings.
+            return settings.localized("This game has its own setting for this, and that is what it is using.")
+        case .applied, .noGame:
+            return nil
+        }
+    }
+
+    private var skipDrawStartBinding: Binding<Int> {
+        Binding(
+            get: { settings.skipDrawStart },
+            set: { newValue in
+                settings.skipDrawStart = min(max(newValue, SettingsStore.skipDrawRange.lowerBound), SettingsStore.skipDrawRange.upperBound)
+                settings.skipDrawEnd = SettingsStore.normalizedSkipDrawEnd(start: settings.skipDrawStart, end: settings.skipDrawEnd)
+            }
+        )
+    }
+
+    private var skipDrawEndBinding: Binding<Int> {
+        Binding(
+            get: { settings.skipDrawEnd },
+            set: { newValue in
+                settings.skipDrawEnd = SettingsStore.normalizedSkipDrawEnd(start: settings.skipDrawStart, end: newValue)
+            }
+        )
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(settings.localized("GS Multi-threading"), isOn: Binding(
+                    get: { settings.backThreadMode != 0 },
+                    set: { settings.backThreadMode = $0 ? 1 : 0 }
+                ))
+            } header: {
+                Text(settings.localized("Performance"))
+            } footer: {
+                Text(settings.localized("GS Multi-threading runs GS rendering on a second thread and competes for cores with the EE/VU threads. It needs the software renderer here. Requires restart."))
+            }
+
+            Section(settings.localized("Renderer")) {
+                Picker(settings.localized("Renderer"), selection: $settings.renderer) {
+                    ForEach(SettingsOptions.renderer, id: \.id) { option in
+                        Text(settings.localized(option.title)).tag(option.id)
+                    }
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Renderer"),
+                    selection: $settings.renderer,
+                    options: SettingsOptions.renderer.map {
+                        (id: $0.id, title: settings.localized($0.title))
+                    }
+                )
+                .disabled(gameIsLoaded)
+                if gameIsLoaded {
+                    Text(settings.localized("Close the running game to change the renderer."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+#if targetEnvironment(macCatalyst)
+                Text(settings.localized("Metal is required for the Mac Catalyst build. Requires restart."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+#else
+                Text(settings.localized("Metal is the supported iOS renderer. Software is slow but useful for debugging. Null disables rendering. Requires restart."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+#endif
+#if !targetEnvironment(macCatalyst)
+                if settings.renderer == 11 {
+                    Text(settings.localized("Null renderer may show no video output or a black screen. It is mainly useful for testing. Switch back to Metal and restart if selected by mistake."))
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+#endif
+
+                Button(role: .destructive) {
+                    showShaderCacheClearConfirm = true
+                } label: {
+                    Label(settings.localized("Clear Emulator Cache"), systemImage: "square.slash")
+                }
+                Text(settings.localized("Deletes downloaded achievement images and other files the emulator can rebuild."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(settings.localized("Upscaling")) {
+                Picker(settings.localized("Internal Resolution"), selection: $settings.upscaleMultiplier) {
+                    ForEach(UpscaleOptions.all, id: \.id) { option in
+                        Text(settings.localized(option.title)).tag(option.id)
+                    }
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Internal Resolution"),
+                    selection: $settings.upscaleMultiplier,
+                    options: UpscaleOptions.all.map {
+                        (id: $0.id, title: settings.localized($0.title))
+                    }
+                )
+                Text(settings.localized("Lower values can help performance on heavy games. Higher values improve visual quality but reduce performance significantly. Applies immediately; the renderer may briefly stutter while it reinits."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if settings.upscaleMultiplier >= 4.0 {
+                    Text(settings.localized("4x and higher can cause poor performance, heat, stutter, or instability on iPhone and iPad."))
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            if settings.isMetalFXAvailable {
+                Section(settings.localized("Upscaler")) {
+                    Picker(settings.localized("Spatial Upscaler"), selection: $settings.upscaler) {
+                        Text(settings.localized("Off (Bilinear)")).tag(0)
+                        Text(settings.localized("MetalFX Spatial")).tag(1)
+                    }
+                    .controllerAccessibilityOptionsPickerTarget(
+                        label: settings.localized("Spatial Upscaler"),
+                        selection: $settings.upscaler,
+                        options: [
+                            (0, settings.localized("Off (Bilinear)")),
+                            (1, settings.localized("MetalFX Spatial")),
+                        ]
+                    )
+                    Text(settings.localized(
+                        "GPU-accelerated upscaling via MetalFX. Renders at the native PS2 "
+                        + "resolution and upscales to the display for sharper visuals at "
+                        + "lower cost than a higher internal resolution. Applies immediately."
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            Section(settings.localized("Filtering")) {
+                Picker(settings.localized("Texture Filtering"), selection: $settings.textureFiltering) {
+                    Text(settings.localized("Nearest (Pixelated)")).tag(0)
+                    Text(settings.localized("Bilinear (Forced)")).tag(1)
+                    Text(settings.localized("Bilinear (PS2 Default)")).tag(2)
+                    Text(settings.localized("Bilinear (Forced excl. Sprite)")).tag(3)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Texture Filtering"),
+                    selection: $settings.textureFiltering,
+                    options: [
+                        (0, settings.localized("Nearest (Pixelated)")),
+                        (1, settings.localized("Bilinear (Forced)")),
+                        (2, settings.localized("Bilinear (PS2 Default)")),
+                        (3, settings.localized("Bilinear (Forced excl. Sprite)")),
+                    ]
+                )
+
+                Toggle(settings.localized("Hardware Mipmapping"), isOn: $settings.hardwareMipmapping)
+                Text(settings.localized("Emulates PS2 texture mipmaps in the hardware renderer. Leave on by default; turn off only if a game has mipmap shimmer, stripes, or bad texture LOD behavior. Requires reset/relaunch for safest results."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle("FXAA", isOn: $settings.fxaa)
+                Text(settings.localized("Fast anti-aliasing. Smooths edges but may blur textures slightly."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                intPicker("TV/CRT Shader", selection: $settings.tvShader, shared: SettingsOptions.tvShader)
+                Text(settings.localized("Scanline and CRT effects are subtle on high-resolution displays and are more visible at a lower Internal Resolution."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle(settings.localized("CAS Sharpening"), isOn: Binding(
+                    get: { settings.casMode > 0 },
+                    set: { settings.casMode = $0 ? 1 : 0 }
+                ))
+                if settings.casMode > 0 {
+                    NumberRow(.casSharpness, value: $settings.casSharpness, settings: settings)
+                }
+                Text(settings.localized("Contrast Adaptive Sharpening via Metal. Sharpens the image after rendering."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(settings.localized("Display")) {
+                Picker(settings.localized("Deinterlace"), selection: $settings.interlaceMode) {
+                    // Tags are GSInterlaceMode values; a shift by one renames every mode.
+                    Text(settings.localized("Automatic (Default)")).tag(0)
+                    Text(settings.localized("Off (No Deinterlacing)")).tag(1)
+                    Text(settings.localized("Weave (TFF)")).tag(2)
+                    Text(settings.localized("Weave (BFF)")).tag(3)
+                    Text(settings.localized("Bob (TFF)")).tag(4)
+                    Text(settings.localized("Bob (BFF)")).tag(5)
+                    Text(settings.localized("Blend (TFF)")).tag(6)
+                    Text(settings.localized("Blend (BFF)")).tag(7)
+                    Text(settings.localized("Adaptive (TFF)")).tag(8)
+                    Text(settings.localized("Adaptive (BFF)")).tag(9)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Deinterlace"),
+                    selection: $settings.interlaceMode,
+                    options: SettingsOptions.deinterlace.map {
+                        (id: $0.id, title: settings.localized($0.title))
+                    }
+                )
+
+                Picker(settings.localized("Aspect Ratio"), selection: $settings.aspectRatio) {
+                    Text(settings.localized("Auto 4:3 / 3:2 (Default)")).tag(1)
+                    Text("4:3").tag(2)
+                    Text(settings.localized("16:9 (Widescreen)")).tag(3)
+                    Text("10:7").tag(4)
+                    Text(settings.localized("Stretch to Window")).tag(0)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Aspect Ratio"),
+                    selection: $settings.aspectRatio,
+                    options: [
+                        (1, settings.localized("Auto 4:3 / 3:2 (Default)")),
+                        (2, "4:3"),
+                        (3, settings.localized("16:9 (Widescreen)")),
+                        (4, "10:7"),
+                        (0, settings.localized("Stretch to Window")),
+                    ]
+                )
+            }
+
+            Section {
+                Toggle(settings.localized("Screen Offsets"), isOn: $settings.pcrtcOffsets)
+                Toggle(settings.localized("Show Overscan"), isOn: $settings.pcrtcOverscan)
+                Toggle(settings.localized("Anti-Blur"), isOn: $settings.pcrtcAntiBlur)
+                Toggle(settings.localized("Disable Interlace Offset"), isOn: $settings.disableInterlaceOffset)
+                Toggle(settings.localized("Skip Duplicate Frames"), isOn: $settings.skipDuplicateFrames)
+                Toggle(settings.localized("Integer Scaling"), isOn: $settings.integerScaling)
+            } header: {
+                Text(settings.localized("Screen / PCRTC"))
+            } footer: {
+                Text(settings.localized("Display output options. Most apply immediately."))
+            }
+
+            Section(settings.localized("Quality")) {
+                Picker(settings.localized("Blending Accuracy"), selection: $settings.blendingAccuracy) {
+                    Text(settings.localized("Minimum (Fast)")).tag(0)
+                    Text(settings.localized("Basic (Default)")).tag(1)
+                    Text(settings.localized("Medium")).tag(2)
+                    Text(settings.localized("High")).tag(3)
+                    Text(settings.localized("Full (Slow)")).tag(4)
+                    Text(settings.localized("Ultra (Very Slow)")).tag(5)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Blending Accuracy"),
+                    selection: $settings.blendingAccuracy,
+                    options: [
+                        (0, settings.localized("Minimum (Fast)")),
+                        (1, settings.localized("Basic (Default)")),
+                        (2, settings.localized("Medium")),
+                        (3, settings.localized("High")),
+                        (4, settings.localized("Full (Slow)")),
+                        (5, settings.localized("Ultra (Very Slow)")),
+                    ]
+                )
+                Text(settings.localized("Higher accuracy fixes transparency issues but reduces performance."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Picker(settings.localized("Dithering"), selection: $settings.dithering) {
+                    Text(settings.localized("Off")).tag(0)
+                    Text(settings.localized("Unscaled")).tag(1)
+                    Text(settings.localized("Scaled (Default)")).tag(2)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Dithering"),
+                    selection: $settings.dithering,
+                    options: [
+                        (0, settings.localized("Off")),
+                        (1, settings.localized("Unscaled")),
+                        (2, settings.localized("Scaled (Default)")),
+                    ]
+                )
+            }
+
+            Section {
+                Toggle(settings.localized("Shade Boost"), isOn: $settings.shadeBoost)
+                if settings.shadeBoost {
+                    NumberRow(.shadeBoostBrightness, value: $settings.shadeBoostBrightness,
+                              settings: settings)
+                    NumberRow(.shadeBoostContrast, value: $settings.shadeBoostContrast,
+                              settings: settings)
+                    NumberRow(.shadeBoostSaturation, value: $settings.shadeBoostSaturation,
+                              settings: settings)
+                    NumberRow(.shadeBoostGamma, value: $settings.shadeBoostGamma,
+                              settings: settings)
+                }
+            } header: {
+                Text(settings.localized("Shade Boost"))
+            } footer: {
+                Text(settings.localized("Adjusts brightness, contrast, saturation, and gamma of the output image. Applies immediately."))
+            }
+
+            Section {
+                // Shader preset management remains available even when this
+                // particular binary was built without the optional renderer.
+                Button {
+                    showingShaderSettings = true
+                } label: {
+                    Label(settings.localized("Shaders"), systemImage: "camera.filters")
+                }
+            }
+
+            Section(settings.localized("Advanced Upscaling Hacks")) {
+                Toggle(settings.localized("Manual Advanced Hacks"), isOn: Binding(
+                    get: { manualAdvancedHacks },
+                    set: { settings.enableGameDBHardwareFixes = !$0 }
+                ))
+                Text(settings.localized("GameDB Graphics Fixes are safest for most games, and turning this on drops all of them. You don't need it to change one sprite or texture-offset value below: changing one keeps your answer for that setting and leaves the rest automatic. Skipdraw still needs this on."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                // MaskUpscalingHacks() zeroes these unless the multiplier is above 1, so the
+                // toggles read on and do nothing.
+                if settings.upscaleMultiplier <= 1.0 {
+                    Text(settings.localized("Half-pixel Offset, Round Sprite, Align Sprite, Merge Sprite, Wild Arms Offset and the texture offsets only apply above 1x Internal Resolution. At 1x or below they are ignored."))
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
+                Picker(settings.localized("Trilinear Filtering"), selection: $settings.trilinearFiltering) {
+                    Text(settings.localized("Automatic / Default")).tag(-1)
+                    Text(settings.localized("Off")).tag(0)
+                    Text("PS2").tag(1)
+                    Text(settings.localized("Forced")).tag(2)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Trilinear Filtering"),
+                    selection: $settings.trilinearFiltering,
+                    options: [
+                        (-1, settings.localized("Automatic / Default")),
+                        (0, settings.localized("Off")),
+                        (1, "PS2"),
+                        (2, settings.localized("Forced")),
+                    ]
+                )
+                if settings.trilinearFiltering != -1 {
+                    Text(settings.localized("Non-automatic trilinear filtering may break textures in some games."))
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
+                // These stay usable with the automatic fixes on. Changing one claims it,
+                // so the game database keeps every other fix for the game and loses only
+                // the one that was argued with.
+                Picker(settings.localized("Half-pixel Offset"), selection: claiming("UserHacks_HalfPixelOffset", $settings.halfPixelOffset)) {
+                    Text(settings.localized("Off")).tag(0)
+                    Text(settings.localized("Normal / Vertex")).tag(1)
+                    Text(settings.localized("Special / Texture")).tag(2)
+                    Text(settings.localized("Special / Texture Aggressive")).tag(3)
+                    Text(settings.localized("Align to Native")).tag(4)
+                    Text(settings.localized("Align to Native + Texture Offset")).tag(5)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Half-pixel Offset"),
+                    selection: claiming(
+                        "UserHacks_HalfPixelOffset",
+                        $settings.halfPixelOffset
+                    ),
+                    options: [
+                        (0, settings.localized("Off")),
+                        (1, settings.localized("Normal / Vertex")),
+                        (2, settings.localized("Special / Texture")),
+                        (3, settings.localized("Special / Texture Aggressive")),
+                        (4, settings.localized("Align to Native")),
+                        (5, settings.localized("Align to Native + Texture Offset")),
+                    ]
+                )
+                hackNote("UserHacks_HalfPixelOffset", shown: settings.halfPixelOffset)
+
+                Picker(settings.localized("Round Sprite"), selection: claiming("UserHacks_round_sprite_offset", $settings.roundSprite)) {
+                    Text(settings.localized("Off")).tag(0)
+                    Text(settings.localized("Half")).tag(1)
+                    Text(settings.localized("Full")).tag(2)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    label: settings.localized("Round Sprite"),
+                    selection: claiming(
+                        "UserHacks_round_sprite_offset",
+                        $settings.roundSprite
+                    ),
+                    options: [
+                        (0, settings.localized("Off")),
+                        (1, settings.localized("Half")),
+                        (2, settings.localized("Full")),
+                    ]
+                )
+                hackNote("UserHacks_round_sprite_offset", shown: settings.roundSprite)
+
+                Toggle(settings.localized("Align Sprite"), isOn: claiming("UserHacks_align_sprite_X", $settings.alignSprite))
+                hackNote("UserHacks_align_sprite_X", shown: settings.alignSprite ? 1 : 0)
+                Toggle(settings.localized("Merge Sprite"), isOn: claiming("UserHacks_merge_pp_sprite", $settings.mergeSprite))
+                hackNote("UserHacks_merge_pp_sprite", shown: settings.mergeSprite ? 1 : 0)
+                Toggle(settings.localized("Wild Arms Offset"), isOn: claiming("UserHacks_ForceEvenSpritePosition", $settings.wildArmsOffset))
+                hackNote("UserHacks_ForceEvenSpritePosition", shown: settings.wildArmsOffset ? 1 : 0)
+
+                NumberRow(.textureOffsetX,
+                          value: claiming("UserHacks_TCOffsetX", $settings.textureOffsetX),
+                          settings: settings)
+                NumberRow(.textureOffsetY,
+                          value: claiming("UserHacks_TCOffsetY", $settings.textureOffsetY),
+                          settings: settings)
+                Text(settings.localized("Texture offsets are advanced troubleshooting values. Type a value and clamp to range. Default is 0."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                NumberRow(.skipDrawStart, value: skipDrawStartBinding, settings: settings)
+                    .disabled(!manualAdvancedHacks)
+                NumberRow(.skipDrawEnd, value: skipDrawEndBinding, settings: settings)
+                    .disabled(!manualAdvancedHacks)
+                Text(settings.localized("For Skipdraw 1, use Start 1 and End 1. Applies immediately."))
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            Section {
+                Toggle(settings.localized("Accurate Alpha Test"), isOn: $settings.hwAccurateAlphaTest)
+                Text(settings.localized("Improves alpha-test accuracy for shadows and decals. Some titles look better with this on."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                intPicker("Texture Inside RT", selection: claiming("UserHacks_TextureInsideRt", $settings.textureInsideRt), shared: SettingsOptions.textureInsideRT)
+                hackNote("UserHacks_TextureInsideRt", shown: settings.textureInsideRt)
+                intPicker("Limit 24-Bit Depth", selection: claiming("UserHacks_Limit24BitDepth", $settings.limit24BitDepth), options: [
+                    ("Off", 0), ("Prioritise Upper Bits", 1), ("Prioritise Lower Bits", 2)
+                ])
+                hackNote("UserHacks_Limit24BitDepth", shown: settings.limit24BitDepth)
+                intPicker("Native Scaling", selection: claiming("UserHacks_native_scaling", $settings.nativeScaling), options: [
+                    ("Off", 0), ("Normal", 1), ("Aggressive", 2), ("Normal (Maintain Upscale)", 3), ("Aggressive (Maintain Upscale)", 4)
+                ])
+                hackNote("UserHacks_native_scaling", shown: settings.nativeScaling)
+                intPicker("CPU CLUT Render", selection: claiming("UserHacks_CPUCLUTRender", $settings.cpuClutRender), shared: SettingsOptions.cpuClutRender)
+                hackNote("UserHacks_CPUCLUTRender", shown: settings.cpuClutRender)
+                intPicker("GPU Target CLUT", selection: claiming("UserHacks_GPUTargetCLUTMode", $settings.gpuTargetClut), shared: SettingsOptions.gpuTargetClut)
+                hackNote("UserHacks_GPUTargetCLUTMode", shown: settings.gpuTargetClut)
+                intPicker("Bilinear Upscale", selection: claiming("UserHacks_BilinearHack", $settings.bilinearUpscaleHack), options: [
+                    ("Automatic", 0), ("Force Bilinear", 1), ("Force Nearest", 2)
+                ])
+                hackNote("UserHacks_BilinearHack", shown: settings.bilinearUpscaleHack)
+                NumberRow(.cpuSpriteRenderBw, value: claiming("UserHacks_CPUSpriteRenderBW", $settings.cpuSpriteRenderBw),
+                          settings: settings)
+                hackNote("UserHacks_CPUSpriteRenderBW", shown: settings.cpuSpriteRenderBw)
+                intPicker("CPU Sprite Render Level", selection: claiming("UserHacks_CPUSpriteRenderLevel", $settings.cpuSpriteRenderLevel),
+                          shared: SettingsOptions.cpuSpriteRenderLevel)
+                hackNote("UserHacks_CPUSpriteRenderLevel", shown: settings.cpuSpriteRenderLevel)
+                intPicker("Max Anisotropy", selection: $settings.maxAnisotropy, shared: SettingsOptions.maxAnisotropy)
+                intPicker("Hardware Download Mode", selection: $settings.hardwareDownloadMode, shared: SettingsOptions.hardwareDownloadMode)
+
+                ForEach(SettingsStore.gsBoolHackOptions) { option in
+                    Toggle(settings.localized(option.label), isOn: Binding(
+                        get: { settings.gsBoolHackEnabled(option.key) },
+                        set: { settings.setGSBoolHack(option.key, $0) }
+                    ))
+                    hackNote(option.key, shown: settings.gsBoolHackEnabled(option.key) ? 1 : 0)
+                }
+            } header: {
+                Text(settings.localized("Hardware Fixes"))
+            } footer: {
+                Text(settings.localized("These hardware fixes are for compatibility. Most games should use Automatic or Default values."))
+            }
+
+            Section {
+                ConfirmedSettingsResetButton(
+                    settings.localized("Reset Graphics to Defaults"),
+                    confirmationTitle: settings.localized("Reset Graphics?"),
+                    confirmationMessage: settings.localized("This restores every global Graphics option to its original value."),
+                    completionMessage: settings.localized("Defaults Restored"),
+                    controllerTargetID: "settings.graphics.reset-defaults"
+                ) {
+                    settings.resetGraphicsDefaults()
+                }
+                .buttonStyle(.automatic)
+                .uiCriticalForegroundStyle()
+            }
+        }
+        .navigationTitle(settings.localized("Graphics"))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $showingShaderSettings) {
+            ShaderSettingsView()
+        }
+        .onAppear { settings.refreshGraphicsHackStatus() }
+        // The core re-snapshots after every apply and on a game change, since that is
+        // when the masks and the database have finished arguing.
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ARMSX2GraphicsHackStateChanged"))) { _ in
+            settings.refreshGraphicsHackStatus()
+        }
+        .controllerPrompt(
+            settings.localized("Clear Emulator Cache?"),
+            isPresented: $showShaderCacheClearConfirm,
+            message: settings.localized("Achievement images download again the next time they are shown."),
+            actions: [
+                .cancel,
+                .init(title: settings.localized("Clear"), isDestructive: true) { clearShaderCache() },
+            ]
+        )
+        .controllerPrompt(
+            settings.localized("Emulator Cache"),
+            isPresented: $showShaderCacheResult,
+            message: settings.localized(shaderCacheResult ?? ""),
+            actions: [.ok]
+        )
+    }
+
+    /// Empties Documents/cache: achievement images, plus the VU program cache when that is turned on.
+    private func clearShaderCache() {
+        let cacheURL = URL.documentsDirectory.appendingPathComponent("cache", isDirectory: true)
+        let fileManager = FileManager.default
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: cacheURL.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            shaderCacheResult = "The emulator cache is already empty."
+            showShaderCacheResult = true
+            return
+        }
+        do {
+            for child in try fileManager.contentsOfDirectory(at: cacheURL, includingPropertiesForKeys: nil) {
+                try? fileManager.removeItem(at: child)
+            }
+            shaderCacheResult = "Emulator cache cleared."
+        } catch {
+            shaderCacheResult = "The emulator cache couldn't be read, so nothing was deleted."
+        }
+        showShaderCacheResult = true
+    }
+
+    /// Labeled picker over an explicit (label, value) option list, used for the GS
+    /// hardware-fix enums whose values may be non-contiguous (e.g. anisotropy).
+    @ViewBuilder
+    private func intPicker(_ title: String, selection: Binding<Int>, options: [(String, Int)]) -> some View {
+        Picker(settings.localized(title), selection: selection) {
+            ForEach(Array(options.enumerated()), id: \.offset) { _, option in
+                Text(settings.localized(option.0)).tag(option.1)
+            }
+        }
+        .controllerAccessibilityOptionsPickerTarget(
+            label: settings.localized(title),
+            selection: selection,
+            options: options.map { option in
+                (id: option.1, title: settings.localized(option.0))
+            }
+        )
+    }
+
+    /// Same picker over a shared `SettingsOptions` list, which the per-game tabs read too.
+    private func intPicker(_ title: String, selection: Binding<Int>, shared: [(id: Int, title: String)]) -> some View {
+        intPicker(title, selection: selection, options: shared.map { ($0.title, $0.id) })
+    }
+
+}

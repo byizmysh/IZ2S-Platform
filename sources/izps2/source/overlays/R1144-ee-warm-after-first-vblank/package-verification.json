@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1144-ee-warm-after-first-vblank/IZPS2-R1144.iza",
+  "bytes": 11223353,
+  "sha256": "b2ca93aaabbf0ca98cbcdab15ba2f1769884cc16947dfc78714ef10ac3a80151",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 179992,
+    "sha256": "fe0735ac71906864c478070f8bd598b73272ae6edc6701d0aa72f3dcb37e4959"
+  },
+  "engine": {
+    "file": "asset-2452a46b0fc9cbda988768a14cbd730486f98582b09d7b1a32d3b63f0c27a507.izdata",
+    "path": "asset-2452a46b0fc9cbda988768a14cbd730486f98582b09d7b1a32d3b63f0c27a507.izdata",
+    "bytes": 28960232,
+    "sha256": "2452a46b0fc9cbda988768a14cbd730486f98582b09d7b1a32d3b63f0c27a507"
+  }
+}

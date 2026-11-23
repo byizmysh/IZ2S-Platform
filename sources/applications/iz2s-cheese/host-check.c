@@ -31,15 +31,29 @@ int main(int argc, char **argv) {
     }
     View view = {0};
     store_settings_read(store.root, &view.settings);
-    if (!strcmp(command, "refresh") || !strcmp(command, "load-catalog")) {
+    if (!strcmp(command, "check-update")) {
+#ifdef IZ_STORE_STANDALONE
+        store_set_running_nro("sdmc:/switch/iz2s-cheese/iz2s-cheese.nro", "0.8.7");
+#else
+        store_set_running_iza("0.8.7");
+#endif
+        bool ok = store_check_update(&store, message);
+        puts(message);
+        if (ok) printf("%s: %u files\n", store_extension(store.update.package.kind), store.update.package.count);
+        store_clear(&store);
+        return ok ? 0 : 1;
+    }
+    if (!strcmp(command, "refresh") || !strcmp(command, "load-catalog") || !strcmp(command, "open-catalogs")) {
         if (!strcmp(command, "refresh") && view_input(&view, &store, BTN_Y) != REFRESH) return 3;
-        bool ok = store_refresh_catalog(&store, argv[1], &view.settings,
-                                         !strcmp(command, "refresh"), message);
+        CatalogRefreshMode mode = CATALOG_CACHED;
+        if (!strcmp(command, "refresh")) mode = CATALOG_REFRESH;
+        if (!strcmp(command, "open-catalogs")) mode = CATALOG_CHECK;
+        bool ok = store_refresh_catalog(&store, argv[1], &view.settings, mode, message);
         puts(message);
         return ok ? 0 : 1;
     }
     if (!strcmp(command, "artwork")) {
-        printf("%u\n", store_read_artwork(&store, &view.settings, NULL));
+        printf("%u\n", store_read_artwork(&store, NULL));
         return 0;
     }
     const char *art = getenv("IZ_STORE_TEST_ARTWORK");
@@ -49,9 +63,13 @@ int main(int argc, char **argv) {
     }
     view_filter(&view, &store);
     if (!strcmp(command,"fetch-list")) {
-        if (argc != 4 || strlen(argv[3]) >= sizeof view.settings.url) return 2;
-        strcpy(view.settings.url, argv[3]);
-        view.settings.online = view.settings.url[0] != '\0';
+        if (argc != 4 || strlen(argv[3]) >= RELEASE_URL_MAX) return 2;
+        view.settings = (StoreSettings){0};
+        if (argv[3][0]) {
+            view.settings.count = 1;
+            strcpy(view.settings.sources[0].url, argv[3]);
+            view.settings.sources[0].enabled = true;
+        }
         bool ok = store_settings_write(store.root, &view.settings, message) &&
                   store_fetch_list(&store, &view.settings, message);
         puts(message);
@@ -96,6 +114,10 @@ int main(int argc, char **argv) {
     }
     if (argc < 4) return 2;
     bool selected = !strcmp(argv[3],"-");
+    if (!strcmp(command,"picture") && !strncmp(argv[3],"search=",7)) {
+        view_search(&view, &store, argv[3]+7);
+        selected = true;
+    }
     if (!strcmp(command,"picture") && !strcmp(argv[3],"compact")) {
         view_input(&view, &store, BTN_ZL);
         selected = view.compact;
@@ -104,12 +126,18 @@ int main(int argc, char **argv) {
         view_input(&view, &store, BTN_MINUS);
         selected = view.screen == SETTINGS;
     }
-    if (!strcmp(command,"picture") && !strcmp(argv[3],"about")) {
+    if (!strcmp(command,"picture") && !strcmp(argv[3],"catalogs")) {
         view_input(&view, &store, BTN_X);
+        selected = view.screen == CATALOG_SETTINGS;
+    }
+    if (!strcmp(command,"picture") && !strcmp(argv[3],"about")) {
+        view_input(&view, &store, BTN_MINUS);
+        view.settings_row = SETTINGS_ABOUT;
+        view_input(&view, &store, BTN_A);
         selected = view.screen == ABOUT;
     }
-    for (unsigned i = 0; i < store.count; ++i)
-        if (!strcmp(store.apps[i].package.id,argv[3])) {
+    for (unsigned i = 0; i < view.count; ++i)
+        if (!strcmp(store.apps[view.visible[i]].package.id,argv[3])) {
             view.cursor = i;
             view_input(&view,&store,BTN_A);
             selected = true;

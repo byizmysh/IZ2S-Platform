@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1181-fastmem-capability-notice/IZPS2-R1181.iza",
+  "bytes": 11223854,
+  "sha256": "8ed828cf71eac1456c0e524ab6833d35774f8a48aa8465cbe7a982b3781507c1",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "f56eae9978bdfcbffb403c4125991715db4c6040b59f3b48138193199bbe4cd9"
+  },
+  "engine": {
+    "file": "asset-226fbc9b3fbda08e17d544c5d41832a490cf312bd74f114d4199c20436b183fc.izdata",
+    "path": "asset-226fbc9b3fbda08e17d544c5d41832a490cf312bd74f114d4199c20436b183fc.izdata",
+    "bytes": 27981664,
+    "sha256": "226fbc9b3fbda08e17d544c5d41832a490cf312bd74f114d4199c20436b183fc"
+  }
+}

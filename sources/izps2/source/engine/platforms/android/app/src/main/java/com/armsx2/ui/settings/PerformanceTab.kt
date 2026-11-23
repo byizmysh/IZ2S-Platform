@@ -1,0 +1,477 @@
+package com.armsx2.ui.settings
+
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.armsx2.config.Settings
+import com.armsx2.i18n.str
+import com.armsx2.ui.InGameOverlay
+import androidx.core.content.edit
+import kotlin.math.roundToInt
+
+/**
+ * Performance section of the in-game settings overlay.
+ *
+ * Mutates the live [Settings] state and routes the write through
+ * [InGameOverlay.saveSettings], which picks the global or per-game
+ * storage tier based on the overlay's current scope. Applies via
+ * [Settings.applyTo] so toggles take effect immediately on a running
+ * VM. Every visible setting maps 1-1 onto an EmuCore key (see Settings
+ * field comments for the exact `<section>/<key>`).
+ *
+ * Column + verticalScroll instead of LazyColumn so the tab can sit
+ * inside the wrap-content RootTabs container without needing a hard
+ * height bound. List is short (~9 rows) so non-lazy is fine.
+ */
+@Composable
+fun PerformanceTab(state: MutableState<Settings>) {
+    val s = state.value
+    val scroll = settingsScrollState()
+    ControllerAutoScroll(scroll)
+
+    fun apply(updated: Settings) = InGameOverlay.saveSettings(updated)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(),
+    ) {
+        // Automatic performance tuning: when a game keeps missing frames, the core tries
+        // performance settings one at a time and keeps the ones that help, in that game's own
+        // settings. The per-game list of what it changed, and its Reset, sit under it.
+        ToggleRow(
+            label = str("perf.autoTune.label"),
+            value = s.emuCore.autoTune,
+            description = str("perf.autoTune.description"),
+            field = "autoTune",
+        ) { apply(s.copy(emuCore = s.emuCore.copy(autoTune = it))) }
+        AutoTuneSection(state)
+        SettingsDivider()
+        // Prominent latency preset: zero queued GS frames keeps the emulated CPU
+        // from running ahead of presentation, and the Surface requests a matching
+        // high-refresh display mode. Settings scope is supplied by InGameOverlay,
+        // so the same switch naturally supports Global and Game overrides. Off
+        // restores the small, smoother queue and Android's automatic refresh policy.
+        ToggleRow(
+            label = str("perf.lowLatencyMode.label"),
+            value = s.hwFixes.vsyncQueueSize == 0,
+            description = str("perf.lowLatencyMode.description"),
+            field = "vsyncQueueSize",
+        ) { enabled ->
+            apply(s.copy(hwFixes = s.hwFixes.copy(vsyncQueueSize = if (enabled) 0 else 2)))
+            // Apply the scoped Surface frame-rate vote immediately while the
+            // paused in-game overlay is open.
+            com.armsx2.runtime.MainActivityRuntime.surface.value
+                ?.applyFrameRatePreference()
+        }
+        SettingsDivider()
+        // Speedhack profile presets. Equality against s.copy(...) means the
+        // segment auto-reflects "Custom" once the user tweaks any speedhack below.
+        run {
+            val safe = s.copy(
+                cpu = s.cpu.copy(
+                    eeCycleRate = 0,
+                    eeCycleSkip = 0,
+                    mtvu = true,
+                    vu1Instant = true,
+                    vuFlagHack = true,
+                    intcStat = true,
+                    waitLoop = true,
+                    fastCDVD = false,
+                ),
+                display = s.display.copy(
+                    hwRov = false,
+                ),
+                graphics = s.graphics.copy(
+                    // Restore the GPU-quality levers the Fast/Low-End presets lower, so
+                    // Optimal is a COMPLETE reset to recommended defaults — not just the
+                    // speedhacks (e.g. Texture Preloading back to Full, blending to Basic).
+                    // Resolution is left as-is so upscalers aren't dropped to native.
+                    accurateBlendingUnit = 1,
+                    hwMipmap = true,
+                    texturePreloading = 2,
+                ),
+            )
+            // Fast = speed-first: EE cycle skip + fast CDVD, plus render-side wins
+            // that are safe for most games (native resolution + Basic blending).
+            val fast = s.copy(
+                cpu = s.cpu.copy(
+                    eeCycleRate = 0,
+                    eeCycleSkip = 2,
+                    mtvu = true,
+                    vu1Instant = true,
+                    vuFlagHack = true,
+                    intcStat = true,
+                    waitLoop = true,
+                    fastCDVD = true,
+                ),
+                output = s.output.copy(
+                    upscaleFloat = 1.0f,
+                ),
+                graphics = s.graphics.copy(
+                    accurateBlendingUnit = 1,
+                ),
+            )
+            // Low-End = every cheap GPU/CPU lever, MTVU gated on core count. Built
+            // from the shared Settings.lowEndPreset so it matches the setup wizard.
+            val lowEnd = Settings.lowEndPreset(
+                s.copy(
+                    cpu = s.cpu.copy(
+                        eeCycleRate = 0,
+                        mtvu = true,
+                        vu1Instant = true,
+                        vuFlagHack = true,
+                        intcStat = true,
+                        waitLoop = true,
+                        fastCDVD = true,
+                    ),
+                ),
+                mtvu = com.armsx2.DeviceTier.mtvuDefault(),
+            )
+            // -1 = no preset matches (custom): no segment highlighted.
+            val idx = when (s) { safe -> 0; fast -> 1; lowEnd -> 2; else -> -1 }
+            SegmentedRow(
+                label = str("perf.speedhackProfile.label"),
+                options = listOf(str("perf.speedhackProfile.optimal"), str("perf.speedhackProfile.fast"), str("perf.speedhackProfile.lowEnd")),
+                selectedIndex = idx,
+                onChange = { when (it) { 0 -> apply(safe); 1 -> apply(fast); 2 -> apply(lowEnd) } },
+            )
+        }
+        HelpText(str("perf.speedhackProfile.help"))
+        SettingsDivider()
+        // ---- Display Resolution (HW scaler), NetherSX2-style ----------------
+        // Shrinks the game's OUTPUT surface (hardware-composer upscales to the
+        // screen) to cut GPU present cost, heat and battery. Global pref (not a
+        // Settings field) applied live to the active output surface.
+        run {
+            // Per-game scoped (Duda, 2026-07-28): this used to write MainActivityRuntime.prefs
+            // directly, so changing it in Game scope silently moved the Global value too —
+            // there was no per-game copy to write. Now it routes through the same
+            // saveSettings() path as every other row in this tab.
+            SegmentedRow(
+                label = str("perf.displayResolution.label"),
+                options = listOf(str("perf.displayResolution.screen"), str("perf.displayResolution.3xPs2"), str("perf.displayResolution.2xPs2"), str("perf.displayResolution.1xPs2")),
+                selectedIndex = when (s.output.hwScaler) { 3 -> 1; 2 -> 2; 1 -> 3; else -> 0 },
+                description = str("perf.displayResolution.description"),
+                onChange = {
+                    apply(s.copy(output = s.output.copy(hwScaler = when (it) { 1 -> 3; 2 -> 2; 3 -> 1; else -> 0 })))
+                    com.armsx2.runtime.MainActivityRuntime.surface.value?.applyOutputScale()
+                },
+                field = "hwScaler",
+            )
+        }
+        SettingsDivider()
+        // ---- Screen resolution override (#398) ------------------------------
+        // Forces the game's OUTPUT surface to a fixed 16:9 resolution instead of the
+        // detected panel size — fixes 16:10 / mis-detected panels (e.g. reported 1920x1200
+        // on a 1080p screen) that squish 16:9 games and widescreen patches. Global pref,
+        // live-applied to the output surface; composes with the HW scaler above.
+        run {
+            // Per-game scoped for the same reason as the HW scaler above.
+            val presets = listOf("auto", "2560x1440", "1920x1080", "1280x720")
+            SegmentedRow(
+                label = str("perf.screenRes.label"),
+                options = listOf(str("perf.screenRes.auto"), "1440p", "1080p", "720p"),
+                selectedIndex = presets.indexOf(s.output.screenResOverride).let { if (it >= 0) it else 0 },
+                description = str("perf.screenRes.description"),
+                onChange = { idx ->
+                    apply(s.copy(output = s.output.copy(screenResOverride = presets[idx])))
+                    com.armsx2.runtime.MainActivityRuntime.surface.value?.applyOutputScale()
+                },
+                field = "screenResOverride",
+            )
+        }
+        // ---- Sustained Performance (#128) ---------------------------------------
+        // Asks Android to hold a steady, thermally-sustainable clock instead of
+        // boost-then-throttle. Better for long sessions on handhelds, but it CAPS the
+        // peak clock so peak-hungry games can lose fps — a user choice, default Off.
+        // Global pref, applied at launch (MainActivityRuntime.onCreate) and live here via the window.
+        run {
+            val sustained = remember { androidx.compose.runtime.mutableStateOf(com.armsx2.runtime.MainActivityRuntime.prefs.getBoolean("ui.sustainedPerf", false)) }
+            SegmentedRow(
+                label = str("perf.sustainedPerformance.label"),
+                options = listOf(str("common.off"), str("common.on")),
+                selectedIndex = if (sustained.value) 1 else 0,
+                description = str("perf.sustainedPerformance.description"),
+                onChange = {
+                    val on = it == 1
+                    sustained.value = on
+                    com.armsx2.runtime.MainActivityRuntime.prefs.edit {
+                        putBoolean(
+                            "ui.sustainedPerf",
+                            on
+                        )
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                        runCatching {
+                            (com.armsx2.runtime.MainActivityRuntime.surface.value?.context as? android.app.Activity)
+                                ?.window?.setSustainedPerformanceMode(on)
+                        }
+                    }
+                },
+            )
+        }
+        // ---- CPU clock hint (ADPF) ---------------------------------------------
+        // PerformanceHintManager: reports the per-frame CPU work to the OS scheduler so it can
+        // raise the EE/GS/MTVU threads' CPU frequency toward the frame deadline, countering the
+        // DVFS governor under-clocking emulation's bursty load. EXPERIMENTAL, default OFF.
+        // No-op below API 33. Applied at launch (MainActivityRuntime) + live here.
+        run {
+            val adpf = remember { androidx.compose.runtime.mutableStateOf(com.armsx2.runtime.MainActivityRuntime.prefs.getBoolean("ui.adpf", false)) }
+            SegmentedRow(
+                label = str("perf.adpf.label"),
+                options = listOf(str("common.off"), str("common.on")),
+                selectedIndex = if (adpf.value) 1 else 0,
+                description = str("perf.adpf.description"),
+                onChange = {
+                    val on = it == 1
+                    adpf.value = on
+                    com.armsx2.runtime.MainActivityRuntime.prefs.edit { putBoolean("ui.adpf", on) }
+                    runCatching { kr.co.iefriends.pcsx2.NativeApp.setAdpfEnabled(on) }
+                },
+            )
+        }
+        SettingsDivider()
+        // Affinity Control Mode — opt-in CPU pinning for the EE/VU/GS threads. Android normally
+        // leaves them unpinned on purpose (EAS puts the busiest thread on the prime core, and
+        // pinning VU to a mid-tier big core measured ~1.4x slower), so this is EXPERIMENTAL and
+        // default Disabled. It exists because the tradeoff is workload-dependent: GS-bound titles
+        // benefited from an explicitly placed GS thread. Applies on the next boot.
+        SegmentedGridRow(
+            label = str("perf.affinity.label"),
+            options = listOf(
+                str("perf.affinity.disabled"),
+                "EE > VU > GS",
+                "EE > GS > VU",
+                "VU > EE > GS",
+                "VU > GS > EE",
+                "GS > EE > VU",
+                "GS > VU > EE",
+                str("perf.affinity.performanceCores"),
+            ),
+            selectedIndex = s.output.affinityMode.coerceIn(0, 7),
+            columns = 2,
+            description = str("perf.affinity.description"),
+            onChange = { apply(s.copy(output = s.output.copy(affinityMode = it))) },
+            field = "affinityMode",
+        )
+        SettingsDivider()
+        CollapsibleSection(str("perf.speedhacks.title"), initiallyExpanded = true) {
+            IntSliderRow(
+                label = str("perf.eeCycleRate.label"),
+                value = s.cpu.eeCycleRate,
+                min = -3,
+                max = 3,
+                description = str("perf.eeCycleRate.description"),
+                valueFormatter = { rate ->
+                    when (rate) {
+                        -3 -> "50%"
+                        -2 -> "60%"
+                        -1 -> "75%"
+                        0 -> "100%"
+                        1 -> "130%"
+                        2 -> "180%"
+                        3 -> "300%"
+                        else -> "$rate"
+                    }
+                },
+                onChange = { apply(s.copy(cpu = s.cpu.copy(eeCycleRate = it))) },
+                field = "eeCycleRate",
+            )
+            SettingsDivider()
+            IntSliderRow(
+                label = str("perf.eeCycleSkip.label"),
+                value = s.cpu.eeCycleSkip,
+                min = 0,
+                max = 3,
+                description = str("perf.eeCycleSkip.description"),
+                onChange = { apply(s.copy(cpu = s.cpu.copy(eeCycleSkip = it))) },
+                field = "eeCycleSkip",
+            )
+            SettingsDivider()
+            // Recompiler float-clamping accuracy (PCSX2 parity). Higher = more
+            // accurate float handling (fixes SPS / missing geometry / VU glitches)
+            // at a speed cost. Needs a recompiler reset, so restart the game.
+            SegmentedRow(
+                label = str("perf.eeFpuClamping.label"),
+                options = listOf(str("perf.clamp.none"), str("perf.clamp.normal"), str("perf.clamp.extra"), str("perf.clamp.full"), str("perf.clamp.exact")),
+                selectedIndex = s.cpu.eeClampMode.coerceIn(0, 4),
+                description = str("perf.eeFpuClamping.description"),
+                onChange = { apply(s.copy(cpu = s.cpu.copy(eeClampMode = it))) },
+                field = "eeClampMode",
+            )
+            SettingsDivider()
+            SegmentedRow(
+                label = str("perf.vuClamping.label"),
+                options = listOf(str("perf.clamp.none"), str("perf.clamp.normal"), str("perf.clamp.extra"), str("perf.clamp.extraSign"), str("perf.clamp.exact")),
+                selectedIndex = s.cpu.vuClampMode.coerceIn(0, 4),
+                description = str("perf.vuClamping.description"),
+                onChange = { apply(s.copy(cpu = s.cpu.copy(vuClampMode = it))) },
+                field = "vuClampMode",
+            )
+            SettingsDivider()
+            SegmentedRow(
+                label = str("perf.vu1Clamping.label"),
+                options = listOf(str("perf.clamp.followVu0"), str("perf.clamp.none"), str("perf.clamp.normal"), str("perf.clamp.extra"), str("perf.clamp.extraSign"), str("perf.clamp.exact")),
+                selectedIndex = if (s.cpu.vu1ClampMode < 0) 0 else s.cpu.vu1ClampMode.coerceIn(0, 4) + 1,
+                description = str("perf.vu1Clamping.description"),
+                onChange = { apply(s.copy(cpu = s.cpu.copy(vu1ClampMode = it - 1))) },
+                field = "vu1ClampMode",
+            )
+            SettingsDivider()
+            SegmentedRow(
+                label = str("perf.eeFpuRoundMode.label"),
+                options = listOf(str("perf.round.nearest"), str("perf.round.negative"), str("perf.round.positive"), str("perf.round.chop")),
+                selectedIndex = s.emuCore.eeFpuRoundMode.coerceIn(0, 3),
+                description = str("perf.eeFpuRoundMode.description"),
+                onChange = { apply(s.copy(emuCore = s.emuCore.copy(eeFpuRoundMode = it))) },
+                field = "eeFpuRoundMode",
+            )
+            SettingsDivider()
+            SegmentedRow(
+                label = str("perf.vu0RoundMode.label"),
+                options = listOf(str("perf.round.nearest"), str("perf.round.negative"), str("perf.round.positive"), str("perf.round.chop")),
+                selectedIndex = s.emuCore.vu0RoundMode.coerceIn(0, 3),
+                description = str("perf.vu0RoundMode.description"),
+                onChange = { apply(s.copy(emuCore = s.emuCore.copy(vu0RoundMode = it))) },
+                field = "vu0RoundMode",
+            )
+            SettingsDivider()
+            SegmentedRow(
+                label = str("perf.vu1RoundMode.label"),
+                options = listOf(str("perf.round.nearest"), str("perf.round.negative"), str("perf.round.positive"), str("perf.round.chop")),
+                selectedIndex = s.emuCore.vu1RoundMode.coerceIn(0, 3),
+                description = str("perf.vu1RoundMode.description"),
+                onChange = { apply(s.copy(emuCore = s.emuCore.copy(vu1RoundMode = it))) },
+                field = "vu1RoundMode",
+            )
+            SettingsDivider()
+            // Speed Limit % — caps emulation speed as a % of native (100 = full speed).
+            // Arbitrary value; default stays 100. Affects audio pitch / timing / RA.
+            IntSliderRow(
+                label = str("perf.speedLimit.label"),
+                value = s.frameLimit.nominalSpeedPercent.coerceIn(10, 1000),
+                min = 10,
+                max = 1000,
+                description = str("perf.speedLimit.description"),
+                valueFormatter = { "$it%" },
+                onChange = { apply(s.copy(frameLimit = s.frameLimit.copy(nominalSpeedPercent = it))) },
+                field = "nominalSpeedPercent",
+            )
+            SettingsDivider()
+            // Display FPS Cap — caps the PRESENTED frame rate independently of Speed %.
+            // The GS thread paces presents (accumulator) to hold ANY target rate while
+            // emulation runs full speed (no slowdown). Arbitrary value; 0 = off.
+            IntSliderRow(
+                label = str("perf.displayFpsCap.label"),
+                value = s.frameLimit.fpsLimit.coerceIn(0, 60),
+                min = 0,
+                max = 60,
+                description = str("perf.displayFpsCap.description"),
+                valueFormatter = { if (it == 0) com.armsx2.i18n.I18n.get("common.off") else "$it fps" },
+                onChange = { apply(s.copy(frameLimit = s.frameLimit.copy(fpsLimit = it))) },
+                field = "fpsLimit",
+            )
+            SettingsDivider()
+            // Per-region emulated vsync rate (PCSX2 EmuCore/GS FramerateNTSC / FrameratePAL)
+            // — the PS2 refresh the game targets. Defaults 60/50 Hz (true 59.94/50.00).
+            // Speed Limit % is relative to this; this is the rate, not a display cap.
+            IntSliderRow(
+                label = str("perf.ntscFramerate.label"),
+                value = s.output.framerateNtsc.roundToInt().coerceIn(20, 75),
+                min = 20,
+                max = 75,
+                description = str("perf.ntscFramerate.description"),
+                // The true PS2 NTSC rate is 59.94 Hz, which rounds to the "60" stop.
+                // Label that stop honestly and snap it to the exact default, so the
+                // canonical rate stays recoverable (an integer slider can't dial 59.94).
+                valueFormatter = { if (it == 60) "59.94 Hz" else "$it Hz" },
+                onChange = { apply(s.copy(output = s.output.copy(framerateNtsc = if (it == 60) 59.94f else it.toFloat()))) },
+                field = "framerateNtsc",
+            )
+            SettingsDivider()
+            IntSliderRow(
+                label = str("perf.palFramerate.label"),
+                value = s.output.frameratePal.roundToInt().coerceIn(20, 75),
+                min = 20,
+                max = 75,
+                description = str("perf.palFramerate.description"),
+                valueFormatter = { "$it Hz" },
+                onChange = { apply(s.copy(output = s.output.copy(frameratePal = it.toFloat()))) },
+                field = "frameratePal",
+            )
+            SettingsDivider()
+            IntSliderRow(
+                label = str("perf.frameSkip.label"),
+                value = s.frameLimit.frameSkip,
+                min = 0,
+                max = 5,
+                description = str("perf.frameSkip.description"),
+                valueFormatter = { if (it == 0) com.armsx2.i18n.I18n.get("common.off") else "Skip $it" },
+                onChange = { apply(s.copy(frameLimit = s.frameLimit.copy(frameSkip = it))) },
+                field = "frameSkip",
+            )
+        }
+        // Frame generation. Its own group above the speedhacks because it is not one: it
+        // changes what is PRESENTED, not what is emulated, and it is the only row here that
+        // depends on a file the user has to supply. Github flavour only — the section
+        // returns immediately when BuildConfig.LSFG is false.
+        SettingsDivider()
+        com.armsx2.ui.common.LsfgSection(
+            enabled = s.graphics.lsfgEnabled,
+            multiplier = s.graphics.lsfgMultiplier,
+            dllPath = s.graphics.lsfgDllPath,
+            performance = s.graphics.lsfgPerformance,
+            fp16 = s.graphics.lsfgFp16,
+            flowScale = s.graphics.lsfgFlowScale,
+            targetRate = s.graphics.lsfgTargetRate,
+        ) { on, mult, dll, perf, flow, target, half ->
+            apply(s.copy(
+                graphics = s.graphics.copy(
+                    lsfgEnabled = on,
+                    lsfgMultiplier = mult,
+                    lsfgDllPath = dll,
+                    lsfgPerformance = perf,
+                    lsfgFp16 = half,
+                    lsfgFlowScale = flow,
+                    lsfgTargetRate = target,
+                ),
+            ))
+        }
+
+        SettingsDivider()
+        CollapsibleSection(str("perf.advancedSpeedhacks.title")) {
+            Spacer(Modifier.height(8.dp))
+            ToggleRow(str("perf.hack.mtvu"), s.cpu.mtvu, description = str("perf.hack.mtvu.desc"), field = "mtvu") { apply(s.copy(cpu = s.cpu.copy(mtvu = it))) }
+            ToggleRow(str("perf.hack.iopThread"), s.cpu.iopThread, description = str("perf.hack.iopThread.desc"), field = "iopThread") { apply(s.copy(cpu = s.cpu.copy(iopThread = it))) }
+            // The lag bound is advanced: only the usual choices are offered, and a value the file holds
+            // that is not one of them shows the nearest (the core clamps it to 4096..196608 anyway).
+            val lagChoices = listOf(4096, 6144, 12288, 24576)
+            SegmentedRow(
+                label = str("perf.hack.iopThreadLag"),
+                options = lagChoices.map { it.toString() },
+                selectedIndex = lagChoices.indices.minByOrNull { kotlin.math.abs(lagChoices[it] - s.cpu.iopThreadLag) } ?: 1,
+                description = str("perf.hack.iopThreadLag.desc"),
+                field = "iopThreadLag",
+            ) { apply(s.copy(cpu = s.cpu.copy(iopThreadLag = lagChoices[it]))) }
+            ToggleRow(str("perf.hack.vuAot"), s.cpu.vuAot, description = str("perf.hack.vuAot.desc"), field = "vuAot") { apply(s.copy(cpu = s.cpu.copy(vuAot = it))) }
+            ToggleRow(str("perf.hack.instantVu1"), s.cpu.vu1Instant, description = str("perf.hack.instantVu1.desc"), field = "vu1Instant") { apply(s.copy(cpu = s.cpu.copy(vu1Instant = it))) }
+            ToggleRow(str("perf.hack.vuFlagHack"), s.cpu.vuFlagHack, description = str("perf.hack.vuFlagHack.desc"), field = "vuFlagHack") { apply(s.copy(cpu = s.cpu.copy(vuFlagHack = it))) }
+            ToggleRow(str("perf.hack.fastCdvd"), s.cpu.fastCDVD, description = str("perf.hack.fastCdvd.desc"), field = "fastCDVD") { apply(s.copy(cpu = s.cpu.copy(fastCDVD = it))) }
+            ToggleRow(str("perf.hack.intcStat"), s.cpu.intcStat, description = str("perf.hack.intcStat.desc"), field = "intcStat") { apply(s.copy(cpu = s.cpu.copy(intcStat = it))) }
+            ToggleRow(str("perf.hack.waitLoop"), s.cpu.waitLoop, description = str("perf.hack.waitLoop.desc"), field = "waitLoop") { apply(s.copy(cpu = s.cpu.copy(waitLoop = it))) }
+            ToggleRow(str("perf.hack.vuNeonFusions"), s.cpu.vuNeonFusions, description = str("perf.hack.vuNeonFusions.desc"), field = "vuNeonFusions") { apply(s.copy(cpu = s.cpu.copy(vuNeonFusions = it))) }
+            ToggleRow(str("perf.hack.skipVuStallSim"), s.cpu.vuSkipStallSim, description = str("perf.hack.skipVuStallSim.desc"), field = "vuSkipStallSim") { apply(s.copy(cpu = s.cpu.copy(vuSkipStallSim = it))) }
+            ToggleRow(str("perf.hack.deferVuWrites"), s.cpu.vuDeferredWrites, description = str("perf.hack.deferVuWrites.desc"), field = "vuDeferredWrites") { apply(s.copy(cpu = s.cpu.copy(vuDeferredWrites = it))) }
+            ToggleRow(str("perf.hack.skipDupeFrames"), s.emuCore.skipDuplicateFrames, description = str("perf.hack.skipDupeFrames.desc"), field = "skipDuplicateFrames") { apply(s.copy(emuCore = s.emuCore.copy(skipDuplicateFrames = it))) }
+        }
+    }
+}

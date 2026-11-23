@@ -1,0 +1,313 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+#include "Vif.h"
+
+enum VURegFlags
+{
+	REG_STATUS_FLAG = 16,
+	REG_MAC_FLAG = 17,
+	REG_CLIP_FLAG = 18,
+	REG_ACC_FLAG = 19, // dummy flag that indicates that VFACC is written/read (nothing to do with VI[19])
+	REG_R = 20,
+	REG_I = 21,
+	REG_Q = 22,
+	REG_P = 23, // only exists in micromode
+	REG_VF0_FLAG = 24, // dummy flag that indicates VF0 is read (nothing to do with VI[24])
+	REG_TPC = 26,
+	REG_CMSAR0 = 27,
+	REG_FBRST = 28,
+	REG_VPU_STAT = 29,
+	REG_CMSAR1 = 31
+};
+
+//interpreter hacks, WIP
+//#define INT_VUSTALLHACK //some games work without those, big speedup
+//#define INT_VUDOUBLEHACK
+
+enum VUStatus
+{
+	VU_Ready = 0,
+	VU_Run = 1,
+	VU_Stop = 2,
+};
+
+union VECTOR
+{
+	struct
+	{
+		float x, y, z, w;
+	} f;
+	struct
+	{
+		u32 x, y, z, w;
+	} i;
+
+	float F[4];
+
+	u128 UQ;
+	s128 SQ;
+	u64 UD[2]; //128 bits
+	s64 SD[2];
+	u32 UL[4];
+	s32 SL[4];
+	u16 US[8];
+	s16 SS[8];
+	u8 UC[16];
+	s8 SC[16];
+};
+
+struct REG_VI
+{
+	union
+	{
+		float F;
+		s32 SL;
+		u32 UL;
+		s16 SS[2];
+		u16 US[2];
+		s8 SC[4];
+		u8 UC[4];
+	};
+	u32 padding[3]; // needs padding to make them 128bit; VU0 maps VU1's VI regs as 128bits to addr 0x4xx0 in
+		// VU0 mem, with only lower 16 bits valid, and the upper 112bits are hardwired to 0 (cottonvibes)
+};
+
+//#define VUFLAG_BREAKONMFLAG		0x00000001
+#define VUFLAG_MFLAGSET 0x00000002
+#define VUFLAG_INTCINTERRUPT 0x00000004
+struct fdivPipe
+{
+	int enable;
+	REG_VI reg;
+	u64 sCycle;
+	u32 Cycle;
+	u32 statusflag;
+};
+
+struct efuPipe
+{
+	int enable;
+	REG_VI reg;
+	u64 sCycle;
+	u32 Cycle;
+};
+
+struct fmacPipe
+{
+	u32 regupper;
+	u32 reglower;
+	int flagreg;
+	u32 xyzwupper;
+	u32 xyzwlower;
+	u64 sCycle;
+	u32 Cycle;
+	u32 macflag;
+	u32 statusflag;
+	u32 clipflag;
+};
+
+struct ialuPipe
+{
+	int reg;
+	u64 sCycle;
+	u32 Cycle;
+};
+
+// One write to a VI by a lower instruction, as the branch hazard in VUops.cpp
+// sees it.
+struct VIWriteRec
+{
+	u16 old; // the VI before the write
+	u8 reg;  // 0: no record, a write to VI0 is never kept
+	u8 cyc;  // the low byte of VURegs::cycle at the write
+};
+
+struct alignas(16) VURegs
+{
+	VECTOR VF[32]; // VF and VI need to be first in this struct for proper mapping
+	REG_VI VI[32]; // needs to be 128bit x 32 (cottonvibes)
+
+	VECTOR ACC;
+	REG_VI q;
+	REG_VI p;
+
+	uint idx; // VU index (0 or 1)
+
+	// flags/cycle are needed by VIF dma code, so they have to be here (for now)
+	// We may replace these by accessors in the future, if merited.
+	u64 cycle;
+	u32 flags;
+
+	// Current opcode being interpreted or recompiled (this var is used by Interps
+	// but not microVU.  Would like to have it local to their respective classes... someday)
+	u32 code;
+	u32 start_pc;
+
+	// branch/branchpc are used by interpreter only, but making them local to the interpreter
+	// classes requires considerable code refactoring.  Maybe later. >_<
+	u32 branch;
+	u32 branchpc;
+	u32 delaybranchpc;
+	bool takedelaybranch;
+	u32 ebit;
+	u32 pending_q;
+	u32 pending_p;
+
+	alignas(16) u32 micro_macflags[4];
+	alignas(16) u32 micro_clipflags[4];
+	alignas(16) u32 micro_statusflags[4];
+	// MAC/Status flags -- these are used by interpreters but are kind of hacky
+	// and shouldn't be relied on for any useful/valid info.  Would like to move them out of
+	// this struct eventually.
+	u32 macflag;
+	u32 statusflag;
+	u32 clipflag;
+
+	s64 nextBlockCycles;
+
+	u8* Mem;
+	u8* Micro;
+
+	u32 xgkickaddr;
+	u32 xgkickdiff;
+	u32 xgkicksizeremaining;
+	u64 xgkicklastcycle;
+	u32 xgkickcyclecount;
+	u32 xgkickenable;
+	u32 xgkickendpacket;
+
+	// The branch hazard. A write to a VI opens a four cycle window in
+	// VIBackupCycles; while a branch is the very next cycle it reads
+	// VIOldValue for VIRegNumber instead of the VI. See _vuBackupVI.
+	u8 VIBackupCycles;
+	u32 VIOldValue;
+	u32 VIRegNumber;
+
+	fmacPipe fmac[4];
+	u32 fmacreadpos;
+	u32 fmacwritepos;
+	u32 fmaccount;
+	fdivPipe fdiv;
+	efuPipe efu;
+	ialuPipe ialu[4];
+	u32 ialureadpos;
+	u32 ialuwritepos;
+	u32 ialucount;
+
+	// The last three writes to a VI, newest first, for the earliest-write
+	// search in _vuBackupVI. These fill the 12 bytes of tail padding that
+	// alignas(16) leaves, so they do not change sizeof(VURegs): microVU's emitted
+	// code reaches VU1's data memory through that size (kVU1MemFromState).
+	// Not part of a save state; a load drops them.
+	VIWriteRec VIWrites[3];
+
+	VURegs()
+	{
+		Mem = NULL;
+		Micro = NULL;
+	}
+
+	bool IsVU1() const;
+	bool IsVU0() const;
+
+	VIFregisters& GetVifRegs() const
+	{
+		return IsVU1() ? vif1Regs : vif0Regs;
+	}
+};
+
+static_assert(sizeof(VURegs) == 1680, "VIWrites must fit in VURegs's tail padding: a larger VURegs moves VU1 memory relative to the register file in microVU's code");
+
+// Which lane of a quadword an ILW or ILWR reads.
+//
+// The dest field of a load into VI does not name a set of lanes the way a
+// store's does. It drives a two-bit lane code: y drives bit 0, z drives bit 1,
+// x drives neither, and w is not wired to it at all -- so w and an empty field
+// both leave the code at 3 and read the w lane, and any field with x, y or z
+// in it reads lane (z << 1) | y whatever else is set alongside.
+static constexpr u32 VuIlwLaneOffset(u32 code)
+{
+	const u32 x = (code >> 24) & 1;
+	const u32 y = (code >> 23) & 1;
+	const u32 z = (code >> 22) & 1;
+	return (x | y | z) ? ((z << 3) | (y << 2)) : 12;
+}
+
+enum VUPipeState
+{
+	VUPIPE_NONE = 0,
+	VUPIPE_FMAC,
+	VUPIPE_FDIV,
+	VUPIPE_EFU,
+	VUPIPE_IALU,
+	VUPIPE_BRANCH,
+	VUPIPE_XGKICK
+};
+
+// VU1's data memory is kept here rather than in the memory reservation, a
+// compile-time-fixed distance from vuRegs: the arm64 recompiler pins a pointer
+// to the register file for the length of a dispatch, and that distance puts
+// the data memory in reach of the same pointer.
+//
+// VU0's memory stays in the reservation. It is block-mapped into the EE's
+// address space (memMapVUmicro) and fastmem remaps such a block by its offset
+// within that reservation (vtlb_GetMainMemoryOffsetFromPtr); outside it the
+// block still works, through the slow path. VU1's is handler-mapped, so it is
+// never on that path.
+struct alignas(16) VuStateStore
+{
+	VURegs regs[2];
+	alignas(16) u8 vu1Mem[0x4000]; // VU1_MEMSIZE, which VUmicro.h defines below us
+};
+
+extern VuStateStore vuState;
+
+static VURegs (&vuRegs)[2] = vuState.regs;
+
+// Obsolete(?)  -- I think I'd rather use vu0Regs/vu1Regs or actually have these explicit to any
+// CPP file that needs them only. --air
+static VURegs& VU0 = vuRegs[0];
+static VURegs& VU1 = vuRegs[1];
+
+// Do not use __fi here because it fires 'multiple definition' error in GCC
+inline bool VURegs::IsVU1() const { return this == &vuRegs[1]; }
+inline bool VURegs::IsVU0() const { return this == &vuRegs[0]; }
+
+extern void vuMemAllocate();
+extern void vuMemReset();
+extern void vuMemRelease();
+extern u32* GET_VU_MEM(VURegs* VU, u32 addr);
+
+// VU0's window onto VU1's registers is 64 quadwords (VF0-31, then VI0-31, selected by bit 0x400 of the
+// VI-based address): VU1's STATUS register, VI[16], is quadword 48. The vu-aot tier (ARM64 builds) drops
+// the sticky bits of STATUS from the programs it compiles until something reads them. A VU0 access to
+// this quadword, by the interpreter (GET_VU_MEM) or by microVU0's code (mVUaddrFix), is one of those
+// reads and reports it with vuAotNoteOutsideStatusRead().
+static constexpr u32 VU0_WINDOW_VU1_STATUS_QWORD = 32 + REG_STATUS_FLAG;
+// A new VM, booted or reset, starts with the tripwire armed again (a savestate load or a settings
+// change does not).
+// The running title (disc serial and CRC), for the vu-aot tripwire's memory across sessions: a title that
+// set it off starts every later session with it set.
+// Turning the setting off clears what vu-aot saved on disk (the compiled cache), and the whole VU program
+// cache with it when EnableVUProgramCache is not on either. Called after the settings change has reset
+// the VU recompilers.
+#if defined(__aarch64__) || defined(_M_ARM64)
+extern void vuAotNoteOutsideStatusRead();
+extern void vuAotResetStickyTripwire();
+extern void vuAotSetTitle(const std::string& serial, u32 crc);
+extern void vuAotSettingChanged(bool wasOn, bool isOn, bool programCacheStillOn);
+// The same for settings applied with no VM running, where "was" is the global value last seen with no VM:
+// vuAotNoteGlobalSetting records it without clearing anything (at startup, and as a VM ends), and
+// vuAotNoVmSettingsApplied compares it with the global value now. A game's own settings never come into it.
+extern void vuAotNoteGlobalSetting(bool on);
+extern void vuAotNoVmSettingsApplied(bool on, bool programCacheStillOn);
+#else
+static inline void vuAotNoteOutsideStatusRead() {}
+static inline void vuAotResetStickyTripwire() {}
+static inline void vuAotSetTitle(const std::string&, u32) {}
+static inline void vuAotSettingChanged(bool, bool, bool) {}
+static inline void vuAotNoteGlobalSetting(bool) {}
+static inline void vuAotNoVmSettingsApplied(bool, bool) {}
+#endif

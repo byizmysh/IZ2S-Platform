@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1311-gs-native-exit/IZPS2-R1311.iza",
+  "bytes": 12080684,
+  "sha256": "ac085f16fb87760fe0edb317ae94dd76226318f6eb5d19808e10962c7bb6f17f",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "b2928352c755636d95762bddf5cd12793d66d07c370d2e23fd1227bba92c3204"
+  },
+  "engine": {
+    "file": "asset-50de26de4db0bbc293972f440df8a882bda21ad9c1db0d6dc455c50cc61d0cbe.izdata",
+    "path": "asset-50de26de4db0bbc293972f440df8a882bda21ad9c1db0d6dc455c50cc61d0cbe.izdata",
+    "bytes": 29644048,
+    "sha256": "50de26de4db0bbc293972f440df8a882bda21ad9c1db0d6dc455c50cc61d0cbe"
+  }
+}

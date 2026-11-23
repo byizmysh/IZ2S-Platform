@@ -1,0 +1,32 @@
+{
+  "unchangedLibraryInputs": {
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a": "69a616fd8fd03ad6e80bde9b4824efc50f49c04526d3e264210f361040b738a0",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a": "cc3e3f4698aaa7b2389b9652d536ff855026dc544d00ea318a306fdb8ba8745c",
+    "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a": "0189100b17ae3143cca7f1ba0b859cf300090960deeae9f23d046120b7f6285a",
+    "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a": "6e2f49c45c0a160ecc93d4a5934e844d109cfec339ce7cb73506af6b8a192fba",
+    "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da"
+  },
+  "changedLinkArguments": [
+    "engine.elf",
+    "engine.ld",
+    "engine.map",
+    "hosted-entry.c.obj",
+    "ps2_vm_runner.cpp.obj"
+  ],
+  "profileRecords": 21333,
+  "nativeSymbols": {
+    "izps2_checkpoint_burst_seed": {
+      "vaddr": "0x1011b9890",
+      "fileOffset": 18651280,
+      "bytes": 330680,
+      "sha256": "edd1c15b5649b133fadbe6c056db78e8aec1b54d4e0d76a2590b1d79cc9c9fe1"
+    },
+    "izps2_checkpoint_late_suffix": {
+      "vaddr": "0x10120a448",
+      "fileOffset": 18981960,
+      "bytes": 10672,
+      "sha256": "fcbba9c11ce8181da9d29ae0bf8aa0f7e597dd5f02d526883f1a7f2393ca267a"
+    }
+  },
+  "reconstructedPayloadSha256": "f85d337797fe9a84ea495011a6a96d255ddaa7e8c518797718b26d86ce5893d4"
+}

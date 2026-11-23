@@ -18,6 +18,10 @@
 
 The original README, COPYRIGHT, LICENSE and THIRD_PARTY_NOTICES files remain with these components. MIT files, GPL-2.0 inherited runtime code and GPL-3.0 components retain their respective terms; the Platform license does not replace them.
 
+## IZPS2 originals
+
+IZPS2 0.5.0 incorporates the ARM64 work of **ARMSX2** and the **PCSX2 team and contributors**. VIXL, Shaderc, libchdr, SoundTouch, DejaVu and the other retained dependency authors keep their original credits and licenses. See `modules/IZPS2/THIRD_PARTY.md`, `modules/IZPS2/licenses/`, and the complete published source snapshot in `sources/izps2/`. These components are not independently authored IZ2S code.
+
 ## Additional authors and full notices
 
 [LICENSES/copyrights.json](LICENSES/copyrights.json) records copyright and SPDX lines found in shipped source and notices, with their locations. [LICENSES/npm-components.json](LICENSES/npm-components.json) records names, authors, contributors, versions and licenses declared by bundled JavaScript packages. [LICENSES/INDEX.md](LICENSES/INDEX.md) links the complete retained notices. Full upstream notices take precedence over this summary.

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1238-native-ee-spans/IZPS2-R1238.iza",
+  "bytes": 12035843,
+  "sha256": "56888c38bab8854cd0ccfd3b8ae0bafcfcdb4bd3d2f6de8fca56f640d9c401bb",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "080f15df5a36c21d468c8f139f2106135a3a547d04d46223ac9af812e17b7d42"
+  },
+  "engine": {
+    "file": "asset-e5ef1d99f29a52eef8579abec227cad53d57e1eeec71e1675bd4d28445699c09.izdata",
+    "path": "asset-e5ef1d99f29a52eef8579abec227cad53d57e1eeec71e1675bd4d28445699c09.izdata",
+    "bytes": 29487408,
+    "sha256": "e5ef1d99f29a52eef8579abec227cad53d57e1eeec71e1675bd4d28445699c09"
+  }
+}

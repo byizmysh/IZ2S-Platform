@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1259-nfs-live-gs-trace/IZPS2-R1259.iza",
+  "bytes": 12064949,
+  "sha256": "75ada7b002810aff6659ceeb4ac16181a7994a9f2db27656bcd59e9955601c5d",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "a79c13f6d3d10a468797dd1ea05684b78b6dda2502eef487085aafd146b5b36d"
+  },
+  "engine": {
+    "file": "asset-7d4606967eddc34f86f6f54052fcf65e12d088d46e51a104b77690d6a5d327ab.izdata",
+    "path": "asset-7d4606967eddc34f86f6f54052fcf65e12d088d46e51a104b77690d6a5d327ab.izdata",
+    "bytes": 29572296,
+    "sha256": "7d4606967eddc34f86f6f54052fcf65e12d088d46e51a104b77690d6a5d327ab"
+  }
+}

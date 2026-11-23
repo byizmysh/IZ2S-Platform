@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1145-hosted-cache-storage/IZPS2-R1145.iza",
+  "bytes": 11223648,
+  "sha256": "c3aab30074770e37dd9192d9766441209d143373f66823f5946efc6069d4add7",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 179992,
+    "sha256": "1a3b8f2f4416500e188c84ab2b318e2444ed619790470d044635621db78f0878"
+  },
+  "engine": {
+    "file": "asset-a23e37c4d79d150101e90de7fe26355420ad8b1082d865e258f4349396d3a8e3.izdata",
+    "path": "asset-a23e37c4d79d150101e90de7fe26355420ad8b1082d865e258f4349396d3a8e3.izdata",
+    "bytes": 28960528,
+    "sha256": "a23e37c4d79d150101e90de7fe26355420ad8b1082d865e258f4349396d3a8e3"
+  }
+}

@@ -117,7 +117,7 @@ async function install({source = SOURCE, destination, nodeHome, platform = proce
     await fs.rm(downloads,{recursive:true,force:true});
     completed = true;
     console.log('Installed. Open ' + (platform === 'win32' ? 'Start.vbs' : platform === 'darwin' ? 'Start.command' : 'start.sh') + ' in: ' + destination);
-    if (platform !== 'linux') console.log('Experimental host: installation, networking and a full console session still require testing on this OS. See README-0.3.0.txt.');
+    if (platform !== 'linux') console.log('Experimental host: installation, networking and a full console session still require testing on this OS. See README-0.3.1.txt.');
     if (launch) {
       await require('./start-local.cjs').launch(destination,{node,env});
       console.log('Panel is ready.');

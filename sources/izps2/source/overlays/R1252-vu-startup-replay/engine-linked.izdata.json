@@ -1,0 +1,64 @@
+{
+  "format": "iz-relocatable-native-export-v1",
+  "passed": true,
+  "elfSha256": "4f4d33d9ec5008b07107a484486d17cb98cb5056760df78255599e88de41d078",
+  "bytes": 30024512,
+  "sha256": "bb44c8d117474e5980a82d97dda432fb076f0b0b40de4944975a9f4da347d975",
+  "sourceBases": [
+    4294967296,
+    4323999744
+  ],
+  "fileBytes": [
+    27980752,
+    60108
+  ],
+  "memoryBytes": [
+    27983872,
+    118411264
+  ],
+  "originalSectionSha256": [
+    "d257b1f26576dd69d6473ff638bcea1c402069bb4427ce73b39d8b34bf6cf242",
+    "a4bc943ff0fa9cc313ee5de4196c8aa321b2640e9151bcb40067a25fb1b77c00"
+  ],
+  "records": 61981,
+  "entryOffset": 0,
+  "spawnOffset": 0,
+  "recordKinds": {
+    "4": 22151,
+    "1": 39830
+  },
+  "allocatedRelocationTypes": {
+    "275": 95690,
+    "277": 70225,
+    "283": 217834,
+    "282": 7163,
+    "286": 16348,
+    "311": 25292,
+    "312": 25284,
+    "285": 3386,
+    "299": 6401,
+    "278": 3358,
+    "284": 741,
+    "261": 7983,
+    "0": 4944,
+    "260": 23,
+    "257": 37950
+  },
+  "invariantRelocations": {
+    "same-segment-relative": 106837,
+    "page-aligned-low12": 100459,
+    "same-segment-branch": 217887,
+    "page-aligned-got-low12": 25284,
+    "undefined-weak-call-nop": 7110,
+    "none": 4944,
+    "constant-absolute": 21
+  },
+  "implicitGotPointers": 1880,
+  "allAllocatedRelocationsChecked": true,
+  "linkedBytesPreserved": true,
+  "nativeExecuted": false,
+  "consoleCommands": 0,
+  "hardwareQualified": false,
+  "limitation": "Engine image only; PS2 startup/context, resource leases and supervisor handoff remain separate requirements",
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1252-vu-startup-replay/engine-linked.izdata"
+}

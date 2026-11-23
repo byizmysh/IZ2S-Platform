@@ -1,0 +1,307 @@
+package com.armsx2.ui.textures
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.armsx2.ui.Colors
+import com.armsx2.runtime.MainActivityRuntime
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.armsx2.i18n.str
+import com.armsx2.ui.common.ArmsBackdrop
+import com.armsx2.ui.common.ArmsTopBar
+import com.armsx2.ui.common.EmptyState
+import com.armsx2.ui.common.GlassPanel
+import com.armsx2.ui.common.RoundAction
+import com.armsx2.ui.common.SectionTitle
+import com.armsx2.ui.common.SettingSwitchRow
+import com.armsx2.ui.settings.controllerFocusable
+
+@Composable
+fun TextureManagerScreen(onBack: () -> Unit, viewModel: TextureManagerViewModel = viewModel()) {
+    val state = viewModel.state.value
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(viewModel::importFolder) }
+    val archivePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(viewModel::importArchive) }
+    LaunchedEffect(Unit) { viewModel.refresh() }
+    // Options on the left, packs on the right: the controller keeps to a column and crosses with
+    // Left/Right.
+    com.armsx2.ui.settings.ColumnControllerNav()
+    // The texture screen has its own music while it is open, in the library music's place.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.armsx2.LibraryMusic.playTheme(context, com.armsx2.R.raw.texture_packs_music)
+        onDispose { com.armsx2.LibraryMusic.endTheme(context, com.armsx2.R.raw.texture_packs_music) }
+    }
+
+    ArmsBackdrop {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            ArmsTopBar(
+                title = str("renderer.section.texturePacks"),
+                subtitle = state.activeSerial ?: str("games.info.perGameSettings.body"),
+                // Controller-reachable, so Up from the first control scrolls back to the top of the screen.
+                leading = { RoundAction("←", str("action.back"), onBack, controllerId = "textureMgr.top.back") },
+                actions = {
+                    // Providers label .tar.zst inconsistently (application/zstd, octet-stream, or
+                    // nothing), so offer every file and let the installer read the format.
+                    RoundAction("＋", str("action.import"), { archivePicker.launch(arrayOf("*/*")) }, controllerId = "textureMgr.top.import")
+                    RoundAction("🗀", str("action.importFolder"), { folderPicker.launch(null) }, controllerId = "textureMgr.top.folder")
+                    RoundAction("↻", str("games.card.refresh"), viewModel::refresh, controllerId = "textureMgr.top.refresh")
+                },
+            )
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val compact = maxWidth < 820.dp
+                if (compact) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                        TextureOptions(state, viewModel, Modifier.fillMaxWidth())
+                        Spacer(Modifier.padding(top = 10.dp))
+                        TextureOnlineSection(catalogSerial(state), librarySerials(state), ownedSerials(state), Modifier.fillMaxWidth()) {
+                            viewModel.onPackInstalled()
+                        }
+                        Spacer(Modifier.padding(top = 10.dp))
+                        TexturePacks(state, viewModel, Modifier.fillMaxWidth(), onBack)
+                    }
+                } else {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        TextureOptions(state, viewModel, Modifier.width(310.dp))
+                        Column(Modifier.weight(1f)) {
+                            TextureOnlineSection(catalogSerial(state), librarySerials(state), ownedSerials(state), Modifier.fillMaxWidth()) {
+                                viewModel.onPackInstalled()
+                            }
+                            Spacer(Modifier.padding(top = 10.dp))
+                            TexturePacks(state, viewModel, Modifier.fillMaxWidth(), onBack)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (state.error ?: state.message)?.let { message ->
+        com.armsx2.ui.common.NotifyOverlay(
+            title = if (state.error == null) str("action.ok") else str("renderer.section.texturePacks"),
+            message = message,
+            onDismiss = viewModel::dismissMessage,
+            idPrefix = "textures.message",
+        )
+    }
+}
+
+@Composable
+private fun TextureOptions(state: TextureManagerUiState, viewModel: TextureManagerViewModel, modifier: Modifier) {
+    GlassPanel(modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            SectionTitle(str("renderer.section.texturePacks"), str("scope.global"))
+            SettingSwitchRow(
+                str("renderer.loadTexturePacks.label"),
+                str("renderer.loadTexturePacks.description"),
+                state.settings.graphics.loadTextureReplacements,
+                onCheckedChange = { value -> viewModel.update { it.copy(graphics = it.graphics.copy(loadTextureReplacements = value)) } },
+                modifier = Modifier.controllerFocusable(
+                    "textureMgr.opt.loadReplacements",
+                    RoundedCornerShape(22.dp),
+                    onConfirm = { viewModel.update { it.copy(graphics = it.graphics.copy(loadTextureReplacements = !state.settings.graphics.loadTextureReplacements)) } },
+                ),
+            )
+            SettingSwitchRow(
+                str("renderer.asyncTextureLoading.label"),
+                str("renderer.asyncTextureLoading.description"),
+                state.settings.graphics.loadTextureReplacementsAsync,
+                onCheckedChange = { value -> viewModel.update { it.copy(graphics = it.graphics.copy(loadTextureReplacementsAsync = value)) } },
+                modifier = Modifier.controllerFocusable(
+                    "textureMgr.opt.asyncLoading",
+                    RoundedCornerShape(22.dp),
+                    onConfirm = { viewModel.update { it.copy(graphics = it.graphics.copy(loadTextureReplacementsAsync = !state.settings.graphics.loadTextureReplacementsAsync)) } },
+                ),
+            )
+            SettingSwitchRow(
+                str("renderer.precacheTexturePacks.label"),
+                str("renderer.precacheTexturePacks.description"),
+                state.settings.graphics.precacheTextureReplacements,
+                onCheckedChange = { value -> viewModel.update { it.copy(graphics = it.graphics.copy(precacheTextureReplacements = value)) } },
+                modifier = Modifier.controllerFocusable(
+                    "textureMgr.opt.precache",
+                    RoundedCornerShape(22.dp),
+                    onConfirm = { viewModel.update { it.copy(graphics = it.graphics.copy(precacheTextureReplacements = !state.settings.graphics.precacheTextureReplacements)) } },
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TexturePacks(state: TextureManagerUiState, viewModel: TextureManagerViewModel, modifier: Modifier, onBack: () -> Unit) {
+    Column(modifier) {
+        SectionTitle(str("renderer.section.texturePacks"), state.packs.size.toString())
+        // A pack is thousands of files over SAF, so show the running count next to the
+        // spinner — a bare spinner on a multi-minute copy is indistinguishable from a hang.
+        if (state.busy) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator()
+                if (state.progress > 0) Text(str("renderer.texturePacks.copying").format(state.progress))
+            }
+        }
+        // Name the folder the CORE will actually scan. A pack only applies if its folder
+        // matches this exactly, and for a raw .ELF boot that is the ELF's filename rather
+        // than the disc serial — a mismatch that is otherwise completely invisible and
+        // looks identical to "texture packs are broken".
+        state.activeSerial?.takeIf(String::isNotBlank)?.let { serial ->
+            val matched = state.packs.any { it.serial.equals(serial, ignoreCase = true) }
+            Text(
+                str("renderer.texturePacks.activeSerial").format(serial),
+                color = if (matched) MaterialTheme.colorScheme.onSurfaceVariant else Colors.pasx2_blue,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+            )
+            if (!matched && state.packs.isNotEmpty()) {
+                Text(
+                    str("renderer.texturePacks.serialMismatch").format(serial),
+                    color = Colors.pasx2_blue,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+        }
+        if (state.packs.isEmpty()) {
+            EmptyState(
+                str("renderer.section.texturePacks"),
+                str("renderer.loadTexturePacks.description"),
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(220.dp),
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.packs.forEach { pack -> TexturePackRow(pack) { viewModel.delete(pack) } }
+            }
+        }
+        // The replacement map is only built in GSTextureReplacements::Initialize / GameChanged
+        // — i.e. at boot. Importing a pack or toggling Load Texture Packs mid-session changes
+        // nothing on screen until the game restarts, which reads as "texture packs are
+        // broken". Spelled-out row rather than another circular-arrow glyph next to Refresh:
+        // the earlier icon was both indistinguishable from it and rendered as tofu.
+        if (MainActivityRuntime.eState.value != com.armsx2.EmuState.STOPPED) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                str("renderer.texturePacks.restartHint"),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+            Button(
+                // Dismiss FIRST: restart() alone reboots the VM behind this screen, so the
+                // user sees nothing change and concludes the button is dead.
+                onClick = { onBack(); MainActivityRuntime.restart() },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(str("renderer.texturePacks.restartNow")) }
+        }
+    }
+}
+
+@Composable
+private fun TexturePackRow(pack: TexturePackItem, onDelete: () -> Unit) {
+    Surface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(17.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f)),
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("▧", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                // Lead with the game name when the library can supply one — a list of bare
+                // serials is unreadable once you have more than a handful of packs. The serial
+                // stays on the detail line, since that's the folder the core actually reads.
+                Text(
+                    pack.gameTitle ?: pack.serial,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val detail = if (pack.gameTitle != null) "${pack.serial} · " else ""
+                Text(
+                    "$detail${pack.fileCount} · ${humanSize(pack.size)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(
+                onClick = onDelete,
+                modifier = Modifier.controllerFocusable("textureMgr.delete.${pack.serial}", onConfirm = onDelete),
+            ) { Text(str("action.delete")) }
+        }
+    }
+}
+
+private fun humanSize(bytes: Long): String = if (bytes >= 1024L * 1024L) "%.1f MB".format(bytes / (1024f * 1024f)) else "${bytes / 1024L} KB"
+
+/**
+ * The serial to match catalog packs against.
+ *
+ * Not simply [TextureManagerUiState.activeSerial]: booting a raw .ELF makes the live serial the
+ * executable's name ("PERSONA 3 FES"), which is right for "will this pack load" but matches nothing
+ * in a catalog keyed on disc serials. Accept it only when it is actually a PS2 serial.
+ */
+private fun catalogSerial(state: TextureManagerUiState): String? =
+    state.activeSerial?.takeIf { Regex("^[A-Za-z]{4}-[0-9]{5}$").matches(it.trim()) }?.trim()?.uppercase()
+
+/**
+ * Serials the user actually has, so packs for owned games sort to the top.
+ *
+ * The ROM library is the point of this — it used to be only the installed-pack list plus the game
+ * in context, which meant an owned game sat under "Other games" until you launched it once, and
+ * then moved. Reported by Beep. The library set comes from the scan cache, so this still costs no
+ * storage walk.
+ *
+ * The other two are kept as well: a pack can be installed for a game whose disc is not in a scanned
+ * folder, and the game in context may be an .ELF boot with no library entry at all.
+ */
+private fun librarySerials(state: TextureManagerUiState): Set<String> =
+    buildSet {
+        addAll(state.librarySerials)
+        state.packs.forEach { add(it.serial.uppercase()) }
+        state.activeSerial?.let { add(it.uppercase()) }
+    }
+
+/**
+ * Serials of games the player can actually boot: the library scan and the game in context. This is
+ * what picks a multi-region pack's install folder, so unlike [librarySerials] it leaves out the
+ * installed pack folders. With those in, a pack already installed under the wrong region's serial
+ * would count as owned and keep being installed there.
+ */
+private fun ownedSerials(state: TextureManagerUiState): Set<String> =
+    buildSet {
+        addAll(state.librarySerials)
+        catalogSerial(state)?.let { add(it) }
+    }

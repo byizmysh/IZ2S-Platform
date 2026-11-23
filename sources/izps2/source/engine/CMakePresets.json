@@ -1,0 +1,102 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 19,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "clang-base",
+            "displayName": "Base",
+            "description": "Base preset for Clang. Only for inheriting from.",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXE_LINKER_FLAGS_INIT": "-fuse-ld=lld",
+                "CMAKE_MODULE_LINKER_FLAGS_INIT": "-fuse-ld=lld",
+                "CMAKE_SHARED_LINKER_FLAGS_INIT": "-fuse-ld=lld",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
+            "name": "ninja-multi",
+            "displayName": "Ninja Multi Config",
+            "description": "Generate multiple ninja build files.",
+            "inherits": "clang-base",
+            "generator": "Ninja Multi-Config"
+        },
+        {
+            "name": "clang-debug",
+            "displayName": "Clang Debug",
+            "description": "Debug build using ninja and clang.",
+            "inherits": "clang-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "clang-devel",
+            "displayName": "Clang Devel",
+            "description": "Developer build using ninja & clang.",
+            "inherits": "clang-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Devel"
+            }
+        },
+        {
+            "name": "clang-release",
+            "displayName": "Clang Release",
+            "description": "Release lto build using ninja & clang.",
+            "inherits": "clang-base",
+            "cacheVariables": {
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+                "CMAKE_BUILD_TYPE": "Release",
+                "ENABLE_RECOMPILER_TEST_HOOKS": "OFF"
+            }
+        },
+        {
+            "name": "clang-perf",
+            "displayName": "Clang Devel + perf jitdump",
+            "description": "Devel build with USE_PERF_JITDUMP=ON; emits /tmp/pcsx2-perf-<pid>/jit-<pid>.dump for `perf inject --jit`.",
+            "inherits": "clang-devel",
+            "binaryDir": "${sourceDir}/build-perf",
+            "cacheVariables": {
+                "USE_PERF_JITDUMP": "ON"
+            }
+        },
+        {
+            "name": "clang-coverage",
+            "displayName": "Clang Devel + source-based coverage",
+            "description": "Devel build instrumented with -fprofile-instr-generate -fcoverage-mapping, into build-coverage/. Drive it with tools/coverage.sh, which runs the gtest binaries and reports line/region coverage scoped to pcsx2/arm64/.",
+            "inherits": "clang-devel",
+            "binaryDir": "${sourceDir}/build-coverage",
+            "cacheVariables": {
+                "USE_COVERAGE": "ON",
+                "ENABLE_TESTS": "ON",
+                "ENABLE_RECOMPILER_TEST_HOOKS": "ON",
+                "ENABLE_QT_UI": "OFF"
+            }
+        },
+        {
+            "name": "clang-handheld",
+            "displayName": "Clang Handheld (SDL3 / kmsdrm)",
+            "description": "RelWithDebInfo build of the SDL3 frontend for handhelds. No Qt. Primary display path is VK_KHR_display (VulkanDirect, kmsdrm); WAYLAND_API is on so the SDL frontend can fall back to a Wayland Vulkan surface when launched inside a compositor. Requires ECM + Wayland-Egl dev headers on the build host — pure kmsdrm targets without them can build VulkanDirect-only by overriding -DWAYLAND_API=OFF.",
+            "inherits": "clang-base",
+            "binaryDir": "${sourceDir}/build-handheld",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "ENABLE_QT_UI": "OFF",
+                "ENABLE_GSRUNNER": "ON",
+                "ENABLE_SDL_FRONTEND": "ON",
+                "ENABLE_TESTS": "OFF",
+                "ENABLE_RECOMPILER_TEST_HOOKS": "OFF",
+                "USE_BACKTRACE": "OFF",
+                "X11_API": "OFF",
+                "WAYLAND_API": "ON"
+            }
+        }
+    ]
+}

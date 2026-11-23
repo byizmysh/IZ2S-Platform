@@ -1,3 +1,9 @@
+# IZPSX emulator 0.5.3
+
+- Package the launcher, ARM64 engine, shaders and interface assets in one native IZ2S installer.
+- Add a direct SD ZIP with the app, BIOS, games and saves folder structure.
+- Use the canonical SD path in the library and PC file manager.
+
 # 0.5.2 BIOS filename update
 
 - Use only `bios/bios.bin` as the external BIOS file, exactly 512 KiB.

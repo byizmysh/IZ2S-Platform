@@ -1,7 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
 #include "store.h"
-
-#define LEGACY_STORE_DIR "/iz2s/iz2s-cheese"
 #include "installed-artwork.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -44,6 +42,7 @@ static bool hash_close(Hash *hash, uint8_t *digest) {
 static const char signature[] = "IZSTORE1";
 enum { BLOCK_SIZE = 128 * 1024 };
 enum { ICON_BYTES = STORE_ICON_SIZE * STORE_ICON_SIZE * 4, ICON_ID_BYTES = 48 };
+enum { LOCAL_CATALOG = STORE_MAX_CATALOGS };
 typedef enum { ABSENT, REGULAR, OTHER } FileState;
 
 #ifdef IZ_STORE_STANDALONE
@@ -197,13 +196,23 @@ static bool trim_line(char line[768]) {
     return true;
 }
 
-static bool load_cached_list(Store *store, const StoreSettings *settings);
+static bool collect_catalogs(Store *store, StoreSettings *settings, bool download,
+                             CatalogRefreshMode mode, char out[STORE_MESSAGE]);
+
+static bool preferred_kind(PackageKind kind) {
+#ifdef IZ_STORE_STANDALONE
+    return kind == PACKAGE_NRO;
+#else
+    return kind == PACKAGE_IZM;
+#endif
+}
 
 static bool parse(FILE *file, App *apps, unsigned limit, unsigned *count, bool receipt) {
     char line[768];
     *count = 0;
     if (!fgets(line, sizeof line, file) || !trim_line(line)) return false;
-    bool online_catalog = !receipt && !strcmp(line, "IZSTORE2");
+    bool variants = !receipt && !strcmp(line, "IZSTORE3");
+    bool online_catalog = variants || (!receipt && !strcmp(line, "IZSTORE2"));
     if (!online_catalog && strcmp(line, signature)) return false;
     while (fgets(line, sizeof line, file)) {
         if (!trim_line(line)) return false;
@@ -214,7 +223,9 @@ static bool parse(FILE *file, App *apps, unsigned limit, unsigned *count, bool r
             app->icon = (int)*count;
             if (!app_line(&app->package, line + 4)) return false;
             for (unsigned i = 0; i < *count; ++i)
-                if (!strcmp(apps[i].package.id, app->package.id)) return false;
+                if (!strcmp(apps[i].package.id, app->package.id) &&
+                    (!variants || apps[i].package.kind == app->package.kind ||
+                     apps[i].package.kind == PACKAGE_IZM_NRO || app->package.kind == PACKAGE_IZM_NRO)) return false;
             ++*count;
         } else {
             if (!*count) return false;
@@ -229,12 +240,27 @@ static bool parse(FILE *file, App *apps, unsigned limit, unsigned *count, bool r
             } else if (strncmp(line, "file\t", 5) || !file_line(package, line + 5, receipt)) return false;
         }
     }
-    return feof(file) && !ferror(file) && *count && apps[*count - 1].package.count &&
-        (!receipt || (apps[0].package.owned & 1u));
+    if (!feof(file) || ferror(file) || !*count || !apps[*count - 1].package.count ||
+        (receipt && !(apps[0].package.owned & 1u))) return false;
+    if (variants) {
+        unsigned selected = 0;
+        for (unsigned i = 0; i < *count; ++i) {
+            unsigned slot = 0;
+            while (slot < selected && strcmp(apps[slot].package.id, apps[i].package.id)) ++slot;
+            if (slot == selected || preferred_kind(apps[i].package.kind)) apps[slot] = apps[i];
+            if (slot == selected) ++selected;
+        }
+        *count = selected;
+        for (unsigned i = 0; i < selected; ++i) apps[i].icon = (int)i;
+    }
+    return true;
 }
 
 void store_clear(Store *store) {
-    free(store->apps); store->apps = NULL; store->count = store->remote_count = 0;
+    free(store->apps); store->apps = NULL; store->count = 0;
+    store->catalog_count = 0;
+    store->update_checked = false;
+    store->local_catalog_available = false;
 }
 
 bool store_clone(Store *target, const Store *source) {
@@ -269,7 +295,6 @@ static bool parse_list(FILE *file, App **apps, unsigned *count) {
 
 static bool load_local_list(Store *store, const char *source, char out[STORE_MESSAGE]) {
     store->count = 0;
-    store->remote_count = 0;
     FileState state = file_state(source);
     if (state == ABSENT) return true;
     FILE *file = state == REGULAR ? fopen(source, "rb") : NULL;
@@ -281,38 +306,30 @@ static bool load_local_list(Store *store, const char *source, char out[STORE_MES
     return message(out, "The local catalog is damaged or unsupported.");
 }
 
-static const char *local_catalog_dir(const Store *store) {
-    static const char *const candidates[] = {
-        STORE_CATALOG_DIR,
-        STORE_DIR,
-#ifdef IZ_STORE_STANDALONE
-        "/switch/iz2s-cheese/catalog",
-#endif
-        LEGACY_STORE_DIR
-    };
+static const char *local_catalog_dir(const char *root) {
     char name[STORE_PATH];
-    for (size_t i = 0; i < sizeof candidates / sizeof candidates[0]; ++i) {
-        if (path(name, "%s%s/catalog.tsv", store->root, candidates[i]) && file_state(name) != ABSENT)
-            return candidates[i];
-    }
-    return STORE_CATALOG_DIR;
+    if (path(name, "%s" STORE_CATALOG_DIR "/catalog.tsv", root) && file_state(name) != ABSENT)
+        return STORE_CATALOG_DIR;
+    return STORE_DIR;
+}
+
+static bool local_catalog_available(const char *root) {
+    char name[STORE_PATH];
+    return path(name, "%s%s/catalog.tsv", root, local_catalog_dir(root)) && file_state(name) == REGULAR;
+}
+
+static bool load_catalog(Store *store, const char *root, StoreSettings *settings,
+                         bool download, CatalogRefreshMode mode, char out[STORE_MESSAGE]) {
+    store_clear(store);
+    if (!path(store->root, "%s", root) || strlen(root) + 256 >= STORE_PATH)
+        return message(out, "SD path is too long.");
+    return collect_catalogs(store, settings, download, mode, out);
 }
 
 bool store_load(Store *store, const char *root, char out[STORE_MESSAGE]) {
-    store->count = 0;
-    store->remote_count = 0;
-    if (!path(store->root, "%s", root) || strlen(root) + 256 >= STORE_PATH)
-        return message(out, "SD path is too long.");
     StoreSettings settings;
     store_settings_read(root, &settings);
-    if (settings.online) load_cached_list(store, &settings);
-    else {
-        char source[STORE_PATH];
-        if (!path(source, "%s%s/catalog.tsv", root, local_catalog_dir(store)) ||
-            !load_local_list(store, source, out)) return false;
-    }
-    out[0] = '\0';
-    return true;
+    return load_catalog(store, root, &settings, false, CATALOG_CACHED, out);
 }
 
 static bool cancelled(Progress progress) {
@@ -492,8 +509,15 @@ static bool is_store_entry(const Package *package) {
 }
 
 const App *store_self_entry(const Store *store) {
+    if (store->update_checked) return &store->update;
     for (unsigned i = 0; i < store->count; ++i)
-        if (is_store_entry(&store->apps[i].package)) return &store->apps[i];
+        if (is_store_entry(&store->apps[i].package) &&
+#ifdef IZ_STORE_STANDALONE
+            store->apps[i].package.kind == PACKAGE_NRO)
+#else
+            store->apps[i].package.kind == PACKAGE_IZM)
+#endif
+            return &store->apps[i];
     return NULL;
 }
 
@@ -584,6 +608,177 @@ void store_refresh(const Store *store, App *app) {
     }
 }
 
+/* Bounded JSON reader for GitHub's official release metadata. Never evaluates JSON. */
+typedef struct { const char *begin, *end; } Json;
+static const char *json_space(const char *p, const char *end) {
+    while (p < end && (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')) ++p;
+    return p;
+}
+
+static const char *json_end(const char *p, const char *end, unsigned depth) {
+    p = json_space(p, end);
+    if (p == end || depth > 24) return NULL;
+    if (*p == '"') {
+        for (++p; p < end; ++p) {
+            if ((unsigned char)*p < 32) return NULL;
+            if (*p == '"') return p + 1;
+            if (*p == '\\' && ++p == end) return NULL;
+        }
+        return NULL;
+    }
+    if (*p == '{' || *p == '[') {
+        bool object = *p == '{'; char close = object ? '}' : ']';
+        p = json_space(p + 1, end);
+        if (p < end && *p == close) return p + 1;
+        while (p < end) {
+            if (object) {
+                if (*p != '"' || !(p = json_end(p, end, depth + 1))) return NULL;
+                p = json_space(p, end);
+                if (p == end || *p != ':') return NULL;
+                p = json_space(p + 1, end);
+            }
+            if (!(p = json_end(p, end, depth + 1))) return NULL;
+            p = json_space(p, end);
+            if (p < end && *p == close) return p + 1;
+            if (p == end || *p != ',') return NULL;
+            p = json_space(p + 1, end);
+        }
+        return NULL;
+    }
+    const char *start = p;
+    while (p < end && *p != ',' && *p != '}' && *p != ']' &&
+           *p != ' ' && *p != '\r' && *p != '\n' && *p != '\t') ++p;
+    return p == start ? NULL : p;
+}
+
+static Json json_member(Json object, const char *key) {
+    const char *p = json_space(object.begin, object.end);
+    if (p == object.end || *p++ != '{') return (Json){0};
+    p = json_space(p, object.end);
+    while (p < object.end && *p != '}') {
+        const char *key_end = json_end(p, object.end, 0);
+        if (!key_end || *p != '"') break;
+        bool match = (size_t)(key_end - p) == strlen(key) + 2 && !memcmp(p + 1, key, strlen(key));
+        p = json_space(key_end, object.end);
+        if (p == object.end || *p++ != ':') break;
+        p = json_space(p, object.end);
+        const char *end = json_end(p, object.end, 0);
+        if (!end) break;
+        if (match) return (Json){p, end};
+        p = json_space(end, object.end);
+        if (p == object.end || *p++ != ',') break;
+        p = json_space(p, object.end);
+    }
+    return (Json){0};
+}
+
+static bool json_text(Json value, char *out, size_t capacity) {
+    if (!value.begin || value.end - value.begin < 2 || *value.begin != '"' || value.end[-1] != '"') return false;
+    size_t bytes = (size_t)(value.end - value.begin - 2);
+    if (bytes >= capacity) return false;
+    /* Selected fields are ASCII names, hashes and URLs; no escaped forms are accepted. */
+    for (size_t i = 0; i < bytes; ++i)
+        if ((unsigned char)value.begin[i + 1] < 32 || value.begin[i + 1] == '\\') return false;
+    memcpy(out, value.begin + 1, bytes); out[bytes] = 0; return true;
+}
+
+typedef struct { char *data; size_t bytes; } ReleaseBuffer;
+static bool release_sink(void *context, const void *bytes, size_t count) {
+    ReleaseBuffer *buffer = context;
+    if (count > 64u * 1024u - buffer->bytes) return false;
+    memcpy(buffer->data + buffer->bytes, bytes, count); buffer->bytes += count;
+    return true;
+}
+
+static bool release_package(Json release, Package *package) {
+    char tag[32]; unsigned version[3];
+    Json draft = json_member(release, "draft"), pre = json_member(release, "prerelease");
+    if (!draft.begin || draft.end - draft.begin != 5 || memcmp(draft.begin, "false", 5) ||
+        !pre.begin || pre.end - pre.begin != 5 || memcmp(pre.begin, "false", 5) ||
+        !json_text(json_member(release, "tag_name"), tag, sizeof tag) || *tag != 'v' ||
+        !stable_version(tag + 1, version)) return false;
+#ifdef IZ_STORE_STANDALONE
+    package->kind = PACKAGE_NRO;
+#else
+    package->kind = PACKAGE_IZM;
+#endif
+    strcpy(package->id, "iz2s-cheese"); strcpy(package->title, "IZ2S Cheese");
+    strcpy(package->author, "IZMYSH"); strcpy(package->category, "Tools");
+    strcpy(package->version, tag + 1);
+    strcpy(package->repository, "https://github.com/byizmysh/iz2s-cheese");
+    char launcher[32]; snprintf(launcher, sizeof launcher, "iz2s-cheese.%s", store_extension(package->kind));
+    Json assets = json_member(release, "assets");
+    if (!assets.begin || *assets.begin != '[') return false;
+    const char *p = json_space(assets.begin + 1, assets.end);
+    bool executable = false;
+    while (p < assets.end && *p != ']') {
+        const char *end = json_end(p, assets.end, 0);
+        if (!end || *p != '{') return false;
+        Json asset = {p, end}; char name[128], digest[80], url[RELEASE_URL_MAX];
+        if (!json_text(json_member(asset, "name"), name, sizeof name)) return false;
+        bool main = !strcmp(name, launcher);
+        bool companion = package->kind == PACKAGE_IZM && !strncmp(name, "asset-", 6) &&
+            strlen(name) == 77 && !strcmp(name + 70, ".izdata");
+        if (main || companion) {
+            Json size = json_member(asset, "size");
+            if (!size.begin || size.end - size.begin > 9 || size.begin == size.end ||
+                !json_text(json_member(asset, "digest"), digest, sizeof digest) ||
+                strncmp(digest, "sha256:", 7) || !hexadecimal(digest + 7) ||
+                !json_text(json_member(asset, "browser_download_url"), url, sizeof url)) return false;
+            for (const char *digit = size.begin; digit < size.end; ++digit)
+                if (*digit < '0' || *digit > '9') return false;
+            uint64_t bytes = strtoull(size.begin, NULL, 10);
+            if (!bytes || bytes > 128u * 1024u * 1024u || package->count == STORE_MAX_FILES) return false;
+            char expected[RELEASE_URL_MAX];
+            int length = snprintf(expected, sizeof expected,
+                "https://github.com/byizmysh/iz2s-cheese/releases/download/%s/%s", tag, name);
+            if (length < 0 || length >= (int)sizeof expected || strcmp(expected, url) ||
+                !github_release_url(url, NULL)) return false;
+            if ((main && executable) || (companion && strncmp(name + 6, digest + 7, 64))) return false;
+            for (unsigned i = 0; i < package->count; ++i)
+                if (!strcmp(package->files[i].name, name)) return false;
+            unsigned slot = package->count++;
+            if (main) {
+                if (slot) package->files[slot] = package->files[0];
+                slot = 0; executable = true; strcpy(package->release_url, url);
+            }
+            PackageFile *file = &package->files[slot];
+            file->bytes = bytes; strcpy(file->digest, digest + 7);
+            if (main) snprintf(file->name, sizeof file->name, "launcher.%s", store_extension(package->kind));
+            else memcpy(file->name, name, strlen(name) + 1);
+        }
+        p = json_space(end, assets.end);
+        if (p < assets.end && *p == ',') p = json_space(p + 1, assets.end);
+        else break;
+    }
+    return executable;
+}
+
+bool store_check_update(Store *store, char out[STORE_MESSAGE]) {
+    store->update_checked = false;
+    ReleaseBuffer buffer = {.data = malloc(64u * 1024u + 1)};
+    if (!buffer.data) return message(out, "Not enough memory to check updates.");
+    bool ok = github_latest_release(release_sink, &buffer, out);
+    App update = {0};
+    if (ok) {
+        const char *end = json_end(buffer.data, buffer.data + buffer.bytes, 0);
+        ok = end && json_space(end, buffer.data + buffer.bytes) == buffer.data + buffer.bytes &&
+            release_package((Json){buffer.data, end}, &update.package);
+        if (!ok) message(out, "The official release has incomplete or unsupported update metadata.");
+    }
+    free(buffer.data);
+    if (!ok) return false;
+    store_refresh(store, &update);
+    store->update = update; store->update_checked = true;
+    if (update.state == UPDATE_AVAILABLE)
+        snprintf(out, STORE_MESSAGE, "IZ2S Cheese %s is available. Download and install this update?", update.package.version);
+    else if (!running_version)
+        snprintf(out, STORE_MESSAGE, "Latest version: %s. Use the official SD path to enable updates.", update.package.version);
+    else
+        snprintf(out, STORE_MESSAGE, "You are up to date. Running %s; latest stable release %s.", running_version, update.package.version);
+    return true;
+}
+
 static FILE *open_new(const char *name) {
     int fd = open(name, O_WRONLY | O_CREAT | O_EXCL, 0644);
     if (fd < 0) return NULL;
@@ -598,14 +793,6 @@ static FILE *control_read(const char *name) {
     if (file_state(name) == ABSENT && path(backup, "%s.bak", name) && file_state(backup) == REGULAR)
         return fopen(backup, "rb");
     return NULL;
-}
-
-static FILE *store_data_read(const char *root, const char *filename) {
-    char name[STORE_PATH];
-    if (!path(name, "%s" STORE_DIR "/%s", root, filename)) return NULL;
-    FILE *file = control_read(name);
-    if (file || file_state(name) != ABSENT) return file;
-    return path(name, "%s" LEGACY_STORE_DIR "/%s", root, filename) ? control_read(name) : NULL;
 }
 
 static bool read_program_icon(const char *active, bool iza, uint32_t *pixels) {
@@ -704,32 +891,125 @@ void store_sync_icon(const Store *store, const App *app, const char *artwork) {
     free(pixels);
 }
 
-void store_settings_read(const char *root, StoreSettings *settings) {
-    *settings = (StoreSettings){0};
+bool store_catalog_address(const char *input, char output[RELEASE_URL_MAX]) {
+    while (*input && (unsigned char)*input <= 32) ++input;
+    size_t size = strlen(input);
+    while (size && (unsigned char)input[size - 1] <= 32) --size;
+    if (size >= RELEASE_URL_MAX) return false;
+    char value[RELEASE_URL_MAX];
+    memcpy(value, input, size); value[size] = 0;
+    if (!size) { output[0] = 0; return true; }
+    const char prefix[] = "https://github.com/";
+    if (!strncmp(value, prefix, sizeof prefix - 1)) {
+        char *owner = value + sizeof prefix - 1, *repo = strchr(owner, '/');
+        if (!repo || repo == owner || !repo[1]) return false;
+        char *rest = strchr(repo + 1, '/');
+        size_t repository = rest ? (size_t)(rest - owner) : strlen(owner);
+        const char *file = "main/catalog/catalog.tsv";
+        if (rest && !strncmp(rest, "/blob/", 6)) file = rest + 6;
+        else if (rest && rest[1]) return false;
+        if (snprintf(output, RELEASE_URL_MAX, "https://raw.githubusercontent.com/%.*s/%s",
+                     (int)repository, owner, file) >= RELEASE_URL_MAX) return false;
+    } else memcpy(output, value, size + 1);
+    return catalog_url(output);
+}
+
+static const char settings_signature[] = "IZCATALOGS3";
+
+unsigned store_enabled_online_catalogs(const StoreSettings *settings) {
+    unsigned enabled = 0;
+    for (unsigned i = 0; i < settings->count; ++i) enabled += settings->sources[i].enabled;
+    return enabled;
+}
+
+unsigned store_community_catalog(const StoreSettings *settings) {
+    for (unsigned i = 0; i < settings->count; ++i)
+        if (settings->sources[i].community) return i;
+    return settings->count;
+}
+
+static bool append_catalog(StoreSettings *settings, const char *input, bool enabled, bool community) {
+    char url[RELEASE_URL_MAX];
+    if (settings->count >= STORE_MAX_CATALOGS || !store_catalog_address(input, url) || !url[0]) return false;
+    for (unsigned i = 0; i < settings->count; ++i)
+        if (!strcmp(settings->sources[i].url, url) || (community && settings->sources[i].community)) return false;
+    CatalogSource *source = &settings->sources[settings->count++];
+    strcpy(source->url, url);
+    source->enabled = enabled;
+    source->community = community;
+    return true;
+}
+
+static bool read_catalog_settings(FILE *file, StoreSettings *settings, unsigned version) {
     char line[768];
-    FILE *file = store_data_read(root, "settings.txt");
-    if (!file) return;
-    if (fgets(line, sizeof line, file) && trim_line(line) && (!*line || catalog_url(line))) {
-        strcpy(settings->url, line);
-        settings->online = settings->url[0] != '\0';
-        if (fgets(line, sizeof line, file) && trim_line(line)) {
-            if (!strcmp(line, "sd")) settings->online = false;
-            else if (!strcmp(line, "online")) settings->online = true;
+    if (!fgets(line, sizeof line, file) || !trim_line(line)) return false;
+    bool old_sd_mode = version < 3 && !strcmp(line, "sd");
+    if (version < 3) {
+        if (!old_sd_mode && strcmp(line, "online")) return false;
+        settings->sd_enabled = old_sd_mode;
+    } else {
+        if (strcmp(line, "sd-on") && strcmp(line, "sd-off")) return false;
+        settings->sd_enabled = !strcmp(line, "sd-on");
+    }
+    while (fgets(line, sizeof line, file)) {
+        char *values[2];
+        if (!trim_line(line) || !parts(line, values, 2) || !values[0][0] || values[0][1] ||
+            values[0][0] < '0' || values[0][0] > (version == 1 ? '1' : '3')) return false;
+        unsigned flags = (unsigned)(values[0][0] - '0');
+        bool community = (flags & 2u) || (version == 1 && !strcmp(values[1], STORE_COMMUNITY_CATALOG_URL));
+        if (!append_catalog(settings, values[1], !old_sd_mode && (flags & 1u), community)) return false;
+    }
+    return feof(file) && !ferror(file);
+}
+
+static bool read_settings_file(const char *name, StoreSettings *settings, bool mode) {
+    FILE *file = fopen(name, "rb");
+    if (!file) return false;
+    char line[768]; StoreSettings next = {0};
+    bool ok = fgets(line, sizeof line, file) && (trim_line(line) || feof(file));
+    if (ok && mode && !strcmp(line, settings_signature)) ok = read_catalog_settings(file, &next, 3);
+    else if (ok && mode && !strcmp(line, "IZCATALOGS2")) ok = read_catalog_settings(file, &next, 2);
+    else if (ok && mode && !strcmp(line, "IZCATALOGS1")) ok = read_catalog_settings(file, &next, 1);
+    else if (ok) {
+        char url[RELEASE_URL_MAX];
+        ok = store_catalog_address(line, url);
+        if (ok && url[0]) ok = append_catalog(&next, url, true, !strcmp(url, STORE_COMMUNITY_CATALOG_URL));
+        next.sd_enabled = next.count == 0;
+        if (ok && mode && fgets(line, sizeof line, file)) {
+            line[strcspn(line, "\r\n")] = 0;
+            if (!strcmp(line, "sd")) {
+                next.sd_enabled = true;
+                next.sources[0].enabled = false;
+            } else if (!strcmp(line, "online")) next.sd_enabled = false;
         }
     }
-    fclose(file);
+    if (ok) *settings = next;
+    fclose(file); return ok;
+}
+
+void store_settings_read(const char *root, StoreSettings *settings) {
+    *settings = (StoreSettings){.sd_enabled = local_catalog_available(root)};
+    char name[STORE_PATH];
+    const char *files[] = {"settings.txt", "settings.txt.bak", "remote.tsv", "remote.tsv.bak"};
+    for (unsigned i = 0; i < sizeof files / sizeof *files; ++i)
+        if (path(name, "%s" STORE_DIR "/%s", root, files[i]) &&
+            read_settings_file(name, settings, i < 2)) break;
+    append_catalog(settings, STORE_COMMUNITY_CATALOG_URL, false, true);
 }
 
 static bool settings_folder(const char *root, const char *directory) {
     char parent[STORE_PATH];
     if (!path(parent, "%s/iz2s", root) || !folder(parent)) return false;
-    if (!path(parent, "%s" MODULE_DIR, root) || !folder(parent)) return false;
     return folder(directory);
 }
 
 bool store_settings_write(const char *root, const StoreSettings *settings, char out[STORE_MESSAGE]) {
-    if (settings->url[0] && !catalog_url(settings->url))
-        return message(out, "Use a raw GitHub HTTPS URL or a private LAN HTTP URL.");
+    StoreSettings clean = {.sd_enabled = settings->sd_enabled};
+    if (settings->count > STORE_MAX_CATALOGS) return message(out, "Too many catalog sources.");
+    for (unsigned i = 0; i < settings->count; ++i)
+        if (!append_catalog(&clean, settings->sources[i].url, settings->sources[i].enabled,
+                            settings->sources[i].community))
+            return message(out, "Use a valid, unique catalog URL.");
     char directory[STORE_PATH], stage[STORE_PATH], name[STORE_PATH];
     if (!path(directory, "%s" STORE_DIR, root) || !path(stage, "%s/.settings.tmp", directory) ||
         !path(name, "%s/settings.txt", directory) || !settings_folder(root, directory))
@@ -737,7 +1017,13 @@ bool store_settings_write(const char *root, const StoreSettings *settings, char 
     if (file_state(stage) == REGULAR && unlink(stage)) return message(out, "Could not clear temporary settings.");
     FILE *file = open_new(stage);
     if (!file) return message(out, "Could not open temporary settings on SD.");
-    bool ok = fprintf(file, "%s\n%s\n", settings->url, settings->online ? "online" : "sd") > 0 && flush(file);
+    bool ok = fprintf(file, "%s\n%s\n", settings_signature, clean.sd_enabled ? "sd-on" : "sd-off") > 0;
+    for (unsigned i = 0; ok && i < clean.count; ++i) {
+        const CatalogSource *source = &clean.sources[i];
+        unsigned flags = (unsigned)source->enabled + 2u * source->community;
+        ok = fprintf(file, "%u\t%s\n", flags, source->url) > 0;
+    }
+    if (ok) ok = flush(file);
     if (fclose(file)) ok = false;
     if (ok && control_publish(stage, name, directory)) return true;
     unlink(stage);
@@ -754,17 +1040,34 @@ static bool read_remote(FILE *file, const char *url, Store *store) {
         if (!remote[i].package.release_url[0]) { free(remote); return false; }
     }
     free(store->apps); store->apps = remote;
-    store->count = store->remote_count = count;
+    store->count = count;
     return true;
 }
 
-static bool load_cached_list(Store *store, const StoreSettings *settings) {
-    if (!settings->url[0]) return false;
-    FILE *file = store_data_read(store->root, "remote.tsv");
-    if (!file) return false;
-    bool ok = read_remote(file, settings->url, store);
-    fclose(file);
-    return ok;
+static bool catalog_cache_path(char name[STORE_PATH], const char *root, const char *url, bool artwork) {
+    Hash hash;
+    if (!hash_open(&hash)) return false;
+    uint8_t bytes[32];
+    bool ok = hash_write(&hash, url, strlen(url));
+    if (!hash_close(&hash, bytes) || !ok) return false;
+    char digest[65];
+    for (unsigned i = 0; i < sizeof bytes; ++i) snprintf(digest + 2*i, 3, "%02x", bytes[i]);
+    return path(name, "%s" STORE_DIR "/%s-%s.%s", root,
+                artwork ? "artwork" : "catalog", digest, artwork ? "bin" : "tsv");
+}
+
+static bool cached_list(Store *feed, const char *root, const char *url) {
+    char names[2][STORE_PATH];
+    if (!catalog_cache_path(names[0], root, url, false) ||
+        !path(names[1], "%s" STORE_DIR "/remote.tsv", root)) return false;
+    for (unsigned i = 0; i < 2; ++i) {
+        FILE *file = control_read(names[i]);
+        if (!file) continue;
+        bool ok = read_remote(file, url, feed);
+        fclose(file);
+        if (ok) return true;
+    }
+    return false;
 }
 
 static bool catalog_sink(void *context, const void *bytes, size_t count) {
@@ -772,7 +1075,7 @@ static bool catalog_sink(void *context, const void *bytes, size_t count) {
 }
 
 /* IZART1 keeps its byte count; IZART2 uses a little-endian 32-bit count. */
-static unsigned read_artwork(FILE *file, const Store *store, const char *url,
+static unsigned read_artwork(FILE *file, const Store *store, const char *url, unsigned catalog,
                              unsigned wanted, uint32_t *pixels) {
     char line[768], magic[7];
     if (url && (!fgets(line, sizeof line, file) || !trim_line(line) || strcmp(line, url))) return 0;
@@ -796,7 +1099,8 @@ static unsigned read_artwork(FILE *file, const Store *store, const char *url,
         char id[ICON_ID_BYTES];
         if (fread(id, 1, sizeof id, file) != sizeof id || !memchr(id, 0, sizeof id) || !identifier(id)) { ok = false; break; }
         unsigned slot = 0;
-        while (slot < store->count && strcmp(store->apps[slot].package.id, id)) ++slot;
+        while (slot < store->count && (strcmp(store->apps[slot].package.id, id) ||
+               (catalog != UINT_MAX && store->apps[slot].catalog != catalog))) ++slot;
         if (slot < store->count) {
             if (seen[slot]) { ok = false; break; }
             seen[slot] = 1;
@@ -809,56 +1113,75 @@ static unsigned read_artwork(FILE *file, const Store *store, const char *url,
     free(seen); return ok ? found : 0;
 }
 
-static unsigned artwork_file(const Store *store, const StoreSettings *settings,
-                              unsigned wanted, uint32_t *pixels) {
-    FILE *file;
-    if (settings->online) {
-        if (!store->remote_count || !settings->url[0]) return 0;
-        file = store_data_read(store->root, "remote-artwork.bin");
-    } else {
-        char name[STORE_PATH];
-        if (!path(name, "%s%s/artwork.bin", store->root, local_catalog_dir(store))) return 0;
-        file = control_read(name);
-    }
+static unsigned read_artwork_path(const char *name, const Store *store, const char *url,
+                                  unsigned catalog, unsigned wanted, uint32_t *pixels) {
+    FILE *file = control_read(name);
     if (!file) return 0;
-    unsigned count = read_artwork(file, store, settings->online ? settings->url : NULL, wanted, pixels);
-    fclose(file); return count;
-}
-
-bool store_read_artwork_icon(const Store *store, const StoreSettings *settings, unsigned slot, uint32_t *pixels) {
-    return slot < store->count && artwork_file(store, settings, slot, pixels) != 0;
-}
-
-unsigned store_read_artwork(const Store *store, const StoreSettings *settings,
-                            uint32_t pixels[][STORE_ICON_SIZE * STORE_ICON_SIZE]) {
-    if (!pixels) return artwork_file(store, settings, UINT_MAX, NULL);
-    unsigned count = 0;
-    for (unsigned i = 0; i < store->count; ++i) count += store_read_artwork_icon(store, settings, i, pixels[i]);
+    unsigned count = read_artwork(file, store, url, catalog, wanted, pixels);
+    fclose(file);
     return count;
 }
 
-unsigned store_fetch_artwork(const Store *store, const StoreSettings *settings) {
+static unsigned cached_artwork(const Store *store, const char *root, const char *url,
+                               unsigned catalog, unsigned wanted, uint32_t *pixels) {
+    char name[STORE_PATH];
+    if (!catalog_cache_path(name, root, url, true)) return 0;
+    unsigned count = read_artwork_path(name, store, url, catalog, wanted, pixels);
+    if (count || !path(name, "%s" STORE_DIR "/remote-artwork.bin", root)) return count;
+    return read_artwork_path(name, store, url, catalog, wanted, pixels);
+}
+
+static unsigned local_artwork(const Store *store, unsigned wanted, uint32_t *pixels) {
+    char name[STORE_PATH];
+    if (!path(name, "%s%s/artwork.bin", store->root, local_catalog_dir(store->root))) return 0;
+    return read_artwork_path(name, store, NULL, LOCAL_CATALOG, wanted, pixels);
+}
+
+bool store_read_artwork_icon(const Store *store, unsigned slot, uint32_t *pixels) {
+    if (slot >= store->count) return false;
+    unsigned origin = store->apps[slot].catalog;
+    if (origin == LOCAL_CATALOG) return local_artwork(store, slot, pixels) != 0;
+    return origin < store->catalog_count &&
+        cached_artwork(store, store->root, store->catalog_urls[origin], origin, slot, pixels) != 0;
+}
+
+unsigned store_read_artwork(const Store *store, uint32_t pixels[][STORE_ICON_SIZE * STORE_ICON_SIZE]) {
+    unsigned count = 0;
+    if (pixels) {
+        for (unsigned i = 0; i < store->count; ++i) count += store_read_artwork_icon(store, i, pixels[i]);
+    } else {
+        for (unsigned i = 0; i < store->catalog_count; ++i)
+            count += cached_artwork(store, store->root, store->catalog_urls[i], i, UINT_MAX, NULL);
+        for (unsigned i = 0; i < store->count; ++i)
+            if (store->apps[i].catalog == LOCAL_CATALOG) {
+                count += local_artwork(store, UINT_MAX, NULL);
+                break;
+            }
+    }
+    return count;
+}
+
+static unsigned fetch_artwork(const Store *feed, const char *root, const char *source) {
     char url[RELEASE_URL_MAX], directory[STORE_PATH], stage[STORE_PATH], name[STORE_PATH];
-    const char *end = strchr(settings->url, '?');
-    if (!end) end = settings->url + strlen(settings->url);
+    const char *end = strchr(source, '?');
+    if (!end) end = source + strlen(source);
     const char *slash = end;
-    while (slash > settings->url && slash[-1] != '/') --slash;
-    if (!store->remote_count || !catalog_url(settings->url) ||
-        snprintf(url, sizeof url, "%.*sartwork.bin", (int)(slash-settings->url), settings->url) >= (int)sizeof url ||
-        !path(directory, "%s" STORE_DIR, store->root) ||
-        !path(stage, "%s/.artwork.tmp", directory) ||
-        !path(name, "%s/remote-artwork.bin", directory)) return 0;
+    while (slash > source && slash[-1] != '/') --slash;
+    if (!feed->count ||
+        snprintf(url, sizeof url, "%.*sartwork.bin", (int)(slash-source), source) >= (int)sizeof url ||
+        !path(directory, "%s" STORE_DIR, root) ||
+        !catalog_cache_path(name, root, source, true) ||
+        !path(stage, "%s.tmp", name)) return 0;
     if (file_state(stage) == REGULAR && unlink(stage)) return 0;
     FILE *file = open_new(stage);
     if (!file) return 0;
     char error[DOWNLOAD_MESSAGE];
-    bool ok = fprintf(file, "%s\n", settings->url) > 0 &&
-        catalog_download(url, UINT64_MAX,
-                         catalog_sink, file, error) && flush(file);
+    bool ok = fprintf(file, "%s\n", source) > 0 &&
+        catalog_download(url, UINT64_MAX, catalog_sink, file, error) && flush(file);
     if (fclose(file)) ok = false;
-    uint32_t slots = 0;
+    unsigned slots = 0;
     if (ok && (file = fopen(stage, "rb")) != NULL) {
-        slots = read_artwork(file, store, settings->url, UINT_MAX, NULL);
+        slots = read_artwork(file, feed, source, UINT_MAX, UINT_MAX, NULL);
         fclose(file);
     }
     if (!slots || !control_publish(stage, name, directory)) {
@@ -868,65 +1191,220 @@ unsigned store_fetch_artwork(const Store *store, const StoreSettings *settings) 
     return slots;
 }
 
-bool store_fetch_list(Store *store, const StoreSettings *settings, char out[STORE_MESSAGE]) {
-    char directory[STORE_PATH], stage[STORE_PATH], name[STORE_PATH], root[STORE_PATH];
-    if (!settings->url[0]) return message(out, "Enter a catalog URL first.");
-    strcpy(root, store->root);
-    if (!path(directory, "%s" STORE_DIR, root) ||
-        !path(name, "%s/remote.tsv", directory) || !path(stage, "%s/.remote.tmp", directory))
-        return message(out, "The SD path is too long.");
+static bool read_catalog_response(FILE *file, Store *feed, const char *url,
+                                  char redirect[RELEASE_URL_MAX], char out[STORE_MESSAGE]) {
+    char line[768];
+    if (!fgets(line, sizeof line, file) || !trim_line(line) || strcmp(line, url) ||
+        !fgets(line, sizeof line, file)) return message(out, "Invalid catalog.");
+    const char prefix[] = "IZREDIRECT1\t";
+    if (!strncmp(line, prefix, sizeof prefix - 1)) {
+        if (!trim_line(line) || fgetc(file) != EOF || ferror(file) ||
+            !store_catalog_address(line + sizeof prefix - 1, redirect) ||
+            !catalog_same_origin(url, redirect))
+            return message(out, "Invalid catalog redirect. Use one URL on the same origin.");
+        return true;
+    }
+    if (fseek(file, 0, SEEK_SET) || !read_remote(file, url, feed))
+        return message(out, "Invalid list or not enough memory.");
+    return true;
+}
+
+static bool fetch_catalog_file(Store *feed, const char *root, const char *url,
+                               char redirect[RELEASE_URL_MAX], char out[STORE_MESSAGE]) {
+    char directory[STORE_PATH], stage[STORE_PATH], name[STORE_PATH];
+    if (!path(directory, "%s" STORE_DIR, root) || !catalog_cache_path(name, root, url, false) ||
+        !path(stage, "%s.tmp", name)) return message(out, "The SD path is too long.");
     if (!settings_folder(root, directory)) return message(out, "Could not open the catalog folder on SD.");
     if (file_state(stage) == REGULAR && unlink(stage)) return message(out, "Could not clear the temporary catalog.");
     FILE *file = open_new(stage);
     if (!file) return message(out, "Could not open a temporary catalog on SD.");
-    bool ok = fprintf(file, "%s\n", settings->url) > 0;
-    if (ok) ok = catalog_download(settings->url, UINT64_MAX, catalog_sink, file, out);
+    bool ok = fprintf(file, "%s\n", url) > 0;
+    if (ok) ok = catalog_download(url, UINT64_MAX, catalog_sink, file, out);
     else message(out, "Could not write the catalog on SD.");
     if (ok && !flush(file)) ok = message(out, "Could not save the catalog on SD.");
     if (fclose(file) && ok) ok = message(out, "Could not close the temporary catalog on SD.");
     if (ok) {
         file = fopen(stage, "rb");
-        store->count = 0;
-        store->remote_count = 0;
-        ok = file && read_remote(file, settings->url, store);
-        if (file) fclose(file);
-        if (!ok) message(out, "Invalid list or not enough memory.");
+        if (file) {
+            ok = read_catalog_response(file, feed, url, redirect, out);
+            fclose(file);
+        } else ok = message(out, "Could not read the downloaded catalog.");
     }
-    if (ok && !control_publish(stage, name, directory)) ok = message(out, "Could not publish the catalog on SD.");
-    if (!ok) { unlink(stage); return false; }
-    unsigned thumbnails = store_fetch_artwork(store, settings);
-    if (thumbnails)
-        snprintf(out, STORE_MESSAGE, "Catalog updated: %u online entries, %u thumbnail%s.",
-                 store->remote_count, thumbnails, thumbnails == 1 ? "" : "s");
-    else
-        snprintf(out, STORE_MESSAGE, "Catalog updated: %u online entries. No new thumbnails received.", store->remote_count);
+    if (ok && !redirect[0] && !control_publish(stage, name, directory))
+        ok = message(out, "Could not publish the catalog on SD.");
+    if (!ok || redirect[0]) unlink(stage);
+    if (!ok) store_clear(feed);
+    return ok;
+}
+
+static bool fetch_catalog(Store *feed, const char *root, const char *url,
+                          char resolved[RELEASE_URL_MAX], char out[STORE_MESSAGE]) {
+    enum { MAX_REDIRECTS = 4 };
+    char visited[MAX_REDIRECTS + 1][RELEASE_URL_MAX];
+    strcpy(visited[0], url);
+    for (unsigned i = 0; i <= MAX_REDIRECTS; ++i) {
+        char next[RELEASE_URL_MAX] = {0};
+        if (!fetch_catalog_file(feed, root, visited[i], next, out)) return false;
+        if (!next[0]) {
+            strcpy(resolved, visited[i]);
+            return true;
+        }
+        for (unsigned j = 0; j <= i; ++j)
+            if (!strcmp(visited[j], next)) return message(out, "Catalog redirect loop.");
+        if (i == MAX_REDIRECTS) break;
+        strcpy(visited[i + 1], next);
+    }
+    return message(out, "Too many catalog redirects.");
+}
+
+static bool merge_catalog(Store *store, Store *feed, const char *url) {
+    unsigned origin = url ? store->catalog_count : LOCAL_CATALOG;
+    if (!store->count) {
+        store->apps = feed->apps;
+        store->count = feed->count;
+        feed->apps = NULL;
+        for (unsigned i = 0; i < store->count; ++i) store->apps[i].catalog = origin;
+        if (url) strcpy(store->catalog_urls[store->catalog_count++], url);
+        return true;
+    }
+    if (feed->count > UINT_MAX - store->count ||
+        (size_t)store->count + feed->count > SIZE_MAX / sizeof *store->apps) return false;
+    App *apps = malloc(((size_t)store->count + feed->count) * sizeof *apps);
+    if (!apps) return false;
+    if (store->count) memcpy(apps, store->apps, (size_t)store->count * sizeof *apps);
+    free(store->apps);
+    store->apps = apps;
+    if (url) strcpy(store->catalog_urls[store->catalog_count++], url);
+    for (unsigned i = 0; i < feed->count; ++i) {
+        const App *candidate = &feed->apps[i];
+        unsigned slot = 0;
+        while (slot < store->count && strcmp(apps[slot].package.id, candidate->package.id)) ++slot;
+        if (slot == store->count) ++store->count;
+        else if (preferred_kind(apps[slot].package.kind) || !preferred_kind(candidate->package.kind)) continue;
+        apps[slot] = *candidate;
+        apps[slot].catalog = origin;
+        apps[slot].icon = (int)slot;
+    }
     return true;
 }
 
-bool store_refresh_catalog(Store *store, const char *root, const StoreSettings *settings,
-                           bool fetch_updates, char out[STORE_MESSAGE]) {
-    if (!store_load(store, root, out)) return false;
-    if (!settings->online) {
-        if (!store->count) snprintf(out, STORE_MESSAGE, "Copy catalog.tsv and artwork.bin to IZ2S Cheese catalog folder.");
+static void deduplicate_sources(StoreSettings *settings) {
+    unsigned unique = 0;
+    for (unsigned i = 0; i < settings->count; ++i) {
+        CatalogSource *source = &settings->sources[i];
+        unsigned slot = 0;
+        while (slot < unique && strcmp(settings->sources[slot].url, source->url)) ++slot;
+        if (slot == unique) {
+            settings->sources[unique++] = *source;
+        } else {
+            settings->sources[slot].enabled |= source->enabled;
+            settings->sources[slot].community |= source->community;
+        }
+    }
+    settings->count = unique;
+}
+
+static bool collect_catalogs(Store *store, StoreSettings *settings, bool download,
+                             CatalogRefreshMode mode, char out[STORE_MESSAGE]) {
+    free(store->apps); store->apps = NULL;
+    store->count = store->catalog_count = 0;
+    store->local_catalog_available = local_catalog_available(store->root);
+    unsigned online = store_enabled_online_catalogs(settings), enabled = online;
+    unsigned loaded = 0, fetched = 0, failed = 0, thumbnails = 0;
+    bool moved = false;
+    StoreSettings updated = *settings;
+    char error[STORE_MESSAGE] = {0};
+    for (unsigned i = 0; i < settings->count; ++i) {
+        const CatalogSource *source = &settings->sources[i];
+        if (!source->enabled) continue;
+        const char *url = source->url;
+        Store feed = {0};
+        bool available = mode == CATALOG_CACHED && cached_list(&feed, store->root, url);
+        unsigned images = 0;
+        if (download && !available) {
+            char failure[STORE_MESSAGE] = {0};
+            char *resolved = updated.sources[i].url;
+            available = fetch_catalog(&feed, store->root, url, resolved, failure);
+            if (available) {
+                ++fetched;
+                moved |= strcmp(url, resolved) != 0;
+                url = resolved;
+                if (mode != CATALOG_REFRESH)
+                    images = cached_artwork(&feed, store->root, url, UINT_MAX, UINT_MAX, NULL);
+                if (!images) images = fetch_artwork(&feed, store->root, url);
+            } else {
+                ++failed;
+                if (!error[0]) strcpy(error, failure);
+                available = cached_list(&feed, store->root, url);
+            }
+        } else if (download) {
+            images = cached_artwork(&feed, store->root, url, UINT_MAX, UINT_MAX, NULL);
+            if (!images) images = fetch_artwork(&feed, store->root, url);
+        }
+        bool merged = !available || merge_catalog(store, &feed, url);
+        store_clear(&feed);
+        if (!merged) return message(out, "Not enough memory to combine catalogs.");
+        loaded += available;
+        thumbnails += images;
+    }
+    if (settings->sd_enabled) {
+        Store feed = {0};
+        char path_to_catalog[STORE_PATH], failure[STORE_MESSAGE] = {0};
+        bool ok = path(path_to_catalog, "%s%s/catalog.tsv", store->root, local_catalog_dir(store->root)) &&
+            load_local_list(&feed, path_to_catalog, failure);
+        if (ok && feed.count) {
+            ok = merge_catalog(store, &feed, NULL);
+            if (ok) { ++loaded; ++enabled; }
+            else snprintf(failure, sizeof failure, "Not enough memory to combine catalogs.");
+        }
+        store_clear(&feed);
+        if (!ok) {
+            ++enabled; ++failed;
+            if (!error[0]) snprintf(error, sizeof error, "%s", failure[0] ? failure : "Could not read the SD catalog.");
+        }
+    }
+    out[0] = '\0';
+    if (!download) return loaded || !failed || message(out, error);
+    if (moved) {
+        deduplicate_sources(&updated);
+        if (!store_settings_write(store->root, &updated, out)) return false;
+        *settings = updated;
+    }
+    if (!online) {
+        if (failed) return message(out, error);
+        if (settings->sd_enabled) {
+            if (!loaded) snprintf(out, STORE_MESSAGE, "Copy catalog.tsv to the Cheese catalog folder on SD.");
+            else if (mode == CATALOG_REFRESH) snprintf(out, STORE_MESSAGE, "SD catalog reloaded. %u apps.", store->count);
+        }
         return true;
     }
-    if (!settings->url[0]) {
-        snprintf(out, STORE_MESSAGE, "Set Catalog URL in Settings.");
-        return true;
-    }
-    if (fetch_updates || !store->remote_count) {
-        if (store_fetch_list(store, settings, out)) return true;
-        char error[STORE_MESSAGE], recovery[STORE_MESSAGE];
-        snprintf(error, sizeof error, "%s", out[0] ? out : "Could not download catalog.");
-        bool cached = store_load(store, root, recovery) && store->count > 0;
-        if (cached)
-            snprintf(out, STORE_MESSAGE, "Update failed; showing cached catalog. %.119s", error);
-        else snprintf(out, STORE_MESSAGE, "%s", error);
-        return !fetch_updates && cached;
-    }
-    if (!store_read_artwork(store, settings, NULL) && !store_fetch_artwork(store, settings))
-        snprintf(out, STORE_MESSAGE, "No thumbnails received. Check artwork.bin next to catalog.tsv.");
-    return true;
+    if (mode == CATALOG_CACHED && !fetched && !failed) return true;
+    if (failed && !loaded) return message(out, error[0] ? error : "Could not download catalogs.");
+    if (enabled > 1)
+        snprintf(out, STORE_MESSAGE, "%u apps from %u/%u catalogs.%s%s", store->count, loaded, enabled,
+                 moved ? " Catalog address updated." : "",
+                 failed ? " Some sources could not be refreshed. Available caches were kept." : "");
+    else if (failed)
+        snprintf(out, STORE_MESSAGE, "Update failed; showing cached catalog. %.119s", error);
+    else if (moved)
+        snprintf(out, STORE_MESSAGE, "Catalog address updated. %u apps loaded.", store->count);
+    else if (thumbnails)
+        snprintf(out, STORE_MESSAGE, "Catalog updated: %u online entries, %u thumbnail%s.",
+                 store->count, thumbnails, thumbnails == 1 ? "" : "s");
+    else
+        snprintf(out, STORE_MESSAGE, "Catalog updated: %u online entries. No new thumbnails received.", store->count);
+    return !failed || (mode == CATALOG_CACHED && loaded);
+}
+
+bool store_fetch_list(Store *store, StoreSettings *settings, char out[STORE_MESSAGE]) {
+    if (!settings->sd_enabled && !store_enabled_online_catalogs(settings))
+        return message(out, "Open Catalogs to enable a source.");
+    return collect_catalogs(store, settings, true, CATALOG_REFRESH, out);
+}
+
+bool store_refresh_catalog(Store *store, const char *root, StoreSettings *settings,
+                           CatalogRefreshMode mode, char out[STORE_MESSAGE]) {
+    return load_catalog(store, root, settings, true, mode, out);
 }
 
 static bool stage_file(const char *source, const char *stage, const PackageFile *file,
@@ -1118,19 +1596,12 @@ bool store_install(const Store *store, const App *app, Progress progress, char o
     if (file_state(stage) == REGULAR && unlink(stage))
         return message(out, "Could not clear an interrupted transfer.");
     char payload[STORE_PATH], source[STORE_PATH], target[STORE_PATH], copy[STORE_PATH];
+    path(payload, "%s" STORE_DIR "/payloads/%s/%s", store->root, package.id, package.files[0].digest);
+    path(source, "%s/%s", payload, package.files[0].name);
     if (package.release_url[0]) {
         if (!stage_github(&package, 0, stage, progress, 0, total, out)) return false;
-    } else {
-        if (!path(payload, "%s" STORE_DIR "/payloads/%s/%s", store->root, package.id, package.files[0].digest) ||
-            !path(source, "%s/%s", payload, package.files[0].name))
-            return message(out, "The SD path is too long.");
-        if (file_state(source) == ABSENT &&
-            (!path(payload, "%s" LEGACY_STORE_DIR "/payloads/%s/%s", store->root, package.id, package.files[0].digest) ||
-             !path(source, "%s/%s", payload, package.files[0].name)))
-            return message(out, "The SD path is too long.");
-        if (!stage_file(source, stage, &package.files[0], progress, 0, total))
-            return message(out, "The local package is missing, damaged, or SD is full.");
-    }
+    } else if (!stage_file(source, stage, &package.files[0], progress, 0, total))
+        return message(out, "The local package is missing, damaged, or SD is full.");
     if (cancelled(progress)) { unlink(stage); return message(out, "Download cancelled."); }
     if (!valid_image(stage, &package)) {
         unlink(stage);
@@ -1158,8 +1629,8 @@ bool store_install(const Store *store, const App *app, Progress progress, char o
                     break;
                 }
             } else {
-                if (!path(source, "%s/%s", payload, file->name) ||
-                    !stage_file(source, copy, file, progress, done, total)) {
+                path(source, "%s/%s", payload, file->name);
+                if (!stage_file(source, copy, file, progress, done, total)) {
                     failure = "A local resource is missing, damaged, or SD is full.";
                     break;
                 }

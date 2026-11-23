@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1157-checkpoint-warm-shutdown-trace/IZPS2-R1157.iza",
+  "bytes": 11205757,
+  "sha256": "2a63179b5c66638172c739685c153aee3a059a813ca565a33babe6edfb7cdc94",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "cf4dd5742c36f342b3e6f8c81d183d13a6f5fd39b9fe2636b35a3c874304ec9a"
+  },
+  "engine": {
+    "file": "asset-d63908b4408765ad1c3106e3cd87767f6e5252a37fecef6a1453a9a2212a059b.izdata",
+    "path": "asset-d63908b4408765ad1c3106e3cd87767f6e5252a37fecef6a1453a9a2212a059b.izdata",
+    "bytes": 27910352,
+    "sha256": "d63908b4408765ad1c3106e3cd87767f6e5252a37fecef6a1453a9a2212a059b"
+  }
+}

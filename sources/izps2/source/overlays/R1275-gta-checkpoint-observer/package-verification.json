@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1275-gta-checkpoint-observer/IZPS2-R1275.iza",
+  "bytes": 12067710,
+  "sha256": "bb78cbaabbf32f61b8c31785c70e6561385ebdea8f9bc6e6acf97824785c8507",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "cbb467018fd4d9752d46b6908fc0808a0e14f9b7c9d6d1c293b303eb9c972d0d"
+  },
+  "engine": {
+    "file": "asset-041672a0dd57efe3386e4572e13d33a1f0391adac71df0cb7cc348970f2ea991.izdata",
+    "path": "asset-041672a0dd57efe3386e4572e13d33a1f0391adac71df0cb7cc348970f2ea991.izdata",
+    "bytes": 29573680,
+    "sha256": "041672a0dd57efe3386e4572e13d33a1f0391adac71df0cb7cc348970f2ea991"
+  }
+}

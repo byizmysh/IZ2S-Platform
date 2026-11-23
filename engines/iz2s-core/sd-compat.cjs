@@ -29,8 +29,25 @@ function directImage(descriptor, files) {
   const policy = packed(header);
   if (!policy.compatible) throw Error(policy.reason);
   if (header.id !== descriptor.id) throw Error('Standalone SD executable ID differs from the module ID.');
-  if (header.assetManifest?.count) throw Error('Standalone SD executables with companion files must be distributed as SD bundle ZIPs.');
-  return {bytes, header};
+  const assets = require('../../core/console/sd-launcher/assets.cjs');
+  const prefix = require('node:path').posix.dirname(entry) + '/';
+  const metadata = files.find(file => file.name === prefix + 'sd-bundle.json');
+  let companions = [];
+  if (metadata) {
+    const bundle = JSON.parse(metadata.bytes);
+    if (bundle.format !== 'iz2s.sd-bundle' || bundle.version !== 1 || bundle.id !== header.id ||
+        bundle.launcher?.bytes !== bytes.length || bundle.launcher.sha256 !== sha(bytes) || !Array.isArray(bundle.assets))
+      throw Error('Standalone SD bundle identity or launcher checksum differs.');
+    companions = assets.declarations({native:{assets:bundle.assets}});
+    if (!descriptor.switch.files.includes(metadata.name) || companions.some(row =>
+      row.file !== row.path || !descriptor.switch.files.includes(prefix + row.file)))
+      throw Error('Declare the standalone SD metadata and companions in the Switch file list.');
+    assets.inspectPacked({native:{assets:companions}}, files.filter(file => file.name.startsWith(prefix))
+      .map(file => ({name:file.name.slice(prefix.length),bytes:file.bytes})));
+  }
+  assets.verifyBinding(header, companions);
+  return {bytes, header, companions: companions.map(row => ({...row,
+    contents: files.find(file => file.name === prefix + row.file).bytes}))};
 }
 function eligibility(manifest,descriptor={},files=[],{ checkedSd, sha256, archiveFiles }={}) {
   if (descriptor.switch?.sdImage) {

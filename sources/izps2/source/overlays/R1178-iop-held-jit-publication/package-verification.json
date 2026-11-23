@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1178-iop-held-jit-publication/IZPS2-R1178.iza",
+  "bytes": 11219652,
+  "sha256": "b464bf01e3d30bdf1b45d92b7fcb969967d6ab3d994c67f4428559254035d767",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "e8f107b86ca4daa718dc4a355fa4ee2f597506e1081657f2ae44b5d3d0d0ba85"
+  },
+  "engine": {
+    "file": "asset-640bab342faab3637b15af72a7be472f2af48f8a233a359561f79351f87d651b.izdata",
+    "path": "asset-640bab342faab3637b15af72a7be472f2af48f8a233a359561f79351f87d651b.izdata",
+    "bytes": 27980712,
+    "sha256": "640bab342faab3637b15af72a7be472f2af48f8a233a359561f79351f87d651b"
+  }
+}

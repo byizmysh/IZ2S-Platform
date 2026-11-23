@@ -1,0 +1,38 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include "ui_EmulationSettingsWidget.h"
+
+#include "SettingsWidget.h"
+
+class EmulationSettingsWidget : public SettingsWidget
+{
+	Q_OBJECT
+
+public:
+	EmulationSettingsWidget(SettingsWindow* settings_dialog, QWidget* parent);
+	~EmulationSettingsWidget();
+
+	/// Reads what auto-tune changed for this game from its settings file again, and whether it is on. Per-game dialogs only.
+	void updateAutoTuneSummary();
+
+protected:
+	void showEvent(QShowEvent* event) override;
+
+private Q_SLOTS:
+	void onOptimalFramePacingChanged();
+	void onResetAutoTuneClicked();
+
+private:
+	void initializeSpeedCombo(QComboBox* cb, const char* section, const char* key, float default_value);
+	void handleSpeedComboChange(QComboBox* cb, const char* section, const char* key);
+	void updateOptimalFramePacing();
+	void updateUseVSyncForTimingEnabled();
+	void onManuallySetRealTimeClockChanged();
+	void onUseSystemLocaleFormatChanged();
+	void refreshAutoTuneToggle();
+
+	Ui::EmulationSettingsWidget m_ui;
+};

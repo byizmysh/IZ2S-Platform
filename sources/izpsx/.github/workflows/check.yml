@@ -35,6 +35,6 @@ jobs:
         run: python3 tools/release.py
       - uses: actions/upload-artifact@v4
         with:
-          name: izpsx-emulator-0.5.2
+          name: izpsx-emulator-release
           path: dist/*
           if-no-files-found: error

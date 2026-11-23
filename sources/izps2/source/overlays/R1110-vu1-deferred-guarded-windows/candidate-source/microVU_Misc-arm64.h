@@ -1,0 +1,592 @@
+// SPDX-FileCopyrightText: 2026 yaps2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include "AsmHelpers.h"
+
+namespace a64 = vixl::aarch64;
+
+struct microVU;
+
+//------------------------------------------------------------------
+// Global Variables
+//------------------------------------------------------------------
+
+// Combined lane-weight vectors for the single-ADDV MAC/status flag pack in
+// mVUupdateFlags (see armEmitPackSignZeroBits). `byMask` is indexed by
+// [variant][reverse][dest-field mask]; `bySSShift` holds the four single-scalar
+// shifts, which keep lane 0 alone and additionally fold SHIFT_XYZW's rotate.
+//
+// These used to be materialised per call site as a vixl literal-pool load,
+// which burned a fresh 16-byte pool slot for every flag-writing FMAC in the
+// program — 1666 slots holding 34 distinct values in one God of War II VU1
+// program, 12.8% of its host code, every one of them on its own cache line.
+// Living in mVUglob they ride the pinned gprMVUglob base as a single
+// `Ldr q, [x25, #imm]` and share a handful of D-cache lines.
+
+// Which MAC nibbles the op packs, as an index into the tables below: bit 0 the
+// O nibble, bit 1 the U nibble. An op that models neither indexes 0.
+enum mVUmacWeightVariant
+{
+	mVUmacW_ZS   = 0,
+	mVUmacW_ZSO  = 1,
+	mVUmacW_ZSU  = 2,
+	mVUmacW_ZSUO = 3,
+};
+
+struct mVU_MacWeights
+{
+	u32 byMask[4][2][16][4];
+	u32 bySSShift[4][4][4];
+};
+
+static constexpr mVU_MacWeights mVUmakeMacWeights()
+{
+	mVU_MacWeights t{};
+	for (int v = 0; v < 4; v++)
+	{
+		const bool wu = (v & mVUmacW_ZSU) != 0;
+		const bool wo = (v & mVUmacW_ZSO) != 0;
+		for (int rev = 0; rev < 2; rev++)
+			for (u32 mask = 0; mask < 16; mask++)
+				for (int lane = 0; lane < 4; lane++)
+					t.byMask[v][rev][mask][lane] = armPackLaneWeight(lane, mask, rev != 0, 0, wu, wo);
+		// Single-scalar: the result sits in lane 0 and SHIFT_XYZW rotates it
+		// into the field's own MAC bit. shift <= 3 keeps the zero half inside
+		// the low nibble, so the SLI trick still holds.
+		for (int shift = 0; shift < 4; shift++)
+			for (int lane = 0; lane < 4; lane++)
+				t.bySSShift[v][shift][lane] = armPackLaneWeight(lane, 1, false, shift, wu, wo);
+	}
+	return t;
+}
+
+// bySSShift for a single-scalar result held in lane 1, 2 or 3 instead of lane
+// 0 (allocReg's natural slots): the same weight, taken from that lane.
+// Indexed [variant][lane][shift]; the lane-0 row is bySSShift's and unused.
+struct mVU_SSLaneWeights
+{
+	u32 w[4][4][4][4];
+};
+
+static constexpr mVU_SSLaneWeights mVUmakeSSLaneWeights()
+{
+	mVU_SSLaneWeights t{};
+	for (int v = 0; v < 4; v++)
+		for (int at = 0; at < 4; at++)
+			for (int shift = 0; shift < 4; shift++)
+				t.w[v][at][shift][at] = armPackLaneWeight(0, 1, false, shift,
+					(v & mVUmacW_ZSU) != 0, (v & mVUmacW_ZSO) != 0);
+	return t;
+}
+
+static constexpr auto mVUmakeFlagRingShuffleTable()
+{
+	std::array<std::array<u8, 16>, 256> table{};
+	for (unsigned key = 0; key < table.size(); ++key)
+	{
+		for (unsigned lane = 0; lane < 4; ++lane)
+		{
+			const unsigned source = (key >> (lane * 2)) & 3;
+			for (unsigned byte = 0; byte < 4; ++byte)
+				table[key][lane * 4 + byte] = source * 4 + byte;
+		}
+	}
+	return table;
+}
+
+struct mVU_Globals
+{
+#define __four(val) { val, val, val, val }
+	u32   absclip [4] = __four(0x7fffffff);
+	u32   signbit [4] = __four(0x80000000);
+	u32   minvals [4] = __four(0xff7fffff);
+	u32   maxvals [4] = __four(0x7f7fffff);
+	u32   exponent[4] = __four(0x7f800000);
+	u32   one     [4] = __four(0x3f800000);
+	// EATAN's series ends on this. The EFU's pi/4 is 0x3f490fda, a ULP below
+	// the correctly-rounded value that x86/microVU_Misc.h still holds.
+	u32   Pi4     [4] = __four(0x3f490fda);
+	// EATAN's odd-power atan series, c1 c3 c5 ... c15. ⚠️ This table is a COPY of the
+	// one in x86/microVU_Misc.h and the two must stay name-for-name identical: the
+	// arm64 build reads this one, the x86 build reads that one, and mVU_EATAN_arm and
+	// mVU_EATAN_ index them by the SAME names. Upstream renamed T2..T5 there in
+	// aae9438f98 so the names finally ascend with the power; this copy is renamed to
+	// match. Values never moved -- only the labels -- so codegen is unchanged.
+	u32   T1      [4] = __four(0x3f7ffff5);
+	u32   T2      [4] = __four(0xbeaaa61c);
+	u32   T3      [4] = __four(0x3e4c40a6);
+	u32   T4      [4] = __four(0xbe0e6c63);
+	u32   T5      [4] = __four(0x3dc577df);
+	u32   T6      [4] = __four(0xbd6501c4);
+	u32   T7      [4] = __four(0x3cb31652);
+	u32   T8      [4] = __four(0xbb84d7e7);
+	u32   S2      [4] = __four(0xbe2aaaa4);
+	u32   S3      [4] = __four(0x3c08873e);
+	u32   S4      [4] = __four(0xb94fb21f);
+	u32   S5      [4] = __four(0x362e9c14);
+	u32   E1      [4] = __four(0x3e7fffa8);
+	u32   E2      [4] = __four(0x3d0007f4);
+	u32   E3      [4] = __four(0x3b29d3ff);
+	u32   E4      [4] = __four(0x3933e553);
+	u32   E5      [4] = __four(0x36b63510);
+	u32   E6      [4] = __four(0x353961ac);
+	u32   I32MAXF [4] = __four(0x4effffff);
+	float FTOI_4  [4] = __four(16.0);
+	float FTOI_12 [4] = __four(4096.0);
+	float FTOI_15 [4] = __four(32768.0);
+	float ITOF_4  [4] = __four(0.0625f);
+	float ITOF_12 [4] = __four(0.000244140625);
+	float ITOF_15 [4] = __four(0.000030517578125);
+	// Sign-preserving operand clamp bounds for mVUclamp2 (SMIN/UMIN on the
+	// integer representation), mirroring x86's sse4_maxvals/sse4_minvals
+	// (x86/microVU_Clamp.inl): row 0 = single-lane (SS) — real bound in lane
+	// 0, sentinel no-op bounds (INT_MAX for SMIN, UINT_MAX for UMIN) in
+	// lanes 1-3 so anything parked there survives; row 1 = all-lane (PS).
+	// A row's max comes first and its min second, which is the order and the
+	// adjacency mVUclamp2's Ldp wants. Appended at the end of the struct so
+	// existing [x25, #imm] offsets in emitted code keep their values.
+	u32 signBounds[2][2][4] = {{{0x7f7fffff, 0x7fffffff, 0x7fffffff, 0x7fffffff},
+	                            {0xff7fffff, 0xffffffff, 0xffffffff, 0xffffffff}},
+	                           {{0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff},
+	                            {0xff7fffff, 0xff7fffff, 0xff7fffff, 0xff7fffff}}};
+	// Also appended at the end — see mVU_MacWeights.
+	mVU_MacWeights macWeights = mVUmakeMacWeights();
+	// CLIP's six result bits, one weight per comparison lane in the order
+	// mVU_CLIP's UZP1 leaves them: the four +component lanes then the four
+	// -component ones, w weightless in both. Appended for the reason above.
+	u16 clipWeights[8] = {1, 4, 16, 0, 2, 8, 32, 0};
+	mVU_SSLaneWeights ssLaneWeights = mVUmakeSSLaneWeights();
+	alignas(16) std::array<std::array<u8, 16>, 256> flagRingShuffle = mVUmakeFlagRingShuffleTable();
+	alignas(16) u32 clipMagnitudeWeights[4] = {1, 4, 16, 0};
+#undef __four
+};
+
+struct alignas(32) mVU_GlobalConstants
+{
+	u8 outerProductIndices[2][2][16] = {
+		{{4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 0, 1, 2, 3},
+		 {8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+		{{4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 12, 13, 14, 15},
+		 {8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 16, 16, 16, 16}},
+	};
+	mVU_Globals base;
+};
+static_assert(offsetof(mVU_GlobalConstants, base) == 64);
+static constexpr mVU_GlobalConstants mVUConstants{};
+static constexpr const mVU_Globals& mVUglob = mVUConstants.base;
+
+// Every member is a 16-byte-multiple array, so `Ldr q` off gprMVUglob lands on
+// a 16-byte boundary and never straddles a cache line.
+static_assert(offsetof(mVU_Globals, macWeights) % 16 == 0,
+	"mVUglob.macWeights must stay 16-byte aligned for Ldr q [x25, #imm]");
+static_assert(offsetof(mVU_Globals, clipWeights) % 16 == 0,
+	"mVUglob.clipWeights must stay 16-byte aligned for Ldr q [x25, #imm]");
+static_assert(offsetof(mVU_Globals, ssLaneWeights) % 16 == 0,
+	"mVUglob.ssLaneWeights must stay 16-byte aligned for Ldr q [x25, #imm]");
+
+// mVUemitClampConsts takes both clamp bounds in one Ldp.
+static_assert(offsetof(mVU_Globals, maxvals) == offsetof(mVU_Globals, minvals) + 16,
+	"mVUglob.maxvals must follow minvals for the clamp-bound Ldp");
+
+// So does mVUclamp2, off whichever row it selects.
+static_assert(offsetof(mVU_Globals, signBounds) % 32 == 0,
+	"mVUglob.signBounds rows must be 32-byte aligned for Ldp q [x25, #imm]");
+
+// mVUclamp2's all-lane row is not loaded at all: it reads the registers
+// mVUemitClampConsts fills from maxvals and minvals, so the two tables have to
+// hold the same words.
+static constexpr bool mVUsignBoundsAllLaneRowIsClampPair()
+{
+	for (int lane = 0; lane < 4; lane++)
+	{
+		if (mVUglob.signBounds[1][0][lane] != mVUglob.maxvals[lane] ||
+			mVUglob.signBounds[1][1][lane] != mVUglob.minvals[lane])
+			return false;
+	}
+	return true;
+}
+static_assert(mVUsignBoundsAllLaneRowIsClampPair(),
+	"mVUglob.signBounds[1] must equal maxvals then minvals, the pair q25/q26 hold");
+
+// Weight vector for one mVUupdateFlags pack. `shift` is non-zero only on the
+// single-scalar path, which always keeps lane 0 alone in forward bit order.
+// The single-scalar weight (keepMask 1, not reversed) for a result in lane
+// `ssLane`; lane 0 is mVUmacWeightVec's own.
+__fi static const void* mVUmacWeightVec(u32 keepMask, bool reverse, int shift, int variant, int ssLane);
+
+__fi static const void* mVUmacWeightVec(u32 keepMask, bool reverse, int shift, int variant)
+{
+	pxAssert(variant >= 0 && variant < 4);
+	if (shift != 0)
+	{
+		pxAssert(keepMask == 1 && !reverse && shift < 4);
+		return &mVUglob.macWeights.bySSShift[variant][shift][0];
+	}
+	return &mVUglob.macWeights.byMask[variant][reverse ? 1 : 0][keepMask & 0xF][0];
+}
+
+__fi static const void* mVUmacWeightVec(u32 keepMask, bool reverse, int shift, int variant, int ssLane)
+{
+	if (ssLane == 0)
+		return mVUmacWeightVec(keepMask, reverse, shift, variant);
+	pxAssert(keepMask == 1 && !reverse && shift >= 0 && shift < 4 && ssLane < 4);
+	return &mVUglob.ssLaneWeights.w[variant][ssLane][shift][0];
+}
+
+static const uint _Ibit_ = 1 << 31;
+static const uint _Ebit_ = 1 << 30;
+static const uint _Mbit_ = 1 << 29;
+static const uint _Dbit_ = 1 << 28;
+static const uint _Tbit_ = 1 << 27;
+
+static const uint divI = 0x1040000;
+static const uint divD = 0x2080000;
+
+static const char branchSTR[16][8] = {
+	"None",  "B",     "BAL",   "IBEQ",
+	"IBGEZ", "IBGTZ", "IBLEZ", "IBLTZ",
+	"IBNE",  "JR",    "JALR",  "N/A",
+	"N/A",   "N/A",   "N/A",   "N/A"
+};
+
+//------------------------------------------------------------------
+// Opcode Decoding Macros (platform-independent)
+//------------------------------------------------------------------
+
+#define _Ft_ ((mVU.code >> 16) & 0x1F)
+#define _Fs_ ((mVU.code >> 11) & 0x1F)
+#define _Fd_ ((mVU.code >>  6) & 0x1F)
+
+#define _It_ ((mVU.code >> 16) & 0xF)
+#define _Is_ ((mVU.code >> 11) & 0xF)
+#define _Id_ ((mVU.code >>  6) & 0xF)
+
+#define _X ((mVU.code >> 24) & 0x1)
+#define _Y ((mVU.code >> 23) & 0x1)
+#define _Z ((mVU.code >> 22) & 0x1)
+#define _W ((mVU.code >> 21) & 0x1)
+
+#define _cX ((cpuRegs.code >> 24) & 0x1)
+#define _cY ((cpuRegs.code >> 23) & 0x1)
+#define _cZ ((cpuRegs.code >> 22) & 0x1)
+#define _cW ((cpuRegs.code >> 21) & 0x1)
+
+#define _X_Y_Z_W   (((mVU.code >> 21) & 0xF))
+#define _cX_Y_Z_W   (((cpuRegs.code >> 21) & 0xF))
+#define _cXYZW_SS  (_cX + _cY + _cZ + _cW == 1)
+#define _cXYZW_SS2  (_cXYZW_SS && (_cX_Y_Z_W != 8))
+
+#define _XYZW_SS   (_X + _Y + _Z + _W == 1)
+#define _XYZW_SS2  (_XYZW_SS && (_X_Y_Z_W != 8))
+#define _XYZW_PS   (_X_Y_Z_W == 0xf)
+#define _XYZWss(x) ((x == 8) || (x == 4) || (x == 2) || (x == 1))
+
+#define _bc_   (mVU.code & 0x3)
+#define _bc_x ((mVU.code & 0x3) == 0)
+#define _bc_y ((mVU.code & 0x3) == 1)
+#define _bc_z ((mVU.code & 0x3) == 2)
+#define _bc_w ((mVU.code & 0x3) == 3)
+
+#define _Fsf_ ((mVU.code >> 21) & 0x03)
+#define _Ftf_ ((mVU.code >> 23) & 0x03)
+
+#define _Imm5_  ((s16) (((mVU.code & 0x400) ? 0xfff0 : 0) | ((mVU.code >> 6) & 0xf)))
+#define _Imm11_ ((s32)  ((mVU.code & 0x400) ? (0xfffffc00 |  (mVU.code & 0x3ff)) : (mVU.code & 0x3ff)))
+#define _Imm12_ ((u32)((((mVU.code >> 21) & 0x1) << 11)   |  (mVU.code & 0x7ff)))
+#define _Imm15_ ((u32) (((mVU.code >> 10) & 0x7800)       |  (mVU.code & 0x7ff)))
+#define _Imm24_ ((u32)   (mVU.code & 0xffffff))
+
+#define isCOP2      (mVU.cop2 != 0)
+#define isVU1       (mVU.index != 0)
+#define isVU0       (mVU.index == 0)
+#define getIndex    (isVU1 ? 1 : 0)
+#define getVUmem(x) (((isVU1) ? (x & 0x3ff) : ((x >= 0x400) ? (x & 0x43f) : (x & 0xff))) * 16)
+#define offsetSS    ((s32)VuIlwLaneOffset(mVU.code))
+#define offsetReg   ((_X) ? (0) : ((_Y) ? (1) : ((_Z) ? 2 :  3)))
+
+//------------------------------------------------------------------
+// ARM64 Register Definitions
+//------------------------------------------------------------------
+
+// NEON scratch registers (matching existing AsmHelpers.h: Q29-Q31)
+// qmmT1-qmmT7: allocatable VF cache / temp registers
+#define qmmT1  a64::q0
+#define qmmT2  a64::q1
+#define qmmT3  a64::q2
+#define qmmT4  a64::q3
+#define qmmT5  a64::q4
+#define qmmT6  a64::q5
+#define qmmT7  a64::q6
+
+// P/Q packed register (replaces x86 xmmPQ=xmm15)
+#define qmmPQ  a64::q28
+
+// The mVUclamp1 bounds, resident for the length of a block: +fMax in every
+// lane and -fMax. mVUemitClampConsts writes them, microRegAlloc keeps both out
+// of the VF pool. The COP2 macro path holds the same two values in the same
+// two registers (SL-13, iCOP2-arm64.cpp).
+#define qmmClampMax a64::q25
+#define qmmClampMin a64::q26
+#define qmmClampedVf0 a64::q27
+
+// GPR scratch registers
+#define gprT1  a64::w9
+#define gprT2  a64::w10
+#define gprT1q a64::x9
+#define gprT2q a64::x10
+#define gprT3  a64::w11
+#define gprT3q a64::x11
+
+// Status flag instance registers (callee-saved)
+#define gprF0  a64::w20
+#define gprF1  a64::w21
+#define gprF2  a64::w22
+#define gprF3  a64::w23
+
+// VU state base pointer (callee-saved). Pinned at mVUdispatcherAB entry to
+// `&mVU.regs()` (= &vuRegs[mVU.index], a static address per-VU). Stays live
+// across all blocks of a single dispatch, including across armEmitCall to C
+// helpers (callee-saved per AAPCS). Lets emit reach any VURegs field with a
+// 1-insn `Ldr/Str dst, [gprVUState, #imm12]` instead of the 3-insn
+// movz/movk/movk + Ldr that armLoadPtr emits for absolute addresses (data
+// globals at 0xaaab_xxxx_xxxx live ~64TB from the JIT cache at 0xfffe_xxxx,
+// so adrp+add never reaches and we always fall through to the 3-insn path).
+#define gprVUState a64::x19
+
+// MemOperand anchored at gprVUState — `mVU.regs()` field accessor.
+// `off` is the byte offset within `VURegs`. Caller is responsible for
+// matching the encoding's imm12 reach (Q=64K, X=32K, W=16K, H=8K).
+__fi static a64::MemOperand mVUstateMem(int64_t off)
+{
+	return a64::MemOperand(gprVUState, off);
+}
+
+// How far VU1's data memory sits past the VURegs gprVUState points at; VU.h
+// puts the two in one object for exactly this. VU0's is not in it.
+static constexpr int64_t kVU1MemFromState = offsetof(VuStateStore, vu1Mem) - sizeof(VURegs);
+
+// Micro mode only: &VU.Mem[0], the VU's data memory, pinned by the dispatcher
+// (mVUdispatcherAB) so a load or store whose index is already a byte offset
+// addresses [gprVUMem, index] with no add in front of it. In COP2 macro mode
+// x29 is the EE recompiler's $v0 pin and is never touched.
+#define gprVUMem a64::x29
+
+// Where a VU load or store's address ended up: a base register and the
+// displacement the access itself has to carry -- or, with `index`, a base and
+// an index register whose sum is the address, which takes no displacement.
+struct mVUmemRef
+{
+	a64::Register base;
+	int64_t disp;
+	a64::Register index = a64::NoReg;
+
+	a64::MemOperand at(int64_t off = 0) const
+	{
+		if (index.IsValid())
+		{
+			pxAssert(disp == 0 && off == 0);
+			return a64::MemOperand(base, index);
+		}
+		return a64::MemOperand(base, disp + off);
+	}
+};
+
+// How far the unsigned-offset load/store forms reach, by operand width: imm12
+// scaled by the operand's own size. A site passes the reach of its narrowest
+// access, less the largest lane offset it adds on top.
+static constexpr int64_t kDispReachH = 4095 * 2;
+static constexpr int64_t kDispReachW = 4095 * 4;
+static constexpr int64_t kDispReachQ = 4095 * 16;
+
+// mVU shadow-flag base pointer (callee-saved). Pinned at mVUdispatcherAB
+// entry to `&mVU.macFlag[0]`. The `microVU` struct lays out
+// `statFlag[4]/macFlag[4]/clipFlag[4]/neonCTemp[4]/neonBackup[32][4]` as
+// consecutive 16-byte-aligned arrays, so a single pin reaches all of them:
+//
+//   &mVU.statFlag[0]      = pin - 16
+//   &mVU.macFlag[0]       = pin
+//   &mVU.clipFlag[0]      = pin + 16
+//   &mVU.neonCTemp[0]     = pin + 32
+//   &mVU.neonBackup[N][0] = pin + 48 + N*16   (N=0..31, max +544)
+//
+// Every flag-touching FMAC reaches these globals with a single
+// `Ldr/Str reg, [gprMVUFlag, #imm]` rather than the 3-insn
+// movz/movk/movk + ldr sequence. The address is constant per-VU
+// (microVU0/microVU1 are static globals) so the pin is set once at
+// dispatch entry and survives all C-call paths (callee-saved per AAPCS).
+#define gprMVUFlag a64::x24
+
+// MemOperand anchored at gprMVUFlag. `off` is the byte offset from
+// &mVU.macFlag[0] (signed; see layout above). Caller is responsible for
+// matching the encoding's imm12 reach.
+__fi static a64::MemOperand mVUmacFlagMem(int instance)
+{
+	return a64::MemOperand(gprMVUFlag, instance * 4);
+}
+__fi static a64::MemOperand mVUclipFlagMem(int instance)
+{
+	return a64::MemOperand(gprMVUFlag, 16 + instance * 4);
+}
+__fi static a64::MemOperand mVUneonBackupMem(int neonReg)
+{
+	return a64::MemOperand(gprMVUFlag, 48 + neonReg * 16);
+}
+
+// Flag-queue reorder accounting for vu_flag_queue_reorder_tests: how many
+// reorders mVUshuffleFlagQueue skipped as identities, how many it emitted, and
+// the most instructions any one of them took.
+#ifdef PCSX2_RECOMPILER_TESTS
+inline u32 g_mvuFlagQueueIdentities = 0;
+inline u32 g_mvuFlagQueueReorders = 0;
+inline u32 g_mvuFlagQueueWorst = 0;
+#endif
+
+// mVUglob constants base pointer (callee-saved). Pinned at mVUdispatcherAB
+// entry to `&mVUglob`. The mVU_Globals struct (~512 bytes of compile-time
+// float constants — clamp limits, FTOI/ITOF scale factors, Taylor-series
+// coefficients) is laid out as 16-byte-aligned u32[4]/float[4] arrays;
+// every entry reachable via [gprMVUglob, #imm12] rather than the
+// 3-insn movz/movk/movk + ldr sequence per constant load.
+#define gprMVUglob a64::x25
+
+// Return a MemOperand for a field within mVUglob, computed at JIT-emit
+// time from the absolute pointer. Lets call sites keep writing
+// `&mVUglob.X` (which the compiler folds to a constant offset) while the
+// emit goes through the pinned base.
+__fi static a64::MemOperand mVUglobMem(const void* addr)
+{
+	const u8* base = reinterpret_cast<const u8*>(&mVUglob);
+	const u8* p    = reinterpret_cast<const u8*>(addr);
+	return a64::MemOperand(gprMVUglob, p - base);
+}
+
+//------------------------------------------------------------------
+// Function/Template Macros (platform-independent)
+//------------------------------------------------------------------
+
+#define mP microVU& mVU, int recPass
+#define mV microVU& mVU
+#define mF int recPass
+#define mX mVU, recPass
+
+typedef void Fntype_mVUrecInst(microVU& mVU, int recPass);
+typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
+
+#define mVUx (vuIndex ? microVU1 : microVU0)
+#define mVUop(opName) static void opName(mP)
+#define _mVUt template <int vuIndex>
+
+// Define Passes
+#define pass1 if (recPass == 0) // Analyze
+#define pass2 if (recPass == 1) // Recompile
+#define pass3 if (recPass == 2) // Logging
+#define pass4 if (recPass == 3) // Flag stuff
+
+// Upper Opcode Cases
+#define opCase1 if (opCase == 1) // Normal Opcodes
+#define opCase2 if (opCase == 2) // BC Opcodes
+#define opCase3 if (opCase == 3) // I  Opcodes
+#define opCase4 if (opCase == 4) // Q  Opcodes
+
+//------------------------------------------------------------------
+// IR/Pipeline Macros (platform-independent)
+//------------------------------------------------------------------
+
+#define mVUcurProg   mVU.prog.cur[0]
+#define mVUblocks    mVU.prog.cur->block
+#define mVUir        mVU.prog.IRinfo
+#define mVUbranch    mVU.prog.IRinfo.branch
+#define mVUcycles    mVU.prog.IRinfo.cycles
+#define mVUcount     mVU.prog.IRinfo.count
+#define mVUpBlock    mVU.prog.IRinfo.pBlock
+#define mVUblock     mVU.prog.IRinfo.block
+#define mVUregs      mVU.prog.IRinfo.block.pState
+#define mVUregsTemp  mVU.prog.IRinfo.regsTemp
+#define iPC          mVU.prog.IRinfo.curPC
+#define mVUsFlagHack mVU.prog.IRinfo.sFlagHack
+#define mVUconstReg  mVU.prog.IRinfo.constReg
+#define mVUstartPC   mVU.prog.IRinfo.startPC
+#define mVUinfo      mVU.prog.IRinfo.info[iPC / 2]
+#define mVUstall     mVUinfo.stall
+#define mVUup        mVUinfo.uOp
+#define mVUlow       mVUinfo.lOp
+#define sFLAG        mVUinfo.sFlag
+#define mFLAG        mVUinfo.mFlag
+#define cFLAG        mVUinfo.cFlag
+#define mVUrange     (mVUcurProg.ranges[0])[0]
+#define isEvilBlock  (mVUpBlock->pState.blockType == 2)
+#define isBadOrEvil  (mVUlow.badBranch || mVUlow.evilBranch)
+#define isConditional (mVUlow.branch > 2 && mVUlow.branch < 9)
+#define xPC          ((iPC / 2) * 8)
+#define curI         ((u32*)mVU.regs().Micro)[iPC]
+#define setCode()    { mVU.code = curI; }
+#define bSaveAddr    (((xPC + 16) & (mVU.microMemSize-8)) / 8)
+#define shufflePQ    (((mVU.p) ? 0xb0 : 0xe0) | ((mVU.q) ? 0x01 : 0x04))
+#define Rmem         &mVU.regs().VI[REG_R].UL
+#define aWrap(x, m)  ((x > m) ? 0 : x)
+#define shuffleSS(x) ((x == 1) ? (0x27) : ((x == 2) ? (0xc6) : ((x == 4) ? (0xe1) : (0xe4))))
+#define clampE       CHECK_VU_EXTRA_OVERFLOW(mVU.index)
+#define varPrint(x)  DevCon.WriteLn(#x " = %d", (int)x)
+#define islowerOP    ((iPC & 1) == 0)
+
+#define blockCreate(addr) \
+	{ \
+		if (!mVUblocks[addr]) \
+			mVUblocks[addr] = new microBlockManager(); \
+	}
+
+#define incPC(x)  { iPC = ((iPC + (x)) & mVU.progMemMask); mVU.code = curI; }
+#define incPC2(x) { iPC = ((iPC + (x)) & mVU.progMemMask); }
+
+// Flag Info
+#define __Status (mVUregs.needExactMatch & 1)
+#define __Mac    (mVUregs.needExactMatch & 2)
+#define __Clip   (mVUregs.needExactMatch & 4)
+
+// Pass 3 Helper Macros (logging)
+#define _Fsf_String ((_Fsf_ == 3) ? "w" : ((_Fsf_ == 2) ? "z" : ((_Fsf_ == 1) ? "y" : "x")))
+#define _Ftf_String ((_Ftf_ == 3) ? "w" : ((_Ftf_ == 2) ? "z" : ((_Ftf_ == 1) ? "y" : "x")))
+#define xyzwStr(x, s) (_X_Y_Z_W == x) ? s:
+#define _XYZW_String (xyzwStr(1, "w") (xyzwStr(2, "z") (xyzwStr(3, "zw") (xyzwStr(4, "y") (xyzwStr(5, "yw") (xyzwStr(6, "yz") (xyzwStr(7, "yzw") (xyzwStr(8, "x") (xyzwStr(9, "xw") (xyzwStr(10, "xz") (xyzwStr(11, "xzw") (xyzwStr(12, "xy") (xyzwStr(13, "xyw") (xyzwStr(14, "xyz") "xyzw"))))))))))))))
+#define _BC_String   (_bc_x ? "x" : (_bc_y ? "y" : (_bc_z ? "z" : "w")))
+#define mVUlogFtFs() { mVUlog(".%s vf%02d, vf%02d", _XYZW_String, _Ft_, _Fs_); }
+#define mVUlogFd()   { mVUlog(".%s vf%02d, vf%02d", _XYZW_String, _Fd_, _Fs_); }
+#define mVUlogACC()  { mVUlog(".%s ACC, vf%02d", _XYZW_String, _Fs_); }
+#define mVUlogFt()   { mVUlog(", vf%02d", _Ft_); }
+#define mVUlogBC()   { mVUlog(", vf%02d%s", _Ft_, _BC_String); }
+#define mVUlogI()    { mVUlog(", I"); }
+#define mVUlogQ()    { mVUlog(", Q"); }
+#define mVUlogCLIP() { mVUlog("w.xyz vf%02d, vf%02dw", _Fs_, _Ft_); }
+
+#ifdef mVUlogProg
+	#define mVUlog      ((isVU1) ? __mVULog<1> : __mVULog<0>)
+	#define mVUdumpProg __mVUdumpProgram
+#else
+	#define mVUlog(...)      if (0) {}
+	#define mVUdumpProg(...) if (0) {}
+#endif
+
+//------------------------------------------------------------------
+// Optimization / Debug Options (same as x86)
+//------------------------------------------------------------------
+
+static constexpr bool doRegAlloc = true;
+static constexpr bool noFlagOpts = false;
+static constexpr bool doSFlagInsts = true;
+static constexpr bool doMFlagInsts = true;
+static constexpr bool doCFlagInsts = true;
+static constexpr bool doBranchInDelaySlot = true;
+static constexpr bool doConstProp = false;
+static constexpr bool doJumpCaching = true;
+static constexpr bool doJumpAsSameProgram = false;
+static constexpr bool doDBitHandling = false;
+static constexpr bool doWholeProgCompare = false;
+// Keep the IBcc condition value live in a pool temp from the branch op to
+// condBranch's tail Cmp, skipping the Ldrsh reload of mVU.branch (WS-C1
+// analog from the EE-SRA campaign). The memory store stays authoritative.
+static constexpr bool doBranchCondCarry = true;
+
+// Status Flag Speed Hack
+#define CHECK_VU_FLAGHACK (EmuConfig.Speedhacks.vuFlagHack)

@@ -28,11 +28,15 @@
       "switch/app.json",
       "switch/app.vert.spv",
       "switch/app.vert.spv.deflate",
+      "switch/asset-f1254118ace26413bfe2054d8f7e6ee376b4fe33db462b10a70a2e9aed9b373d.izdata",
       "switch/assets/data.bin",
       "switch/assets/font.json",
       "switch/assets/icon.png",
-      "switch/assets/state.bin"
-    ]
+      "switch/assets/state.bin",
+      "switch/launcher.iza",
+      "switch/sd-bundle.json"
+    ],
+    "sdImage": "switch/launcher.iza"
   },
   "server": {
     "runtime": "node",

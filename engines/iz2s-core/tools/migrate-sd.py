@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the 0.3.0 SD layout and migrate a mounted legacy SD card."""
+"""Install the 0.3.1 SD layout and migrate a mounted legacy SD card."""
 import argparse
 import hashlib
 import json
@@ -114,7 +114,7 @@ def run(args):
         if args.dry_run:
             raise ValueError('Use --finalize after preparing and testing the new session')
         if not args.session_confirmed:
-            raise ValueError('Start and verify a new 0.3.0 console session, then add --session-confirmed')
+            raise ValueError('Start and verify a new 0.3.1 console session, then add --session-confirmed')
         receipt = json.loads(receipt_file.read_text())
         if receipt.get('version') != 1 or receipt['sdRoot'] != str(root):
             raise ValueError('Receipt belongs to a different SD root')
@@ -216,7 +216,7 @@ def main():
     parser.add_argument('--backup', type=Path, required=True, help='Backup directory on the PC')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--finalize', action='store_true', help='Remove verified legacy files after a new session')
-    parser.add_argument('--session-confirmed', action='store_true', help='A new 0.3.0 session has been verified on this SD')
+    parser.add_argument('--session-confirmed', action='store_true', help='A new 0.3.1 session has been verified on this SD')
     args = parser.parse_args()
     try:
         print(json.dumps(run(args), indent=2))

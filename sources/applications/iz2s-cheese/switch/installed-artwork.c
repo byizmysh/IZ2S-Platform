@@ -60,10 +60,20 @@ bool installed_artwork(FILE *file, uint64_t length, bool iza, uint32_t *pixels) 
         stbi_load_from_memory(jpeg, (int)bytes, &width, &height, NULL, 4) : NULL;
     free(jpeg);
     if (!decoded) return false;
-    for (int y = 0; y < STORE_ICON_SIZE; ++y)
-        for (int x = 0; x < STORE_ICON_SIZE; ++x) {
-            const uint8_t *pixel = decoded + 4 * ((y * height / STORE_ICON_SIZE) * width + x * width / STORE_ICON_SIZE);
-            pixels[y * STORE_ICON_SIZE + x] = read_u32(pixel);
+    int longest = width > height ? width : height;
+    int fitted_width = (width * STORE_ICON_SIZE + longest / 2) / longest;
+    int fitted_height = (height * STORE_ICON_SIZE + longest / 2) / longest;
+    if (!fitted_width) fitted_width = 1;
+    if (!fitted_height) fitted_height = 1;
+    int left = (STORE_ICON_SIZE - fitted_width) / 2;
+    int top = (STORE_ICON_SIZE - fitted_height) / 2;
+    if (fitted_width != STORE_ICON_SIZE || fitted_height != STORE_ICON_SIZE) memset(pixels, 0, PIXEL_BYTES);
+    for (int y = 0; y < fitted_height; ++y)
+        for (int x = 0; x < fitted_width; ++x) {
+            int source_y = (2 * y + 1) * height / (2 * fitted_height);
+            int source_x = (2 * x + 1) * width / (2 * fitted_width);
+            const uint8_t *pixel = decoded + 4 * (source_y * width + source_x);
+            pixels[(y + top) * STORE_ICON_SIZE + x + left] = read_u32(pixel);
         }
     stbi_image_free(decoded);
     return true;

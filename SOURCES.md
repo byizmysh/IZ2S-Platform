@@ -1,10 +1,12 @@
 # Source layout and notices
 
-The root tree contains the 0.3.0 PC panel, runtime JavaScript, installers, descriptors, resources and retained native source files. Production JavaScript dependencies remain next to their owning components, with their licenses. Application development sources excluded from the end-user installers are under `sources/applications/`.
+The root tree contains the 0.3.1 PC panel, runtime JavaScript, installers, descriptors, resources and retained native source files. Production JavaScript dependencies remain next to their owning components, with their licenses. Application development sources excluded from the end-user installers are under `sources/applications/`.
 
-`sources/izpsx/` is extracted from the published IZPSX 0.5.2 source archive with SHA-256 `6fb81fcf01e8db101711528930917adaa4a9ec0a78c1b19323b341af785a687b`. It contains the PCSX-ReARMed vendor snapshot, build files, font and SDK notices, and the `bios.bin` path update. No BIOS or game images are supplied.
+`sources/izpsx/`, `sources/izps2/` and `sources/applications/iz2s-cheese/` retain the published source trees for IZPSX 0.5.3, IZPS2 0.5.0 and IZ2S Cheese 0.8.7, including original authors, licenses, dependencies and build records. Exact upstream tags and downloaded archive checksums are recorded in `distribution/application-origins.json`. The prebuilt launchers and companions match the official IZA release assets byte for byte; packaging does not rebuild or alter them. The module catalog's shader/native sections and icon are extracted from those same images for library metadata.
 
-`sources/native-cheese/` retains the available native Cheese integration patch and its original build recipe. That recipe still refers to the developer's pinned external build workspace; it is provenance, not a portable full rebuild command.
+The IZPS2 source release records inherited toolchain inputs and states that a complete clean native rebuild is pending. That upstream limitation is preserved. No BIOS or game images are supplied.
+
+`sources/native-cheese/` retains the historical native Cheese integration patch and its original build recipe as provenance for inherited runtime work. The unchanged console menu also retains its seven hash-bound Cheese source inputs under `modules/iz2s-cheese/switch/`; they describe that existing menu binary, not the separately updated Cheese 0.8.7 IZA.
 
 The native runtime and firmware have inherited build inputs outside this checkout. The current menu build record binds its recorded sources and outputs by hash. Historical source snapshots for unchanged binaries are retained under `sources/runtime-build/`; other inherited native build records do not describe every current output. This snapshot is **not a complete corresponding-source archive for the entire native runtime and firmware**, and a clean full native rebuild is not claimed. These gaps are not resolved by including upstream links or license texts. Existing notices and source obligations remain applicable.
 

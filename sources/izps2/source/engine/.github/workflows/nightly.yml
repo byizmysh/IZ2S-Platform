@@ -1,0 +1,523 @@
+# Nightly build pipeline for the single-core monorepo.
+#
+# Once a day (and on manual dispatch) this builds every shippable target and
+# publishes them as a dated GitHub *pre-release* (nightly-YYYYMMDD) so anyone can
+# download them. A prune step keeps only the newest 7 nightlies so the Releases
+# page stays tidy (stable vX.Y.Z releases are never touched).
+#
+# Platform coverage mirrors build-all.yml's guardrail:
+#   * PC arm64 Qt GUI  -> macOS / Linux (4K+16K) / Windows   (blocking for release)
+#   * libretro core     -> RetroArch, linux arm64             (non-blocking, attach-if-present)
+#   * SDL kmsdrm        -> bare-display handhelds, linux arm64 (non-blocking, attach-if-present)
+#   * Android APK       -> sideloadable, debug-key-signed     (non-blocking, attach-if-present)
+#   * iOS               -> unsigned .ipa, sideloadable       (non-blocking, attach-if-present)
+name: Nightly
+
+on:
+  schedule:
+    - cron: '17 8 * * *'     # 08:17 UTC daily; off the :00 mark, where GitHub drops scheduled runs
+  workflow_dispatch:
+
+permissions:
+  contents: write            # create the release + tag, prune old ones
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  # ---- gate: skip empty nights; never run on forks -----------------------
+  gate:
+    name: Decide whether to build
+    if: ${{ github.repository == 'ARMSX2/ARMSX2' }}
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+      date: ${{ steps.check.outputs.date }}
+      sha: ${{ steps.check.outputs.sha }}
+      version_name: ${{ steps.check.outputs.version_name }}
+      version_code: ${{ steps.check.outputs.version_code }}
+      notes: ${{ steps.notes.outputs.body }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0     # needed for the 24h commit count below
+          fetch-tags: true   # previous-nightly tag for the changelog, and the version fallback
+      - id: check
+        env:
+          # Read access for `gh release list`. Available in-repo regardless of the
+          # workflow-level contents:write permission.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DATE=$(date -u +%Y%m%d)
+          SHA=$(git rev-parse --short HEAD)
+          # A manual dispatch always builds; a scheduled run only builds if there
+          # was at least one commit in the last 24h (no point rebuilding nothing).
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PROCEED=true
+          elif [ "$(git rev-list --count --since='24 hours ago' HEAD)" -gt 0 ]; then
+            PROCEED=true
+          else
+            PROCEED=false
+          fi
+          # Nightly version identity, computed once here and handed to the Android
+          # job, which checks out shallowly and has no tags.
+          #
+          # Base = newest STABLE release tag from the Releases API, not a tag scan.
+          # ARMSX2/ARMSX2 carries PCSX2's full tag history (~808 v2.x tags) and those
+          # are tag-only, never releases, so the API is the authoritative "what did
+          # ARMSX2 ship" source. The digit-prefix filter drops the iOS release channel
+          # (tags like iOSv2.5.2, which publish no APK). Result reads like
+          # 2.6.9-nightly.20260918.58c812a77a. Falls back to the nearest reachable
+          # non-nightly git tag if the API is unreachable.
+          # versionCode is the UTC date as YYYYMMDD: monotonic night over night,
+          # self-describing, and inside int32 until 2147.
+          BASE_TAG="$(gh release list -R "${GITHUB_REPOSITORY}" --exclude-pre-releases --exclude-drafts -L 100 \
+            --json tagName --jq '[.[] | .tagName | select(test("^[0-9]+[.][0-9]+"))] | .[0]' 2>/dev/null || true)"
+          if [ -z "$BASE_TAG" ]; then
+            BASE_TAG="$(git describe --abbrev=0 --tags --exclude 'nightly-*' 2>/dev/null || true)"
+            BASE_TAG="${BASE_TAG#v}"
+          fi
+          VN="${BASE_TAG:-0.0.0}-nightly.${DATE}.${SHA}"
+          VC="$DATE"
+          echo "date=$DATE"       >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA"         >> "$GITHUB_OUTPUT"
+          echo "proceed=$PROCEED" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VN" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VC" >> "$GITHUB_OUTPUT"
+          echo "proceed=$PROCEED date=$DATE sha=$SHA version=$VN vc=$VC"
+
+      # Plain-language changelog for the release body: one bullet per commit
+      # since the previous nightly tag, with noise filtered and dev "[scope]"
+      # tags stripped. No hashes/emojis/dashes. Built here because gate already
+      # has full history (+ tags) checked out; the publish job (which has no
+      # checkout) consumes it via needs.gate.outputs.notes.
+      - id: notes
+        run: |
+          DATE="${{ steps.check.outputs.date }}"
+          REPO="${{ github.repository }}"
+          # most recent nightly-* tag that isn't today's (empty on the first nightly)
+          PREV="$(git tag -l 'nightly-*' --sort=-creatordate | grep -vx "nightly-${DATE}" | head -1 || true)"
+          if [ -n "$PREV" ] && git rev-parse -q --verify "refs/tags/${PREV}" >/dev/null; then
+            RANGE="${PREV}..HEAD"
+          elif git rev-parse -q --verify "HEAD~20" >/dev/null; then
+            RANGE="HEAD~20..HEAD"        # first nightly: fall back to the last 20 commits
+          else
+            RANGE="HEAD"
+          fi
+          # Turn commit subjects into plain user-facing bullets:
+          #  - drop internal commits (merge/revert/ci/chore/docs/build/style/test/
+          #    refactor, translation syncs, version/cmake bumps)
+          #  - strip conventional "feat/fix/perf:" prefixes and leading "[scope]" tags
+          #  - convert em/en dashes (—/–) to commas so no AI-style dashes survive
+          #  || true keeps head's SIGPIPE from tripping pipefail; empty output is fine.
+          git log "$RANGE" --no-merges --pretty=format:'%s' \
+            | grep -ivE '^(merge |revert )' \
+            | grep -ivE '^(ci|chore|docs|build|style|test|refactor)(\(|:)' \
+            | grep -ivE 'update translations|transifex|bump version|^version |^cmake ' \
+            | sed -E 's/^(feat|fix|perf)(\([^)]*\))?!?: *//' \
+            | sed 's/ *— */, /g; s/ *– */, /g' \
+            | sed 's/^\[[^]]*\] *//' \
+            | sed 's/^/- /' \
+            | head -100 > changes.txt || true
+          {
+            echo "Automated nightly build for community testing (unsigned)."
+            echo
+            # Single-quoted: the backticks are Markdown code, not command substitution.
+            # Angle brackets would be eaten by GitHub's HTML sanitizer, so spell the
+            # placeholders out instead.
+            echo 'Every download is named `ARMSX2-nightly-DATE-COMMIT-PLATFORM`, so builds'
+            echo 'from different nights stay distinguishable after you have downloaded them.'
+            echo
+            echo "- macOS arm64: macOS-arm64.tar.xz"
+            echo "- Linux arm64: Linux-arm64-4K-pages.AppImage on most distros, or the 16K one on Asahi Linux and other Apple Silicon kernels (run getconf PAGESIZE if unsure)"
+            echo "- Windows arm64: Windows-arm64.zip"
+            echo "- RetroArch on Linux arm64: Linux-arm64-libretro-core.tar.zst, a 4K-page build"
+            echo "- Bare-display kmsdrm handhelds: Linux-arm64-SDL-handheld.tar.zst, a 4K-page build (Rocknix and Batocera run compositors, so use the Qt AppImage there instead)"
+            echo "- Android: Android-arm64.apk (installs as ARMSX2 Nightly, alongside the stable app)"
+            echo "- iOS: iOS-arm64.ipa, unsigned, sideload it (installs as ARMSX2 Nightly, alongside the stable app)"
+            echo
+            # Temporary while old com.armsx2 nightlies are still installed. The old updater shows
+            # this body, so it is how those users learn there is no in-place route back to stable.
+            echo 'Coming from an old nightly? Nightlies are now a separate app, ARMSX2 Nightly, next to stable.'
+            echo
+            echo '- Android: stable cannot install over an old nightly. Back up your saves and memory cards, uninstall the old nightly, then install the stable APK.'
+            echo '- iOS: your old nightly is the ARMSX2 iOS app and still has your saves. Copy them into ARMSX2 Nightly with the Files app.'
+            echo
+            echo "## What's new"
+            if [ -s changes.txt ]; then cat changes.txt; else echo "- No notable changes since the last nightly."; fi
+            if [ -n "$PREV" ]; then
+              echo
+              echo "Full changelog: https://github.com/${REPO}/compare/${PREV}...${{ github.sha }}"
+            fi
+          } > notes.md
+          {
+            echo 'body<<ARMSX2_NOTES_EOF'
+            cat notes.md
+            echo 'ARMSX2_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "----- generated release notes -----"; cat notes.md
+
+  # ---- PC arm64 Qt GUI (blocking for the release) ------------------------
+  pc-macos-arm64:
+    name: PC · macOS arm64 (Qt)
+    needs: gate
+    if: ${{ needs.gate.outputs.proceed == 'true' }}
+    uses: ./.github/workflows/macos_build.yml
+    with:
+      jobName: "macOS arm64"
+      artifactPrefixName: "armsx2-macos-arm64"
+      fetchTags: true
+      sign_and_notarize: true
+    secrets: inherit
+
+  pc-linux-arm64:
+    name: PC · Linux arm64 (Qt)
+    needs: gate
+    if: ${{ needs.gate.outputs.proceed == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pageVariant: "4k"
+            pageSize: "4096"
+            cacheLineSize: "64"
+          - pageVariant: "16k"
+            pageSize: "16384"
+            cacheLineSize: "128"
+    uses: ./.github/workflows/linux_build_qt.yml
+    with:
+      jobName: "Linux arm64 (${{ matrix.pageVariant }} pages)"
+      artifactPrefixName: "armsx2-linux-arm64-${{ matrix.pageVariant }}-appimage"
+      compiler: clang
+      cmakeflags: "-DHOST_PAGE_SIZE=${{ matrix.pageSize }} -DHOST_CACHE_LINE_SIZE=${{ matrix.cacheLineSize }}"
+      buildAppImage: true
+      fetchTags: true
+
+  pc-windows-arm64:
+    name: PC · Windows arm64 (Qt)
+    needs: gate
+    if: ${{ needs.gate.outputs.proceed == 'true' }}
+    uses: ./.github/workflows/windows_build_qt.yml
+    with:
+      jobName: "Windows arm64"
+      artifactPrefixName: "armsx2-windows-arm64"
+      fetchTags: true
+
+  # ---- libretro core + SDL handheld frontend (linux arm64) ---------------
+  # Both were in build-all.yml from the start but never in the nightly, so the
+  # RetroArch core and the kmsdrm handheld build had no published download.
+  # Non-blocking like the mobile jobs. `continue-on-error` is not a permitted key
+  # on a reusable-workflow job, so a failure here still reddens the run -- but the
+  # publish guard below names only the PC jobs, so it costs the asset, not the
+  # release. Both are 4K-page builds (see OVERRIDE_HOST_PAGE_SIZE in each).
+  pc-linux-arm64-libretro:
+    name: PC · Linux arm64 (libretro core)
+    needs: gate
+    if: ${{ needs.gate.outputs.proceed == 'true' }}
+    uses: ./.github/workflows/linux_build_libretro.yml
+    with:
+      jobName: "libretro Core Build (arm64)"
+      artifactPrefixName: "armsx2-linux-arm64-libretro"
+      fetchTags: true
+    secrets: inherit
+
+  pc-linux-arm64-sdl:
+    name: PC · Linux arm64 (SDL kmsdrm)
+    needs: gate
+    if: ${{ needs.gate.outputs.proceed == 'true' }}
+    uses: ./.github/workflows/linux_build_sdl.yml
+    with:
+      jobName: "SDL Handheld Build (arm64)"
+      artifactPrefixName: "armsx2-linux-arm64-sdl"
+      fetchTags: true
+    secrets: inherit
+
+  # ---- Android APK (non-blocking; attached if it builds) -----------------
+  android:
+    name: Android APK
+    needs: gate
+    if: ${{ needs.gate.outputs.proceed == 'true' }}
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: platforms/android
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # The action's default is "tools platform-tools"; Google removed the
+          # legacy "tools" package, so installing it fails the whole job.
+          packages: platform-tools
+
+      - name: Install NDK + CMake
+        run: yes | sdkmanager "ndk;29.0.14206865" "cmake;3.31.6" >/dev/null || true
+
+      - name: Fetch shaderc third-party deps
+        run: python3 app/src/main/cpp/3rdparty/shaderc/utils/git-sync-deps
+
+      # librashader is built by cargo for the Android target; the runner's
+      # rustup only ships the host std, so the cargo step dies with
+      # "error[E0463]: can't find crate for `core`" without this. Mirrors the
+      # same step in build-all.yml (10fab243e7).
+      - name: Install Rust Android target
+        run: rustup target add aarch64-linux-android
+
+      # Dual-core (4k + 16k page size) + PGO nightly. A stock `assembleRelease`
+      # ships ONLY the 4k core and cannot load its native core on 16k-page
+      # devices (Android 15+ handhelds). This compiles the core at both page
+      # sizes and merges both .so's into one APK, with PGO=optimize so the
+      # nightly matches release performance. See tools/ci-nightly-dualcore.sh.
+      - name: Build dual-core (4k + 16k) + PGO APK
+        env:
+          FLAVOR: Github
+          # Separate package + label so nightly installs BESIDE stable com.armsx2 instead of
+          # replacing it. This is also what keeps the nightly's in-app updater on the nightly
+          # channel: the app is built with -Parmsx2.channel=nightly (see ci-nightly-dualcore.sh).
+          APK_ID: com.armsx2.nightly
+          # Version identity comes from the gate job, which has full history + tags. Do NOT
+          # recompute here: this job checks out one commit with no tags, and the old inline
+          # grep simply matched the hardcoded 2.6.1 fallback in build.gradle.kts, so every
+          # nightly reported 2.6.1.
+          VC: ${{ needs.gate.outputs.version_code }}
+          VN: ${{ needs.gate.outputs.version_name }}
+          # Rotation signing keeps every nightly on ONE certificate so a nightly updates over
+          # the previous nightly. Add these repo secrets (base64 the keystores + lineage.bin):
+          #   NIGHTLY_DEBUG_KS_B64      = base64 of the <=API32 debug keystore (f942d6bb)
+          #   NIGHTLY_RELEASE_KS_B64    = base64 of armsx2_release.jks (df91c9ce)
+          #   NIGHTLY_LINEAGE_B64       = base64 of the signing lineage .bin
+          #   NIGHTLY_RELEASE_KS_PASS / NIGHTLY_RELEASE_KEY_ALIAS / NIGHTLY_RELEASE_KEY_PASS
+          # Without them the script refuses to build (a throwaway key would strand users).
+          ROTATION_DEBUG_KS_B64: ${{ secrets.NIGHTLY_DEBUG_KS_B64 }}
+          ROTATION_RELEASE_KS_B64: ${{ secrets.NIGHTLY_RELEASE_KS_B64 }}
+          ROTATION_LINEAGE_B64: ${{ secrets.NIGHTLY_LINEAGE_B64 }}
+          ROTATION_RELEASE_KS_PASS: ${{ secrets.NIGHTLY_RELEASE_KS_PASS }}
+          ROTATION_RELEASE_KEY_ALIAS: ${{ secrets.NIGHTLY_RELEASE_KEY_ALIAS }}
+          ROTATION_RELEASE_KEY_PASS: ${{ secrets.NIGHTLY_RELEASE_KEY_PASS }}
+        run: |
+          if [ -n "$ROTATION_DEBUG_KS_B64" ] && [ -n "$ROTATION_RELEASE_KS_B64" ] && [ -n "$ROTATION_LINEAGE_B64" ]; then
+            printf '%s' "$ROTATION_DEBUG_KS_B64"   | base64 -d > "$RUNNER_TEMP/debug.jks"
+            printf '%s' "$ROTATION_RELEASE_KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            printf '%s' "$ROTATION_LINEAGE_B64"    | base64 -d > "$RUNNER_TEMP/lineage.bin"
+            export ROTATION_DEBUG_KS="$RUNNER_TEMP/debug.jks"
+            export ROTATION_RELEASE_KS="$RUNNER_TEMP/release.jks"
+            export ROTATION_LINEAGE="$RUNNER_TEMP/lineage.bin"
+          fi
+          bash tools/ci-nightly-dualcore.sh
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: armsx2-android-arm64
+          # ONLY the merged dual-core APK — not the intermediate single-core bases —
+          # so the publish job attaches exactly one APK to the release.
+          path: platforms/android/app/build/outputs/apk/nightly/*.apk
+          if-no-files-found: warn
+
+  # ---- iOS IPA (non-blocking; attached if it builds) ----------------------
+  ios:
+    name: iOS IPA (unsigned)
+    needs: gate
+    if: ${{ needs.gate.outputs.proceed == 'true' }}
+    continue-on-error: true
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      # librashader is built by cargo for iOS; without this target CMake turns shader
+      # support off and the app hides Shaders, while the build still passes.
+      - name: Install Rust iOS target
+        run: rustup target add aarch64-apple-ios
+
+      # The core is cached by committed content and saved before the client identity is
+      # written, so no cache or key holds it.
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Compute the core cache key
+        id: core-key
+        run: echo "key=ios-core-device-$({ xcodebuild -version; cmake --version | head -1; ninja --version; rustc --version; git rev-parse HEAD:pcsx2 HEAD:common HEAD:3rdparty HEAD:cmake HEAD:bin/resources/shaders HEAD:platforms/android/app/src/main/cpp/3rdparty HEAD:platforms/ios/CMakeLists.txt HEAD:platforms/ios/cmake HEAD:platforms/ios/3rdparty HEAD:platforms/ios/patches HEAD:platforms/ios/scripts/build-ios-core.sh; } | shasum | cut -c1-40)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the prebuilt core
+        id: core-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: platforms/ios/build/core-device
+          key: ${{ steps.core-key.outputs.key }}
+
+      # A restored core is older than a fresh checkout, so Ninja would rebuild all of it. The
+      # checkout is aged on a miss too, since a precompiled header rejects any header whose
+      # mtime differs from the one it was built against.
+      - name: Age the checkout behind the prebuilt core
+        run: find . -path ./.git -prune -o -path ./platforms/ios/build -prune -o -exec touch -h -t 200001010000 {} +
+
+      - name: Build the prebuilt core
+        run: platforms/ios/scripts/build-ios-core.sh device
+
+      - name: Save the prebuilt core
+        if: steps.core-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: platforms/ios/build/core-device
+          key: ${{ steps.core-key.outputs.key }}
+
+      # RetroAchievements grants hardcore by the client name and version in the user agent,
+      # which pcsx2/Host.cpp reads from a gitignored header. Set the IOS_RA_UA_VERSION secret
+      # (bare version, no leading v) to enable it; without it the build stays softcore.
+      - name: Embed the RetroAchievements client identity
+        env:
+          IOS_RA_UA_VERSION: ${{ secrets.IOS_RA_UA_VERSION }}
+        run: bash .github/workflows/scripts/common/write-ra-ua-secret.sh
+
+      # Its own bundle ID so it installs beside the stable app, and a timestamped version
+      # so each nightly reads as newer than the last.
+      - name: Build unsigned IPA
+        env:
+          BUNDLE_ID: com.armsx2.ios.nightly
+          DISPLAY_NAME: ARMSX2 Nightly
+        run: VERSION_SUFFIX="-nightly.$(date -u +%Y%m%d.%H%M)" ./platforms/ios/scripts/build-ios-ipa.sh
+
+      # The client doesn't report a rejected agent, so fail when the identity is missing.
+      - name: Verify the client identity reached the binary
+        env:
+          IOS_RA_UA_VERSION: ${{ secrets.IOS_RA_UA_VERSION }}
+        run: >
+          bash .github/workflows/scripts/common/verify-ra-ua-agent.sh
+          platforms/ios/build/device/Release-iphoneos/ARMSX2iOS.app/ARMSX2iOS
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: armsx2-ios-arm64
+          path: platforms/ios/build/device/ARMSX2-iOS-unsigned.ipa
+          if-no-files-found: warn
+
+  # ---- publish: gather artifacts -> dated pre-release --------------------
+  publish:
+    name: Publish nightly release
+    needs: [gate, pc-macos-arm64, pc-linux-arm64, pc-windows-arm64, pc-linux-arm64-libretro, pc-linux-arm64-sdl, android, ios]
+    # Run as long as the PC guardrail passed, even if Android failed (its APK is
+    # then simply absent). `!cancelled()` disables the implicit "all needs must
+    # succeed" gate so we can require only the PC jobs explicitly.
+    # NOTE: must be a single-line ${{ }} with nothing around it -- a folded/multi-line
+    # scalar leaves extra characters (a newline) around the expression, which GitHub
+    # then treats as a truthy string and the guard is silently bypassed.
+    if: ${{ !cancelled() && needs.gate.outputs.proceed == 'true' && needs.pc-macos-arm64.result == 'success' && needs.pc-linux-arm64.result == 'success' && needs.pc-windows-arm64.result == 'success' }}
+    runs-on: ubuntu-latest
+    # Job-level so the Discord step's `if: env.HOOK != ''` guard can see it.
+    env:
+      HOOK: ${{ secrets.DISCORD_BUILD_WEBHOOK }}
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dl
+
+      # Rename every asset to ONE scheme as it is collected:
+      #   ARMSX2-nightly-<YYYYMMDD>-<sha>-<platform>.<ext>
+      # The build jobs each name their CI artifact differently (the PC jobs use the
+      # shared armsx2-<target>-sha[<sha>] scheme, Android bakes in a versionCode,
+      # iOS ships a fixed ARMSX2-iOS-unsigned.ipa), which made downloaded files
+      # impossible to tell apart: no date, three naming conventions, and GitHub
+      # rewrites the '[' / ']' of sha[...] to '.' on upload so it reads as a second
+      # file extension. Renaming HERE keeps the per-workflow CI artifact names
+      # untouched for the Actions tab and for build-all.yml.
+      - name: Collect release assets
+        env:
+          DATE: ${{ needs.gate.outputs.date }}
+          SHA: ${{ needs.gate.outputs.sha }}
+        run: |
+          mkdir -p out dl
+          STEM="ARMSX2-nightly-${DATE}-${SHA}"
+
+          # grab <artifact-dir glob> <filename glob> <platform suffix>
+          grab() {
+            local src
+            src=$(find dl -type f -path "$1" -name "$2" | head -1) || true
+            if [ -z "$src" ]; then
+              echo "  MISSING  ${STEM}-$3   (no $2 under $1)"
+              return 0
+            fi
+            cp "$src" "out/${STEM}-$3"
+            echo "  ok       ${STEM}-$3   <-  $src"
+          }
+
+          grab 'dl/*-macos-*/*'  '*.tar.xz'   'macOS-arm64.tar.xz'
+          grab 'dl/*-4k-*/*'     '*.AppImage' 'Linux-arm64-4K-pages.AppImage'
+          grab 'dl/*-16k-*/*'    '*.AppImage' 'Linux-arm64-16K-pages.AppImage'
+          grab 'dl/*-libretro-*/*' '*.tar.zst' 'Linux-arm64-libretro-core.tar.zst'
+          grab 'dl/*-sdl-*/*'    '*.tar.zst'  'Linux-arm64-SDL-handheld.tar.zst'
+          grab 'dl/*-android-*/*' '*.apk'     'Android-arm64.apk'
+          grab 'dl/*-ios-*/*'    '*.ipa'      'iOS-arm64.ipa'
+
+          # Windows ships a bin/ tree rather than a single file, so zip the artifact.
+          wdir=$(find dl -mindepth 1 -maxdepth 1 -type d -name '*windows*' | head -1) || true
+          if [ -n "$wdir" ]; then
+            (cd "$wdir" && zip -qr "$GITHUB_WORKSPACE/out/${STEM}-Windows-arm64.zip" .)
+            echo "  ok       ${STEM}-Windows-arm64.zip   <-  $wdir"
+          else
+            echo "  MISSING  ${STEM}-Windows-arm64.zip"
+          fi
+
+          echo "Release assets:"; ls -la out
+
+      - name: Publish GitHub pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly-${{ needs.gate.outputs.date }}
+          name: "ARMSX2 nightly ${{ needs.gate.outputs.date }} (${{ needs.gate.outputs.sha }})"
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          fail_on_unmatched_files: false
+          # Eden-style release notes (static intro + per-commit changelog + Full
+          # Changelog link) assembled by the gate job, which has git history.
+          body: ${{ needs.gate.outputs.notes }}
+          files: out/*
+
+      - name: Discord announce
+        if: ${{ env.HOOK != '' }}
+        env:
+          REL_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/nightly-${{ needs.gate.outputs.date }}
+          NOTES: ${{ needs.gate.outputs.notes }}
+        run: |
+          # Put the changelog in the embed. Discord caps embed descriptions at 4096
+          # chars, so trim with headroom and point at the release page if it overflows.
+          BODY=$(printf '%s' "$NOTES" | head -c 3800)
+          if [ "${#NOTES}" -gt 3800 ]; then BODY=$(printf '%s\n\n(full changelog on the release page)' "$BODY"); fi
+          jq -n --arg url "$REL_URL" --arg d "ARMSX2 nightly ${{ needs.gate.outputs.date }}" --arg body "$BODY" \
+            '{username:"ARMSX2 CI", embeds:[{title:("🌙 " + $d + " published"), url:$url, color:5763719, description:$body}]}' \
+          | curl -fsSL -H 'Content-Type: application/json' -d @- "$HOOK"
+
+  # ---- prune: keep only the newest 7 nightlies ---------------------------
+  prune:
+    name: Prune old nightlies (keep 7)
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete all but the newest 7 nightly-* releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # startswith('nightly-') scopes this to nightlies -> stable vX.Y.Z is safe.
+          gh release list --limit 100 --json tagName,createdAt \
+            | jq -r '[.[] | select(.tagName | startswith("nightly-"))]
+                     | sort_by(.createdAt) | reverse | .[7:] | .[].tagName' \
+            | while read -r tag; do
+                [ -n "$tag" ] || continue
+                echo "Deleting old nightly: $tag"
+                gh release delete "$tag" --cleanup-tag --yes
+              done

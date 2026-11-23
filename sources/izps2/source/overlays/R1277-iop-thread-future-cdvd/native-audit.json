@@ -1,0 +1,76 @@
+{
+  "linkedSdk": [
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a",
+      "sha256": "69a616fd8fd03ad6e80bde9b4824efc50f49c04526d3e264210f361040b738a0"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a",
+      "sha256": "cc3e3f4698aaa7b2389b9652d536ff855026dc544d00ea318a306fdb8ba8745c"
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a",
+      "sha256": "0189100b17ae3143cca7f1ba0b859cf300090960deeae9f23d046120b7f6285a"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a",
+      "sha256": "6e2f49c45c0a160ecc93d4a5934e844d109cfec339ce7cb73506af6b8a192fba"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a",
+      "sha256": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da"
+    }
+  ],
+  "selectedLibounceMembers": [
+    "svc.o",
+    "cache.o",
+    "levent.o"
+  ],
+  "rebuiltLinkItems": [
+    "engine.elf",
+    "engine.ld",
+    "engine.map",
+    "hosted-entry.c.obj",
+    "libpcsx2-hosted.a",
+    "ps2_vm_runner.cpp.obj"
+  ],
+  "verifiedEngineMembers": {
+    "iR5900-arm64.cpp.obj": {
+      "before": "0a55c67820475c107d7235d2de1abe92b1b0a5337f082636d56b4d97731fcb3b",
+      "after": "0a55c67820475c107d7235d2de1abe92b1b0a5337f082636d56b4d97731fcb3b"
+    },
+    "iR3000A-arm64.cpp.obj": {
+      "before": "47849a34dfed2a298dd13fd87c0551f8a4b4994ef677156b0a31c751758045ef",
+      "after": "47849a34dfed2a298dd13fd87c0551f8a4b4994ef677156b0a31c751758045ef"
+    },
+    "IopThreadVm.cpp.obj": {
+      "before": "c9e0b3b041ac82b1798a2376435b571c3e9cd6eeae918704d8b4375372c3d478",
+      "after": "02280ae8972af2295badc72bff6623eb97ef6bf96aa1b71b54dfb36bf0fb433e"
+    },
+    "IopThread.cpp.obj": {
+      "before": "b37ea6f15466f54836b5d92bdb63da1213653f120ec4da8fbbab595d01981923",
+      "after": "b37ea6f15466f54836b5d92bdb63da1213653f120ec4da8fbbab595d01981923"
+    },
+    "R3000A.cpp.obj": {
+      "before": "b231e2fc2140d19b96f4e1deeba29e09bd38ba3b214f1504d4e2ab2eb305e63e",
+      "after": "b231e2fc2140d19b96f4e1deeba29e09bd38ba3b214f1504d4e2ab2eb305e63e"
+    },
+    "R5900.cpp.obj": {
+      "before": "1cce86ba9f2d95e7c335802e2bcd2f7c6a2c8de8d18224efe2daf4cde11dcce4",
+      "after": "1cce86ba9f2d95e7c335802e2bcd2f7c6a2c8de8d18224efe2daf4cde11dcce4"
+    },
+    "Mixer.cpp.obj": {
+      "before": "0b3478d7120154f31416fbc9df9df5bf5a0036d3cb4c21b19ab8c9ea1db0bd59",
+      "after": "0b3478d7120154f31416fbc9df9df5bf5a0036d3cb4c21b19ab8c9ea1db0bd59"
+    },
+    "MTVU.cpp.obj": {
+      "before": "5b5bafff22f2c78f064f8ebde3a3065ac696ebc91c39e4f5dd542b1bdf80e877",
+      "after": "5b5bafff22f2c78f064f8ebde3a3065ac696ebc91c39e4f5dd542b1bdf80e877"
+    },
+    "GSDeviceVK.cpp.obj": {
+      "before": "4206a563a3e9a1d77b43bd6dd22c3182ad71a3c5a77dc50c6596baf981ddd29e",
+      "after": "4206a563a3e9a1d77b43bd6dd22c3182ad71a3c5a77dc50c6596baf981ddd29e"
+    }
+  },
+  "sameMemberOrder": true
+}

@@ -41,7 +41,7 @@ test('generated save renames only framed template game titles and preserves the 
  const bytes=fs.readFileSync(path.join(__dirname,'../persist/save_template.bin')), original=Buffer.from(bytes),window={};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../persist/save-codec.js'),'utf8'),{window,Uint8Array,DataView});
  const codec=window.__cfsSaveCodec,result=Buffer.from(codec.replace(new Uint8Array(bytes),'/* IZ2S fixture */',false,true));
- assert.deepEqual(bytes,original);assert(!result.includes(Buffer.from("Gezine's Game")));assert.equal(result.toString('latin1').split('IZ2s 0.3.0  ').length-1,2);
+ assert.deepEqual(bytes,original);assert(!result.includes(Buffer.from("Gezine's Game")));assert.equal(result.toString('latin1').split('IZ2s 0.3.1  ').length-1,2);
  assert.doesNotThrow(()=>codec.inspect(new Uint8Array(result)));
 });
 

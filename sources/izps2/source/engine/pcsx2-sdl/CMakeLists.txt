@@ -1,0 +1,43 @@
+add_executable(pcsx2-sdl)
+
+# ARMSX2: emit the handheld frontend binary as "armsx2-sdl" instead of
+# "pcsx2-sdl". Target name stays pcsx2-sdl; only the produced file changes.
+set_target_properties(pcsx2-sdl PROPERTIES OUTPUT_NAME "armsx2-sdl")
+
+if (PACKAGE_MODE)
+	install(TARGETS pcsx2-sdl DESTINATION ${CMAKE_INSTALL_BINDIR})
+	install(DIRECTORY ${CMAKE_SOURCE_DIR}/bin/resources DESTINATION ${CMAKE_INSTALL_FULL_DATADIR}/PCSX2)
+else()
+	install(TARGETS pcsx2-sdl DESTINATION ${CMAKE_SOURCE_DIR}/bin)
+endif()
+
+target_sources(pcsx2-sdl PRIVATE
+	Main.cpp
+)
+
+target_include_directories(pcsx2-sdl PRIVATE
+	"${CMAKE_BINARY_DIR}/common/include"
+	"${CMAKE_SOURCE_DIR}/pcsx2"
+)
+
+target_link_libraries(pcsx2-sdl PRIVATE
+	PCSX2_FLAGS
+	PCSX2
+	SDL3::SDL3
+)
+
+# Copy bin/resources (GameDB, shaders, fonts, sounds, icons) + docs next to the
+# built binary, exactly like setup_main_executable() does for pcsx2-qt. Without
+# this the SDL frontend bails at startup ("Resources directory is missing.")
+# because EmuFolders::SetResourcesDirectory() looks for AppRoot/resources.
+pcsx2_copy_runtime_resources(pcsx2-sdl)
+
+# A non-PIE executable (ET_EXEC) loads at its fixed link address even with
+# ASLR enabled. This was added for the persisted-JIT VU program cache, which
+# no longer needs it: its payloads relocate (image and data-arena addresses
+# are fixups), so a PIE build hydrates them too. Linux-only; libpcsx2's
+# -fPIC objects link into an ET_EXEC fine.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	set_target_properties(pcsx2-sdl PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+	target_link_options(pcsx2-sdl PRIVATE -no-pie)
+endif()

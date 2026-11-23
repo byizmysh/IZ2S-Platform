@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1220-spu2-reverb-reciprocal/IZPS2-R1220.iza",
+  "bytes": 11434331,
+  "sha256": "6d35aef6f7a2551de69a305a6ab6eb6a12406e6cf92c6edc999852bfd3e76a27",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "d6928dfe5c5405fa7a2ffaff636e1b65e7f62f12fe54cff1ad9ecb09c3644242"
+  },
+  "engine": {
+    "file": "asset-1fbe38ac53b06b378d6d1dcc911d26aec3e0214a1bf7b044d4030b2f2ddcf5d9.izdata",
+    "path": "asset-1fbe38ac53b06b378d6d1dcc911d26aec3e0214a1bf7b044d4030b2f2ddcf5d9.izdata",
+    "bytes": 28250856,
+    "sha256": "1fbe38ac53b06b378d6d1dcc911d26aec3e0214a1bf7b044d4030b2f2ddcf5d9"
+  }
+}

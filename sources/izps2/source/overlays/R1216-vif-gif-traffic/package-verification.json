@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1216-vif-gif-traffic/IZPS2-R1216.iza",
+  "bytes": 11430259,
+  "sha256": "c8d2087b8a866a184ecc80c0c3475ce6e15bd841b4758878bae634e652167afb",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "fbe9a5e05c1408c87408abdb15c298f4bf613525113e0caae912d0c6e8892dbc"
+  },
+  "engine": {
+    "file": "asset-4c35214d896ca021cb789d4c571f17eef45962c37e802f2841bfa71e6f1b62ea.izdata",
+    "path": "asset-4c35214d896ca021cb789d4c571f17eef45962c37e802f2841bfa71e6f1b62ea.izdata",
+    "bytes": 28250400,
+    "sha256": "4c35214d896ca021cb789d4c571f17eef45962c37e802f2841bfa71e6f1b62ea"
+  }
+}

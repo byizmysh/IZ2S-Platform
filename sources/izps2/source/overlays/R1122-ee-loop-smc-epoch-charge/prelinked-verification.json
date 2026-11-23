@@ -1,0 +1,8 @@
+{
+  "embeddedFrontendSha256": "d16aff7cd1b88bab1887a803844f0851cf747bd7963782a9ff948e08781045d4",
+  "packageFrontendSha256": "d16aff7cd1b88bab1887a803844f0851cf747bd7963782a9ff948e08781045d4",
+  "embeddedBytes": 28808,
+  "embeddedEntry": "0x127000",
+  "prelinkedEngineEntry": "0x192950",
+  "engineAsset": "asset-91b88fc9417cad306459c2cfe350d11bbb9ad27e7c9a19156e61cae9d601e08f.izdata"
+}

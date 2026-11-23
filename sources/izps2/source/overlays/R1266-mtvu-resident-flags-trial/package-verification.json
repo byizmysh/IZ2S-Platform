@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1266-mtvu-resident-flags-trial/IZPS2-R1266.iza",
+  "bytes": 12064736,
+  "sha256": "e8f2265e5bbaba62d99c1b95aab2a1be0e1552aaa08655baf39843054c2d0b95",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "129e2870ffabdf5197283d758bc6450c3d632a15405c1f1ae0ccbd997ca9e477"
+  },
+  "engine": {
+    "file": "asset-5023c7bb5995bcfdc96fdf726ef0df3bcae4230500a570846bfc09ef5512bb42.izdata",
+    "path": "asset-5023c7bb5995bcfdc96fdf726ef0df3bcae4230500a570846bfc09ef5512bb42.izdata",
+    "bytes": 29573104,
+    "sha256": "5023c7bb5995bcfdc96fdf726ef0df3bcae4230500a570846bfc09ef5512bb42"
+  }
+}

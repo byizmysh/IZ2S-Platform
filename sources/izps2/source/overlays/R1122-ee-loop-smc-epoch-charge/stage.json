@@ -1,0 +1,35 @@
+{
+  "revision": "R1122",
+  "runtimeBuild": "run25-r1122-20c6954170bac5c1",
+  "main": {
+    "bytes": 19348292,
+    "sha256": "5e6d3f15d87864bd72e36aa847111c77b8bd1769148027121a8c44ad4ad5b6d6"
+  },
+  "sdCoreRoot": "/iz2s/core/bin/game/",
+  "app": {
+    "name": "IZPS2 R1122",
+    "sha256": "a52b06bc7b73b7c3bf5f8ada34dbba8fe4493adadd04bd95f234217aeaaddf7d",
+    "bundleSha256": "8acb96c08bcddaf8714e0beb93e55f6952e71c484e5d8ccc4473a31eb715fea4",
+    "frontendSha256": "d16aff7cd1b88bab1887a803844f0851cf747bd7963782a9ff948e08781045d4"
+  },
+  "sdArchive": {
+    "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1122-ee-loop-smc-epoch-charge/IZPS2-R1122-RUN25.zip",
+    "bytes": 63774855,
+    "sha256": "840d0a058e3a47520f653d218f94e5194209d87f686537c35c0de51050a7f424"
+  },
+  "consoleInstalled": true,
+  "selectedLocally": false,
+  "checkpointWarmSeed": {
+    "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R993-ee-burst-evidence/model/ee-warm2-3024136446-3024136446-checkpoint.bin",
+    "sdRelativePath": "iz2s/modules/izps2/saves/armsx2/cache/ee-warm2-3024136446-3024136446-checkpoint.bin",
+    "bytes": 243280,
+    "sha256": "48ca8e44ae2cb64da67e157d860432858647d755bcfeb9420add45e595e83cf4",
+    "checkpointSha256": "94dc6ef28c14a855dfc5924bd7299994d23eb7cd1695129eaa09bf6a9d87d3fd",
+    "guestRamXxh3_128": "53437f9198cff2eb192324578edb2f5b",
+    "guestPc": 3465212,
+    "guestCycle": 29738956762,
+    "records": 15200,
+    "proof": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R993-ee-burst-evidence/model/expanded-plan.json"
+  },
+  "consoleReceipt": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1122-ee-loop-smc-epoch-charge/logs/console-core-20261121T031205Z-65055548/receipt.json"
+}

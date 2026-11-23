@@ -1,0 +1,4 @@
+*.h linguist-generated
+
+# Preserve the exact bytes in this published source snapshot.
+* -text !eol

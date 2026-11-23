@@ -1,0 +1,34 @@
+
+IZ-R799/run25/jit-single-range/R1240-ee-vu1-core-separation/engine.elf:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+00000001000182a0 <iz_ps2_affinity_get>:
+1000182a0:     	bti	c
+1000182a4:     	mov	w3, w0
+1000182a8:     	mov	x0, x1
+1000182ac:     	cmp	w3, #0x0
+1000182b0:     	mov	x1, x2
+1000182b4:     	mov	w2, #-0x8000            // =-32768
+1000182b8:     	csel	w2, w3, w2, ne
+1000182bc:     	b	0x100f9cd60 <svcGetThreadCoreMask>
+
+00000001000182c0 <iz_ps2_affinity_set>:
+1000182c0:     	bti	c
+1000182c4:     	mov	w3, #-0x8000            // =-32768
+1000182c8:     	cmp	w0, #0x0
+1000182cc:     	csel	w0, w0, w3, ne
+1000182d0:     	b	0x100f9cd78 <svcSetThreadCoreMask>
+		...
+
+0000000100f9cd60 <svcGetThreadCoreMask>:
+100f9cd60:     	stp	x0, x1, [sp, #-0x10]!
+100f9cd64:     	svc	#0xe
+100f9cd68:     	ldp	x3, x4, [sp], #0x10
+100f9cd6c:     	str	w1, [x3]
+100f9cd70:     	str	x2, [x4]
+100f9cd74:     	ret
+
+0000000100f9cd78 <svcSetThreadCoreMask>:
+100f9cd78:     	svc	#0xf
+100f9cd7c:     	ret

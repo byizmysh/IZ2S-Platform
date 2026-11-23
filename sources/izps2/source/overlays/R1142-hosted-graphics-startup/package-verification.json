@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1142-hosted-graphics-startup/IZPS2-R1142.iza",
+  "bytes": 11222411,
+  "sha256": "702e9ea0df3e9e4615d6163f17575d9aa342d17657d3ca852063381f88978d40",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 179992,
+    "sha256": "210b7c74745658fdd90fe4dae9537527e8be21077c679ef44c2043524a75c541"
+  },
+  "engine": {
+    "file": "asset-53fc7223dd7412f68b182a982e8a0e3e70cc24a73ac91e7bc8cce86a3ff64560.izdata",
+    "path": "asset-53fc7223dd7412f68b182a982e8a0e3e70cc24a73ac91e7bc8cce86a3ff64560.izdata",
+    "bytes": 28959864,
+    "sha256": "53fc7223dd7412f68b182a982e8a0e3e70cc24a73ac91e7bc8cce86a3ff64560"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1166-exit-zip-jit-audio/IZPS2-R1166.iza",
+  "bytes": 11211198,
+  "sha256": "d25c3ea4f1d18e6283a52f84b44306617d763ee67fcae199cf724db9d74d3a50",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "b46427b578121c99eda937b25e41cc03e48b2ee72d78ece5f80167914273c018"
+  },
+  "engine": {
+    "file": "asset-ceb7c42594a77e37f948b22d7d8f3d1cab0d02db634f1f9f3a97a76bbdacdb11.izdata",
+    "path": "asset-ceb7c42594a77e37f948b22d7d8f3d1cab0d02db634f1f9f3a97a76bbdacdb11.izdata",
+    "bytes": 27912368,
+    "sha256": "ceb7c42594a77e37f948b22d7d8f3d1cab0d02db634f1f9f3a97a76bbdacdb11"
+  }
+}

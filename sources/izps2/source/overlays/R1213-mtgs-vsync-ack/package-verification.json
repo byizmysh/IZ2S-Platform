@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1213-mtgs-vsync-ack/IZPS2-R1213.iza",
+  "bytes": 11428408,
+  "sha256": "9f14e76b6937892eee5d43ca482dd0a4aad8fe08c825a3e35cf3427e2129e0dd",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "247b04221465c46022b0495f22413dbf264a3760fa9b48c42bf9eb0b58a8728a"
+  },
+  "engine": {
+    "file": "asset-0e6f027c20372a699c55ec3a572f8e360df00822b96d656704fa107d7f9f8d31.izdata",
+    "path": "asset-0e6f027c20372a699c55ec3a572f8e360df00822b96d656704fa107d7f9f8d31.izdata",
+    "bytes": 28249232,
+    "sha256": "0e6f027c20372a699c55ec3a572f8e360df00822b96d656704fa107d7f9f8d31"
+  }
+}

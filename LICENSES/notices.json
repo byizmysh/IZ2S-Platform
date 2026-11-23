@@ -1,8 +1,8 @@
 [
   {
     "path": "AUTHORS.md",
-    "bytes": 3084,
-    "sha256": "adc0dfd5005a93f76161af55b790811946b65d9f3941f0a091ca98e7319cd6f5"
+    "bytes": 3513,
+    "sha256": "1bc2ee7ac1f4356985806aea60a5749a17c913013f6e10ad2c651a418f59b535"
   },
   {
     "path": "COPYRIGHT",
@@ -555,9 +555,614 @@
     "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
   },
   {
+    "path": "modules/IZPS2/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "modules/IZPS2/LICENSE",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "modules/IZPS2/THIRD_PARTY.md",
+    "bytes": 652,
+    "sha256": "04ac0f56474806bc5ffd103a585c125c080750b9067482a041bfb50ef9c32ace"
+  },
+  {
+    "path": "modules/IZPS2/licenses/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "modules/IZPS2/licenses/LICENSE",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "modules/IZPS2/licenses/THIRD_PARTY.md",
+    "bytes": 652,
+    "sha256": "04ac0f56474806bc5ffd103a585c125c080750b9067482a041bfb50ef9c32ace"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/THIRD_PARTY.md",
+    "bytes": 652,
+    "sha256": "04ac0f56474806bc5ffd103a585c125c080750b9067482a041bfb50ef9c32ace"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/SPIRV-Headers/LICENSE",
+    "bytes": 23503,
+    "sha256": "ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/glslang/LICENSE.txt",
+    "bytes": 54615,
+    "sha256": "17e70c676e1521ff3e4686f04a2053d93a7e28a33be8de7ec37ab0ff72feb677"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/glslang/license-checker.cfg",
+    "bytes": 1686,
+    "sha256": "9bc9f672f477b34b7d1023a416616c00432c1e42db07f4a7143210144a87ef83"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/shaderc/LICENSE",
+    "bytes": 11357,
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/shaderc/license-checker.cfg",
+    "bytes": 872,
+    "sha256": "ff39f110e4b17c6a2e24eacc14a32674c2c1f2385828bdc23a0399d3475fffc8"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/shaderc/third_party/LICENSE.glslang",
+    "bytes": 8280,
+    "sha256": "b5a00e94f058edc87e05978329b55730d8689abe61205d9018443d03de4f07da"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/shaderc/third_party/LICENSE.spirv-tools",
+    "bytes": 11650,
+    "sha256": "47e20ce182bc68fab1a0cfb129b03c326aaf4f2b6b7905aa9d376d31018bd29f"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/spirv-tools/LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/spirv-tools/utils/vscode/src/lsp/LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/zlib/LICENSE",
+    "bytes": 1002,
+    "sha256": "845efc77857d485d91fb3e0b884aaa929368c717ae8186b66fe1ed2495753243"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/dependencies/zlib/contrib/dotzlib/LICENSE_1_0.txt",
+    "bytes": 1359,
+    "sha256": "36266a8fd073568394cb81cdb2b124f7fdae2c64c1a7ed09db34b4d22efa2951"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/cpuinfo/LICENSE",
+    "bytes": 1424,
+    "sha256": "8e7e60636c3aa0cb03571a1a841ce5697f9551ff92b3c426c2561613d15ade70"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/cpuinfo/deps/clog/LICENSE",
+    "bytes": 1384,
+    "sha256": "68a14c3e79add023eecd83d611e73f05b8bf1d16852efeb7eb4033a96736da9e"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/cubeb/LICENSE",
+    "bytes": 732,
+    "sha256": "44c6b5ae5ec3fe2fbc608b00e6f4896f4d2d5c7e525fcbaa3eaa3cf2f3d5a983"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/d3d12memalloc/LICENSE.txt",
+    "bytes": 1099,
+    "sha256": "5478a2f36b736e13dd3250b9c71a4ab521bc327fb9d112a92c647bf3e69ddb68"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/d3d12memalloc/NOTICES.txt",
+    "bytes": 2787,
+    "sha256": "7af18e6093af41d516228ffd65e782859bf2918931d8c3670c7ba8b74afa8288"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/discord-rpc/LICENSE",
+    "bytes": 1053,
+    "sha256": "12054cc15e274c9a10966fd7d8740c12dbd679dec2468e370818d899f9a3a634"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/fast_float/LICENSE-APACHE",
+    "bytes": 10767,
+    "sha256": "097a889aa954d04e088b790b10a4014d6189561d0a6013935a73ce3d4ddaaf06"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/fast_float/LICENSE-BOOST",
+    "bytes": 1337,
+    "sha256": "8d8291caf1cee26d23acf3eb67c9f9a2d58f1c681b16a4fbe8cbfb9e3c0b5a9b"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/fast_float/LICENSE-MIT",
+    "bytes": 1079,
+    "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/fmt/LICENSE",
+    "bytes": 1094,
+    "sha256": "a65fcc5a1095fc33cc37e4fff69366e49d7e92f613558a2b95ed1b70e33758b4"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/googletest/LICENSE",
+    "bytes": 1475,
+    "sha256": "9702de7e4117a8e2b20dafab11ffda58c198aede066406496bef670d40a22138"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/imgui/LICENSE.txt",
+    "bytes": 1083,
+    "sha256": "173506a2d6f7fb67990d257fb2507f188690eca39060c39469ae7bef43aae2a3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/libchdr/LICENSE.txt",
+    "bytes": 1493,
+    "sha256": "e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/libzip/LICENSE",
+    "bytes": 1454,
+    "sha256": "01c022eca6d566e2e8792fd0f091a28653b2a608319922bcd4de91c49d1438e1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/lzma/LICENSE.txt",
+    "bytes": 293,
+    "sha256": "9f34035d01a354ed074f49944f4ac64778c44e043df4785baa0dd15f60f1d8df"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/plutosvg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/plutovg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/promptfont/LICENSE.txt",
+    "bytes": 4302,
+    "sha256": "91db5ab511830ae7b393be382e64423c5a783da51faf6211b3d42ac836ac0ce3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/rainterface/LICENSE",
+    "bytes": 1078,
+    "sha256": "df7f297511e5bc8739cd475bdda3f37924c7e3d1228d2e6c644935d0a81168a5"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/rapidjson/license.txt",
+    "bytes": 5152,
+    "sha256": "a140e5d46fe734a1c78f1a3c3ef207871dd75648be71fdda8e309b23ab8b1f32"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/rcheevos/LICENSE",
+    "bytes": 1078,
+    "sha256": "bf820c034966a3b6be050bb85f94ec841a0b972bd5d477e362337d0574b5c219"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/soundtouch/COPYING.TXT",
+    "bytes": 24389,
+    "sha256": "84c6d82dc7de80f5b73f231edfd3ddc5b53513908117452bfa37ea36bb4b7e0a"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/vulkan/LICENSE.md",
+    "bytes": 495,
+    "sha256": "95ad366d23fadf701d355bc45fb8b82ae2d700239471d35d41286ac3b08ff903"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/vulkan/include/LICENSE.txt",
+    "bytes": 1099,
+    "sha256": "52df2c03d6cfc9ffec13c9d3626c530fc9ce0cbe41d5ea3d10cd46edeb1aeb38"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/winwil/LICENSE",
+    "bytes": 1162,
+    "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/xbyak/xbyak/COPYRIGHT",
+    "bytes": 1474,
+    "sha256": "084ff0bd80b35911ee4fa702d41330038212e7cc50611bfaa868091d69301b6c"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/zydis/LICENSE",
+    "bytes": 1122,
+    "sha256": "e5e99718209e94baaf3e9cbf6f64aa3329c9e73c63b1ab47e10f29d81974e6f3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/3rdparty/zydis/dependencies/zycore/LICENSE",
+    "bytes": 1122,
+    "sha256": "7991ec4481a82c51d196f7440fda34c578aab51f8b9c7023935c6e03b57638bd"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/bin/resources/icons/flags/LICENSE",
+    "bytes": 1086,
+    "sha256": "9df3746eb31b27308f30e0f43c6ace0c3d330235ef91c5798e87a2538bbbe098"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/bin/resources/icons/flags/LICENSESCN",
+    "bytes": 22527,
+    "sha256": "2345380edaf31a07c4ba42a6f91696b10849f496926cfc2bfb78dd2dd21c3b3b"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/bin/resources/upscale/raisr/LICENSE.Intel",
+    "bytes": 1516,
+    "sha256": "579b7684cbe09c1c5b1ccdbedc05bb7b37ba38f48156d0cd1bbdfd3712ea0d75"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/pcsx2/Docs/License.txt",
+    "bytes": 613,
+    "sha256": "297b6f030943c45c4c21d1f11c97da3f1a762cbb38719a0f0804d381f70a0931"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/adrenotools/LICENSE",
+    "bytes": 1299,
+    "sha256": "7ea796e199e46093c2f5c391697bce5abeacd02b7216aa0a84e5839afb5584f3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/adrenotools/lib/linkernsbypass/LICENSE",
+    "bytes": 1299,
+    "sha256": "7ea796e199e46093c2f5c391697bce5abeacd02b7216aa0a84e5839afb5584f3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/cpuinfo/LICENSE",
+    "bytes": 1424,
+    "sha256": "8e7e60636c3aa0cb03571a1a841ce5697f9551ff92b3c426c2561613d15ade70"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/cubeb/LICENSE",
+    "bytes": 732,
+    "sha256": "44c6b5ae5ec3fe2fbc608b00e6f4896f4d2d5c7e525fcbaa3eaa3cf2f3d5a983"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/d3d12memalloc/LICENSE.txt",
+    "bytes": 1099,
+    "sha256": "5478a2f36b736e13dd3250b9c71a4ab521bc327fb9d112a92c647bf3e69ddb68"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/d3d12memalloc/NOTICES.txt",
+    "bytes": 2787,
+    "sha256": "7af18e6093af41d516228ffd65e782859bf2918931d8c3670c7ba8b74afa8288"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/discord-rpc/LICENSE",
+    "bytes": 1053,
+    "sha256": "12054cc15e274c9a10966fd7d8740c12dbd679dec2468e370818d899f9a3a634"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/fast_float/LICENSE-APACHE",
+    "bytes": 10767,
+    "sha256": "097a889aa954d04e088b790b10a4014d6189561d0a6013935a73ce3d4ddaaf06"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/fast_float/LICENSE-BOOST",
+    "bytes": 1337,
+    "sha256": "8d8291caf1cee26d23acf3eb67c9f9a2d58f1c681b16a4fbe8cbfb9e3c0b5a9b"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/fast_float/LICENSE-MIT",
+    "bytes": 1079,
+    "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/fmt/LICENSE",
+    "bytes": 1431,
+    "sha256": "07580f2a3b35709ce703d523f447b242f6dfec7582a8c0df102c7fa2849375f8"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/freetype/LICENSE.TXT",
+    "bytes": 2149,
+    "sha256": "bd36c8b474855fa294c2ec5c184544478ef3720aad37d65a6296a4f264fd2d3b"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/imgui/LICENSE.txt",
+    "bytes": 1083,
+    "sha256": "173506a2d6f7fb67990d257fb2507f188690eca39060c39469ae7bef43aae2a3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libchdr/LICENSE.txt",
+    "bytes": 1493,
+    "sha256": "e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libjpeg-turbo/LICENSE.md",
+    "bytes": 6077,
+    "sha256": "ba6bceebcba0fdd35488477c2cca8c4632ce82c74dbfbc87d886ce6fc4433579"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libjpeg-turbo/src/spng/LICENSE",
+    "bytes": 1341,
+    "sha256": "0622b0794d0fecde47d743f1bb70a03e6fdf082be8e71f39de672ed995d96ff9"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libjpeg-turbo/src/spng/zlib/LICENSE",
+    "bytes": 1002,
+    "sha256": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libjpeg-turbo/testimages/LICENSE.txt",
+    "bytes": 2075,
+    "sha256": "1c4d5dfc985d5061ba11180a8ffb541cc1778bccf87fd9f0fb92cbae69d8a9cc"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/LICENSE.md",
+    "bytes": 5345,
+    "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/ci/LICENSE_MIT.txt",
+    "bytes": 1036,
+    "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/contrib/gregbook/COPYING",
+    "bytes": 18097,
+    "sha256": "d6cb0e9e560f51085556949a84af12b79a00f10ab8b66c752537faf7cd665572"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/contrib/gregbook/LICENSE",
+    "bytes": 2373,
+    "sha256": "b6a03c1803eb58ffb1f1278d5c7d4096c4c116e66dce8a7553e8c77d163c3438"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/contrib/pngexif/LICENSE_MIT.txt",
+    "bytes": 1036,
+    "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/contrib/pngminus/LICENSE.txt",
+    "bytes": 1164,
+    "sha256": "1806f1f10d393e9e377b3a8d1b968452b54f1a90378f14eeef45426946ace330"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libwebp/COPYING",
+    "bytes": 1496,
+    "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/libzip/LICENSE",
+    "bytes": 1454,
+    "sha256": "01c022eca6d566e2e8792fd0f091a28653b2a608319922bcd4de91c49d1438e1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/LICENSE",
+    "bytes": 646,
+    "sha256": "4bc9c403f6b679cc076dee210e0e21c27b4e8f6d3fb43d85364c76657bfaaac5"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/contrib/djgpp/LICENSE",
+    "bytes": 1292,
+    "sha256": "d011d1e02cb32b71c1ce2922ab41a2e2ad30f4ecf8de22c078d53618205abc05"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/examples/COPYING",
+    "bytes": 14901,
+    "sha256": "609b910ef05c9c855ecc1da155a36ed0f57514eac452cf93446530b5ea4b3bc3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/lib/LICENSE",
+    "bytes": 1311,
+    "sha256": "8b58c446121a109ccf32edc094bba3010a3d85e4ee3702950db55e4d3e87736c"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/programs/COPYING",
+    "bytes": 14901,
+    "sha256": "609b910ef05c9c855ecc1da155a36ed0f57514eac452cf93446530b5ea4b3bc3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/tests/COPYING",
+    "bytes": 14901,
+    "sha256": "609b910ef05c9c855ecc1da155a36ed0f57514eac452cf93446530b5ea4b3bc3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/lzma/LICENSE.txt",
+    "bytes": 293,
+    "sha256": "9f34035d01a354ed074f49944f4ac64778c44e043df4785baa0dd15f60f1d8df"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/miniupnpc/LICENSE",
+    "bytes": 1527,
+    "sha256": "52bdad87d7aefe3eab35cb02426aa748510f9398a1e2d520d93bcbb18f10dd11"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/oboe/LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/oboe/apps/fxlab/LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/plutosvg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/plutovg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/promptfont/LICENSE.txt",
+    "bytes": 4302,
+    "sha256": "91db5ab511830ae7b393be382e64423c5a783da51faf6211b3d42ac836ac0ce3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/rainterface/LICENSE",
+    "bytes": 1078,
+    "sha256": "df7f297511e5bc8739cd475bdda3f37924c7e3d1228d2e6c644935d0a81168a5"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/rapidjson/license.txt",
+    "bytes": 5152,
+    "sha256": "a140e5d46fe734a1c78f1a3c3ef207871dd75648be71fdda8e309b23ab8b1f32"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/rcheevos/LICENSE",
+    "bytes": 1078,
+    "sha256": "bf820c034966a3b6be050bb85f94ec841a0b972bd5d477e362337d0574b5c219"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/LICENSE.txt",
+    "bytes": 884,
+    "sha256": "1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/LICENSE-bsd.txt",
+    "bytes": 1534,
+    "sha256": "30eb1bef29b46f8ba7ab8b416035dbd93cb034a45481dd97815b944284582cd2"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/LICENSE-gpl3.txt",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/LICENSE-orig.txt",
+    "bytes": 264,
+    "sha256": "fb5436aa63d1b71a8dfbf74ecaf1a5b4e1ec4df7f80074d11fec99284f69ca5f"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/LICENSE.txt",
+    "bytes": 530,
+    "sha256": "7d3b087c34f35d4d538e3bcddd1ff8f66e92f9ef336881999482800ddf840913"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/video/yuv2rgb/LICENSE",
+    "bytes": 1480,
+    "sha256": "f7d74004cc75778cae46c5f0139f244d67c07ef64cf51937e8272352197dcb18"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/test/COPYING",
+    "bytes": 210,
+    "sha256": "d5a549e4a7b88cb696d0db15b21830061131ed361257ab399a33ca08ce0b33d5"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/test/LICENSE.txt",
+    "bytes": 1356,
+    "sha256": "129fbd972915047e54d88f6f1884a13bf6d79c18eeb40646193d7241c9270ae5"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/LICENSE",
+    "bytes": 11357,
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/license-checker.cfg",
+    "bytes": 872,
+    "sha256": "ff39f110e4b17c6a2e24eacc14a32674c2c1f2385828bdc23a0399d3475fffc8"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/third_party/LICENSE.glslang",
+    "bytes": 8280,
+    "sha256": "b5a00e94f058edc87e05978329b55730d8689abe61205d9018443d03de4f07da"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/third_party/LICENSE.spirv-tools",
+    "bytes": 11650,
+    "sha256": "47e20ce182bc68fab1a0cfb129b03c326aaf4f2b6b7905aa9d376d31018bd29f"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/soundtouch/COPYING.TXT",
+    "bytes": 24389,
+    "sha256": "84c6d82dc7de80f5b73f231edfd3ddc5b53513908117452bfa37ea36bb4b7e0a"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/vulkan/LICENSE.md",
+    "bytes": 458,
+    "sha256": "ac24e5ea920e4318e4d02c4086ae51f53cfb03feed06c18df1019e7ada1ec7bc"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/vulkan/include/LICENSE.txt",
+    "bytes": 1099,
+    "sha256": "52df2c03d6cfc9ffec13c9d3626c530fc9ce0cbe41d5ea3d10cd46edeb1aeb38"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/winwil/LICENSE",
+    "bytes": 1162,
+    "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/xbyak/xbyak/COPYRIGHT",
+    "bytes": 1474,
+    "sha256": "084ff0bd80b35911ee4fa702d41330038212e7cc50611bfaa868091d69301b6c"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/zstd/COPYING",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/zstd/LICENSE",
+    "bytes": 1549,
+    "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/zydis/LICENSE",
+    "bytes": 1122,
+    "sha256": "e5e99718209e94baaf3e9cbf6f64aa3329c9e73c63b1ab47e10f29d81974e6f3"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/cpp/3rdparty/zydis/dependencies/zycore/LICENSE",
+    "bytes": 1122,
+    "sha256": "7991ec4481a82c51d196f7440fda34c578aab51f8b9c7023935c6e03b57638bd"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/java/com/armsx2/ui/about/LicenseDocs.kt",
+    "bytes": 4373,
+    "sha256": "8b8f25cf539b69a57234139799a5b6f7744ee425b3ed40a88e3fafc4aac15275"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/main/java/com/armsx2/ui/about/LicensePanels.kt",
+    "bytes": 8288,
+    "sha256": "6ae63f412bceca5a217fc3fa735dbcd532ca596063cf4f5441404cf142804ab1"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/android/app/src/test/java/com/armsx2/ui/about/LicenseDocsTest.kt",
+    "bytes": 3260,
+    "sha256": "6a53234e7bab25a770222041c7ccbe29280e820d5e90afef8c8f73293b8119d2"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/ios/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "modules/IZPS2/licenses/source/engine/platforms/ios/Swift/App/LicenseView.swift",
+    "bytes": 3568,
+    "sha256": "2fdc6d6c8bf5f8365f67ad857712f6efa9ba42e63ff9030481efe177aa23273e"
+  },
+  {
     "path": "modules/IZPSX/LICENSE",
     "bytes": 18730,
     "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
+  },
+  {
+    "path": "modules/IZPSX/THIRD_PARTY.md",
+    "bytes": 931,
+    "sha256": "9ddd8c83e4e9cd8dfb658bd6e019f6f36300f17d68ef2c12691afa9ac7a930d4"
   },
   {
     "path": "modules/VacooTube/COPYRIGHT",
@@ -795,6 +1400,711 @@
     "sha256": "892d5b16d5c95482204baacc0714e572d41eb9eec04400c2ad738069d36904b9"
   },
   {
+    "path": "sources/applications/iz2s-cheese/licenses/DejaVu.txt",
+    "bytes": 8816,
+    "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
+  },
+  {
+    "path": "sources/applications/iz2s-cheese/licenses/Octicons.txt",
+    "bytes": 1068,
+    "sha256": "da259c8bd0de62713ccdcf88910aebca810644f98c2c912bad814fc79ea778df"
+  },
+  {
+    "path": "sources/izps2/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "sources/izps2/LICENSE",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "sources/izps2/THIRD_PARTY.md",
+    "bytes": 652,
+    "sha256": "04ac0f56474806bc5ffd103a585c125c080750b9067482a041bfb50ef9c32ace"
+  },
+  {
+    "path": "sources/izps2/source/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "sources/izps2/source/THIRD_PARTY.md",
+    "bytes": 652,
+    "sha256": "04ac0f56474806bc5ffd103a585c125c080750b9067482a041bfb50ef9c32ace"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/SPIRV-Headers/LICENSE",
+    "bytes": 23503,
+    "sha256": "ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/SPIRV-Headers/LICENSES/CC-BY-4.0.txt",
+    "bytes": 17023,
+    "sha256": "d557539df68e771cc1eedcc91d13f70fca930e508d11eedcafa4b15db49e3744"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/SPIRV-Headers/LICENSES/MIT.txt",
+    "bytes": 1087,
+    "sha256": "6d7c9e9d7d12c8d3753bdb24417b84819ba4d6c2f025c37948113d86dc81eef9"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/glslang/LICENSE.txt",
+    "bytes": 54615,
+    "sha256": "17e70c676e1521ff3e4686f04a2053d93a7e28a33be8de7ec37ab0ff72feb677"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/glslang/license-checker.cfg",
+    "bytes": 1686,
+    "sha256": "9bc9f672f477b34b7d1023a416616c00432c1e42db07f4a7143210144a87ef83"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/shaderc/AUTHORS",
+    "bytes": 310,
+    "sha256": "9fb4b067e4c9a1f91ea1c26465b3d1c6b515cb24860e0dbb719879925a5a1248"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/shaderc/LICENSE",
+    "bytes": 11357,
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/shaderc/license-checker.cfg",
+    "bytes": 872,
+    "sha256": "ff39f110e4b17c6a2e24eacc14a32674c2c1f2385828bdc23a0399d3475fffc8"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/shaderc/third_party/LICENSE.glslang",
+    "bytes": 8280,
+    "sha256": "b5a00e94f058edc87e05978329b55730d8689abe61205d9018443d03de4f07da"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/shaderc/third_party/LICENSE.spirv-tools",
+    "bytes": 11650,
+    "sha256": "47e20ce182bc68fab1a0cfb129b03c326aaf4f2b6b7905aa9d376d31018bd29f"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/spirv-tools/LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/spirv-tools/utils/vscode/src/lsp/LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/zlib/LICENSE",
+    "bytes": 1002,
+    "sha256": "845efc77857d485d91fb3e0b884aaa929368c717ae8186b66fe1ed2495753243"
+  },
+  {
+    "path": "sources/izps2/source/dependencies/zlib/contrib/dotzlib/LICENSE_1_0.txt",
+    "bytes": 1359,
+    "sha256": "36266a8fd073568394cb81cdb2b124f7fdae2c64c1a7ed09db34b4d22efa2951"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/cpuinfo/LICENSE",
+    "bytes": 1424,
+    "sha256": "8e7e60636c3aa0cb03571a1a841ce5697f9551ff92b3c426c2561613d15ade70"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/cpuinfo/deps/clog/LICENSE",
+    "bytes": 1384,
+    "sha256": "68a14c3e79add023eecd83d611e73f05b8bf1d16852efeb7eb4033a96736da9e"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/cubeb/AUTHORS",
+    "bytes": 600,
+    "sha256": "829e45d138c7c8827799f302806fa4be8cd8bd4bad70a2fe26c3a27a5cf36948"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/cubeb/LICENSE",
+    "bytes": 732,
+    "sha256": "44c6b5ae5ec3fe2fbc608b00e6f4896f4d2d5c7e525fcbaa3eaa3cf2f3d5a983"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/d3d12memalloc/LICENSE.txt",
+    "bytes": 1099,
+    "sha256": "5478a2f36b736e13dd3250b9c71a4ab521bc327fb9d112a92c647bf3e69ddb68"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/d3d12memalloc/NOTICES.txt",
+    "bytes": 2787,
+    "sha256": "7af18e6093af41d516228ffd65e782859bf2918931d8c3670c7ba8b74afa8288"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/discord-rpc/LICENSE",
+    "bytes": 1053,
+    "sha256": "12054cc15e274c9a10966fd7d8740c12dbd679dec2468e370818d899f9a3a634"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/fast_float/AUTHORS",
+    "bytes": 36,
+    "sha256": "ed249424bce4e318fa190dd6d8becf60cfc37287132ad3f89e16e0f28d878dcf"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/fast_float/LICENSE-APACHE",
+    "bytes": 10767,
+    "sha256": "097a889aa954d04e088b790b10a4014d6189561d0a6013935a73ce3d4ddaaf06"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/fast_float/LICENSE-BOOST",
+    "bytes": 1337,
+    "sha256": "8d8291caf1cee26d23acf3eb67c9f9a2d58f1c681b16a4fbe8cbfb9e3c0b5a9b"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/fast_float/LICENSE-MIT",
+    "bytes": 1079,
+    "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/fmt/LICENSE",
+    "bytes": 1094,
+    "sha256": "a65fcc5a1095fc33cc37e4fff69366e49d7e92f613558a2b95ed1b70e33758b4"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/googletest/LICENSE",
+    "bytes": 1475,
+    "sha256": "9702de7e4117a8e2b20dafab11ffda58c198aede066406496bef670d40a22138"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/imgui/LICENSE.txt",
+    "bytes": 1083,
+    "sha256": "173506a2d6f7fb67990d257fb2507f188690eca39060c39469ae7bef43aae2a3"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/libchdr/LICENSE.txt",
+    "bytes": 1493,
+    "sha256": "e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/libzip/AUTHORS",
+    "bytes": 62,
+    "sha256": "3a9c401cb1c37ffb14d43c38f21e42ae40b4e6946a04427b8d2be41ac036f163"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/libzip/LICENSE",
+    "bytes": 1454,
+    "sha256": "01c022eca6d566e2e8792fd0f091a28653b2a608319922bcd4de91c49d1438e1"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/lzma/LICENSE.txt",
+    "bytes": 293,
+    "sha256": "9f34035d01a354ed074f49944f4ac64778c44e043df4785baa0dd15f60f1d8df"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/plutosvg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/plutovg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/promptfont/LICENSE.txt",
+    "bytes": 4302,
+    "sha256": "91db5ab511830ae7b393be382e64423c5a783da51faf6211b3d42ac836ac0ce3"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/rainterface/LICENSE",
+    "bytes": 1078,
+    "sha256": "df7f297511e5bc8739cd475bdda3f37924c7e3d1228d2e6c644935d0a81168a5"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/rapidjson/license.txt",
+    "bytes": 5152,
+    "sha256": "a140e5d46fe734a1c78f1a3c3ef207871dd75648be71fdda8e309b23ab8b1f32"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/rcheevos/LICENSE",
+    "bytes": 1078,
+    "sha256": "bf820c034966a3b6be050bb85f94ec841a0b972bd5d477e362337d0574b5c219"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/simpleini/LICENCE.txt",
+    "bytes": 1089,
+    "sha256": "1f8d19cba3d929f45f74b8e7cdf84b2fee5b96be69d08d0084ed728316f9f2c2"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/soundtouch/COPYING.TXT",
+    "bytes": 24389,
+    "sha256": "84c6d82dc7de80f5b73f231edfd3ddc5b53513908117452bfa37ea36bb4b7e0a"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/vixl/AUTHORS",
+    "bytes": 242,
+    "sha256": "cb9ad140b715c6d84611431209d8b28d07eac7dc4d180c6d0855148cab4cba47"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/vixl/LICENCE",
+    "bytes": 1645,
+    "sha256": "11752b98d1c8e77c774fe092219e7faa0865bb77bdb741b71b123b26fc896ea5"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/vulkan/LICENSE.md",
+    "bytes": 495,
+    "sha256": "95ad366d23fadf701d355bc45fb8b82ae2d700239471d35d41286ac3b08ff903"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/vulkan/include/LICENSE.txt",
+    "bytes": 1099,
+    "sha256": "52df2c03d6cfc9ffec13c9d3626c530fc9ce0cbe41d5ea3d10cd46edeb1aeb38"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/winwil/LICENSE",
+    "bytes": 1162,
+    "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/xbyak/xbyak/COPYRIGHT",
+    "bytes": 1474,
+    "sha256": "084ff0bd80b35911ee4fa702d41330038212e7cc50611bfaa868091d69301b6c"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/zydis/LICENSE",
+    "bytes": 1122,
+    "sha256": "e5e99718209e94baaf3e9cbf6f64aa3329c9e73c63b1ab47e10f29d81974e6f3"
+  },
+  {
+    "path": "sources/izps2/source/engine/3rdparty/zydis/dependencies/zycore/LICENSE",
+    "bytes": 1122,
+    "sha256": "7991ec4481a82c51d196f7440fda34c578aab51f8b9c7023935c6e03b57638bd"
+  },
+  {
+    "path": "sources/izps2/source/engine/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "sources/izps2/source/engine/bin/resources/icons/flags/LICENSE",
+    "bytes": 1086,
+    "sha256": "9df3746eb31b27308f30e0f43c6ace0c3d330235ef91c5798e87a2538bbbe098"
+  },
+  {
+    "path": "sources/izps2/source/engine/bin/resources/icons/flags/LICENSESCN",
+    "bytes": 22527,
+    "sha256": "2345380edaf31a07c4ba42a6f91696b10849f496926cfc2bfb78dd2dd21c3b3b"
+  },
+  {
+    "path": "sources/izps2/source/engine/bin/resources/upscale/raisr/LICENSE.Intel",
+    "bytes": 1516,
+    "sha256": "579b7684cbe09c1c5b1ccdbedc05bb7b37ba38f48156d0cd1bbdfd3712ea0d75"
+  },
+  {
+    "path": "sources/izps2/source/engine/pcsx2/Docs/License.txt",
+    "bytes": 613,
+    "sha256": "297b6f030943c45c4c21d1f11c97da3f1a762cbb38719a0f0804d381f70a0931"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/assets/licenses/android.html",
+    "bytes": 30873,
+    "sha256": "c5b9ea64751f97c8c12ac7f97e7d1149b3977ef5f1cc41b943757dc6d9559404"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/adrenotools/LICENSE",
+    "bytes": 1299,
+    "sha256": "7ea796e199e46093c2f5c391697bce5abeacd02b7216aa0a84e5839afb5584f3"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/adrenotools/lib/linkernsbypass/LICENSE",
+    "bytes": 1299,
+    "sha256": "7ea796e199e46093c2f5c391697bce5abeacd02b7216aa0a84e5839afb5584f3"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/cpuinfo/LICENSE",
+    "bytes": 1424,
+    "sha256": "8e7e60636c3aa0cb03571a1a841ce5697f9551ff92b3c426c2561613d15ade70"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/cubeb/AUTHORS",
+    "bytes": 600,
+    "sha256": "829e45d138c7c8827799f302806fa4be8cd8bd4bad70a2fe26c3a27a5cf36948"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/cubeb/LICENSE",
+    "bytes": 732,
+    "sha256": "44c6b5ae5ec3fe2fbc608b00e6f4896f4d2d5c7e525fcbaa3eaa3cf2f3d5a983"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/d3d12memalloc/LICENSE.txt",
+    "bytes": 1099,
+    "sha256": "5478a2f36b736e13dd3250b9c71a4ab521bc327fb9d112a92c647bf3e69ddb68"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/d3d12memalloc/NOTICES.txt",
+    "bytes": 2787,
+    "sha256": "7af18e6093af41d516228ffd65e782859bf2918931d8c3670c7ba8b74afa8288"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/discord-rpc/LICENSE",
+    "bytes": 1053,
+    "sha256": "12054cc15e274c9a10966fd7d8740c12dbd679dec2468e370818d899f9a3a634"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/fast_float/AUTHORS",
+    "bytes": 36,
+    "sha256": "ed249424bce4e318fa190dd6d8becf60cfc37287132ad3f89e16e0f28d878dcf"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/fast_float/LICENSE-APACHE",
+    "bytes": 10767,
+    "sha256": "097a889aa954d04e088b790b10a4014d6189561d0a6013935a73ce3d4ddaaf06"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/fast_float/LICENSE-BOOST",
+    "bytes": 1337,
+    "sha256": "8d8291caf1cee26d23acf3eb67c9f9a2d58f1c681b16a4fbe8cbfb9e3c0b5a9b"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/fast_float/LICENSE-MIT",
+    "bytes": 1079,
+    "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/fmt/LICENSE",
+    "bytes": 1431,
+    "sha256": "07580f2a3b35709ce703d523f447b242f6dfec7582a8c0df102c7fa2849375f8"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/freetype/LICENSE.TXT",
+    "bytes": 2149,
+    "sha256": "bd36c8b474855fa294c2ec5c184544478ef3720aad37d65a6296a4f264fd2d3b"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/imgui/LICENSE.txt",
+    "bytes": 1083,
+    "sha256": "173506a2d6f7fb67990d257fb2507f188690eca39060c39469ae7bef43aae2a3"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libchdr/LICENSE.txt",
+    "bytes": 1493,
+    "sha256": "e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libjpeg-turbo/LICENSE.md",
+    "bytes": 6077,
+    "sha256": "ba6bceebcba0fdd35488477c2cca8c4632ce82c74dbfbc87d886ce6fc4433579"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libjpeg-turbo/src/spng/LICENSE",
+    "bytes": 1341,
+    "sha256": "0622b0794d0fecde47d743f1bb70a03e6fdf082be8e71f39de672ed995d96ff9"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libjpeg-turbo/src/spng/zlib/LICENSE",
+    "bytes": 1002,
+    "sha256": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libjpeg-turbo/testimages/LICENSE.txt",
+    "bytes": 2075,
+    "sha256": "1c4d5dfc985d5061ba11180a8ffb541cc1778bccf87fd9f0fb92cbae69d8a9cc"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/AUTHORS.md",
+    "bytes": 1793,
+    "sha256": "ab04e8656cfe7c355834112f0f214de736b08fb4a7f9efe70fc6fadccd4bade2"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/LICENSE.md",
+    "bytes": 5345,
+    "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/ci/LICENSE_MIT.txt",
+    "bytes": 1036,
+    "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/contrib/gregbook/COPYING",
+    "bytes": 18097,
+    "sha256": "d6cb0e9e560f51085556949a84af12b79a00f10ab8b66c752537faf7cd665572"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/contrib/gregbook/LICENSE",
+    "bytes": 2373,
+    "sha256": "b6a03c1803eb58ffb1f1278d5c7d4096c4c116e66dce8a7553e8c77d163c3438"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/contrib/pngexif/LICENSE_MIT.txt",
+    "bytes": 1036,
+    "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/contrib/pngminus/LICENSE.txt",
+    "bytes": 1164,
+    "sha256": "1806f1f10d393e9e377b3a8d1b968452b54f1a90378f14eeef45426946ace330"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libpng/scripts/cmake/AUTHORS.md",
+    "bytes": 862,
+    "sha256": "50633b976f0133862c921aa67d56de2c0b42eb344c8ca3853686efb092a447db"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libwebp/AUTHORS",
+    "bytes": 3279,
+    "sha256": "f251be89fd442bd9d701360730aea163cc8e2076ff03528f59267dc2c4f8b60a"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libwebp/COPYING",
+    "bytes": 1496,
+    "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libzip/AUTHORS",
+    "bytes": 62,
+    "sha256": "3a9c401cb1c37ffb14d43c38f21e42ae40b4e6946a04427b8d2be41ac036f163"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/libzip/LICENSE",
+    "bytes": 1454,
+    "sha256": "01c022eca6d566e2e8792fd0f091a28653b2a608319922bcd4de91c49d1438e1"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/LICENSE",
+    "bytes": 646,
+    "sha256": "4bc9c403f6b679cc076dee210e0e21c27b4e8f6d3fb43d85364c76657bfaaac5"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/contrib/djgpp/LICENSE",
+    "bytes": 1292,
+    "sha256": "d011d1e02cb32b71c1ce2922ab41a2e2ad30f4ecf8de22c078d53618205abc05"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/examples/COPYING",
+    "bytes": 14901,
+    "sha256": "609b910ef05c9c855ecc1da155a36ed0f57514eac452cf93446530b5ea4b3bc3"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/lib/LICENSE",
+    "bytes": 1311,
+    "sha256": "8b58c446121a109ccf32edc094bba3010a3d85e4ee3702950db55e4d3e87736c"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/programs/COPYING",
+    "bytes": 14901,
+    "sha256": "609b910ef05c9c855ecc1da155a36ed0f57514eac452cf93446530b5ea4b3bc3"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/lz4/tests/COPYING",
+    "bytes": 14901,
+    "sha256": "609b910ef05c9c855ecc1da155a36ed0f57514eac452cf93446530b5ea4b3bc3"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/lzma/LICENSE.txt",
+    "bytes": 293,
+    "sha256": "9f34035d01a354ed074f49944f4ac64778c44e043df4785baa0dd15f60f1d8df"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/miniupnpc/LICENSE",
+    "bytes": 1527,
+    "sha256": "52bdad87d7aefe3eab35cb02426aa748510f9398a1e2d520d93bcbb18f10dd11"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/oboe/AUTHORS",
+    "bytes": 302,
+    "sha256": "c04aa4049aeb3d8268ae43074ae89fb86ef5a5eb53ec0c453015bc1889bd6ca9"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/oboe/LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/oboe/apps/fxlab/LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/plutosvg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/plutovg/LICENSE",
+    "bytes": 1104,
+    "sha256": "a55d1e78eaf75779c336b4ba061e74aae56a21195d234474fb24a398935d6ce1"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/promptfont/LICENSE.txt",
+    "bytes": 4302,
+    "sha256": "91db5ab511830ae7b393be382e64423c5a783da51faf6211b3d42ac836ac0ce3"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/rainterface/LICENSE",
+    "bytes": 1078,
+    "sha256": "df7f297511e5bc8739cd475bdda3f37924c7e3d1228d2e6c644935d0a81168a5"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/rapidjson/license.txt",
+    "bytes": 5152,
+    "sha256": "a140e5d46fe734a1c78f1a3c3ef207871dd75648be71fdda8e309b23ab8b1f32"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/rcheevos/LICENSE",
+    "bytes": 1078,
+    "sha256": "bf820c034966a3b6be050bb85f94ec841a0b972bd5d477e362337d0574b5c219"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/LICENSE.txt",
+    "bytes": 884,
+    "sha256": "1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/AUTHORS.txt",
+    "bytes": 425,
+    "sha256": "38102075d829116ee23d7a1fe0cb53f0c6932a9275da0ca1a3885b44db1963b4"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/LICENSE-bsd.txt",
+    "bytes": 1534,
+    "sha256": "30eb1bef29b46f8ba7ab8b416035dbd93cb034a45481dd97815b944284582cd2"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/LICENSE-gpl3.txt",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/LICENSE-orig.txt",
+    "bytes": 264,
+    "sha256": "fb5436aa63d1b71a8dfbf74ecaf1a5b4e1ec4df7f80074d11fec99284f69ca5f"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/hidapi/LICENSE.txt",
+    "bytes": 530,
+    "sha256": "7d3b087c34f35d4d538e3bcddd1ff8f66e92f9ef336881999482800ddf840913"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/src/video/yuv2rgb/LICENSE",
+    "bytes": 1480,
+    "sha256": "f7d74004cc75778cae46c5f0139f244d67c07ef64cf51937e8272352197dcb18"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/test/COPYING",
+    "bytes": 210,
+    "sha256": "d5a549e4a7b88cb696d0db15b21830061131ed361257ab399a33ca08ce0b33d5"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/sdl3/test/LICENSE.txt",
+    "bytes": 1356,
+    "sha256": "129fbd972915047e54d88f6f1884a13bf6d79c18eeb40646193d7241c9270ae5"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/AUTHORS",
+    "bytes": 310,
+    "sha256": "9fb4b067e4c9a1f91ea1c26465b3d1c6b515cb24860e0dbb719879925a5a1248"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/LICENSE",
+    "bytes": 11357,
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/license-checker.cfg",
+    "bytes": 872,
+    "sha256": "ff39f110e4b17c6a2e24eacc14a32674c2c1f2385828bdc23a0399d3475fffc8"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/third_party/LICENSE.glslang",
+    "bytes": 8280,
+    "sha256": "b5a00e94f058edc87e05978329b55730d8689abe61205d9018443d03de4f07da"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/shaderc/third_party/LICENSE.spirv-tools",
+    "bytes": 11650,
+    "sha256": "47e20ce182bc68fab1a0cfb129b03c326aaf4f2b6b7905aa9d376d31018bd29f"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/simpleini/LICENCE.txt",
+    "bytes": 1089,
+    "sha256": "1f8d19cba3d929f45f74b8e7cdf84b2fee5b96be69d08d0084ed728316f9f2c2"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/soundtouch/COPYING.TXT",
+    "bytes": 24389,
+    "sha256": "84c6d82dc7de80f5b73f231edfd3ddc5b53513908117452bfa37ea36bb4b7e0a"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/vixl/AUTHORS",
+    "bytes": 242,
+    "sha256": "cb9ad140b715c6d84611431209d8b28d07eac7dc4d180c6d0855148cab4cba47"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/vixl/LICENCE",
+    "bytes": 1645,
+    "sha256": "11752b98d1c8e77c774fe092219e7faa0865bb77bdb741b71b123b26fc896ea5"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/vulkan/LICENSE.md",
+    "bytes": 458,
+    "sha256": "ac24e5ea920e4318e4d02c4086ae51f53cfb03feed06c18df1019e7ada1ec7bc"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/vulkan/include/LICENSE.txt",
+    "bytes": 1099,
+    "sha256": "52df2c03d6cfc9ffec13c9d3626c530fc9ce0cbe41d5ea3d10cd46edeb1aeb38"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/winwil/LICENSE",
+    "bytes": 1162,
+    "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/xbyak/xbyak/COPYRIGHT",
+    "bytes": 1474,
+    "sha256": "084ff0bd80b35911ee4fa702d41330038212e7cc50611bfaa868091d69301b6c"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/zstd/COPYING",
+    "bytes": 18091,
+    "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/zstd/LICENSE",
+    "bytes": 1549,
+    "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/zydis/LICENSE",
+    "bytes": 1122,
+    "sha256": "e5e99718209e94baaf3e9cbf6f64aa3329c9e73c63b1ab47e10f29d81974e6f3"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/cpp/3rdparty/zydis/dependencies/zycore/LICENSE",
+    "bytes": 1122,
+    "sha256": "7991ec4481a82c51d196f7440fda34c578aab51f8b9c7023935c6e03b57638bd"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/java/com/armsx2/ui/about/LicenseDocs.kt",
+    "bytes": 4373,
+    "sha256": "8b8f25cf539b69a57234139799a5b6f7744ee425b3ed40a88e3fafc4aac15275"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/main/java/com/armsx2/ui/about/LicensePanels.kt",
+    "bytes": 8288,
+    "sha256": "6ae63f412bceca5a217fc3fa735dbcd532ca596063cf4f5441404cf142804ab1"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/android/app/src/test/java/com/armsx2/ui/about/LicenseDocsTest.kt",
+    "bytes": 3260,
+    "sha256": "6a53234e7bab25a770222041c7ccbe29280e820d5e90afef8c8f73293b8119d2"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/ios/COPYING.GPLv3",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "sources/izps2/source/engine/platforms/ios/Swift/App/LicenseView.swift",
+    "bytes": 3568,
+    "sha256": "2fdc6d6c8bf5f8365f67ad857712f6efa9ba42e63ff9030481efe177aa23273e"
+  },
+  {
     "path": "sources/izpsx/LICENSE",
     "bytes": 18730,
     "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
@@ -802,7 +2112,7 @@
   {
     "path": "sources/izpsx/THIRD_PARTY.md",
     "bytes": 931,
-    "sha256": "494454c8ef9cd7b4bafa12b346a94ed8b1c9c6227a54a16fa685d4c3a2a701a2"
+    "sha256": "9ddd8c83e4e9cd8dfb658bd6e019f6f36300f17d68ef2c12691afa9ac7a930d4"
   },
   {
     "path": "sources/izpsx/module/LICENSE",

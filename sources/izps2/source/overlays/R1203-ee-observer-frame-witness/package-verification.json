@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1203-ee-observer-frame-witness/IZPS2-R1203.iza",
+  "bytes": 11420653,
+  "sha256": "6d6f7ecdf110fb9c8706a738f999e4bf3db1845d938e107259460bba981c0df5",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "309a0d56194303ceedf568af01f87792821cd8f7ebf6fc8ed3a6a16f0f1ca681"
+  },
+  "engine": {
+    "file": "asset-c9af19f4d87d2ad36bdb1db6ac00e892f7d0e1480a75daed6e1338aa07b4b3eb.izdata",
+    "path": "asset-c9af19f4d87d2ad36bdb1db6ac00e892f7d0e1480a75daed6e1338aa07b4b3eb.izdata",
+    "bytes": 28247432,
+    "sha256": "c9af19f4d87d2ad36bdb1db6ac00e892f7d0e1480a75daed6e1338aa07b4b3eb"
+  }
+}

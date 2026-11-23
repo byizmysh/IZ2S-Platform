@@ -1,0 +1,32 @@
+[
+  {
+    "id": "iz2s-cheese",
+    "tag": "v0.8.7",
+    "release": "https://github.com/byizmysh/iz2s-cheese/releases/tag/v0.8.7",
+    "asset": "https://github.com/byizmysh/iz2s-cheese/releases/download/v0.8.7/iz2s-cheese-install.iza",
+    "bytes": 129371,
+    "sha256": "3e099b13db6af275b2e3cdc1f2b62002d94e42ea0de8774e84bc90cfd88fdb23",
+    "source": "https://api.github.com/repos/byizmysh/iz2s-cheese/tarball/v0.8.7",
+    "sourceArchiveSha256": "1b4018823cb286c1b2ec975b8d70eae9deb260a9900bda9bd0b2b141eab3316c"
+  },
+  {
+    "id": "izpsx",
+    "tag": "v0.5.3",
+    "release": "https://github.com/byizmysh/IZPSX-emulator/releases/tag/v0.5.3",
+    "asset": "https://github.com/byizmysh/IZPSX-emulator/releases/download/v0.5.3/izpsx-emulator-0.5.3.iza",
+    "bytes": 573036,
+    "sha256": "4f6dd478ec0e9c7160935355f1cbcab24f60a39fb0b39ee47879cda6dc2d086e",
+    "source": "https://api.github.com/repos/byizmysh/IZPSX-emulator/tarball/v0.5.3",
+    "sourceArchiveSha256": "dcd9214e6828483247d3dbd36bef559bbfb3fa9c3e02016c264c665721d88e8d"
+  },
+  {
+    "id": "izps2",
+    "tag": "v0.5.0",
+    "release": "https://github.com/byizmysh/IZPS2-emulator/releases/tag/v0.5.0",
+    "asset": "https://github.com/byizmysh/IZPS2-emulator/releases/download/v0.5.0/izps2-emulator-0.5.0.iza",
+    "bytes": 17393780,
+    "sha256": "b60159db3d2111769d1392b85ee76cd6e07a839cabee12b99e1b92474f1eafde",
+    "source": "https://api.github.com/repos/byizmysh/IZPS2-emulator/tarball/v0.5.0",
+    "sourceArchiveSha256": "a0003298aeeb1975e2de69fbdccbf8508f53ee1baec69a3f0bebf5c91f42b848"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1202-vulkan-memory-cache/IZPS2-R1202.iza",
+  "bytes": 11418777,
+  "sha256": "095353850c414e5497875b4218b24bd28b52b043993ff1f16e16147063e754b8",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "413559640b7dbed5382fb376f6ea02ad27ab5b9ba801b5e3894a4a8a89a2556d"
+  },
+  "engine": {
+    "file": "asset-2ca3250bae2297fcb8829db9943c9f167d52790f2410b140571cb642a4bd4250.izdata",
+    "path": "asset-2ca3250bae2297fcb8829db9943c9f167d52790f2410b140571cb642a4bd4250.izdata",
+    "bytes": 28247120,
+    "sha256": "2ca3250bae2297fcb8829db9943c9f167d52790f2410b140571cb642a4bd4250"
+  }
+}

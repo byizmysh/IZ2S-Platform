@@ -1,0 +1,86 @@
+add_library(vixl
+	include/vixl/aarch64/abi-aarch64.h
+	include/vixl/aarch64/assembler-aarch64.h
+	include/vixl/aarch64/constants-aarch64.h
+	include/vixl/aarch64/cpu-aarch64.h
+	include/vixl/aarch64/cpu-features-auditor-aarch64.h
+	include/vixl/aarch64/decoder-aarch64.h
+	include/vixl/aarch64/decoder-constants-aarch64.h
+	include/vixl/aarch64/decoder-visitor-map-aarch64.h
+	include/vixl/aarch64/debugger-aarch64.h
+	include/vixl/aarch64/disasm-aarch64.h
+	include/vixl/aarch64/instructions-aarch64.h
+	include/vixl/aarch64/macro-assembler-aarch64.h
+	include/vixl/aarch64/operands-aarch64.h
+	include/vixl/aarch64/registers-aarch64.h
+	include/vixl/aarch64/simulator-aarch64.h
+	include/vixl/aarch64/simulator-constants-aarch64.h
+	include/vixl/assembler-base-vixl.h
+	include/vixl/code-buffer-vixl.h
+	include/vixl/code-generation-scopes-vixl.h
+	include/vixl/compiler-intrinsics-vixl.h
+	include/vixl/cpu-features.h
+	include/vixl/globals-vixl.h
+	include/vixl/invalset-vixl.h
+	include/vixl/macro-assembler-interface.h
+	include/vixl/platform-vixl.h
+	include/vixl/pool-manager-impl.h
+	include/vixl/pool-manager.h
+	include/vixl/utils-vixl.h
+	src/aarch64/assembler-aarch64.cc
+	src/aarch64/assembler-sve-aarch64.cc
+	src/aarch64/cpu-aarch64.cc
+	src/aarch64/cpu-features-auditor-aarch64.cc
+	src/aarch64/decoder-aarch64.cc
+	src/aarch64/debugger-aarch64.cc
+	src/aarch64/disasm-aarch64.cc
+	src/aarch64/instructions-aarch64.cc
+	src/aarch64/logic-aarch64.cc
+	src/aarch64/macro-assembler-aarch64.cc
+	src/aarch64/macro-assembler-sve-aarch64.cc
+	src/aarch64/operands-aarch64.cc
+	src/aarch64/pointer-auth-aarch64.cc
+	src/aarch64/registers-aarch64.cc
+	src/aarch64/simulator-aarch64.cc
+	src/code-buffer-vixl.cc
+	src/compiler-intrinsics-vixl.cc
+	src/cpu-features.cc
+	src/utils-vixl.cc
+)
+
+target_include_directories(vixl PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_include_directories(vixl PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/include/vixl
+	${CMAKE_CURRENT_SOURCE_DIR}/include/vixl/aarch64
+)
+target_compile_definitions(vixl PUBLIC
+	VIXL_INCLUDE_TARGET_A64
+)
+
+target_compile_definitions(vixl PRIVATE VIXL_CODE_BUFFER_MALLOC)
+
+# vixl's constants-aarch64.h does bitwise ops between distinct enum types, which
+# is deprecated in C++20. The deprecation propagates to every TU that includes
+# vixl headers, so suppress it on the public interface as well as the library.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+	target_compile_options(vixl PUBLIC -Wno-deprecated-enum-enum-conversion)
+endif()
+
+# Under the MSVC ABI (clang-cl), enums without a fixed underlying type keep
+# `int` for MSVC compatibility, so vixl's >=0x80000000 instruction-encoding
+# enumerators wrap negative; using them as case labels against the unsigned
+# `Instr` type is then a C++11 narrowing error, which clang enforces but MSVC
+# itself silently accepts. The 32-bit patterns are identical either way, so
+# downgrading the diagnostic is behavior-correct. PUBLIC because the same
+# enum-vs-Instr switches appear in TUs that include vixl headers.
+if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(vixl PUBLIC -Wno-c++11-narrowing)
+endif()
+
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+	message("Enabling vixl debug assertions")
+	target_compile_definitions(vixl PUBLIC VIXL_DEBUG)
+endif()
+

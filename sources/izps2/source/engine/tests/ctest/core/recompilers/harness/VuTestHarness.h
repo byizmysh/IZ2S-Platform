@@ -1,0 +1,241 @@
+// SPDX-FileCopyrightText: 2026 yaps2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include "RecompilerTestEnvironment.h"
+#include "VuEncode.h"
+#include "VuSnapshot.h"
+// VuDiffMode is defined in VuSnapshot.h.
+
+#include "common/Pcsx2Defs.h"
+
+#include <gtest/gtest.h>
+#include <initializer_list>
+#include <vector>
+
+class BaseVUmicroCPU;
+
+namespace recompiler_tests {
+
+// VU recompiler test harness. Drives one VU instance (0 or 1) through a short
+// instruction-pair program and captures architectural state for diff. Run()
+// executes the program through both the JIT and the interpreter and diffs the
+// post-states; RunInterpOnly() drives the interpreter alone.
+//
+// Termination: the harness expects the user-supplied program to have its
+// final pair tagged with the E-bit. `LoadProgram` validates this and appends
+// a single NOP pair to honour the architectural one-pair delay slot after
+// E-bit (see VU0microInterp.cpp:225-234 for the `VU->ebit-- == 1` cleanup
+// cadence).
+class VuTestHarness
+{
+public:
+	explicit VuTestHarness(int vu_index);
+	~VuTestHarness();
+
+	VuTestHarness(const VuTestHarness&) = delete;
+	VuTestHarness& operator=(const VuTestHarness&) = delete;
+
+	// ---- Pre-state setters ----
+	void SetVf(u32 reg_idx, float x, float y, float z, float w);
+	void SetVfBits(u32 reg_idx, u32 x, u32 y, u32 z, u32 w);
+	void SetAccBits(u32 x, u32 y, u32 z, u32 w);
+	// Cycles each Execute() may run before the engine takes its budget break
+	// (default kCycleBudget).
+	void SetCycleBudget(u32 cycles) { cycle_budget_ = cycles; }
+	// Masks to the register's architectural width: 32-bit for the special VIs
+	// (REG_R/I/Q/P/flags/TPC/FBRST/VPU_STAT), low 16 for the rest. For REG_Q/P
+	// prefer SetQ/SetP, which also write the q.UL/p.UL float slot.
+	//
+	// Seeding REG_CLIP_FLAG, REG_MAC_FLAG or REG_STATUS_FLAG does not give a
+	// program an incoming flag, and the two engines disagree about what it
+	// does do: the recompiler reads its flag from the micro_*flags ring and
+	// sees nothing, the interpreter's FCGET/FMAND/FSAND read the VI slot and
+	// see the seed, so Run()'s own diff fires. A flag-writing op folds into
+	// the VURegs clipflag/macflag/statusflag scalar, which is neither of
+	// those. Build the incoming value in-band, from an earlier op in the
+	// same program.
+	void SetVi(u32 reg_idx, u32 value);
+	void SetQ(u32 bits);
+	void SetP(u32 bits);
+
+	// VU data memory access — addr is a byte offset into VU.Mem and is
+	// masked by VU0_MEMMASK / VU1_MEMMASK. Tracked windows are diffed
+	// after Run().
+	void WriteMemU32(u32 addr, u32 value);
+	void WriteMemU128(u32 addr, u32 x, u32 y, u32 z, u32 w);
+	u32  ReadMemU32(u32 addr) const;
+	void TrackMemWindow(u32 addr, size_t bytes);
+
+	// Sets this harness's VU clamp mode (GameDB vu0ClampMode / vu1ClampMode)
+	// for the VU it drives: the three Recompiler bits GameDatabase derives from
+	// it. The harness otherwise runs at the RecompilerOptions() default of 1,
+	// and microVU's exact MAC U and MAC O models emit only at 3. Restored in
+	// the dtor.
+	void SetVuClampMode(int mode);
+
+	// Skip a VI register in the JIT-vs-interp auto-diff. Use sparingly: this
+	// is the right tool when JIT and interp legitimately disagree on a
+	// bookkeeping register (e.g. REG_TPC after an M-bit mid-program break)
+	// but the test's architectural assertions are still worth running.
+	void IgnoreViInDiff(int reg_idx) { ignored_vi_.push_back(reg_idx); }
+
+	// Override the JIT-vs-interp diff mode used by Run(). Default is
+	// PipelinePermissive — XGKICK tests use XgkickPacketEquivalent to
+	// silence the legitimately-divergent xgkick scratch fields and assert
+	// architectural equivalence on the captured Path 1 packet stream.
+	void SetDiffMode(VuDiffMode mode) { diff_mode_ = mode; }
+
+	// ---- Program load ----
+	// Each VuOp is a {lower, upper} pair written to VU.Micro at byte
+	// offsets `pc, pc+8, ...` starting at `kProgramPc = 0`. The final
+	// user-supplied pair must have the E-bit set; a follow-up NOP pair
+	// is appended automatically as the architectural E-bit delay slot.
+	// The vector overload exists for programs built at runtime (e.g. the
+	// cache-exhaustion test's generated chains).
+	void LoadProgram(std::initializer_list<vu::VuOp> pairs);
+	void LoadProgram(std::vector<vu::VuOp> pairs);
+
+	// ---- Execute ----
+	// Runs the program through the interpreter and through the JIT,
+	// captures both post-states, and gtest-fails on any architectural
+	// divergence.
+	void Run();
+
+	// Both passes, no JIT-vs-interp diff. For suites whose two engines
+	// legitimately disagree with each other and are each scored against an
+	// external oracle instead (the hardware captures). Mirrors
+	// EeRecTestHarness::RunJitNoDiff.
+	void RunNoDiff();
+
+	// Run() with the diff inverted: it still runs, but the test fails when it
+	// comes back EMPTY. Records a gap the recompiler still has -- `why` names
+	// what it lacks -- so the test trips on the day it catches up instead of
+	// passing quietly through the change that closed it. Unlike RunNoDiff
+	// above, nothing is left unchecked.
+	void RunRequiringDivergence(const char* why);
+
+	// One-sided execution against the interpreter only. Both `JitSnapshot()`
+	// and `InterpSnapshot()` reflect the interpreter result. Use when
+	// authoring a new test before the JIT path is ready.
+	void RunInterpOnly();
+
+	// Re-enter the engine until the running bit clears, instead of taking a
+	// single Execute(), for the rest of this harness's life.
+	//
+	// Execute() returns at the first break the engine takes, and an M-bit
+	// pause is one: the microprogram is still running, VPU_STAT bit 0 is
+	// still set, and the next entry carries on from where it stopped.
+	// Production does the re-entry in `_vu0run`, and the console probes did
+	// it too -- vbprobe.c spins on `cfc2 $vi29` until the running bit clears
+	// and only then reads anything back. A test scored against one of those
+	// captures has to wait the same way or it is comparing a mid-program
+	// pause against a terminated program.
+	void ResumeUntilTerminated();
+
+	// JIT-only re-run from the SAME pre-state as the last Run(), WITHOUT
+	// resetting the VU block cache first — compiled (or hydrated) blocks
+	// survive into this execution. Updates JitSnapshot(); performs no diff.
+	// Used by the persisted-JIT round-trip tests, where the whole point is
+	// asserting the pre-seeded block graph runs without a recompile.
+	void RunJitPreserveBlockCache();
+
+	// After a JIT-only run that a cycle budget cut short (RunJitPreserveBlockCache with a small
+	// SetCycleBudget): re-enters the JIT, as a game re-dispatches a program, with `budget` cycles
+	// each time until the program ends or `max_resumes` re-entries have been made. Updates
+	// JitSnapshot() and Path1PacketBytesJit() to the state at the end.
+	void ContinueJit(u32 budget, int max_resumes);
+	// The micro-memory byte address the next run starts at (default kProgramPc). The program a test
+	// loaded is at kProgramPc; a test that wrote another image elsewhere in micro memory starts it here
+	// with RunJitPreserveBlockCache(). Applies to every run after the call.
+	void SetStartPc(u32 pc) { start_pc_ = pc; }
+
+private:
+	void RunDiffing(const char* require_why);
+
+public:
+
+	// ---- Post-run accessors ----
+	u32 GetVfBitsInterp(u32 reg_idx, char lane) const;
+	u32 GetVfBitsJit(u32 reg_idx, char lane) const;
+	float GetVfInterp(u32 reg_idx, char lane) const;
+	float GetVfJit(u32 reg_idx, char lane) const;
+	u32 GetViInterp(u32 reg_idx) const;
+	u32 GetViJit(u32 reg_idx) const;
+	u32 GetMemU32Interp(u32 addr) const;
+	u32 GetMemU32Jit(u32 addr) const;
+
+	// Returns true once the most recent Run() / RunInterpOnly() has cleared
+	// the VU's running-bit in VU0.VI[REG_VPU_STAT]. The running-bit lives
+	// in VU0's VI for both VU0 and VU1 (see VU1microInterp.cpp:309), so a
+	// per-VU snapshot diff cannot reach it directly.
+	bool HasTerminated() const;
+
+	// Bytes of every GIF Path 1 packet emitted via XGKICK during the most
+	// recent Run() / RunInterpOnly(). Captured by the test-only sink wired
+	// into Gif_Unit::TransferGSPacketData (see Gif_Unit.h gif_test_hooks).
+	// Packets are appended back-to-back; tests that care about boundaries
+	// can re-parse the GIF tags.
+	//
+	// Path1PacketBytesJit/Interp() return the per-pass capture that Run()
+	// builds — used by XGKICK tests to assert "JIT and interp emit the same
+	// architectural GIF packet stream" even when their internal scratch
+	// state legitimately diverges (see VuDiffMode::XgkickPacketEquivalent).
+	const std::vector<u8>& Path1PacketBytes()      const { return path1_packets_; }
+	const std::vector<u8>& Path1PacketBytesJit()   const { return path1_packets_jit_; }
+	const std::vector<u8>& Path1PacketBytesInterp() const { return path1_packets_interp_; }
+
+	const VuSnapshot& JitSnapshot() const { return jit_snapshot_; }
+	const VuSnapshot& InterpSnapshot() const { return interp_snapshot_; }
+
+	int VuIndex() const { return vu_index_; }
+
+	// Program memory base — pair 0 lives here, pair N at +8N. Always 0
+	// for the harness (start of VU.Micro).
+	static constexpr u32 kProgramPc = 0;
+
+private:
+	void RunBothPasses();
+	void SeedEntryState(bool reset_block_cache = true);
+	void RunInterpFromSeeded();
+	void RunJitFromSeeded();
+	void ExecuteEngine(BaseVUmicroCPU* cpu);
+	void WriteProgramToMicro();
+	void MergeTrackedWindow(u32 addr, size_t bytes);
+
+	int vu_index_;
+	std::vector<vu::VuOp> program_pairs_;
+	std::vector<VuMemWindow> mem_windows_;
+	std::vector<int> ignored_vi_;
+	VuDiffMode diff_mode_ = VuDiffMode::PipelinePermissive;
+	std::vector<u8> path1_packets_;
+	std::vector<u8> path1_packets_jit_;
+	std::vector<u8> path1_packets_interp_;
+
+	bool resume_until_terminated_ = false;
+
+	bool clamp_mode_changed_ = false;
+	bool prev_overflow_ = false;
+	bool prev_extra_overflow_ = false;
+	bool prev_sign_overflow_ = false;
+	bool prev_exact_mode_ = false;
+
+	VuSnapshot pre_snapshot_;
+	VuSnapshot jit_snapshot_;
+	VuSnapshot interp_snapshot_;
+	bool has_run_ = false;
+
+	// Cycle budget — generous for short 2-256-instruction test programs.
+	// Real microprograms can run thousands of cycles but the harness's
+	// E-bit terminator caps every test deterministically.
+	static constexpr u32 kCycleBudget = 4096;
+	u32 cycle_budget_ = kCycleBudget;
+	u32 start_pc_ = kProgramPc;
+
+	// Bound on ResumeUntilTerminated's re-entries. A program that has not
+	// terminated by then is reported rather than quietly truncated.
+	static constexpr int kMaxResumes = 16;
+};
+
+} // namespace recompiler_tests

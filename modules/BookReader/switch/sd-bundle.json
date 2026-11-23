@@ -1,0 +1,17 @@
+{
+  "format": "iz2s.sd-bundle",
+  "version": 1,
+  "id": "book-reader",
+  "launcher": {
+    "bytes": 2422612,
+    "sha256": "833d799a60542c2435a362fac1402ccf5fd15c2a559941c102bb2119c440b816"
+  },
+  "assets": [
+    {
+      "file": "asset-f1254118ace26413bfe2054d8f7e6ee376b4fe33db462b10a70a2e9aed9b373d.izdata",
+      "path": "asset-f1254118ace26413bfe2054d8f7e6ee376b4fe33db462b10a70a2e9aed9b373d.izdata",
+      "bytes": 492,
+      "sha256": "f1254118ace26413bfe2054d8f7e6ee376b4fe33db462b10a70a2e9aed9b373d"
+    }
+  ]
+}

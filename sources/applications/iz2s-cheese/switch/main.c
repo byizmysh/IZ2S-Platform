@@ -78,8 +78,8 @@ static bool check_github(Task *task) {
 static void write_report(const Task *task, const char *catalog) {
     FILE *file = fopen(CHECK_REPORT, "w");
     if (!file) return;
-    bool ok = fprintf(file, "IZ2S Cheese network check\nNetwork: %s\n%s\nGitHub: %s\nCatalog URL: %s\nCatalog: %s\n",
-        task->network, task->addresses, task->github, task->settings.url, catalog) > 0;
+    bool ok = fprintf(file, "IZ2S Cheese network check\nNetwork: %s\n%s\nGitHub: %s\nEnabled online catalogs: %u\nCatalog: %s\n",
+        task->network, task->addresses, task->github, store_enabled_online_catalogs(&task->settings), catalog) > 0;
     if (fclose(file)) ok = false;
     if (ok && R_SUCCEEDED(fsdevCommitDevice("sdmc")) && task->command == STARTUP_CHECK) {
         unlink(CHECK_REQUEST);
@@ -100,11 +100,13 @@ static void progress(void *context, uint64_t done, uint64_t total) {
 static void run_task(void *context) {
     Task *task = context;
     task->result_ready = false;
-    if (task->command == REFRESH || task->command == LOAD_CATALOG) {
-        task->ok = store_refresh_catalog(task->result, SD_ROOT, &task->settings,
-                                         task->command == REFRESH, task->message);
-        task->result_ready = task->ok || task->result->count > 0;
-        if (task->result_ready) refresh_apps(task->result);
+    if (task->command == REFRESH || task->command == LOAD_CATALOG || task->command == OPEN_CATALOGS) {
+        CatalogRefreshMode mode = CATALOG_CACHED;
+        if (task->command == REFRESH) mode = CATALOG_REFRESH;
+        if (task->command == OPEN_CATALOGS) mode = CATALOG_CHECK;
+        task->ok = store_refresh_catalog(task->result, SD_ROOT, &task->settings, mode, task->message);
+        task->result_ready = true;
+        refresh_apps(task->result);
         network_status(task);
     } else if (task->command == FETCH_LIST || task->command == STARTUP_CHECK || task->command == CHECK_NETWORK) {
         network_status(task);
@@ -124,9 +126,15 @@ static void run_task(void *context) {
             task->result_ready = true;
             snprintf(task->result->root, sizeof task->result->root, "%s", SD_ROOT);
             task->ok = store_fetch_list(task->result, &task->settings, task->message);
-            if (task->ok) refresh_apps(task->result);
+            refresh_apps(task->result);
             if (task->command == STARTUP_CHECK) write_report(task, task->message);
         }
+    } else if (task->command == CHECK_STORE_UPDATE) {
+        task->ok = store_clone(task->result, task->current);
+        if (task->ok) task->ok = store_check_update(task->result, task->message);
+        else snprintf(task->message, sizeof task->message, "Not enough memory to check updates.");
+        task->result_ready = task->ok;
+        network_status(task);
     } else {
         if (task->command == INSTALL || task->command == UPDATE_STORE)
             task->ok = store_install(task->current, task->app, (Progress){.report = progress, .context = task, .cancel = &task->cancel}, task->message);
@@ -136,8 +144,12 @@ static void run_task(void *context) {
                 atomic_store(&task->done, true); return;
             }
         task->result_ready = true;
-        unsigned index = (unsigned)(task->app - task->current->apps);
-        store_refresh(task->result, &task->result->apps[index]);
+        if (task->command == UPDATE_STORE && task->current->update_checked)
+            store_refresh(task->result, &task->result->update);
+        else {
+            unsigned index = (unsigned)(task->app - task->current->apps);
+            store_refresh(task->result, &task->result->apps[index]);
+        }
     }
     atomic_store(&task->done, true);
 }
@@ -167,10 +179,12 @@ static bool start_task(Task *task, Thread *thread, View *view, const Store *stor
     view->percent = 0;
     if (view->failure) snprintf(view->message, sizeof view->message, "Could not start SD operation (0x%08x).", result);
     else snprintf(view->message, sizeof view->message, "%s",
-        command == REFRESH && view->settings.online ? "Updating catalog and thumbnails..." :
-        command == REFRESH || command == LOAD_CATALOG ? "Loading catalog..." :
+        command == REFRESH && store_enabled_online_catalogs(&view->settings) ? "Updating catalogs and thumbnails..." :
+        command == OPEN_CATALOGS && store_enabled_online_catalogs(&view->settings) ? "Checking catalogs for updates..." :
+        command == REFRESH || command == LOAD_CATALOG || command == OPEN_CATALOGS ? "Loading catalog..." :
         command == REMOVE ? "Removing the application..." :
-        command == FETCH_LIST ? "Fetching catalog and thumbnails..." :
+        command == FETCH_LIST ? "Fetching catalogs and thumbnails..." :
+        command == CHECK_STORE_UPDATE ? "Checking official Cheese release..." :
         command == CHECK_NETWORK || command == STARTUP_CHECK ? "Checking the network..." :
         task->app && task->app->package.release_url[0] ? "Downloading" :
         "Copying and verifying files...");
@@ -181,7 +195,8 @@ static unsigned buttons(u64 keys) {
     const u64 platform[] = {
         HidNpadButton_AnyUp, HidNpadButton_AnyDown, HidNpadButton_AnyLeft, HidNpadButton_AnyRight,
         HidNpadButton_A, HidNpadButton_B, HidNpadButton_X, HidNpadButton_Y,
-        HidNpadButton_L, HidNpadButton_R, HidNpadButton_Plus, HidNpadButton_Minus, HidNpadButton_ZL,
+        HidNpadButton_L, HidNpadButton_R, HidNpadButton_Plus, HidNpadButton_Minus,
+        HidNpadButton_ZL, HidNpadButton_ZR,
     };
     unsigned result = 0;
     for (unsigned i = 0; i < sizeof platform / sizeof platform[0]; ++i)
@@ -189,7 +204,21 @@ static unsigned buttons(u64 keys) {
     return result;
 }
 
-static bool edit_catalog_url(View *view) {
+static bool apply_catalog_settings(View *view, const StoreSettings *settings) {
+    view->failure = !store_settings_write(SD_ROOT, settings, view->message);
+    if (view->failure) return false;
+    view->settings = *settings;
+    return true;
+}
+
+static bool catalog_error(View *view, const char *text) {
+    view->failure = true;
+    snprintf(view->message, sizeof view->message, "%s", text);
+    return false;
+}
+
+static bool read_keyboard(View *view, const char *guide, const char *initial,
+                          unsigned max, char *input, size_t capacity) {
     SwkbdConfig keyboard;
     Result rc = swkbdCreate(&keyboard, 0);
     if (R_FAILED(rc)) {
@@ -197,20 +226,63 @@ static bool edit_catalog_url(View *view) {
         snprintf(view->message, sizeof view->message, "Could not open the keyboard (0x%08x).", rc);
         return false;
     }
-    StoreSettings settings = {0};
     swkbdConfigMakePresetDefault(&keyboard);
     swkbdConfigSetType(&keyboard, SwkbdType_QWERTY);
-    swkbdConfigSetGuideText(&keyboard, "Catalog URL: raw GitHub or local HTTP");
-    swkbdConfigSetStringLenMax(&keyboard, 500);
-    swkbdConfigSetInitialText(&keyboard, view->settings.url);
-    rc = swkbdShow(&keyboard, settings.url, sizeof settings.url);
+    swkbdConfigSetGuideText(&keyboard, guide);
+    swkbdConfigSetStringLenMax(&keyboard, max);
+    swkbdConfigSetInitialText(&keyboard, initial);
+    rc = swkbdShow(&keyboard, input, capacity);
     swkbdClose(&keyboard);
-    settings.online = settings.url[0] != '\0';
-    if (R_FAILED(rc) || (settings.online == view->settings.online && !strcmp(settings.url, view->settings.url)))
-        return false;
-    view->failure = !store_settings_write(SD_ROOT, &settings, view->message);
-    if (view->failure) return false;
-    view->settings = settings;
+    return R_SUCCEEDED(rc);
+}
+
+static bool change_catalog_url(View *view, StoreSettings *settings, unsigned index) {
+    bool adding = index == settings->count;
+    if (adding && settings->count == STORE_MAX_CATALOGS)
+        return catalog_error(view, "Remove a saved catalog before adding another.");
+    char input[RELEASE_URL_MAX], url[RELEASE_URL_MAX];
+    if (!read_keyboard(view, "Catalog URL: raw GitHub or local HTTP",
+                       adding ? "" : settings->sources[index].url, 500, input, sizeof input)) return false;
+    if (!store_catalog_address(input, url) || !url[0])
+        return catalog_error(view, "Use a GitHub catalog address or a local HTTP catalog URL.");
+    for (unsigned i = 0; i < settings->count; ++i)
+        if (i != index && !strcmp(settings->sources[i].url, url))
+            return catalog_error(view, "This catalog is already saved.");
+    strcpy(settings->sources[index].url, url);
+    if (adding) {
+        settings->sources[index].enabled = true;
+        ++settings->count;
+    }
+    return true;
+}
+
+static bool configure_catalog(View *view, Command command) {
+    StoreSettings settings = view->settings;
+    unsigned row = view->catalog_row;
+    if (command == ADD_CATALOG) {
+        row = settings.count;
+        if (!change_catalog_url(view, &settings, row)) return false;
+    } else if (command == ENABLE_COMMUNITY) {
+        row = store_community_catalog(&settings);
+        if (row == settings.count) return false;
+        settings.sources[row].enabled = true;
+    } else if (command == TOGGLE_CATALOG && row == settings.count) {
+        settings.sd_enabled = !settings.sd_enabled;
+    } else {
+        if (row >= settings.count) return false;
+        CatalogSource *source = &settings.sources[row];
+        if (command == TOGGLE_CATALOG) {
+            source->enabled = !source->enabled;
+        } else if (command == EDIT_CATALOG) {
+            if (!change_catalog_url(view, &settings, row)) return false;
+        } else {
+            --settings.count;
+            for (unsigned i = row; i < settings.count; ++i) settings.sources[i] = settings.sources[i + 1];
+            if (row && row == settings.count) --row;
+        }
+    }
+    if (!apply_catalog_settings(view, &settings)) return false;
+    view->catalog_row = row;
     return true;
 }
 
@@ -266,7 +338,7 @@ static void load_artwork(Session *session, const Store *store) {
         artwork.used[slot] = true; artwork.indices[slot] = index;
         char folder[STORE_PATH];
         int length = snprintf(folder, sizeof folder, "%s" STORE_DIR, store->root);
-        artwork.loaded[slot] = store_read_artwork_icon(store, &view->settings, index, artwork.icons[slot]) ||
+        artwork.loaded[slot] = store_read_artwork_icon(store, index, artwork.icons[slot]) ||
             embedded_icon(session, app, artwork.icons[slot]) ||
             (length >= 0 && (size_t)length < sizeof folder && artwork_read_icon(folder, app, artwork.icons[slot])) ||
             store_read_installed_icon(store, app, artwork.icons[slot]);
@@ -281,7 +353,7 @@ static void open_session(Session *session, bool hosted) {
     session->check_on_start = access(CHECK_REQUEST, F_OK) == 0;
     session->dirty = true;
     store_settings_read(SD_ROOT, &session->view.settings);
-    start_task(&session->task, &session->thread, &session->view, &catalogs[0], &catalogs[1], LOAD_CATALOG);
+    start_task(&session->task, &session->thread, &session->view, &catalogs[0], &catalogs[1], OPEN_CATALOGS);
 }
 
 static bool tick_session(Session *session, unsigned pressed, bool touching, int x, int y) {
@@ -293,12 +365,11 @@ static bool tick_session(Session *session, unsigned pressed, bool touching, int 
         threadClose(&session->thread);
         unsigned selected = view->count ? view->visible[view->cursor] : UINT_MAX;
         bool app_action = task->command == INSTALL || task->command == UPDATE_STORE || task->command == REMOVE;
-        bool changed = task->result_ready && (app_action || task->command == REFRESH ||
-            task->command == LOAD_CATALOG || (task->ok && task->command != CHECK_NETWORK));
+        bool changed = task->result_ready && task->command != CHECK_NETWORK;
         if (changed) session->active ^= 1u;
         store = &catalogs[session->active];
         if (changed && !app_action) reset_artwork(session, store);
-        if (changed && app_action) {
+        if (changed && app_action && task->command != UPDATE_STORE) {
             int slot = artwork_slot(&artwork, (unsigned)(task->app - task->current->apps));
             if (slot >= 0) artwork.used[slot] = false;
         }
@@ -310,7 +381,13 @@ static bool tick_session(Session *session, unsigned pressed, bool touching, int 
         snprintf(view->network, sizeof view->network, "%s", task->network);
         snprintf(view->addresses, sizeof view->addresses, "%s", task->addresses);
         snprintf(view->github, sizeof view->github, "%s", task->github);
-        if (task->command == REFRESH || task->command == LOAD_CATALOG) view->cursor = 0;
+        if (task->command == REFRESH || task->command == LOAD_CATALOG || task->command == OPEN_CATALOGS ||
+            task->command == FETCH_LIST || task->command == STARTUP_CHECK) {
+            view->settings = task->settings;
+            if (view->catalog_row > view->settings.count)
+                view->catalog_row = view->settings.count;
+            view->cursor = 0;
+        }
         view_filter(view, store);
         if (app_action && (view->screen == DETAILS || view->screen == REPOSITORY)) {
             unsigned cursor = 0;
@@ -318,14 +395,15 @@ static bool tick_session(Session *session, unsigned pressed, bool touching, int 
             if (cursor < view->count) view->cursor = cursor;
             else view->screen = CATALOG;
         }
-        if (task->command == CHECK_NETWORK || task->command == FETCH_LIST ||
+        if (task->command == CHECK_NETWORK || task->command == FETCH_LIST || task->command == CHECK_STORE_UPDATE ||
             task->command == STARTUP_CHECK || task->command == UPDATE_STORE) {
             view->screen = SETTINGS_RESULT;
+            view->update_result = task->command == CHECK_STORE_UPDATE && task->ok;
             snprintf(view->result_title, sizeof view->result_title, "%s",
                 task->command == CHECK_NETWORK ? "GitHub connection test" :
-                task->command == UPDATE_STORE ? "Cheese update" : "Catalog download");
+                task->command == UPDATE_STORE || task->command == CHECK_STORE_UPDATE ? "Cheese update" : "Catalog refresh");
         }
-        if (session->check_on_start && task->command == LOAD_CATALOG) {
+        if (session->check_on_start && task->command == OPEN_CATALOGS) {
             session->check_on_start = false;
             view->screen = SETTINGS;
             start_task(task, &session->thread, view, store, &catalogs[session->active ^ 1u], STARTUP_CHECK);
@@ -344,24 +422,16 @@ static bool tick_session(Session *session, unsigned pressed, bool touching, int 
         command = NO_JOB;
     }
     if (command == EXIT) return false;
-    if (command == EDIT_URL) {
+    if (command == EDIT_SEARCH) {
+        char input[SEARCH_BYTES] = {0};
+        if (read_keyboard(view, "App name, publisher or ID", view->search,
+                          sizeof input - 1, input, sizeof input))
+            view_search(view, store, input);
         command = NO_JOB;
-        if (edit_catalog_url(view)) {
-            view->screen = CATALOG;
-            command = REFRESH;
-        }
     }
-    if (command == TOGGLE_CATALOG_SOURCE) {
-        StoreSettings settings = view->settings;
-        settings.online = !settings.online;
-        view->failure = !store_settings_write(SD_ROOT, &settings, view->message);
-        command = NO_JOB;
-        if (!view->failure) {
-            view->settings = settings;
-            view->screen = CATALOG;
-            command = REFRESH;
-        }
-    }
+    if (command == ADD_CATALOG || command == EDIT_CATALOG || command == TOGGLE_CATALOG ||
+        command == REMOVE_CATALOG || command == ENABLE_COMMUNITY)
+        command = configure_catalog(view, command) ? LOAD_CATALOG : NO_JOB;
     if (command != NO_JOB && !view->busy)
         start_task(task, &session->thread, view, store, &catalogs[session->active ^ 1u], command);
     if (pressed || (touching && !session->touched) || command != NO_JOB) session->dirty = true;

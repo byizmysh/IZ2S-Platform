@@ -1,0 +1,519 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include <functional>
+#include <mutex>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "common/Pcsx2Defs.h"
+
+#include "Config.h"
+
+enum class CDVD_SourceType : uint8_t;
+
+namespace IopThread
+{
+	struct PrimeLoad;
+}
+
+namespace Threading
+{
+	class ThreadHandle;
+}
+
+enum class VMState
+{
+	Shutdown,
+	Initializing,
+	Running,
+	Paused,
+	Resetting,
+	Stopping,
+};
+
+struct VMBootParameters
+{
+	std::string filename;
+	std::string elf_override;
+	std::string save_state;
+	std::string game_config;
+	std::optional<s32> state_index;
+	std::optional<CDVD_SourceType> source_type;
+
+	std::optional<bool> fast_boot;
+	std::optional<bool> fullscreen;
+	std::optional<bool> start_turbo;
+	std::optional<bool> start_unlimited;
+	bool disable_achievements_hardcore_mode = false;
+
+	/// An arcade game (.acgame, Namco System 246/256) on a host whose game folders are not plain paths
+	/// (Android's documents): where the host found the boot ELF, the media image and the SRAM file the
+	/// .acgame names. An empty one is looked for next to the .acgame.
+	std::string arcade_elf;
+	std::string arcade_media;
+	std::string arcade_sram;
+};
+
+enum class VMBootResult
+{
+	/// The boot succeeded.
+	StartupSuccess,
+	/// The boot failed and an error should be displayed in the UI.
+	StartupFailure,
+	/// The boot failed because the user needs to be prompted to disable
+	/// hardcore mode. If the user agrees, VMManager::Initialize should be
+	/// called again with disable_achievements_hardcore_mode set to true.
+	PromptDisableHardcoreMode
+};
+
+/// Callback used to restart the VM boot process after the user has consented
+/// to hardcore mode being disabled.
+using VMBootRestartCallback = std::function<void()>;
+
+/// Callback used when the VM boot process has been interrupted because the user
+/// needs to be prompted to disable hardcore mode.
+using VMBootHardcoreDisableCallback = std::function<void(std::string reason, VMBootRestartCallback restart_callback)>;
+
+/// Callback used when the VM boot process has finished. This may be called
+/// asynchronously after the user has been prompted to disable hardcore mode.
+using VMBootDoneCallback = std::function<void(VMBootResult result, const Error& error)>;
+
+namespace VMManager
+{
+	/// The number of usable save state slots.
+	static constexpr s32 NUM_SAVE_STATE_SLOTS = 10;
+	static constexpr u32 EMULATION_ONLY_RELEASE_PATCHES = (1u << 0);
+	static constexpr u32 EMULATION_ONLY_RELEASE_DISCORD_PRESENCE = (1u << 1);
+	static constexpr u32 EMULATION_ONLY_RELEASE_PINE = (1u << 2);
+	static constexpr u32 EMULATION_ONLY_RELEASE_ACHIEVEMENTS = (1u << 3);
+	static constexpr u32 EMULATION_ONLY_RELEASE_INPUT_RECORDING = (1u << 4);
+	static constexpr u32 EMULATION_ONLY_RELEASE_OSD = (1u << 5);
+	static constexpr u32 EMULATION_ONLY_RELEASE_ALL =
+		EMULATION_ONLY_RELEASE_PATCHES |
+		EMULATION_ONLY_RELEASE_DISCORD_PRESENCE |
+		EMULATION_ONLY_RELEASE_PINE |
+		EMULATION_ONLY_RELEASE_ACHIEVEMENTS |
+		EMULATION_ONLY_RELEASE_INPUT_RECORDING |
+		EMULATION_ONLY_RELEASE_OSD;
+
+	/// The stack size to use for threads running recompilers
+	static constexpr std::size_t EMU_THREAD_STACK_SIZE = 2 * 1024 * 1024; // µVU likes recursion
+
+	/// Makes sure that AVX2 is available if we were compiled with it.
+	bool PerformEarlyHardwareChecks(const char** error);
+
+	/// Returns the current state of the VM.
+	VMState GetState();
+
+	/// Alters the current state of the VM.
+	void SetState(VMState state);
+
+	/// Returns true if there is an active virtual machine.
+	bool HasValidVM();
+
+	/// Returns the path of the disc currently running.
+	std::string GetDiscPath();
+
+	/// Returns the serial of the disc currently running.
+	std::string GetDiscSerial();
+
+	/// Returns the path of the main ELF of the disc currently running.
+	std::string GetDiscELF();
+
+	/// Returns the name of the disc/executable currently running.
+	std::string GetTitle(bool prefer_en);
+
+	/// Returns the CRC for the main ELF of the disc currently running.
+	u32 GetDiscCRC();
+
+	/// Returns the version of the disc currently running.
+	std::string GetDiscVersion();
+
+	/// Returns the crc of the executable currently running.
+	u32 GetCurrentCRC();
+
+	/// Returns the path to the ELF which is currently running. Only safe to read on the EE thread.
+	const std::string& GetCurrentELF();
+
+	/// Initializes all system components. May restart itself asynchronously
+	/// using the provided hardcore_disable_callback function. Will call the
+	/// done_callback function on either success or failure.
+	void InitializeAsync(
+		const VMBootParameters& boot_params,
+		VMBootHardcoreDisableCallback hardcore_disable_callback,
+		VMBootDoneCallback done_callback);
+
+	/// Initializes all system components. Will not attempt to restart itself.
+	VMBootResult Initialize(const VMBootParameters& boot_params, Error* error = nullptr);
+
+	/// Destroys all system components.
+	void Shutdown(bool save_resume_state);
+
+	/// Resets all subsystems to a cold boot if it's safe to do so.
+	bool RequestReset();
+
+	/// Resets all subsystems to a cold boot.
+	void Reset();
+
+	/// Runs the VM until the CPU execution is canceled.
+	void Execute();
+
+	/// Polls input, updates subsystems which are present while paused/inactive.
+	void IdlePollUpdate();
+
+	/// Changes the pause state of the VM, resetting anything needed when unpausing.
+	void SetPaused(bool paused);
+
+	/// Reloads settings, and applies any changes present.
+	void ApplySettings();
+
+	/// Reloads game specific settings, and applys any changes present.
+	bool ReloadGameSettings();
+
+	/// Re-reads this game's settings file into the game settings layer and applies nothing,
+	/// for a frontend that has just rewritten the file and is about to apply settings itself.
+	/// The layer is otherwise only read at boot, so until then it keeps answering with what
+	/// the file said then, both for values and for which settings the database may overwrite.
+	bool ReloadGameSettingsLayer();
+
+	/// Reloads game patches.
+	void ReloadPatches(bool reload_files, bool reload_enabled_list, bool verbose, bool verbose_if_changed);
+
+	/// Stops and releases optional runtime services while preserving the active VM,
+	/// renderer, audio, storage devices, networking devices, and controller input.
+	void ReleaseNonEssentialRuntimeResources(u32 release_flags);
+
+	/// Returns true after optional resources have been released for the current VM session.
+	bool IsEmulationOnlyMode();
+
+	/// Marks the active game's boot patches as applied. iOS waits for this and texture
+	/// replacement startup before automatically entering emulation-only mode.
+	void NotifyBootPatchesApplied();
+
+	/// Marks the active game's replacement-texture map/precache startup as complete.
+	void NotifyTextureReplacementStartupComplete();
+
+	/// Reloads input sources.
+	void ReloadInputSources();
+
+	/// Reloads input bindings.
+	/// Can be forced to load even when there is not an active virtual machine.
+	void ReloadInputBindings(bool force = false);
+
+	/// Sentinel slot value for the autosave-on-exit state. Routes
+	/// GetSaveStateFileName to a dedicated `.autosave.p2s` filename so the
+	/// "Save State And Exit" overlay action doesn't clobber numbered slot 0.
+	/// The load picker surfaces this slot only when the file exists.
+	static constexpr s32 SAVESTATE_SLOT_AUTOSAVE = -2;
+
+	/// Returns the save state filename for the given game serial/crc.
+	std::string GetSaveStateFileName(const char* game_serial, u32 game_crc, s32 slot, bool backup = false);
+
+	/// Returns the path to save state for the specified disc/elf.
+	std::string GetSaveStateFileName(const char* filename, s32 slot, bool backup = false);
+
+	/// Returns true if there is a save state in the specified slot.
+	bool HasSaveStateInSlot(const char* game_serial, u32 game_crc, s32 slot);
+
+	/// Loads state from the specified file.
+	bool LoadState(const char* filename, Error* error = nullptr);
+
+	/// Loads state from the specified slot.
+	bool LoadStateFromSlot(s32 slot, bool backup = false, Error* error = nullptr);
+
+	/// Saves state to the specified filename.
+	void SaveState(const char* filename, bool zip_on_thread, bool backup_old_state,
+		std::function<void(const std::string&)> error_callback);
+
+	/// Saves state to the specified slot.
+	void SaveStateToSlot(s32 slot, bool zip_on_thread, std::function<void(const std::string&)> error_callback);
+
+	/// Waits until all compressing save states have finished saving to disk.
+	void WaitForSaveStateFlush();
+
+	/// Removes all save states for the specified serial and crc. Returns the number of files deleted.
+	u32 DeleteSaveStates(const char* game_serial, u32 game_crc, bool also_backups = true);
+
+	/// Returns the current limiter mode.
+	LimiterModeType GetLimiterMode();
+
+	/// Updates the host vsync state, as well as timer frequencies. Call when the speed limiter is adjusted.
+	void SetLimiterMode(LimiterModeType type);
+
+	/// Returns the target speed, based on the limiter mode.
+	float GetTargetSpeed();
+
+	/// Ensures the target speed reflects the current configuration. Call if you change anything in
+	/// EmuConfig.EmulationSpeed without going through the usual config apply.
+	void UpdateTargetSpeed();
+
+	/// Returns true if the target speed is being synchronized with the host's refresh rate.
+	bool IsTargetSpeedAdjustedToHost();
+
+	/// Returns true when pacing comes from the host's vsync rather than the limiter's
+	/// sleep. Throttle() returns immediately in that case, so there is no frame deadline
+	/// to measure work against.
+	bool IsUsingVSyncForTiming();
+
+	/// Returns the current frame rate of the virtual machine.
+	float GetFrameRate();
+
+	/// Returns the desired vsync mode, depending on the runtime environment.
+	GSVSyncMode GetEffectiveVSyncMode();
+
+	/// Returns true if presents can be skipped, when running outside of normal speed.
+	bool ShouldAllowPresentThrottle();
+
+	/// Runs the virtual machine for the specified number of video frames, and then automatically pauses.
+	void FrameAdvance(u32 num_frames = 1);
+
+	bool IsFrameAdvancing();
+
+	/// Changes the disc in the virtual CD/DVD drive. Passing an empty will remove any current disc.
+	/// Returns false if the new disc can't be opened.
+	bool ChangeDisc(CDVD_SourceType source, std::string path);
+
+	/// Changes the ELF to boot ("ELF override"). The VM will be reset.
+	bool SetELFOverride(std::string path);
+
+	/// Changes the current GS dump being played back.
+	bool ChangeGSDump(const std::string& path);
+
+	/// Returns true if the specified path is an ELF.
+	bool IsElfFileName(const std::string_view path);
+
+	/// Returns true if the specified path is an arcade game (.acgame, Namco System 246/256).
+	bool IsArcadeGameFileName(const std::string_view path);
+
+	/// Returns true if the specified path is a blockdump.
+	bool IsBlockDumpFileName(const std::string_view path);
+
+	/// Returns true if the specified path is a GS Dump.
+	bool IsGSDumpFileName(const std::string_view path);
+
+	/// Returns true if the specified path is a save state.
+	bool IsSaveStateFileName(const std::string_view path);
+
+	/// Returns true if the specified path is a disc image.
+	bool IsDiscFileName(const std::string_view path);
+
+	/// Returns true if the specified path is a disc/elf/etc.
+	bool IsLoadableFileName(const std::string_view path);
+
+	/// Returns the serial to use when computing the game settings path for the current game.
+	std::string GetSerialForGameSettings();
+
+	/// Returns the path for the game settings ini file for the specified CRC.
+	std::string GetGameSettingsPath(const std::string_view game_serial, u32 game_crc);
+
+	/// Returns the ISO override for an ELF via gamesettings.
+	std::string GetDiscOverrideFromGameSettings(const std::string& elf_path);
+
+	/// Returns the path for the input profile ini file with the specified name (may not exist).
+	std::string GetInputProfilePath(const std::string_view name);
+
+	/// Returns the path for the debugger settings json file for the specified game serial and CRC.
+	std::string GetDebuggerSettingsFilePath(const std::string_view game_serial, u32 game_crc);
+
+	/// Returns the path for the debugger settings json file for the current game.
+	std::string GetDebuggerSettingsFilePathForCurrentGame();
+
+	/// Resizes the render window to the display size, with an optional scale.
+	/// If the scale is set to 0, the internal resolution will be used, otherwise it is treated as a multiplier to 1x.
+	void RequestDisplaySize(float scale = 0.0f);
+
+	/// Initializes default configuration in the specified file for the specified categories.
+	void SetDefaultSettings(SettingsInterface& si, bool folders, bool core, bool controllers, bool hotkeys, bool ui);
+
+	/// Returns the time elapsed in the current play session.
+	u64 GetSessionPlayedTime();
+
+	/// Called when the rich presence string, provided by RetroAchievements, changes.
+	void UpdateDiscordPresence(bool update_session_time);
+
+	/// Append bytes to the EE SIO RX FIFO. If it returns false, the FIFO is full and data is not inserted.
+	bool WriteBytesToEESIORXFIFO(const std::span<const u8> data);
+
+	/// Internal callbacks, implemented in the emu core.
+	namespace Internal
+	{
+		/// Checks settings version. Call once on startup. If it returns false, you should prompt the user to reset.
+		bool CheckSettingsVersion();
+
+		/// Loads early settings. Call once on startup.
+		void LoadStartupSettings();
+
+		/// Overrides the filename used for the file log.
+		void SetFileLogPath(std::string path);
+
+		/// Prevents the system console from being displayed.
+		void SetBlockSystemConsole(bool block);
+
+		/// Initializes common host state, called on the CPU thread.
+		bool CPUThreadInitialize();
+
+		/// Cleans up common host state, called on the CPU thread.
+		void CPUThreadShutdown();
+
+		/// Whether the caller is the CPU thread, i.e. the thread that ran CPUThreadInitialize().
+		/// The CPU thread owns EmuConfig and is the sole producer into the MTGS ring, so most core
+		/// mutation is only legal from it — everything else must marshal via Host::RunOnCPUThread()
+		/// (or Host::RunOnGSThread(), which chains through it). Returns true when no CPU thread is
+		/// registered, so startup/teardown and CPU-thread-less test harnesses stay unencumbered.
+		bool IsOnCPUThread();
+
+		/// Android: affinity mask of the performance ("big") CPU cluster hosting the
+		/// EE/VU/GS threads, so adjacent helper threads (e.g. the Oboe audio callback)
+		/// can pin onto the same cluster. Returns 0 when pinning is off / unresolved.
+		u64 GetPerformanceClusterAffinityMask();
+
+		/// Resets any state for hotkey-related VMs, called on VM startup.
+		void ResetVMHotkeyState();
+
+		/// Updates the variables in the EmuFolders namespace, reloading subsystems if needed.
+		void UpdateEmuFolders();
+
+		/// Returns true if the VM was fast booted.
+		bool WasFastBooted();
+
+		/// Returns true if fast booting is active (requested but ELF not started).
+		bool IsFastBootInProgress();
+
+		// Returns the current disc/BIOS region, if set.
+		std::string GetCurrentRegion();
+
+		/// Disables fast boot if it was requested, and found to be incompatible.
+		void DisableFastBoot();
+
+		/// Returns true if the current ELF has started executing.
+		bool HasBootedELF();
+
+		/// Returns the PC of the currently-executing ELF's entry point.
+		u32 GetCurrentELFEntryPoint();
+
+		/// Called when the internal frame rate changes.
+		void FrameRateChanged();
+
+		/// Throttles execution, or limits the frame rate.
+		void Throttle(bool vsync_start);
+
+		/// Resets/clears all execution/code caches.
+		void ClearCPUExecutionCaches();
+
+		/// Called by the GS back thread (GS multi-threading) on itself when it starts, and with
+		/// nullptr just before it exits. Applies the placement SetEmuThreadAffinities chose for it,
+		/// and lets later placement changes reach it. Returns the mask applied; 0 = any processor.
+		u64 RegisterGSBackThread(const Threading::ThreadHandle* handle);
+
+		/// Overrides the GS back thread's placement until affinities are next applied; 0 = any
+		/// processor. For measurement tools.
+		void SetGSBackThreadAffinity(u64 mask);
+
+		/// Re-derives the GS back thread's placement from where the MTGS thread is allowed to run
+		/// now, for tools that move the MTGS thread themselves. Returns the mask applied.
+		u64 PlaceGSBackThreadNearGSThread();
+
+		/// Whether the placement the GS back thread would get now, given where the MTGS, EE, VU and IOP threads
+		/// are pinned, includes a processor one of them is pinned to. False when the threads are not pinned (the
+		/// scheduler decides, and there is nothing to say) and on platforms with no placement.
+		bool GSBackThreadWouldShareBusyCore();
+
+		/// Called about twice a second from the GS thread with each emulation thread's share of a processor over the
+		/// last window. While the GS back thread runs and the placement left the threads to the scheduler, the busiest
+		/// thread gets the prime core alone (see the prime core block in VMManager.cpp). A no-op everywhere else.
+		void UpdatePrimeCorePlacement(const IopThread::PrimeLoad& load);
+
+		/// For a host that places the threads itself (pcsx2-gsrunner -gspin / -gsbackpin): the arbiter steps aside.
+		void DisablePrimeCorePlacement();
+
+		/// Returns a list of processors in the system, suitable for pinning for the software renderer.
+		const std::vector<u32>& GetSoftwareRendererProcessorList();
+
+		/// The performance cores: every processor of at least 0.75 of the fastest one's capacity
+		/// (IopThread::PerformanceMask), one bit per processor number. 0 when the cores cannot be told apart or
+		/// there is no source for it on this platform (everything but Linux and Android).
+		u64 GetPerformanceCoreMask();
+
+		/// How many of them there are.
+		u32 GetPerformanceCoreCount();
+
+		/// Whether this host can run the GS back thread beside the EE, VU1 and GS front threads: at least four performance-tier
+		/// processors (five when the IOP thread is asked for) and a slower tier beside them. False where the cores cannot be
+		/// told apart (no capacity source).
+		bool CanSplitGS();
+
+		/// Diagnostic (OSD): where the EE/VU/GS threads, and the IOP thread while it runs, are actually
+		/// running (current core + affinity mask) plus the cpuinfo cluster/frequency topology. Used to see whether the
+		/// worker threads are being scheduled onto slow cores / clamped by a cpuset.
+		std::string GetThreadPlacementDebug();
+
+		const std::string& GetELFOverride();
+		bool IsExecutionInterrupted();
+		bool IsFrameAdvancing();
+		/// GetState() without the acquire, for the EE event test, which puts an acquire fence after it where it
+		/// relies on the value (see _cpuEventTest_Shared).
+		VMState GetStateForEventTest();
+		void ELFLoadingOnCPUThread(std::string elf_path);
+		void EntryPointCompilingOnCPUThread();
+		void VSyncOnCPUThread();
+		void PollInputOnCPUThread();
+
+#ifdef PCSX2_RECOMPILER_TESTS
+		/// Tests only: set what GetState() reports, without any of SetState()'s side effects.
+		/// The recompiler tests run with no VM, so GetState() reads Shutdown and the EE event
+		/// test returns at its first check; a test of the event test itself sets Running.
+		void SetStateForTests(VMState state);
+#endif
+	} // namespace Internal
+} // namespace VMManager
+
+
+namespace Host
+{
+	/// Called with the settings lock held, when system settings are being loaded (should load input sources, etc).
+	void LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex>& lock);
+
+	/// Called after settings are updated.
+	void CheckForSettingsChanges(const Pcsx2Config& old_config);
+
+	/// Called when the VM is starting initialization, but has not been completed yet.
+	void OnVMStarting();
+
+	/// Called when the VM is created.
+	void OnVMStarted();
+
+	/// Called when the VM is shut down or destroyed.
+	void OnVMDestroyed();
+
+	/// Called when the VM is paused.
+	void OnVMPaused();
+
+	/// Called when the VM is resumed after being paused.
+	void OnVMResumed();
+
+	/// Called when performance metrics are updated, approximately once a second.
+	void OnPerformanceMetricsUpdated();
+
+	/// Called when a save state is loading, before the file is processed.
+	void OnSaveStateLoading(const std::string_view filename);
+
+	/// Called after a save state is successfully loaded. If the save state was invalid, was_successful will be false.
+	void OnSaveStateLoaded(const std::string_view filename, bool was_successful);
+
+	/// Called when a save state is being created/saved. The compression/write to disk is asynchronous, so this callback
+	/// just signifies that the save has started, not necessarily completed.
+	void OnSaveStateSaved(const std::string_view filename);
+
+	/// Provided by the host; called when the running executable changes.
+	void OnGameChanged(const std::string& title, const std::string& elf_override, const std::string& disc_path,
+		const std::string& disc_serial, u32 disc_crc, u32 current_crc);
+
+	/// Provided by the host; called once per frame at guest vsync.
+	void PumpMessagesOnCPUThread();
+} // namespace Host

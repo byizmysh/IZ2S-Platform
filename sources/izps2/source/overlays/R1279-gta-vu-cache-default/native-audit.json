@@ -1,0 +1,64 @@
+{
+  "archiveMembers": 393,
+  "sameMemberOrder": true,
+  "changedArchiveMembers": {
+    "VMManager.cpp.obj": {
+      "before": "23b84286fb8941dbc6e01e63304ca7704f01a5080689cf016c939e6a9816a620",
+      "after": "35557ee7d3e82c1f0d90a86c84af5db21c8a27ffcb90f73e5212fea4e68f5626"
+    }
+  },
+  "unchangedArchiveMembers": 392,
+  "linkedSdk": [
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4.a",
+      "sha256": "69a616fd8fd03ad6e80bde9b4824efc50f49c04526d3e264210f361040b738a0"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-runtime.a",
+      "sha256": "cc3e3f4698aaa7b2389b9652d536ff855026dc544d00ea318a306fdb8ba8745c"
+    },
+    {
+      "path": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1188-iop-scoped-lifecycle/libsb4-host-posix.a",
+      "sha256": "0189100b17ae3143cca7f1ba0b859cf300090960deeae9f23d046120b7f6285a"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/sb4/lib/libsb4-host-heap.a",
+      "sha256": "6e2f49c45c0a160ecc93d4a5934e844d109cfec339ce7cb73506af6b8a192fba"
+    },
+    {
+      "path": "${RUN23_ROOT}/engines/izhen/sdk/devkitpro/libounce/lib/libounce.a",
+      "sha256": "ed0b8d95a10f4f595129ff1ba29d1ea3cb109fbdd55105552bd6f059af8940da"
+    }
+  ],
+  "selectedLibounceMembers": [
+    "cache.o",
+    "levent.o",
+    "svc.o"
+  ],
+  "changedLinkArguments": [
+    [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1277-iop-thread-future-cdvd/engine.ld",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1279-gta-vu-cache-default/engine.ld"
+    ],
+    [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1277-iop-thread-future-cdvd/engine.map",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1279-gta-vu-cache-default/engine.map"
+    ],
+    [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1277-iop-thread-future-cdvd/ps2_vm_runner.cpp.obj",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1279-gta-vu-cache-default/ps2_vm_runner.cpp.obj"
+    ],
+    [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1277-iop-thread-future-cdvd/hosted-entry.c.obj",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1279-gta-vu-cache-default/hosted-entry.c.obj"
+    ],
+    [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1277-iop-thread-future-cdvd/engine.elf",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1279-gta-vu-cache-default/engine.elf"
+    ],
+    [
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1277-iop-thread-future-cdvd/libpcsx2-hosted.a",
+      "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1279-gta-vu-cache-default/libpcsx2-hosted.a"
+    ]
+  ]
+}

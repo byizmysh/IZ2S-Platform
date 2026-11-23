@@ -1,0 +1,161 @@
+// FramePacingTab.swift — per-game Frame Pacing overrides (mirrors the global panel with Use-Global tags)
+// SPDX-License-Identifier: GPL-3.0+
+
+import SwiftUI
+
+struct FramePacingTab: View {
+    @Binding var enabled: Bool
+    let settings: SettingsStore
+
+    @Binding var perGameFramePacingPreset: Int
+
+    // Per-game individual-control bindings shared with GraphicsTab / AudioTab.
+    @Binding var perGameFrameLimiter: Int
+    @Binding var perGameTargetFPS: Float
+    @Binding var perGameVsyncQueue: Int
+    @Binding var perGameSyncToHostRefresh: Int
+    @Binding var perGameBufferMS: Int
+    @Binding var perGameOutputLatencyMS: Int
+
+    // Triggers the parent's reset confirmation dialog.
+    @Binding var showResetConfirmation: Bool
+
+    var body: some View {
+        PerGameTab(title: settings.localized("Frame Pacing")) {
+            if showsCustomDirtyCaption {
+                Text(settings.localized("You've changed individual settings. Pick a preset to return to its values."))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section {
+                Picker(settings.localized("Preset"), selection: $perGameFramePacingPreset) {
+                    Text(settings.localized("Use Global")).tag(-1)
+                    ForEach(FramePacingPreset.allCases) { preset in
+                        Text(settings.localized(preset.label)).tag(preset.rawValue)
+                    }
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    id: "per-game.frame-pacing.preset",
+                    label: settings.localized("Preset"),
+                    selection: $perGameFramePacingPreset,
+                    options: [(id: -1, title: settings.localized("Use Global"))]
+                        + FramePacingPreset.allCases.map {
+                            (id: $0.rawValue, title: settings.localized($0.label))
+                        }
+                )
+                .disabled(!enabled)
+
+                Text(String(format: settings.localized("Global preset: %@"), settings.localized(settings.framePacingPreset.label)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text(settings.localized("Preset"))
+            }
+
+            Section {
+                Picker(settings.localized("Frame Limiter"), selection: $perGameFrameLimiter) {
+                    Text(settings.localized("Use Global")).tag(-1)
+                    Text(settings.localized("On")).tag(1)
+                    Text(settings.localized("Off")).tag(0)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    id: "per-game.frame-pacing.frame-limiter",
+                    label: settings.localized("Frame Limiter"),
+                    selection: $perGameFrameLimiter,
+                    options: [
+                        (id: -1, title: settings.localized("Use Global")),
+                        (id: 1, title: settings.localized("On")),
+                        (id: 0, title: settings.localized("Off")),
+                    ]
+                )
+                .disabled(!enabled)
+
+                FloatOverrideRow(.targetFPS, value: $perGameTargetFPS,
+                                 global: settings.targetFPS,
+                                 settings: settings)
+                    .controllerAccessibilityTargetID(
+                        "per-game.frame-pacing.target-fps"
+                    )
+                    .disabled(perGameFrameLimiter == 0 || !enabled)
+
+                NumberOverrideRow(.vsyncQueueSize, value: $perGameVsyncQueue,
+                                  global: settings.vsyncQueueSize,
+                                  settings: settings)
+                    .controllerAccessibilityTargetID(
+                        "per-game.frame-pacing.vsync-queue"
+                    )
+                    .disabled(!enabled)
+
+                Picker(settings.localized("Sync to Host Refresh"), selection: $perGameSyncToHostRefresh) {
+                    Text(settings.localized("Use Global")).tag(-1)
+                    Text(settings.localized("Off")).tag(0)
+                    Text(settings.localized("On")).tag(1)
+                }
+                .controllerAccessibilityOptionsPickerTarget(
+                    id: "per-game.frame-pacing.sync-host-refresh",
+                    label: settings.localized("Sync to Host Refresh"),
+                    selection: $perGameSyncToHostRefresh,
+                    options: [
+                        (id: -1, title: settings.localized("Use Global")),
+                        (id: 0, title: settings.localized("Off")),
+                        (id: 1, title: settings.localized("On")),
+                    ]
+                )
+                .disabled(!enabled)
+                Text(settings.localized("Sync to Host Refresh needs a restart to take effect."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                NumberOverrideRow(.audioBufferMs, value: $perGameBufferMS,
+                                  global: settings.audioBufferMs,
+                                  settings: settings)
+                    .controllerAccessibilityTargetID(
+                        "per-game.frame-pacing.audio-buffer"
+                    )
+                    .disabled(!enabled)
+
+                NumberOverrideRow(.audioOutputLatencyMs, value: $perGameOutputLatencyMS,
+                                  global: settings.audioOutputLatencyMs,
+                                  settings: settings)
+                    .controllerAccessibilityTargetID(
+                        "per-game.frame-pacing.output-latency"
+                    )
+                    .disabled(!enabled)
+            } header: {
+                Text(settings.localized("Individual Settings"))
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    showResetConfirmation = true
+                } label: {
+                    Text(settings.localized("Reset Per-Game Frame Pacing"))
+                }
+                .controllerAccessibilityActionTarget(
+                    id: "per-game.frame-pacing.reset",
+                    label: settings.localized("Reset Per-Game Frame Pacing")
+                ) {
+                    showResetConfirmation = true
+                }
+                .disabled(!enabled)
+            }
+        }
+    }
+
+    // Show the "changed individual settings" caption when this game has
+    // overridden any individual control while still on Use Global, or when the
+    // preset itself is Custom.
+    private var showsCustomDirtyCaption: Bool {
+        if perGameFramePacingPreset == FramePacingPreset.custom.rawValue { return true }
+        if perGameFramePacingPreset != -1 { return false }
+        return perGameFrameLimiter != -1
+            || perGameTargetFPS != -1
+            || perGameVsyncQueue != -1
+            || perGameSyncToHostRefresh != -1
+            || perGameBufferMS != -1
+            || perGameOutputLatencyMS != -1
+    }
+
+}

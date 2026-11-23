@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1313-gs-pool-wake/IZPS2-R1313.iza",
+  "bytes": 12083734,
+  "sha256": "c8995c7e59f68f10b6ba9b459c61af05092d4e7f902961b3a8d71fc522fbfafa",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "907f504626c99f180b3e2bae711512e1878c388cc39145301728df6f28c6abc4"
+  },
+  "engine": {
+    "file": "asset-f7bc6bc5d9f1deb3da817c35a0ca916c030285428d70bc63aee4719366820d3e.izdata",
+    "path": "asset-f7bc6bc5d9f1deb3da817c35a0ca916c030285428d70bc63aee4719366820d3e.izdata",
+    "bytes": 29644720,
+    "sha256": "f7bc6bc5d9f1deb3da817c35a0ca916c030285428d70bc63aee4719366820d3e"
+  }
+}

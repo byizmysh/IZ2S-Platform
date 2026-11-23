@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1320-nfs-podium/IZPS2-R1320.iza",
+  "bytes": 12095040,
+  "sha256": "e600c8d54cabd94f71027e6aa8d86215319775a589a3d175a8b3005060eb5000",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "ee192ea769f3f4f1bd310cafc7c00093d65c45a2f2f90dfb31769872029578a7"
+  },
+  "engine": {
+    "file": "asset-402827762039c7e87a5b1ed4bcf23a86f2bbd7175e88a13fb5176ae7c75df3f5.izdata",
+    "path": "asset-402827762039c7e87a5b1ed4bcf23a86f2bbd7175e88a13fb5176ae7c75df3f5.izdata",
+    "bytes": 29861928,
+    "sha256": "402827762039c7e87a5b1ed4bcf23a86f2bbd7175e88a13fb5176ae7c75df3f5"
+  }
+}

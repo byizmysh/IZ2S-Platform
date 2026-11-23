@@ -1,0 +1,194 @@
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+#include <functional>
+
+#include "common/WindowInfo.h"
+#include "SaveState.h"
+#include "pcsx2/Config.h"
+
+#include <map>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+enum class RenderAPI
+{
+	None,
+	D3D11,
+	Metal,
+	D3D12,
+	Vulkan,
+	OpenGL
+};
+
+enum class GSVideoMode : u8
+{
+	Unknown,
+	NTSC,
+	PAL,
+	VESA,
+	SDTV_480P,
+	HDTV_720P,
+	HDTV_1080I
+};
+
+enum class GSDisplayAlignment
+{
+	Center,
+	LeftOrTop,
+	RightOrBottom
+};
+
+struct GSAdapterInfo
+{
+	std::string name;
+	std::vector<std::string> fullscreen_modes;
+	u32 max_texture_size;
+	u32 max_upscale_multiplier;
+};
+
+class SmallStringBase;
+
+// Returns the ID for the specified function, otherwise -1.
+s16 GSLookupGetSkipCountFunctionId(const std::string_view name);
+s16 GSLookupBeforeDrawFunctionId(const std::string_view name);
+s16 GSLookupMoveHandlerFunctionId(const std::string_view name);
+
+/// Deletes every GS shader and pipeline cache file. While the GS thread runs the work is posted
+/// there, where the open caches can be emptied and nothing is written back afterwards, so call it
+/// from the CPU thread. `done` receives the number of files removed or emptied, on the thread that
+/// did the work.
+void GSClearShaderCache(std::function<void(u32)> done = {});
+/// The same, for a caller already on the GS thread (the fullscreen UI), or when no GS thread runs.
+u32 GSClearShaderCacheOnGSThread();
+
+bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, u8* basemem,
+	GSVSyncMode vsync_mode, bool allow_present_throttle);
+bool GSreopen(bool recreate_device, bool recreate_renderer, GSRendererType new_renderer,
+	std::optional<const Pcsx2Config::GSOptions*> old_config);
+void GSreset(bool hardware_reset);
+void GSclose();
+void GSgifSoftReset(u32 mask);
+void GSwriteCSR(u32 csr);
+void GSInitAndReadFIFO(u8* mem, u32 size);
+void GSReadLocalMemoryUnsync(u8* mem, u32 qwc, u64 BITBLITBUF, u64 TRXPOS, u64 TRXREG);
+void GSgifTransfer(const u8* mem, u32 size);
+void GSgifTransfer1(u8* mem, u32 addr);
+void GSgifTransfer2(u8* mem, u32 size);
+void GSgifTransfer3(u8* mem, u32 size);
+void GSvsync(u32 field, bool registers_written);
+// Manual frameskip (Android low-end devices): present 1 of every (frames+1)
+// VSyncs, skipping presentation of the rest. 0 disables. See GSRenderer::VSync.
+void GSSetManualFrameSkip(u32 frames);
+u32 GSGetManualFrameSkip();
+// Max presented-FPS cap. Caps the DISPLAY frame rate without touching emulation
+// speed — dropped on the GS thread in GSRenderer::VSync. 0 disables.
+void GSSetMaxPresentFps(u32 fps, u64 present_interval, u32 milli_fps = 0);
+u32 GSGetMaxPresentFps();
+u32 GSGetMaxPresentMilliFps();
+u64 GSGetMaxPresentInterval();
+// Allows capped hardware-renderer frames to bypass final display composition and
+// post-processing when no correctness-sensitive consumer needs the finished image.
+// Platform opt-in keeps the existing presentation-only behavior as the default.
+void GSSetPresentCapRenderSkip(bool enabled);
+bool GSGetPresentCapRenderSkip();
+// While true (set when the limiter enters Turbo / fast-forward), the present cap
+// above is bypassed so the speed-up is actually visible. The cap resumes — with
+// a clean re-prime, no catch-up burst — as soon as fast-forward ends.
+void GSSetPresentCapSuspended(bool suspended);
+bool GSGetPresentCapSuspended();
+// The IPU decoded a picture (any thread). The display looks at the count to tell a movie is playing.
+void GSNoteVideoDecode();
+u32 GSGetVideoDecodeCount();
+int GSfreeze(FreezeAction mode, freezeData* data);
+std::string GSGetBaseSnapshotFilename();
+// False if there is no renderer, or a snapshot is already queued and this request was dropped.
+bool GSQueueSnapshot(const std::string& path, u32 gsdump_frames = 0);
+// True while a dump is open and taking frames. Queueing a snapshot over one of these does not
+// start a second dump -- it overwrites the remaining frame count and cuts the recording short.
+bool GSIsDumpRecording();
+// True when the two-object split is live: a pipelined back thread with its own front parser.
+// Not the same question as the BackThreadMode setting, which downgrades to lockstep when the
+// split is unsupported, so this is the only way to tell whether the mode really engaged.
+bool GSHasFrontParser();
+// Waits until the GS back thread has executed every queued record. MTGS thread only. No-op with
+// GS multi-threading off.
+void GSDrainBackQueue();
+void GSStopGSDump();
+void GSPresentCurrentFrame();
+void GSThrottlePresentation();
+void GSGameChanged(const std::string& serial, u32 crc);
+void GSSetDisplayAlignment(GSDisplayAlignment alignment);
+void GSSetPortraitRenderTopAlign(bool enabled);
+/// Pixels kept clear at the top of a portrait window (display cutout / camera).
+void GSSetPortraitRenderTopInset(int pixels);
+/// Top-align the render in a LANDSCAPE window (foldables / clamshell controllers).
+void GSSetLandscapeRenderTopAlign(bool enabled);
+bool GSHasDisplayWindow();
+void GSResizeDisplayWindow(u32 width, u32 height, float scale);
+void GSUpdateDisplayWindow();
+void GSSetVSyncMode(GSVSyncMode mode, bool allow_present_throttle);
+
+GSRendererType GSGetCurrentRenderer();
+bool GSIsHardwareRenderer();
+
+/// The API of the GS device that is open now, None when there is none. Unlike GSGetCurrentRenderer(), which is the
+/// configured renderer and reads Auto after a reopen that was given the unresolved setting, this is what the
+/// device actually is. Safe to read from any thread.
+RenderAPI GSGetCurrentRenderAPI();
+
+/// Whether this renderer's GetOutput() reads the framebuffer at the display's own offset,
+/// block-aligning as it goes, rather than reading the whole buffer and leaving the offset
+/// for the presenter. Today this is exactly "is the software renderer", but it is a property
+/// of the output path rather than of the renderer kind, and it is resolved per renderer
+/// instance so it stays that way. Ask this — never GSIsHardwareRenderer() — when the
+/// question is about presentation geometry.
+bool GSPresenterOffsetsFramebufferRead();
+std::string GetDefaultAdapter();
+bool GSWantsExclusiveFullscreen();
+std::optional<float> GSGetHostRefreshRate();
+std::vector<GSAdapterInfo> GSGetAdapterInfo(GSRendererType renderer);
+u32 GSGetMaxUpscaleMultiplier(u32 max_texture_size);
+GSVideoMode GSgetDisplayMode();
+void GSgetInternalResolution(int* width, int* height);
+void GSgetStats(SmallStringBase& info);
+void GSgetMemoryStats(SmallStringBase& info);
+void GSgetTitleStats(std::string& info);
+
+/// Converts window position to normalized display coordinates (0..1). A value less than 0 or greater than 1 is
+/// returned if the position lies outside the display area.
+void GSTranslateWindowToDisplayCoordinates(float window_x, float window_y, float* display_x, float* display_y);
+void GSTranslateWindowToDisplayCoordinatesUnclamped(float window_x, float window_y, float* display_x, float* display_y);
+void GSTranslateDisplayToWindowCoordinates(float display_x, float display_y, float* window_x, float* window_y);
+
+void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
+void GSSetSoftwareRendering(bool software_renderer, GSInterlaceMode new_interlace);
+bool GSSaveSnapshotToMemory(u32 window_width, u32 window_height, bool apply_aspect, bool crop_borders,
+	u32* width, u32* height, std::vector<u32>* pixels);
+void GSJoinSnapshotThreads();
+
+namespace Host
+{
+	/// Called when the GS is creating a render device.
+	/// This could also be fullscreen transition.
+	std::optional<WindowInfo> AcquireRenderWindow(bool recreate_window);
+
+	/// Called before drawing the OSD and other display elements.
+	void BeginPresentFrame();
+
+	/// Called when the GS is finished with a render window.
+	void ReleaseRenderWindow();
+
+	/// Returns true if the hosting application is currently fullscreen.
+	bool IsFullscreen();
+
+	/// Alters fullscreen state of hosting application.
+	void SetFullscreen(bool enabled);
+
+}
+
+extern Pcsx2Config::GSOptions GSConfig;

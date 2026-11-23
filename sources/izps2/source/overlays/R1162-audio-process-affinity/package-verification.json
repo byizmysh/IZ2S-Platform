@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1162-audio-process-affinity/IZPS2-R1162.iza",
+  "bytes": 11207803,
+  "sha256": "d4ea1ed6395d1c47f80f861b36713d0822c0d545be29fee1b65e8530106826d5",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180148,
+    "sha256": "404489b65a1868ecec3bb37019a83c057a86c65607927349f952bd451d670651"
+  },
+  "engine": {
+    "file": "asset-90318f645db84d4c2802217f045b788d0c0a6340725f0096c1ed4a148d13e625.izdata",
+    "path": "asset-90318f645db84d4c2802217f045b788d0c0a6340725f0096c1ed4a148d13e625.izdata",
+    "bytes": 27911104,
+    "sha256": "90318f645db84d4c2802217f045b788d0c0a6340725f0096c1ed4a148d13e625"
+  }
+}

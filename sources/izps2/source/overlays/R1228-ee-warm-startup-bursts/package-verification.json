@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1228-ee-warm-startup-bursts/IZPS2-R1228.iza",
+  "bytes": 11665659,
+  "sha256": "db3cb3be604fd333c90804634a8e9f0814e5c1b20f050ea02343fd50105e4c49",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "6b5c90a2033a05b6f5051e621fb9c53151876586c65caf2ce7f248fe503582d6"
+  },
+  "engine": {
+    "file": "asset-b57c4e0e6468f05e512f9b02937469581f18e65b481d6b81ce925da746c0ecb6.izdata",
+    "path": "asset-b57c4e0e6468f05e512f9b02937469581f18e65b481d6b81ce925da746c0ecb6.izdata",
+    "bytes": 28627144,
+    "sha256": "b57c4e0e6468f05e512f9b02937469581f18e65b481d6b81ce925da746c0ecb6"
+  }
+}

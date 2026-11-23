@@ -1,0 +1,130 @@
+# Docs - https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+name: Game Problem
+description: A game is slow, looks wrong, crashes, or has bad sound.
+labels: [bug]
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Need help with setup? Ask on [Discord](https://discord.gg/AkJgEgETMn).
+        One game per report. No links to games or BIOS files.
+
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      description: Name, region and serial.
+      placeholder: "Shadow of the Colossus, NTSC-U, SCUS-97472"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Problem
+      options:
+        - Slow
+        - Graphics wrong
+        - Crash or freeze
+        - Sound
+        - Controls
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: desc
+    attributes:
+      label: What happens?
+      description: Where in the game? What do you see?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: System
+      options:
+        - Android
+        - iPhone / iPad
+        - Mac
+        - Windows
+        - Linux
+        - ROCKNIX / Batocera / other handheld OS
+        - RetroArch
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: "Retroid Pocket 5"
+    validations:
+      required: true
+
+  - type: input
+    id: cpu
+    attributes:
+      label: CPU
+      placeholder: "Snapdragon 865"
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU
+      placeholder: "Adreno 650"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: driver
+    attributes:
+      label: GPU driver (Android)
+      options:
+        - Default
+        - Turnip
+        - Other custom driver
+        - Not Android
+    validations:
+      required: false
+
+  - type: input
+    id: rev
+    attributes:
+      label: ARMSX2 version
+      description: Please try the newest version first.
+      placeholder: "2.8 or nightly-20261004"
+    validations:
+      required: true
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings you changed
+      placeholder: "Resolution 2x, Vulkan"
+    validations:
+      required: false
+
+  - type: textarea
+    id: screens
+    attributes:
+      label: Screenshot
+      description: "Slow? Set On-screen display to Full first."
+    validations:
+      required: false
+
+  - type: textarea
+    id: gsdump
+    attributes:
+      label: GS dump
+      description: |
+        Slow or graphics wrong? Please add a GS dump.
+        Android: in-game menu > Capture GS Dump (bug report).
+        PC / Mac: Tools > Save Single Frame GS Dump.
+        The dump is one .gs.zip file in the snaps folder. Upload it as it is.
+    validations:
+      required: false

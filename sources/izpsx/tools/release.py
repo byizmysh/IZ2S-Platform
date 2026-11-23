@@ -27,8 +27,12 @@ def reject_user_content(name):
     base=parts[-1]
     if any(x in {'bios','games','user-bios','user-games'} for x in parts) or (base.startswith('scph') and base.endswith('.bin')) or base in {'bios.bin','ps1_rom.bin','psx_rom.bin'} or Path(base).suffix in {'.iso','.cue','.chd','.pbp','.ccd','.sbi','.sub'}:
         raise RuntimeError('BIOS/game data must not be distributed: '+name)
-def zipped(path,entries,prefix=''):
+def zipped(path,entries,prefix='',directories=()):
     with zipfile.ZipFile(path,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+        for name in directories:
+            entry=zipfile.ZipInfo(prefix+name,(2026,11,10,0,0,0))
+            entry.external_attr=(0o40755<<16)|0x10
+            z.writestr(entry,b'')
         for name,data,executable in entries:
             reject_user_content(name)
             entry=zipfile.ZipInfo(prefix+name,(2026,11,10,0,0,0));entry.external_attr=(0o100755 if executable else 0o100644)<<16;entry.compress_type=zipfile.ZIP_DEFLATED;z.writestr(entry,data)
@@ -49,8 +53,11 @@ def main():
     for p in sorted((OUT/'sd').iterdir()):
         if p.is_file() and (p.name=='launcher.iza' or p.suffix in {'.izdata','.sig'} or p.name.startswith('sd-bundle')):sd.append(('iz2s/modules/izpsx/'+p.name,p.read_bytes(),False))
     if not any(n.endswith('launcher.iza') for n,_,_ in sd):raise RuntimeError('Native SD entry missing')
-    zipped(OUT/(stem+'-sd.zip'),sd)
-    products=[OUT/(stem+s) for s in ['.iza','-sd.zip','-source.zip','-source.tar.gz']]
+    zipped(OUT/(stem+'.zip'),sd,directories=(
+        'iz2s/','iz2s/modules/','iz2s/modules/izpsx/',
+        'iz2s/modules/izpsx/bios/','iz2s/modules/izpsx/games/','iz2s/modules/izpsx/saves/',
+    ))
+    products=[OUT/(stem+s) for s in ['.iza','.zip','-source.zip','-source.tar.gz']]
     hashes=[{'file':p.name,'bytes':p.stat().st_size,'sha256':sha(p.read_bytes())} for p in products]
     (OUT/'SHA256SUMS').write_text(''.join(p['sha256']+'  '+p['file']+'\n' for p in hashes))
     report={'version':VERSION,'published':False,'consoleExecuted':False,'nativeRebuilt':False,'correspondingSourceIncluded':True,'sourceFiles':len(source),'products':hashes}

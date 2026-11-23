@@ -1,0 +1,17 @@
+{
+  "output": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1271-spu2-active-routing/IZPS2-R1271.iza",
+  "bytes": 12067507,
+  "sha256": "beb69993d242bd4191b35a458633292ba9a4a8963be3c200dbbe4eee40973e3d",
+  "format": "RUN25 packed IZA",
+  "abi": 7,
+  "launcher": {
+    "bytes": 180636,
+    "sha256": "37e8f960958d116d6a6b9598c348dbe9eda43fcd169d6ec0fbb6bd3100b9bde7"
+  },
+  "engine": {
+    "file": "asset-d05094fb4f3059ef1fc6804ffec1c0365ae1ac7e8606fd140f8783121bda8c99.izdata",
+    "path": "asset-d05094fb4f3059ef1fc6804ffec1c0365ae1ac7e8606fd140f8783121bda8c99.izdata",
+    "bytes": 29573776,
+    "sha256": "d05094fb4f3059ef1fc6804ffec1c0365ae1ac7e8606fd140f8783121bda8c99"
+  }
+}

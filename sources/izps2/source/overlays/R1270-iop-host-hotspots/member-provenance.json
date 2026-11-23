@@ -1,0 +1,6 @@
+{
+  "baselineArchive": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1269-vif1-queue-publication/libpcsx2-hosted.a",
+  "reproducedFrom": "${IZPS2_WORKSPACE}/IZ-R799/run25/jit-single-range/R1270-iop-host-hotspots/stock-Mixer.cpp.obj",
+  "baselineSha256": "25cfb7844ad2a26dc73b135ee8f4bfd4af74c97adf14093a63d042478435b075",
+  "candidateSha256": "2da0ef0e5ba538eed62fbe28afe69570658bb4a8b184375c505e4287657a8aab"
+}
