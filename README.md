@@ -2,11 +2,11 @@
 
 **PC panel 0.3.2 · Console launcher 0.32 · Maintained by IZMYSH**
 
-[Русский](README.ru.md) · [Installation](docs/INSTALLATION.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md)
+[Russian](README.ru.md) · [Installation](docs/INSTALLATION.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md)
 
-FAQ: [English](FAQ.md) · [Русский](FAQ.ru.md) · [简体中文](FAQ.zh.md) · [Español](FAQ.es.md)
+FAQ: [English](FAQ.md) · [Russian](FAQ.ru.md) · [Simplified Chinese](FAQ.zh.md) · [Spanish](FAQ.es.md)
 
-IZ2S combines a PC setup panel and a console application launcher for **Nintendo Switch 2**, using **Civilization VII** as the entry point. This edition is dedicated to Civilization VII; the previous SmileBASIC 4 setup and input-device installers are removed.
+IZ2S combines a PC setup panel and a console application launcher for **Nintendo Switch 2**, using **Civilization VII** as the entry point. This edition is dedicated to Civilization VII. The SmileBASIC 4 edition and its input-device setup are now maintained in the separate [IZ2S-SB4 repository](https://github.com/byizmysh/IZ2S-SB4).
 
 The panel guides SD preparation, PC preparation, connection with automatic save installation, and launch. Once IZ2S is running, PC Link connects the application library and FTP provides file access.
 
@@ -20,9 +20,6 @@ This is a **local release candidate**. The 0.3.2 assets have not been published 
 | --- | --- |
 | `IZ2S-Platform-0.3.2-linux.tar.gz` | Linux x64 / ARM64; full initial installation and PC tools |
 | `iz2sciv-core-sd.zip` | Matching runtime, four SD applications, resources and licenses |
-| `SHA256SUMS.txt` | SHA-256 checksums of the prepared archives |
-
-GitHub's automatic source archives are development snapshots, not the complete installation assets. The source checkout omits the large Electron runtime binaries. Do not combine files from different launcher revisions solely because they all say `0.32`.
 
 ## Requirements
 
@@ -44,7 +41,7 @@ Extract the complete installation archive into a new folder.
 sh ./install.sh --launch
 ```
 
-The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S RUN32 0.3.2 — Civilization VII** shortcut or run `./start.sh` in the installed folder.
+The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S 0.3.2 - Civilization VII** shortcut or run `./start.sh` in the installed folder.
 
 The normal panel address is `http://127.0.0.1:39532/`. Use the URL opened or printed by the launcher, which includes local session authorization. Preview is available with `./preview.sh` or `node start.cjs --preview --no-open`; it opens a separate temporary port and disables console actions.
 
@@ -54,8 +51,6 @@ The normal panel address is `http://127.0.0.1:39532/`. Use the URL opened or pri
 2. **Prepare PC:** complete the dependency, key and Wi-Fi checks shown by the panel.
 3. **Connect and install save:** reboot the console, select English, perform the conditional old-installation cleanup when applicable, and create a fresh wireless lobby. Confirm readiness and press **Connect and install save** once. The panel restores PC Wi-Fi, checks the console loader and installs `IZ2SCIV.Civ7Save` automatically.
 4. **Launch IZ2S:** return to HOME, close Civilization VII with **X**, reopen it and select **Load Game**. Do not reboot the console at this point. After `IZ2S CORE IS RUNNING`, close Civilization VII and hold **R** while opening a Switch 2 game. Repeat that R-held launch once if needed.
-
-Follow the [complete installation and update instructions](docs/INSTALLATION.md), especially the conditional save-deletion step. The normal automatic installer replaces only its own trigger save; deleting the game's profile save in System Settings is a separate action that removes that profile's game progress.
 
 ## Applications and controls
 

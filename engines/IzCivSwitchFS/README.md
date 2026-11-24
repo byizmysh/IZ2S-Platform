@@ -1,4 +1,4 @@
-# IZ2SCiv core — Civilization VII entry for IZ2S
+# IZ2SCiv core - Civilization VII entry for IZ2S
 
 This is the panel's sole entry engine in **IZ2S 0.3.2**, paired with launcher **0.32**, revision `RUN32-0.32-Civ7-UI-Cache-Fix`. Target: Switch 2 firmware **23.0.1**, **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
 

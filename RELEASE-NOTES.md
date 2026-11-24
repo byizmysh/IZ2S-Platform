@@ -1,4 +1,4 @@
-# IZ2S for Civilization VII — 0.3.2
+# IZ2S for Civilization VII - 0.3.2
 
 **Linux-only local candidate, 25 November 2026. Not yet published to GitHub.**
 

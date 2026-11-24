@@ -28,8 +28,8 @@
       "executable": false
     },
     "COMPATIBILITY.md": {
-      "bytes": 2301,
-      "sha256": "1b06a0b43866ef23cf781c21a87032112273843f74452a0ac342339ff9162a44",
+      "bytes": 2299,
+      "sha256": "5b15607e21bedf5357c5e6833ec5d3b8f46161fa61bdf72839fe9b8ebaf78696",
       "executable": false
     },
     "COPYRIGHT": {
@@ -48,8 +48,8 @@
       "executable": false
     },
     "FAQ.ru.md": {
-      "bytes": 6205,
-      "sha256": "bdf48ca56669350f73607ede74d7a027470eca2d3eb246aed24c979f5063844d",
+      "bytes": 6199,
+      "sha256": "5d8ee2803dcc5d61f92b28a0506b3f177b19ea8035459cf62a7c9bd69ebcdc0b",
       "executable": false
     },
     "FAQ.zh.md": {
@@ -273,23 +273,23 @@
       "executable": false
     },
     "README-0.3.2.txt": {
-      "bytes": 299,
-      "sha256": "0270806d7c170630a4d255e1fd583a5f09cb53e51fb3fe7fd68679886d0839a6",
+      "bytes": 297,
+      "sha256": "788b8a32206bba54a039b47acd9873cbf5f4dc088d9d0917629263abfb7bf7eb",
       "executable": false
     },
     "README.md": {
-      "bytes": 10888,
-      "sha256": "224d46623049e9309fc3061807eef7a43ff2043dbfa51a201abb231fcb126f38",
+      "bytes": 10312,
+      "sha256": "ac176906d38f81df8d041375bb460f5b96e9b577a38fb95e0c83c2e810b589fc",
       "executable": false
     },
     "README.ru.md": {
-      "bytes": 8155,
-      "sha256": "03e8a9dfac1b4693886fff9d46ced0ac2c0b79cfa24a425d8967c3b71bb31321",
+      "bytes": 7204,
+      "sha256": "be2925fa3b44789f7fdae43564f229f86cac5e6440788b422d84acfc2a49e74d",
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "bytes": 3494,
-      "sha256": "4d750bf7f081a8085b5aae248eb0c11d953d22a46bc48636f43509552c7fadd4",
+      "bytes": 3492,
+      "sha256": "3e93d71d4d1819876b4cba22035c986d2eed19c903e4d0c4b3739e3128412a97",
       "executable": false
     },
     "SOURCES.md": {
@@ -2363,8 +2363,8 @@
       "executable": false
     },
     "desktop/install.cjs": {
-      "bytes": 2635,
-      "sha256": "cae2f85a0337de15ab6a40d3d2b8cf2a704b0cd39e5bd1c3df765a2330a6c669",
+      "bytes": 2627,
+      "sha256": "a86a3ce2bf15b0fab1bbfdccc713515d1624189418c98665b5e20c3f031c47af",
       "executable": false
     },
     "desktop/iz2s.ico": {
@@ -2438,8 +2438,8 @@
       "executable": false
     },
     "docs/INSTALLATION.ru.md": {
-      "bytes": 11006,
-      "sha256": "59dab61a14b571a234ac2647135cfb785db86e8c7ad4ea9f0cc91713fbdb0cb5",
+      "bytes": 11002,
+      "sha256": "2211f23eddf260272615f88c6ef9cec0e272e96990e5022204f0c76a563f1719",
       "executable": false
     },
     "docs/images/iz2s-launcher-0.25.png": {
@@ -2453,8 +2453,8 @@
       "executable": false
     },
     "docs/images/iz2s-panel-0.3.2.png": {
-      "bytes": 150777,
-      "sha256": "a158643aa42e000df29bd7e275a4649b4f97a99890225e44d9b8bd1a5962d72c",
+      "bytes": 136453,
+      "sha256": "66572f6698be5084b62f27d1ec88c39c6ab805d9eeb75329fcc8f5098087259c",
       "executable": false
     },
     "engines/CivSwitch/.gitattributes": {
@@ -5083,8 +5083,8 @@
       "executable": false
     },
     "engines/IzCivSwitchFS/README.md": {
-      "bytes": 4530,
-      "sha256": "a1abbffb15b0c2bef4f2fe167e4ed6a0c091f3600ab90309011aa2de4f74315e",
+      "bytes": 4528,
+      "sha256": "cb6b9101ce3d4e7f0bf9f3a1e14fbb67ca422b9540c17edcf4c4fd66b63207cd",
       "executable": false
     },
     "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md": {

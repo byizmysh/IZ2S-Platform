@@ -1,4 +1,4 @@
-# Compatibility — Linux / Civilization VII edition 0.3.2
+# Compatibility - Linux / Civilization VII edition 0.3.2
 
 ## Target versions
 
