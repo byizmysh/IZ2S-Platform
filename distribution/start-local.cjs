@@ -2,6 +2,7 @@
 const fs = require('node:fs'), path = require('node:path'), {spawn} = require('node:child_process');
 async function launch(root, {node = process.execPath, args = [], env = process.env,
   timeout = 75000, fetcher = fetch} = {}) {
+  const edition = JSON.parse(fs.readFileSync(path.join(root,'distribution/profile.json'),'utf8')).edition;
   const state = path.join(root,'data/state'); fs.mkdirSync(state,{recursive:true});
   const log = fs.openSync(path.join(state,'startup.log'),'a',0o600);
   try {
@@ -19,7 +20,7 @@ async function launch(root, {node = process.execPath, args = [], env = process.e
         if(url.hostname!=='127.0.0.1'||saved.preview!==preview)throw Error('Different panel instance');
         const response=await fetcher(url.origin+'/health',{signal:AbortSignal.timeout(1500)});
         const health=await response.json();
-        if(response.ok&&!health.closing&&health.pid===saved.pid&&health.edition==='0.3.1'&&health.preview===preview)
+        if(response.ok&&!health.closing&&health.pid===saved.pid&&health.edition===edition&&health.preview===preview)
           return {pid:saved.pid,url:saved.url};
       } catch {}
       if(failed!==undefined)break;

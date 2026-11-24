@@ -1,4 +1,4 @@
-// IZ2SCiv core: run the existing RUN25 IZ2S runtime after FS acquisition.
+// IZ2SCiv core: run the packaged IZ2S runtime after FS acquisition.
 // Transport helpers retain their upstream filenames and authorship.
 import coreRuntime from "./core/runtime.mjs";
 import runtime from "./core/runtime.mjs";
@@ -78,12 +78,14 @@ export async function run() {
         await stage("sd-verify", async () => {
             const status = await sdFileStatus(context);
             const bad = Object.entries(status).filter(([, item]) => !item.present || !item.ok);
-            check(!bad.length, "Install the matching RUN25 IZ2S files: " +
-                bad.map(([name]) => SD_MANIFEST[name].path).join(", "));
+            check(!bad.length, "Install the matching IZ2S SD package: " +
+                bad.map(([name, item]) => SD_MANIFEST[name].path +
+                    " (expected " + SD_MANIFEST[name].size + " bytes; " +
+                    (item.present ? "found " + item.size : "missing") + ")").join(", "));
             for (const name of ["bootstrap", "ro", "core"]) {
                 const file = sdReadFile(context, openSdCard(context), SD_MANIFEST[name].path, 0x100000);
                 check(sha256(file.bytes) === SD_MANIFEST[name].sha256,
-                    SD_MANIFEST[name].path + " differs from the RUN25 package; launch cancelled");
+                    SD_MANIFEST[name].path + " differs from the packaged runtime SHA-256; launch cancelled");
             }
             await khLog("Existing IZ2S SD files verified; launcher and library retained");
         });

@@ -35,7 +35,7 @@ function createPolicy() {
     'ps2-cpu-interpreter-check',
     'ps2-cpu-lightweight-check',
   ]);
-  const hiddenEngines = new Set(['pepsipu', 'izmysh-resume', 'civswitch', 'civswitch-ldn']);
+  const hiddenEngines = new Set(['pepsipu', 'izmysh-resume', 'civswitch', 'civswitch-ldn', 'iz2s-core']);
   const izEngines = new Set(['iz2s-core']);
   const izVariants = new Set(['izlauncher']);
 

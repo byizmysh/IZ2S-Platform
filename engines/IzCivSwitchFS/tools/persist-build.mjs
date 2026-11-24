@@ -79,7 +79,7 @@ export async function buildPersistentImage(options = {}) {
 
     const image = {
         profile: PROFILE,
-        version: "iz2sciv-0.3.0" +
+        version: "iz2sciv-" + JSON.parse(packageJson).version +
             "+iz2s",
         stage,
         bytes: stageBytes.length,

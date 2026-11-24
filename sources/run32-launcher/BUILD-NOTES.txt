@@ -1,0 +1,33 @@
+RUN32 0.32 Menu-Fast — local build, 2026-11-24
+
+Native menu is embedded in game/main. build-homebrew.py also emits an NRO only
+as a byte-for-byte validation reference; do not distribute or install that NRO.
+The source/objects baseline is pinned by status/baseline-menu-build.json.
+
+Build shaders with build.cjs; then repack resources with build-romfs.py and the
+existing devkitPro build_romfs tool. Only menu/catalog-font.ttf changes inside
+RomFS: use the already licensed DejaVuSans-Bold.ttf in language/fonts.
+All 82 RomFS paths and all other file contents must remain unchanged.
+
+Menu pipelines use DISABLE_OPTIMIZATION to reduce first-use compilation, plus a
+persistent Vulkan cache at /iz2s/cache/menu-vulkan.bin. Applications retain their
+own pipeline settings. The cache is optional, bounded and checked against IZA
+SHA256, Vulkan UUID/vendor/device/driver, native cache header and payload SHA256.
+A cache miss uses normal creation, without relaxing SD or runtime verification.
+Cache serialization and /iz2s/launcher-startup.json happen once, two seconds after
+the first presented frame. The report scope is native_menu, not the Civ7 exploit
+or the entire R-to-menu interval. cacheAccepted is distinct from actual driver
+pipelineCacheHits. Measure first and second launches on the console separately.
+
+First-frame status I/O is deferred; clock updates use monotonic extrapolation.
+NRO versions reuse the validated NACP read during catalog discovery; launching
+still validates the NRO header/size. App receipts are avoided for bundled IZA
+headers whose exact SHA256 is in the generated version table.
+
+The selected app has a 60px bold title raster, a centred version pill, lit icon
+and a restrained background icon. Cards retain their own two-line labels.
+No Add App tile. X opens the picker from any library card; A launches a real app.
+
+Reinstall the Civ7 launch save from this same runtime after changing SD component
+sizes. Keep the console-specific game/main.npdm when rebuilding game/exefs.nsp.
+A successful PC build and archive verification do not establish console timing.

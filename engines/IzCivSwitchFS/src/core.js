@@ -186,7 +186,7 @@ export async function run() {
         let usePreReservation = false;
         let preReservationFallbackUsed = false;
 
-        await log("IZ2s 0.3.0 by IZMYSH");
+        await log("IZ2s 0.3.2 by IZMYSH");
         await log("Thanks to Nerisma, ave, Gezine, Slapah/Hokage, pepsipu, Kurumuz, Alula, " +
             "the civswitch-kit and civ7-fs contributors, epiccsolar, and IZMYSH.");
         await log("Payload compatibility v" + PAYLOAD_VERSION);

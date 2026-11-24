@@ -1,0 +1,4 @@
+float iconFill(float d){return 1.0-smoothstep(-.32,.32,d);}
+float folderMark(vec2 p){vec2 v[24];v[0]=vec2(18,79);v[1]=vec2(18,32);v[2]=vec2(39,32);v[3]=vec2(46,40);v[4]=vec2(80,40);v[5]=vec2(82,44);v[6]=vec2(82,79);return 1.0-smoothstep(2.4,3.5,abs(polygon(p,v,7)));}
+float calcMark(vec2 p){float a=line(box(p,vec2(50,51),vec2(27,36),5.0),2.7);a=max(a,fill(box(p,vec2(50,32),vec2(18,5),1.2)));for(int y=0;y<3;y++)for(int x=0;x<3;x++)a=max(a,fill(length(p-vec2(36+14*x,50+13*y))-3.1));return a;}
+vec4 appIcon(vec2 p,vec2 center,uint base,float size,vec3 ink){uint kind=c.atlas[base+25604u];vec2 q=(p-center)*100.0/size+vec2(50);if(any(lessThan(q,vec2(0)))||any(greaterThan(q,vec2(100))))return vec4(0);if(kind==2u)return vec4(ink,calcMark(q));if(kind==0u&&c.atlas[base+25608u]==0x656c6966u)return vec4(ink,folderMark(q));return focusIcon(p,center,base,size);}

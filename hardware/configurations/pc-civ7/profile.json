@@ -1,0 +1,17 @@
+{
+  "format": "izlauncher.profile",
+  "apiVersion": 1,
+  "id": "pc-civ7",
+  "name": "PC \u2194 Civilization VII",
+  "version": "0.3.2",
+  "entry": "entry.cjs",
+  "platforms": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "executionHost": "pc",
+  "inputAdapter": "none",
+  "description": "Direct Civilization VII connection over the PC network.",
+  "fields": [],
+  "order": 0
+}

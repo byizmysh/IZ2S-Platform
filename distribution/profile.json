@@ -1,12 +1,11 @@
 {
   "id": "iz2s-platform",
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "shells": [
     "izlauncher"
   ],
   "preinstalledEngines": [
-    "iz2s-core",
     "iz2sciv-core"
   ],
   "optionalEngines": [],
@@ -30,34 +29,24 @@
   ],
   "hostPlatforms": [
     "linux-x64",
-    "linux-arm64",
-    "win32-x64"
+    "linux-arm64"
   ],
-  "inputDevices": [
-    "ARM PC",
-    "Cardputer ADV",
-    "Switch 1"
-  ],
+  "inputDevices": [],
   "installerPlatforms": [
     "linux-x64",
-    "linux-arm64",
-    "win32-x64"
+    "linux-arm64"
   ],
   "experimentalInstallerPlatforms": [],
   "publicationStatus": "local-candidate",
   "directComponents": [
-    "iz2s-core"
+    "iz2sciv-core"
   ],
-  "edition": "0.3.1",
+  "edition": "0.3.2",
   "gameSupport": {
-    "smilebasic4": [
-      "linux-x64",
-      "linux-arm64",
-      "win32-x64"
-    ],
     "civilization7": [
       "linux-x64",
       "linux-arm64"
     ]
-  }
+  },
+  "releaseTarget": "source"
 }

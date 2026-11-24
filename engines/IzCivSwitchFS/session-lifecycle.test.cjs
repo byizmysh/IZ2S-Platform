@@ -8,6 +8,8 @@ async function fixture(t,{output='Installed. Restart the game, then open Load Ga
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'iz2sciv-session-test-'));
  t.after(()=>fs.rm(root,{recursive:true,force:true}));
  await fs.mkdir(path.join(root,'data/state'),{recursive:true});
+ await fs.mkdir(path.join(root,'engines/iz2s-core/runtime'),{recursive:true});
+ await fs.writeFile(path.join(root,'engines/iz2s-core/runtime/package-manifest.json'),'[]');
  await fs.writeFile(path.join(root,'data/state/iz2sciv.json'),JSON.stringify({phase:'idle',sdReady:true}));
  let launches=0,handle;
  const release=deferred();

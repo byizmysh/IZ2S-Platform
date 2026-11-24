@@ -8,7 +8,7 @@ const archive = require('../../../core/archive.cjs');
 const {directImage} = require('../../iz2s-core/sd-compat.cjs');
 const storage = require('../../../core/module-storage.cjs');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-export const APP_IDS = Object.freeze(['iz2s-cheese', 'izpsx', 'izps2', 'iz-file-deck', 'book-reader', 'vacootube']);
+export const APP_IDS = Object.freeze(['iz2s-cheese', 'izpsx', 'izps2', 'iz-file-deck']);
 
 export async function buildSdApplications(base = root) {
     const profile = JSON.parse(await fs.readFile(path.join(base, 'distribution/profile.json'), 'utf8'));

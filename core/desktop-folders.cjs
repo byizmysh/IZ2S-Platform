@@ -27,7 +27,6 @@ async function resolve(root, { kind, id }) {
       if (!profile) throw Error('Unknown hardware configuration');
       folder = profile.folder; break;
     }
-    case 'input': folder = path.join(root, 'hardware/agents/arm-input'); break;
     case 'shell': {
       const shellId = identifier(id || 'izlauncher');
       const shell = require('./descriptors.cjs').scan(root, 'shell').items.find(item => item.id === shellId);

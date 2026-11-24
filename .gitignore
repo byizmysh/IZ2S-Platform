@@ -19,3 +19,6 @@ title.keys
 !/modules/VacooTube/runtime/VacooTube-*/COPYRIGHT*
 !/modules/VacooTube/runtime/VacooTube-*/NOTICE*
 /bootstrap/node/node.exe
+
+# Local Civ7 builder outputs and preview state
+/engines/IzCivSwitchFS/dist/

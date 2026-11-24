@@ -141,7 +141,7 @@ window.__cfsSaveCodec = (function () {
         );
         // Rebrand only the template's framed game-name fields, keeping their
         // byte widths and offsets unchanged. The pristine template stays intact.
-        var oldName = ascii("Gezine's Game"), newName = ascii('IZ2s 0.3.0  ');
+        var oldName = ascii("Gezine's Game"), newName = ascii('IZ2S 0.3.2  ');
         var headers = new DataView(result.buffer);
         for (var at = 20; at + oldName.length < result.length; at++) {
             if (result[at] !== oldName[0] || result[at + oldName.length] !== 0) continue;

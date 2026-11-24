@@ -1,6 +1,6 @@
 {
   "release": "0.3.1",
-  "target": "source",
+  "target": "linux",
   "projectLicense": {
     "spdx": "GPL-2.0-or-later",
     "scope": "Independently authored IZMYSH code only; explicit component licenses and prior grants remain applicable",

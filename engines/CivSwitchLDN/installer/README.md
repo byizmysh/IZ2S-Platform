@@ -1,3 +1,5 @@
+> **Retained upstream documentation.** For IZ2S 0.3.2 use the [current Civilization VII installation guide](../../../docs/INSTALLATION.md). Commands and save-replacement behavior below describe the upstream tool, not the current panel workflow. Original instructions and notices are retained for provenance.
+
 Persistent installer from [Gezine/CivSwitch](https://github.com/Gezine/CivSwitch/blob/3238a3e3340fd19a9dbd5cde56f3b50f9bc5d97f/installer-creator), commit `3238a3e3340fd19a9dbd5cde56f3b50f9bc5d97f`.
 
 `install.py` only adapts the default payload path to this repository. `compress_stage.js` and [save_template.bin](https://github.com/Gezine/CivSwitch/blob/3238a3e3340fd19a9dbd5cde56f3b50f9bc5d97f/installer-creator/save_template.bin) are included from the same version. Gezine's original MIT license is preserved in [LICENSES/Gezine-MIT.txt](../LICENSES/Gezine-MIT.txt).

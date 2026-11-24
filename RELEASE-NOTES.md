@@ -1,19 +1,35 @@
-# IZ2S Platform 0.3.1
+# IZ2S for Civilization VII — 0.3.2
 
-## Changes
+**Linux-only local candidate, 25 November 2026. Not yet published to GitHub.**
 
-- Updated IZ2S Cheese to **0.8.7** and IZPSX to **0.5.3**; added **IZPS2 0.5.0** in IZA format.
-- The Civilization VII SD package now includes those three applications plus **Foldrift 0.3.3, Book Reader 0.1.0 and VacooTube 1.5.7**, with all companion resources already in their SD folders.
-- The PC App library contains seven applications, including BlitBun 1.15.8. Published IZA executable bytes are preserved and companion integrity is checked during export.
-- Original application, emulator and dependency credits and license notices are retained.
+PC panel **0.3.2** and console launcher **0.32** are different version series. This package uses native revision **RUN32-0.32-Civ7-UI-Cache-Fix**.
 
-## Downloads and installation
+## Panel
 
-- `IZ2S-Platform-0.3.1-linux.tar.gz` — Linux x64 / ARM64. Extract into a new folder and run `sh ./install.sh --launch`.
-- `IZ2S-Platform-0.3.1-windows-x64.zip` — Windows x64. Extract all files and double-click `Start.cmd`. Missing host dependencies are prepared automatically; later launches reuse them. `Start.vbs` opens the panel with the command-line window hidden.
-- `iz2sciv-core-sd.zip` — the same SD kit downloaded from Civilization VII in the Linux panel. Extract everything to the SD card root; merge folders and replace matching files. Keep other applications and your BIOS, games, saves and settings. Return the card to the powered-off console.
-- `SHA256SUMS.txt` — archive checksums.
+- Civilization VII is the only entry point. Old SmileBASIC 4 selection and device preparation routes are removed from the shipped setup.
+- Four-step setup: SD card, PC preparation, connection with automatic save installation, and launch. A successful reconnect proceeds to save installation without a second manual action.
+- Launch view prioritizes an active PC Link / FTP connection; launch help is collapsible and repeating setup starts the full procedure.
+- Console IP selection sits directly below session status. Conditional migration instructions and important notes are highlighted without hiding details.
+- Revised sidebar branding identifies IZ2S for Civilization VII. Author identity is IZMYSH. English, Russian, Chinese and Spanish panel text includes the updated requirements and ten-question FAQ.
+- Requirements explicitly name Switch 2 firmware 23.0.1 and the Nintendo Switch 1 cartridge of Civilization VII 1.0.0. Game and save-deletion menu paths stay in English.
 
-SmileBASIC 4 remains available on Linux and Windows. Civilization VII is **Linux Only**. BlitBun and VacooTube PC media hosts require Linux. BIOS, games and personal state are not included.
+## Launcher and SD
 
-See [README.md](README.md), [COMPATIBILITY.md](COMPATIBILITY.md), [AUTHORS.md](AUTHORS.md) and [SOURCES.md](SOURCES.md) for installation, testing scope, credits and source coverage.
+- Revised application title/version presentation, aligned controls and battery/time display. X opens Add app; A opens the selected application. The Add app tile is removed.
+- Permanent shader-cache replacement fix: failed replacement no longer silently leaves an obsolete cache in place. Writes are checked and recovery of a valid temporary cache is supported; driver and shader validation remain enabled.
+- In the diagnosed warm-cache session, native first presentation fell from about 14.41 seconds to 0.203 seconds after restoring the valid cache. This measures the native menu stage, not the complete Civilization VII / R launch. It is not a timing guarantee for every console or a validation of this newly packaged installer.
+- The SD kit contains IZ2S Cheese 0.8.7, IZPSX 0.5.3, IZPS2 0.5.0 and Foldrift 0.3.3, with companion assets and licenses. Other applications remain available separately in the PC library.
+- Runtime, SD manifest and launch-save compatibility checks are retained. Console-generated caches and user content are excluded from release packages.
+
+## Packaging maintenance
+
+- The clean installer inventory includes the Civ7 profile entry, which was previously present only in the working directory.
+- Windows installation files and host binaries are excluded from this Linux-only release.
+- The old developer-only wireless CLI wrapper is replaced by guidance to the packaged panel; personal paths and an unshipped local environment are no longer required by a public instruction.
+- Regression checks now cover the current Civ7-only navigation and automatic save flow.
+
+## Updating and validation
+
+Use the matching SD kit and follow the [full procedure](docs/INSTALLATION.md) when updating the native runtime. A PC-only documentation or layout change does not require changing a console save.
+
+Release preparation verifies source/runtime inventories, native build bindings, application exports and archive readback. Successful packaging is separate from a successful console boot. On-console validation of the newly packaged build and native Linux ARM64 host installation must be recorded separately. Full native corresponding-source limitations remain documented in [SOURCES.md](SOURCES.md).

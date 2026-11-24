@@ -1,6 +1,0 @@
-{
-  "repository": "https://github.com/hyln9/nxhid",
-  "commit": "68480849294c2335611c22ed73fb0912a5de34aa",
-  "license": "MIT",
-  "changes": "RUN24 English graphical UI, automatic pairing, status and SB4 typing; USB implementation unchanged"
-}

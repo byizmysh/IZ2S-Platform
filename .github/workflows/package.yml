@@ -1,4 +1,4 @@
-name: Verify IZ2S Platform 0.3.1
+name: Verify IZ2S for Civilization VII
 on:
   push:
     branches: [main]
@@ -18,3 +18,7 @@ jobs:
         run: npm run check
       - name: Verify IZA exports and Civ7 SD archive
         run: node --test tests/release/sd-kit.test.cjs
+      - name: Verify Civ7 session and runtime compatibility
+        run: node --test engines/IzCivSwitchFS/tools/session.test.cjs engines/IzCivSwitchFS/tools/iz2s.test.mjs
+      - name: Verify Civ7 UI, save handling and host lifecycle
+        run: node --test --test-timeout=15000 distribution/civ7-navigation.test.cjs core/platform/stop-process.test.cjs panel/controller-lifecycle.test.cjs engines/IzCivSwitchFS/session-lifecycle.test.cjs engines/IzCivSwitchFS/tools/save-install.test.cjs engines/IzCivSwitchFS/tools/ui.test.cjs

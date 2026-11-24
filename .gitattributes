@@ -1,1 +1,4 @@
 * -text
+
+# Unified patch context markers are significant whitespace.
+*.patch -whitespace

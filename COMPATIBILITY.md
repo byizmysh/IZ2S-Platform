@@ -1,25 +1,28 @@
-# Platform support in 0.3.1
+# Compatibility — Linux / Civilization VII edition 0.3.2
 
-| Game / entry point | Linux x64 / ARM64 | Windows x64 |
-| --- | --- | --- |
-| SmileBASIC 4 (SB4) | ✅ Supported | ✅ Supported |
-| Civilization VII | ✅ Supported | ❌ **Linux Only** |
+## Target versions
 
-| Component | Linux x64 / ARM64 | Windows x64 |
-| --- | --- | --- |
-| Local panel and application packages | Included | Included |
-| Startup | Per-user installation; desktop/application-menu shortcuts | Portable folder; automatic first-run setup; Start.vbs for later launches |
-| Input-device picker | Switch 1, Cardputer ADV, ARM PC | Switch 1, Cardputer ADV, ARM PC |
-| Switch 1 setup | SD package; DBI where supported | SD package; extract at SD root |
-| BlitBun and VacooTube PC media hosts | Supported | Linux hosts required |
-| Civilization VII wireless lobby connection | Compatible adapter and Linux networking tools required | Not supported; tile marked Linux Only |
+| Component | Required / packaged version |
+| --- | --- |
+| Console | Nintendo Switch 2 |
+| System firmware | 23.0.1 |
+| Game | Nintendo Switch 1 cartridge of Civilization VII 1.0.0 |
+| Console interface / USB keyboard | English / English (US) |
+| PC panel | 0.3.2 |
+| Console launcher | 0.32 |
+| Native revision | RUN32-0.32-Civ7-UI-Cache-Fix |
+| PC host | Native Linux x64 / ARM64 |
 
-The panel is normally at `http://127.0.0.1:39524`; PC Link uses port `39525`. Firewall and local-network reachability still apply. Device discovery can fall back to an explicitly entered address. Pairing is generated through Device setup; no manually obtained keys are required. Windows ARM64 and 32-bit installations are not supported.
+**This release is Linux only.** Windows installers and Windows host executables are excluded. Windows, WSL and macOS are not supported installation targets. Other firmware/game combinations are not claimed compatible. Civilization VII is the sole entry point; historical names in source, license notices and ABI symbols do not enable an SB4 route.
 
-The 0.3.0 Windows 11 virtual-machine checks covered automatic setup, dependency reuse, panel navigation, SB4 listener startup/stop/restart, and authenticated status from Cardputer ADV and Switch 1. They did not complete a full physical-console SB4 session. The Windows SSH client was checked; a connection to a physical ARM host was not tested in this round. The support table describes the available launch routes, not a claim that every hardware configuration has been tested.
+Initial wireless-lobby delivery requires a compatible Wi-Fi radio, NetworkManager, the panel's network permissions and the owner's Switch 1 keys. Ethernet alone cannot perform this step. PC Link and FTP require a reachable local network. BlitBun and VacooTube use their Linux PC media dependencies.
 
-The console FTP default is **1425**. Follow the address and port shown by the active console menu when an older runtime is installed. Console runtime changes take effect after reopening the game/menu as directed by the panel.
+## Integrity and compatibility
 
-Seven bundled applications are listed in [README.md](README.md#included-applications). Their versions are independent of the Platform version. BIOS, games and existing user sessions are not bundled.
+`distribution/files.json` binds the PC package. Native resources are checked against `engines/iz2s-core/runtime/package-manifest.json`; `menu-build.json` binds the recorded native inputs and outputs. The SD builder verifies runtime files, application companions and licenses, then emits `iz2s/iz2sciv-sd-manifest.json` with file sizes and SHA-256.
 
-Version 0.3.1 updates the bundled IZA applications and Civ7 SD archive. Offline packaging, executable hashes and companion bindings are checked; no new physical-console gameplay or full Windows SB4 session is claimed.
+The game launch save embeds its selected runtime compatibility manifest. Update SD and install the matching save when those resources change. R-Entry, Menu and Civ7-UI-Cache-Fix can share the visible 0.32 number while requiring different files. Never disable checks or change expected hashes merely to hide a mismatch.
+
+## Verification boundaries
+
+Offline checks verify files, packaging and local behavior. Linux x64 installer checks do not establish Linux ARM64 execution. A successful archive build does not prove LDN delivery, console boot, application launch or startup timing. The cache fix retains shader/driver validation; initial compilation remains possible when the cache changes. See [release notes](RELEASE-NOTES.md), [source limitations](SOURCES.md) and [installation](docs/INSTALLATION.md).

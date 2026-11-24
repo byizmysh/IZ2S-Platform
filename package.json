@@ -1,8 +1,8 @@
 {
   "name": "iz2s-platform",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
-  "description": "IZ2S Platform panel and console launchers",
+  "description": "IZ2S PC panel and console launcher for Civilization VII",
   "engines": {
     "node": ">=20.20"
   },

@@ -1,4 +1,4 @@
-// Use the exact runtime shipped with RUN25's SB4 engine. Never stage kaiHEN.
+// Use the exact runtime shipped with this panel's native launcher. Never stage kaiHEN.
 import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";

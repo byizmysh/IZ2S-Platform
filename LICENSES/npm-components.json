@@ -375,16 +375,6 @@
     }
   },
   {
-    "path": "engines/IzCivSwitchFS/node_modules/@esbuild/win32-x64/package.json",
-    "name": "@esbuild/win32-x64",
-    "version": "0.28.2",
-    "license": "MIT",
-    "repository": {
-      "type": "git",
-      "url": "git+https://github.com/evanw/esbuild.git"
-    }
-  },
-  {
     "path": "engines/IzCivSwitchFS/node_modules/esbuild/package.json",
     "name": "esbuild",
     "version": "0.28.2",
@@ -414,6 +404,16 @@
     "contributors": [
       "IZMYSH"
     ]
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-arm64/resources/app/package.json",
+    "name": "vacootube",
+    "version": "2.0.1-vacoo.1"
+  },
+  {
+    "path": "modules/VacooTube/runtime/VacooTube-x64/resources/app/package.json",
+    "name": "vacootube",
+    "version": "2.0.1-vacoo.1"
   },
   {
     "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/package.json",
@@ -669,50 +669,5 @@
       "type": "git",
       "url": "https://github.com/byizmysh/IZ2S-Platform.git"
     }
-  },
-  {
-    "path": "sources/applications/VacooTube/app/package.json",
-    "name": "vacootube",
-    "version": "2.0.1-vacoo.1",
-    "license": "MIT",
-    "author": "shy (shy@shy.rocks)",
-    "contributors": [
-      "IZMYSH"
-    ]
-  },
-  {
-    "path": "sources/applications/VacooTube/server/local-package/package.json",
-    "name": "vacootube-host",
-    "version": "1.3.0",
-    "license": "SEE LICENSE IN ../../LICENSE"
-  },
-  {
-    "path": "sources/izps2/source/dependencies/spirv-tools/source/wasm/package.json",
-    "name": "spirv-tools",
-    "version": "VERSION",
-    "license": "Apache-2.0",
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/KhronosGroup/SPIRV-Tools"
-    },
-    "homepage": "https://github.com/KhronosGroup/SPIRV-Tools"
-  },
-  {
-    "path": "sources/izps2/source/dependencies/spirv-tools/utils/vscode/package.json",
-    "name": "spirvls",
-    "version": "0.0.1",
-    "license": "Apache-2.0",
-    "author": "Google"
-  },
-  {
-    "path": "sources/izpsx/package.json",
-    "name": "izpsx-emulator",
-    "version": "0.5.3",
-    "license": "GPL-2.0-only",
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/byizmysh/IZPSX-emulator.git"
-    },
-    "homepage": "https://github.com/byizmysh/IZPSX-emulator#readme"
   }
 ]

@@ -1,209 +1,89 @@
-# IZ2S Platform
+# IZ2S for Civilization VII
 
-IZ2S is a Homebrew launcher for Nintendo Switch 2.
+**PC panel 0.3.2 · Console launcher 0.32 · Maintained by IZMYSH**
 
-## Download 0.3.1
+[Русский](README.ru.md) · [Installation](docs/INSTALLATION.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md)
 
-| System | Download |
+FAQ: [English](FAQ.md) · [Русский](FAQ.ru.md) · [简体中文](FAQ.zh.md) · [Español](FAQ.es.md)
+
+IZ2S combines a PC setup panel and a console application launcher for **Nintendo Switch 2**, using **Civilization VII** as the entry point. This edition is dedicated to Civilization VII; the previous SmileBASIC 4 setup and input-device installers are removed.
+
+The panel guides SD preparation, PC preparation, connection with automatic save installation, and launch. Once IZ2S is running, PC Link connects the application library and FTP provides file access.
+
+![IZ2S Panel 0.3.2 setup preview](docs/images/iz2s-panel-0.3.2.png)
+
+## Release 0.3.2
+
+This is a **local release candidate**. The 0.3.2 assets have not been published to GitHub yet. This edition is **Linux only**. The prepared filenames are:
+
+| Asset | Purpose |
 | --- | --- |
-| Linux x64 / ARM64 | [Linux installation archive](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.1/IZ2S-Platform-0.3.1-linux.tar.gz) |
-| Windows x64 | [Windows installation ZIP](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.1/IZ2S-Platform-0.3.1-windows-x64.zip) |
-| File checksums | [SHA256SUMS.txt](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.1/SHA256SUMS.txt) |
+| `IZ2S-Platform-0.3.2-linux.tar.gz` | Linux x64 / ARM64; full initial installation and PC tools |
+| `iz2sciv-core-sd.zip` | Matching runtime, four SD applications, resources and licenses |
+| `SHA256SUMS.txt` | SHA-256 checksums of the prepared archives |
 
-Use the installation archives above. GitHub's automatic **Source code** downloads are for development, not the packaged installers.
+GitHub's automatic source archives are development snapshots, not the complete installation assets. The source checkout omits the large Electron runtime binaries. Do not combine files from different launcher revisions solely because they all say `0.32`.
 
-## Platform compatibility
+## Requirements
 
-| Game / entry point | Linux x64 / ARM64 | Windows x64 |
-| --- | --- | --- |
-| SmileBASIC 4 (SB4) | ✅ Supported | ✅ Supported |
-| Civilization VII | ✅ Supported | ❌ **Linux Only** |
+- Nintendo Switch 2 with firmware **23.0.1**.
+- The **Nintendo Switch 1 cartridge of Civilization VII, version 1.0.0**.
+- A microSD card and card reader for the matching SD package.
+- For the first wireless-lobby installation: native Linux x64 / ARM64, a compatible Wi-Fi radio and your own Switch 1 `prod.keys`. Windows and WSL do not provide this initial LDN step.
+- Set the console interface to **English** and USB keyboard input to **English (US)** before starting Civilization VII. The exact settings paths are in the [installation guide](docs/INSTALLATION.md).
 
-## Screenshots
+Firmware, game edition and version are specific requirements; this release does not claim compatibility with other combinations. No Nintendo keys, BIOS, game images or personal saves are included.
 
-### IZ2S Platform panel
+## Start the PC panel
 
-![IZ2S Platform App library in English](docs/images/iz2s-panel-0.25.png)
+Extract the complete installation archive into a new folder.
 
-### IZ2S console launcher
-
-![IZ2S 0.25 launcher showing the SD library and FTP shortcut](docs/images/iz2s-launcher-0.25.png)
-
-## Before installation
-
-Extract the entire archive into a new folder. Keep the folder structure intact. Linux setup creates a separate per-user copy; Windows runs from the extracted folder. Do not extract over an existing installation. Network access is required when the installer needs to download host dependencies.
-
-## Linux x64 / ARM64 installation
-
-Open a terminal in the extracted folder and run this single command:
+**Linux:** open a terminal there and run:
 
 ```sh
 sh ./install.sh --launch
 ```
 
-Setup installs the missing prerequisites, verifies the installation, creates desktop and application-menu shortcuts and opens the panel automatically. Your package manager may request your password. No manual Node.js or Python setup is required on supported Linux systems.
+The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S RUN32 0.3.2 — Civilization VII** shortcut or run `./start.sh` in the installed folder.
 
-The installer checks Python 3, Pillow, curl, tar, xz and SSH; it can install system prerequisites with your package manager and prepare Node.js 24 if needed. The installer prints the final destination.
+The normal panel address is `http://127.0.0.1:39532/`. Use the URL opened or printed by the launcher, which includes local session authorization. Preview is available with `./preview.sh` or `node start.cjs --preview --no-open`; it opens a separate temporary port and disables console actions.
 
-For later launches, choose **IZ2S Platform** from the application menu, or open the installed folder and run:
+## Install and launch
 
-```sh
-./start.sh
-```
+1. **SD card:** download the package in the panel and extract its contents to the card root. If updating older IZ2S, replace the matching files too. Keep the `Nintendo` folder, other applications, BIOS, games and saves. Safely eject the card.
+2. **Prepare PC:** complete the dependency, key and Wi-Fi checks shown by the panel.
+3. **Connect and install save:** reboot the console, select English, perform the conditional old-installation cleanup when applicable, and create a fresh wireless lobby. Confirm readiness and press **Connect and install save** once. The panel restores PC Wi-Fi, checks the console loader and installs `IZ2SCIV.Civ7Save` automatically.
+4. **Launch IZ2S:** return to HOME, close Civilization VII with **X**, reopen it and select **Load Game**. Do not reboot the console at this point. After `IZ2S CORE IS RUNNING`, close Civilization VII and hold **R** while opening a Switch 2 game. Repeat that R-held launch once if needed.
 
-The default location is a new versioned folder under:
+Follow the [complete installation and update instructions](docs/INSTALLATION.md), especially the conditional save-deletion step. The normal automatic installer replaces only its own trigger save; deleting the game's profile save in System Settings is a separate action that removes that profile's game progress.
 
-```text
-~/.local/share/iz2s-platform/releases/
-```
+## Applications and controls
 
-The installer does not require an existing Node.js installation if it can download the private runtime. To choose a destination without system package changes or desktop shortcuts:
+| Application | Version | Included in SD package |
+| --- | --- | --- |
+| IZ2S Cheese | 0.8.7 | Yes |
+| IZPSX emulator | 0.5.3 | Yes |
+| IZPS2 emulator | 0.5.0 | Yes |
+| Foldrift | 0.3.3 | Yes |
+| Book Reader | 0.1.0 | Available separately in the PC library |
+| BlitBun | 1.15.8 | Available separately; PC media host requires Linux |
+| VacooTube | 1.5.7 | Available separately; PC media host requires Linux |
 
-```sh
-./install.sh --prefix /absolute/path/iz2s-platform --no-system-packages --no-desktop
-```
+In the launcher, **A** opens the selected application and **X** opens Add app. **R + L3** toggles PC Link; **L + R3** toggles FTP. L3/R3 mean clicking the left/right stick. Enabling FTP on the console and connecting the panel's FTP client are separate states.
 
-## Windows x64 installation
+Application companions, manifests and license files must stay with their launchers. See [application storage and updates](docs/APPLICATIONS.md). The SD package contains only `iz2s/` and does not supply Nintendo keys, BIOS or games.
 
-Extract the complete ZIP with **Extract All**, then double-click:
+## Checks, source and support
 
-```text
-Start.cmd
-```
+- [Release notes](RELEASE-NOTES.md): Civ7-only UI, automatic save installation and shader-cache replacement fix.
+- [Build and verification](BUILDING.md): local checks, SD packaging and prepared installer archives.
+- [Source scope](SOURCES.md): recorded provenance and remaining native rebuild limitations.
+- [Support](SUPPORT.md): useful diagnostics without sharing private keys or session tokens.
 
-The first launch automatically prepares the missing dependencies and opens the panel in normal mode. `Install.cmd` starts the same setup. Node.js is bundled; private Python, Pillow and an SSH client are installed as needed. Internet access is required for missing downloads; no manual Node.js or Python installation is needed.
-
-Keep the extracted folder. For later launches, double-click:
-
-```text
-Start.vbs
-```
-
-`Start.vbs` starts IZ2S and opens the panel in your browser while keeping the command-line window hidden. `Start.cmd` also opens the panel and shows the command-line window during startup. Already installed dependencies are checked and reused. Windows x64 is required; Windows ARM64 and 32-bit systems are not supported. The panel and console packages are included; the Linux PC media hosts and Civilization VII launch route are not Windows-supported features.
-
-Windows may show its standard firewall permission dialog for Node.js. Allow access on your private network when connecting a console; the local panel itself works without opening incoming network access.
-
-## Opening the panel and checking the installation
-
-The panel normally opens at:
-
-```text
-http://127.0.0.1:39524
-```
-
-PC Link uses port **39525**. Installation verifies the packaged files automatically. The following optional commands use the private runtime from the installed folder; global Node.js/npm is not required.
-
-Preview on Linux (does not establish a console session):
-
-```sh
-./preview.sh
-```
-
-Preview on Windows:
-
-```powershell
-.\data\runtime\node\node.exe .\start.cjs --preview --no-open
-```
-
-Use the URL printed by the Preview process. To repeat the release-content checks on Linux:
-
-```sh
-./tools/node distribution/verify.cjs
-```
-
-On Windows:
-
-```powershell
-.\data\runtime\node\node.exe .\distribution\verify.cjs
-```
-
-## Included applications
-
-| Application | Version | Purpose | Restrictions |
-| --- | --- | --- | --- |
-| [BlitBun](https://github.com/byizmysh/BlitBun) | 1.15.8 | PC video/audio streaming | Only Linux |
-| Book Reader | 0.1.0 | TXT/EPUB reader | |
-| Foldrift | 0.3.3 | Autonomous SD file manager | |
-| [IZ2S Cheese](https://github.com/byizmysh/iz2s-cheese) | 0.8.7 | Homebrew application catalog | |
-| [VacooTube](https://github.com/byizmysh/VacooTube) | 1.5.7 | Video player with PC source | Only Linux |
-| [IZPSX emulator](https://github.com/byizmysh/IZPSX-emulator) | 0.5.3 | PlayStation emulator | |
-| [IZPS2 emulator](https://github.com/byizmysh/IZPS2-emulator) | 0.5.0 | PlayStation 2 emulator | |
-
-Open **App library** in the panel and install the selected application to the paired console. For a mounted SD card, use the platform's SD installation/export action. The installed entry is:
-
-```text
-SD:/iz2s/modules/<id>/launcher.iza
-```
-
-Keep every exported companion resource, manifest and signature beside the executable.
-
-For Foldrift:
-
-```text
-SD:/iz2s/modules/foldrift/launcher.iza
-```
-
-For IZ2S Cheese:
-
-```text
-SD:/iz2s/modules/iz2s-cheese/launcher.iza
-```
-
-A PC download may be a package containing resources; do not simply rename that package to `launcher.iza`.
-
-BlitBun uses its panel tab to select a browser share or a PC window. Native window/audio capture uses Linux, FFmpeg, X11/XWayland and PulseAudio/PipeWire (`pactl`/`parec`). Browser sharing requires an explicit selection in the browser. VacooTube includes its PC application source, streaming server and, in the Linux archive, clean Electron runtimes for x64/ARM64. No browser profile or login is included. These Linux media helpers are not supported on Windows; application files remain available for installation to Switch. Book Reader imports TXT/EPUB through its panel settings. IZ2S Cheese uses a configured catalog and its own download interface.
-
-## IZPSX BIOS and games
-
-BIOS and game images are not included. Add your own **512 KiB (524,288-byte)** BIOS at:
-
-```text
-SD:/iz2s/modules/izpsx/bios/bios.bin
-```
-
-Put games in:
-
-```text
-SD:/iz2s/modules/izpsx/games/<game name>/
-```
-
-Keep each CUE file with all referenced BIN/IMG tracks; put PBP files in the same per-game layout.
-
-When updating, preserve settings and these folders:
-
-```text
-bios/
-games/
-saves/
-```
-
-IZPSX 0.5.3 uses these paths.
-
-## IZPS2 BIOS and games
-
-BIOS and game images are not included. Put your own **4 MiB** PS2 BIOS dump in `SD:/iz2s/modules/izps2/bios/` and ISO/CHD game images in `SD:/iz2s/modules/izps2/games/`. Create these folders if needed. Preserve BIOS, games, saves and settings when updating.
-
-## Civilization VII SD archive
-
-The **Download SD package** action in Civilization VII includes the IZ2S runtime and six ready-to-run applications: **IZ2S Cheese 0.8.7, IZPSX 0.5.3, IZPS2 0.5.0, Foldrift 0.3.3, Book Reader 0.1.0 and VacooTube 1.5.7**.
-
-Extract the complete `iz2sciv-core-sd.zip` to the SD card root. Merge the `iz2s` folders and replace matching files; keep your other applications, BIOS, games, saves and settings. All launchers, companion resources and license notices are already in their correct folders. No separate app installation is needed. Return the card to the powered-off console. VacooTube still uses its Linux PC media host.
-
-## Connections and local state
-
-Select the input device and network adapters in the panel. Automatic discovery depends on a reachable local network; enter the device's displayed address when discovery is unavailable. Use the port actually shown in the console's FTP indicator; older installed runtimes can differ from the current **default of 1425**. Reopening the console menu is required to activate a newly installed native runtime.
-
-Prepare Cardputer ADV or Switch 1 through **Device setup** before the first connection. Pairing is created automatically; you do not need to find or enter keys, and this is unrelated to Nintendo `prod.keys`. An existing pairing on the same PC is restored automatically when available. If the device was prepared on another PC, repeat Device setup or transfer its existing pairing settings; entering only its IP does not transfer those settings.
-
-Personal settings, device pairing and logs are created on first use under:
-
-```text
-data/
-```
-
-Or in the owning module's state directory. Verified device pairings can also be kept in the current user's configuration directory so another installation can restore them. No personal settings, Nintendo keys, BIOS, games, save files or previous sessions are supplied. Civilization VII uses the integrated filesystem-capable engine on Linux; its initial wireless lobby connection requires Linux networking tools and a compatible adapter.
+Packaging checks on a PC do not prove a console launch. The full native runtime cannot currently be rebuilt from this checkout alone; see the source-scope statement before redistribution.
 
 ## Authors, upstream work and licenses
+
 
 **IZMYSH (@byizmysh)** authors and maintains IZ2S integration and the application adaptations. This project relies on work by many other authors; renaming an interface does not remove their authorship or license terms.
 
@@ -216,8 +96,8 @@ Or in the owning module's state directory. Verified device pairings can also be 
 - **Slapah / Hokage, pepsipu, kurumuz, Alula, civswitch-kit and civ7-fs contributors**: filesystem porting, inherited runtime work and stability improvements acknowledged by CivSwitchFS. Its upstream acknowledgements also credit **epiccsolar** for independent kaiHEN work. Exact roles and retained notices are listed in [AUTHORS.md](AUTHORS.md).
 - **misshexa66 and OunceCake contributors**: filesystem tooling. [OunceCake](https://github.com/misshexa66/OunceCake); original GPL notice retained in `core/filesystem/ouncecake/`.
 - **shy / shy1132 and VacuumTube contributors**: the MIT-licensed application underlying VacooTube. Its source copyright and license remain in `modules/VacooTube/app/`. [VacuumTube](https://github.com/shy1132/VacuumTube).
-- **hyln9 and nxhid contributors**: the Switch keyboard base. Firmware includes its MIT license, libnx and font notices. [nxhid](https://github.com/hyln9/nxhid).
-- **M5Stack, lovyan03, Benoit Blanchon, Ha Thach, Espressif and Arduino contributors**: Cardputer firmware dependencies, including M5Cardputer, M5Unified, M5GFX/LovyanGFX, ArduinoJson, TinyUSB, ESP-IDF, Arduino-ESP32 and IRremote. Versions and texts are retained with the firmware.
+- **hyln9 and nxhid contributors**: the Switch keyboard base. The older input-device integration is removed; its MIT, libnx and font notices remain under `LICENSES/historical-input-devices/`. [nxhid](https://github.com/hyln9/nxhid).
+- **M5Stack, lovyan03, Benoit Blanchon, Ha Thach, Espressif and Arduino contributors**: Cardputer firmware dependencies, including M5Cardputer, M5Unified, M5GFX/LovyanGFX, ArduinoJson, TinyUSB, ESP-IDF, Arduino-ESP32 and IRremote. Historical notice texts remain under `LICENSES/historical-input-devices/`; the input-device firmware is excluded from this edition.
 - **DejaVu/Bitstream font authors, Monocypher authors, GitHub Octicons authors**, and the authors of Terser, Acorn, source-map, jridgewell mapping libraries and buffer-from: typography, signature verification, artwork and runtime JavaScript processing. Original notices remain beside their components.
 - **ARMSX2, PCSX2, PCSX-ReARMed and their contributors**, plus VIXL, cubeb, SoundTouch, libchdr, fmt, ImGui, libzip, cpuinfo, simpleini, rcheevos, discord-rpc, plutosvg and plutovg authors: inherited statically linked runtime code. IZPSX and IZPS2 are included; associated native dependency license texts are retained in `LICENSES/native-linked/`. Native source coverage is described in [SOURCES.md](SOURCES.md).
 - **Electron/Chromium, Node.js, Python, uv, Pillow, OpenSSH, FFmpeg and audio-stack contributors**: bundled or separately installed host dependencies. Electron's complete third-party HTML notice is preserved in each bundled runtime. Downloaded tools retain their own license terms.

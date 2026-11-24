@@ -1,6 +1,0 @@
-{
-  "format": "iz2s.input-transport",
-  "apiVersion": 1,
-  "id": "ssh-gadget",
-  "entry": "index.cjs"
-}

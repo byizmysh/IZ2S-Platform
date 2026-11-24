@@ -10,19 +10,24 @@
     "sha256": "d8163aaaf979089becfadc67713d31d63f9cf4d5ff430bc211064c99bbf7bd6c"
   },
   {
+    "path": "game/exefs.nsp",
+    "bytes": 19402163,
+    "sha256": "a6463a5143073696e46e237798538b58812a7fdd9b7555c99515e6ea606c9367"
+  },
+  {
     "path": "game/main",
-    "bytes": 19391712,
-    "sha256": "6d953ed3e1d78db321841cfe18437160c8003c3a7b48bf50ecefd012897b3a84"
+    "bytes": 19400245,
+    "sha256": "5bb5e63f89da30f0d85c64f72911046e3135e4ee8fbbf04572971dbfa7e1d24d"
   },
   {
     "path": "iz2s/izlauncher.iza",
-    "bytes": 841696,
-    "sha256": "1d7d9fae9fcd8172513e580fe5b7d70ecaa31d6b895f5a0a36c3fdc016bdb14c"
+    "bytes": 900504,
+    "sha256": "b6a35e9a1a353cd915a458a78ad0dfe3a4c425c3a140f43ed4bc902b1eb387aa"
   },
   {
     "path": "iz2s/izlauncher.romfs",
-    "bytes": 26785192,
-    "sha256": "86f01b934a5ee4c78bafa91be4f121bcbfd5b5fc9e8b4d7306da93cdc2a788bd"
+    "bytes": 26734392,
+    "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
   },
   {
     "path": "iz2s/modules/foldrift/launcher.iza",
@@ -33,6 +38,11 @@
     "path": "iz2s/modules/foldrift/launcher.iza.sig",
     "bytes": 64,
     "sha256": "8362eb08a0104a44af5519555058b132cccdcbf24f8bfa30779a65f244087369"
+  },
+  {
+    "path": "licenses/Octicons-MIT.txt",
+    "bytes": 1068,
+    "sha256": "da259c8bd0de62713ccdcf88910aebca810644f98c2c912bad814fc79ea778df"
   },
   {
     "path": "licenses/bzip2/LICENSE",

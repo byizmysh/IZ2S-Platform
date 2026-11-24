@@ -3,7 +3,7 @@ const fs = require('node:fs/promises'), path = require('node:path'), crypto = re
 const {spawn} = require('node:child_process');
 const {readJson, saveJson, redact, createLedger} = require('../../core/session/ledger.cjs');
 const integration = require('./integration.cjs');
-const {localIPv4} = require('../CivSwitch/session.cjs');
+const {privateIP:localIPv4} = require('../../core/session/network-discovery.cjs');
 const PORT = 9026;
 const discovery = require('../CivSwitch/runtime/discovery.cjs');
 function create({root, settings, connections, configuration, preview = false, launch = spawn,

@@ -3,7 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const {spawn} = require('node:child_process');
 const {readJson, saveJson, redact, createLedger} = require('../../core/session/ledger.cjs');
-const {randomUUID} = require('node:crypto');
+const {randomUUID,createHash} = require('node:crypto');
 const integration = require('../CivSwitchLDN/integration.cjs');
 const discovery = require('../CivSwitch/runtime/discovery.cjs');
 const SAVE_NAME='IZ2SCIV.Civ7Save';
@@ -56,6 +56,7 @@ function create(options) {
     }
   });
   const persist = () => saveJson(file, saved);
+  const runtimeFingerprint = async () => createHash('sha256').update(await fs.readFile(path.join(root,'engines/iz2s-core/runtime/package-manifest.json'))).digest('hex');
   async function refreshAddresses(){
     const known=discovery.knownHosts(options.connections?.snapshot?.(),saved.host);
     addressOptions=await (options.addressOptions||require('./tools/address-options.cjs').list)({known,found:foundHosts});
@@ -109,6 +110,20 @@ function create(options) {
     if(!state.loaderReady||!state.suggestedHost)throw Error('Game loader not found. Open Awaiting payload on the console.');
     saved.host=state.suggestedHost;return saved.host;
   }
+  async function installSave() {
+    // Recheck the protocol after Wi-Fi recovery; a remembered address is not
+    // proof that this console is still accepting a payload.
+    const host=await loader();assertRunning();
+    const fingerprint=await runtimeFingerprint();assertRunning();
+    saved.phase='install';saved.installed=false;
+    operationProgress={stage:'preparing',percent:0};
+    await persist();assertRunning();
+    await run(process.execPath,[path.join(folder,'tools/persist-install.mjs'),'--chain',host],
+      'Installed. Restart the game, then open Load Game menu.');
+    assertRunning();
+    if(await runtimeFingerprint()!==fingerprint)throw Error('The runtime changed during installation. Retry with the current SD package.');
+    assertRunning();saved.installed=true;saved.saveName=SAVE_NAME;saved.runtimeFingerprint=fingerprint;
+  }
   async function ftpHost() {
     if(options.findFtp)return options.findFtp({signal:signal.signal});
     const hint=await require('../iz2s-core/tools/ftp-connect.cjs').credentials();
@@ -147,6 +162,7 @@ function create(options) {
       if(command==='configure')return await ldn.action({action:command,phy:body.phy});
       if(command==='refresh'){await Promise.all([ldn.refresh(true),refreshWifi(true)]);return {ok:true};}
       if(command==='start'&&body.confirm!==true)throw Error('Confirm a fresh Civilization VII wireless lobby before starting.');
+      if(command==='start'&&body.installAfterSuccess!==true)throw Error('Use Connect and install save to complete the connection.');
       if(command==='install'&&body.replaceTrigger!==true)throw Error('Confirm installation of IZ2SCIV.Civ7Save before installing.');
       if(command==='launch'&&body.freshBoot!==true)throw Error('Confirm a fresh console boot before launching IZ2S.');
       if(['start','install','launch'].includes(command)&&!saved.sdReady)throw Error('Copy the SD archive and confirm it in step 1 first.');
@@ -154,7 +170,7 @@ function create(options) {
       if(['select-host','find-addresses'].includes(command)){saved.selectedHost='';foundHosts=[];addressOptions=[];}
       saved.id=randomUUID();events.length=0;
       const attempt={id:saved.id,upstream:true,loaderId:'iz2sciv-core',kind:'iz2sciv',status:'starting',created:new Date().toISOString()};
-      if(command==='install')saved.installed=false;
+      if(['start','install'].includes(command))saved.installed=false;
       await ledger.write(attempt);
       await persist();
       task=Promise.resolve().then(async()=>{
@@ -190,16 +206,17 @@ function create(options) {
           const state=await transport('start',{confirm:true,freshLobby:true,...(saved.selectedHost?{automatic:false,host:saved.selectedHost}:{automatic:true}),installAfterSuccess:false});
           if(!state.loaderReady)throw Error('Game loader was not confirmed.');
           saved.host=state.suggestedHost;
+          assertRunning();
+          log('Connection verified. Installing IZ2SCIV.Civ7Save automatically.');
+          await installSave();
         } else if(command==='check-loader')await loader();
         else if(command==='install'){
-          const host=await loader();assertRunning();
-          await run(process.execPath,[path.join(folder,'tools/persist-install.mjs'),'--chain',host],'Installed. Restart the game, then open Load Game menu.');
-          saved.installed=true;saved.saveName=SAVE_NAME;
+          await installSave();
         } else if(command==='launch'){
           const host=await loader();assertRunning();
           await run(process.execPath,[path.join(folder,'tools/send.mjs'),host],'=== IZ2S CORE IS RUNNING ===');
         }
-        assertRunning();saved.phase=command+'-done';attempt.status='complete';log('IZ2SCiv: '+saved.phase);
+        assertRunning();saved.phase=command==='start'?'install-done':command+'-done';attempt.status='complete';log('IZ2SCiv: '+saved.phase);
       }).catch(async error=>{saved.phase=interrupted?'interrupted':'failed';saved.error=redact(error.message);attempt.status=interrupted?'cancelled':'failed';attempt.error=saved.error;log(saved.error);
         if(!interrupted&&['start','check-loader','install','launch','find-addresses','select-host'].includes(command))await refreshAddresses().catch(()=>{});
       })
@@ -215,10 +232,11 @@ function create(options) {
     await loaded;
     await refreshWifi();
     const state=await ldn.snapshot(), transport=state.civswitchLdn;
+    const matchingSave=saved.saveName===SAVE_NAME&&saved.runtimeFingerprint===await runtimeFingerprint();
     return {...state,civswitchLdn:undefined,connected:false,hardStopAvailable:false,
       active:busy()?{id:saved.id,kind:'iz2sciv',status:'starting'}:null,lastAttempt:lastAttempt||state.lastAttempt,
       log:[...state.log,...events].sort((a,b)=>a.at.localeCompare(b.at)),
-      iz2sciv:{...saved,hostPlatform:platform,windowsWifi,installed:!!saved.installed&&saved.saveName===SAVE_NAME,needsSaveUpdate:!!saved.installed&&saved.saveName!==SAVE_NAME,
+      iz2sciv:{...saved,hostPlatform:platform,windowsWifi,installed:!!saved.installed&&matchingSave,needsSaveUpdate:!!saved.installed&&!matchingSave,
         saveName:SAVE_NAME,operationProgress,networkRecoveryAvailable:await fs.access(path.join(root,'data/state/civ7-network.json')).then(()=>true,()=>false),addressOptions,busy:busy(),setup:transport.setup,prepared:transport.prepared,phy:transport.phy,
         loaderReady:transport.loaderReady,networkStage:transport.networkStage,networkRestored:transport.networkRestored,transportPhase:transport.phase,progress:{line:transport.index,total:transport.total}},
       connections:{...state.connections,locked:busy()},

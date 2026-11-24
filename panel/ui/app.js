@@ -1,28 +1,4 @@
 'use strict';
-// BEGIN STARTUP
-'use strict';
-// Saved choices are suggestions for this game/menu only; enabling loading is
-// deliberately not persisted. Legacy global choices never become selections.
-(function(root){
- function scope(state){
-  const civ=['civswitch','civswitch-ldn','iz2sciv-core'].includes(state?.platform?.loaderId);
-  return (civ?'civ7':'sb4')+':'+(civ?state?.civLauncher?.shell||'izlauncher':state?.platform?.variant||'original');
- }
- function create(preferences){
-  const selected=new Set();let current=null;
-  function activate(state){
-   const next=scope(state);if(next===current)return false;
-   current=next;selected.clear();
-   try{const ids=JSON.parse(preferences?.getItem('iz2s.startupChoices.v2.'+current)||'[]');if(Array.isArray(ids))for(const id of ids)if(typeof id==='string'&&/^[a-z0-9][a-z0-9-]{0,47}$/.test(id))selected.add(id);}catch{}
-   return true;
-  }
-  function save(){if(!current)return;try{preferences?.setItem('iz2s.startupChoices.v2.'+current,JSON.stringify([...selected]));}catch{}}
-  function payload(enabled){return {moduleIds:enabled?[...selected]:[],restoreInstalled:false};}
-  return {selected,activate,save,payload};
- }
- const api={scope,create};root.IZ2S_STARTUP=api;if(typeof module==='object'&&module.exports)module.exports=api;
-})(globalThis);
-// END STARTUP
 // BEGIN ERROR TEXT
 /* Canonical English diagnostics; localized UI labels never become log sources. */
 'use strict';
@@ -58,11 +34,10 @@
   if(/fs rpc memory acquisition failed|fs acquisition stopped|overwrite missed.*canary/.test(s)){title='Filesystem access was not acquired in this attempt.';action='Fully close and reopen the game, open a fresh Direct, then start a new session.';}
   else if(/resources retained|uncertain|did not (?:finish|terminate)|restart required|native execution/.test(s)){title='Native execution could not be confirmed.';action='Restart the game before starting a new session.';}
   else if(/9026|loader.*not (?:respond|found)|awaiting payload/.test(s)){title='The game loader is not responding.';action='Open Load Game on Switch, wait for Awaiting payload, then check the connection.';}
-  else if(/dbi (?:copy failed|mtp responder)|switch 1 copy verification failed/.test(s)){title='Could not install IZ2S SB4 Keyboard.';action='Open DBI MTP Responder on Switch 1 and try again, or download the SD package.';}
-  else if(/reopen.*(?:application|launch link)|this window link is no longer valid/.test(s)){title='This window link is no longer valid.';action='Open 0.3.1 from its shortcut.';}
+  else if(/reopen.*(?:application|launch link)|this window link is no longer valid/.test(s)){title='This window link is no longer valid.';action='Open 0.3.2 from its shortcut.';}
   else if(s.includes('iz2s file manager is unavailable')){title='IZ2S file manager is unavailable.';action='Open IZ2S on Switch and connect its PC link, then try again.';}
   else if(s.includes('iz2s pc link is unavailable')){title='IZ2S PC link is unavailable.';action='Start the PC link, then try again.';}
-  else if(s.includes('browser blocked the new tab')){title='The browser blocked the new tab.';action='Allow pop-ups for 0.3.1, then try again.';}
+  else if(s.includes('browser blocked the new tab')){title='The browser blocked the new tab.';action='Allow pop-ups for 0.3.2, then try again.';}
   else if(/package changed|selected package|version.*(?:differ|mismatch)/.test(s)){title='The selected package has changed.';action='Refresh App library and select the current version.';}
   else if(/failed to fetch|socket hang up|disconnected|connection.*(?:lost|refused|ended)|server.*unavailable/.test(s)){title='Connection was interrupted.';action='Check the network and restore the connection when the console is ready.';}
   else if(/timeout|timed out|aborted due/.test(s)){title='The operation timed out.';action='Check the device and connection before trying again.';}
@@ -84,7 +59,7 @@
   const offline=civ?.state==='offline'||active?.status==='offline'||!!state?.offline||retained&&!!state?.link&&['waiting-for-dock','waiting-for-network','offline'].includes(state.link.state);
   const stopping=active?.status==='stopping'||civ?.state==='stopping';
   const unconfirmed=stopping&&(active?.nativeParentRetention?.awaitingActualClose||civ?.shutdownUnconfirmed);
-  return {running,offline,stopping,unconfirmed:!!unconfirmed,compact:running||offline||stopping&&active?.kind!=='bootstrap',title:unconfirmed?'Shutdown unconfirmed':stopping?'Disconnecting\u2026':offline?'Connection interrupted':running?'Session is running':'Connection',game:['civswitch','civswitch-ldn','iz2sciv-core'].includes(state?.platform?.loaderId)?'Civilization VII':'SmileBASIC 4',launcher:(civ?.shell||state?.platform?.variant)==='izpslauncher'?'IZPSlauncher':(civ?.shell||state?.platform?.variant)==='original'?'Core only':'IZ2S'};
+  return {running,offline,stopping,unconfirmed:!!unconfirmed,compact:running||offline||stopping&&active?.kind!=='bootstrap',title:unconfirmed?'Shutdown unconfirmed':stopping?'Disconnecting\u2026':offline?'Connection interrupted':running?'Session is running':'Connection',game:'Civilization VII',launcher:(civ?.shell||state?.platform?.variant)==='izpslauncher'?'IZPSlauncher':(civ?.shell||state?.platform?.variant)==='original'?'Core only':'IZ2S'};
  }
  function directNetwork(state){
   if(!state?.platform||['civswitch','civswitch-ldn','iz2sciv-core'].includes(state.platform.loaderId)||state.active?.kind==='bootstrap')return false;
@@ -204,21 +179,6 @@
  const api={session,connectionMode,directNetwork,deviceLinks,job,transfer,versions,sameSdPackage,library,consoleApps,appFormat,libraryFilter,attempt,history,statistics,errorLabels};root.IZ2S_PRESENTATION=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);
 // END PRESENTATION
-// BEGIN ARM INSTALLER
-// Convert the existing archive download when a running older panel server
-// cannot yet serve the standalone installer. No server restart is required.
-(function(root){
- const template="#!/usr/bin/env python3\n\"\"\"IZ2S ARM installer: USB keyboard + controller for Civ7 and SmileBASIC 4.\"\"\"\nimport argparse\nimport base64\nimport hashlib\nimport importlib.util\nimport io\nimport json\nimport os\nfrom pathlib import Path\nimport sys\nimport tarfile\nimport tempfile\n\nARCHIVE_SHA256 = '__IZ2S_SHA256__'\nARCHIVE_BASE64 = '__IZ2S_PAYLOAD__'\n\n\ndef payload():\n    archive = base64.b64decode(ARCHIVE_BASE64, validate=True)\n    if hashlib.sha256(archive).hexdigest() != ARCHIVE_SHA256:\n        raise ValueError('Installer archive checksum mismatch. Download it again.')\n    files = {}\n    with tarfile.open(fileobj=io.BytesIO(archive), mode='r:gz') as bundle:\n        for member in bundle.getmembers():\n            parts = member.name.split('/')\n            if len(parts) != 2 or parts[0] != 'arm-input' or not member.isfile() or not member.size <= 2 * 1024 * 1024:\n                raise ValueError('Invalid installer entry')\n            name = parts[1]\n            if not name or name in ('.', '..') or '\\\\' in name or name in files:\n                raise ValueError('Invalid installer entry name')\n            files[name] = bundle.extractfile(member).read()\n    sums = json.loads(files['checksums.json'])\n    expected = sums['files']\n    if sums['algorithm'] != 'sha256' or set(files) != set(expected) | {'checksums.json'}:\n        raise ValueError('Installer file inventory mismatch')\n    for name, digest in expected.items():\n        if hashlib.sha256(files[name]).hexdigest() != digest:\n            raise ValueError('Installer checksum mismatch: ' + name)\n    package = json.loads(files['package.json'])\n    if package['id'] != 'arm-input' or not {'usb-keyboard', 'usb-gamepad', 'automatic-chat'} <= set(package['capabilities']):\n        raise ValueError('This installer requires the keyboard + controller package')\n    return files, package\n\n\ndef check_host():\n    if not sys.platform.startswith('linux'):\n        raise RuntimeError('Run this installer on the ARM Linux input device.')\n    if not Path('/run/systemd/system').is_dir():\n        raise RuntimeError('A running systemd installation is required on ARM.')\n    controllers = list(Path('/sys/class/udc').glob('*'))\n    if len(controllers) != 1:\n        raise RuntimeError('One USB device/OTG controller is required. Enable the board USB device driver first.')\n    return controllers[0].name\n\n\ndef main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    mode = parser.add_mutually_exclusive_group()\n    mode.add_argument('--check-package', action='store_true', help='Verify the embedded package without changing this computer')\n    mode.add_argument('--check', action='store_true', help='Verify the package and ARM prerequisites without installing')\n    parser.add_argument('--folder', default='/opt/iz2s/arm-input')\n    parser.add_argument('--hid', default='/dev/hidg0')\n    args = parser.parse_args()\n    files, package = payload()\n    if args.check_package:\n        print(json.dumps({'verified': True, 'version': package['version'], 'capabilities': package['capabilities']}))\n        return\n    controller = check_host()\n    if args.check:\n        print(json.dumps({'verified': True, 'usbController': controller, 'version': package['version']}))\n        return\n    if os.geteuid() != 0:\n        raise RuntimeError('Use sudo python3 ' + Path(sys.argv[0]).name + ' on the ARM device.')\n    with tempfile.TemporaryDirectory(prefix='iz2s-arm-install-') as temporary:\n        folder = Path(temporary)\n        for name, data in files.items():\n            (folder / name).write_bytes(data)\n        spec = importlib.util.spec_from_file_location('iz2s_arm_install', folder / 'install.py')\n        installer = importlib.util.module_from_spec(spec)\n        spec.loader.exec_module(installer)\n        encoded = {name: base64.b64encode(data).decode() for name, data in files.items()}\n        result = installer.install(args.folder, encoded, args.hid, dual_hid=True)\n    print(json.dumps(result))\n\n\nif __name__ == '__main__':\n    try:\n        main()\n    except (Exception, KeyboardInterrupt) as error:\n        print('Installation stopped: ' + (str(error) or 'cancelled'), file=sys.stderr)\n        sys.exit(1)\n";
- async function create(archive){
-  const bytes=new Uint8Array(archive);
-  if(bytes.length<32||bytes.length>4*1024*1024||bytes[0]!==31||bytes[1]!==139||bytes[2]!==8)throw Error('Invalid ARM input archive');
-  const digest=Array.from(new Uint8Array(await root.crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
-  const chunks=[];for(let at=0;at<bytes.length;at+=8192)chunks.push(String.fromCharCode(...bytes.subarray(at,at+8192)));
-  return template.replace('__IZ2S_SHA256__',digest).replace('__IZ2S_PAYLOAD__',root.btoa(chunks.join('')));
- }
- root.IZ2S_ARM_INSTALLER={create};
-})(globalThis);
-// END ARM INSTALLER
 // BEGIN STORAGE CONTROLS
 'use strict';
 // Shared destination policy and controls for the library and module tabs.
@@ -634,7 +594,7 @@ if (new URLSearchParams(location.search).get('ui-preview') === 'files') {
 const $ = (id) => document.getElementById(id),
   key = location.hash.slice(1),
   selection = new Set();
-const viewTitles = Object.freeze({setup:'Connection', apps:'App library', history:'Attempts'});
+const viewTitles = Object.freeze({setup:'Install and launch', apps:'App library', history:'Attempts', faq:'FAQ'});
 let homeView = 'setup', workspaceView = {id:'home'};
 function viewFromUrl() {
   const view = new URLSearchParams(location.search).get('view');
@@ -648,8 +608,7 @@ function updateNavigation() {
     if (current) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   }
-  setText($('view-title'), title);
-  document.title = $('view-title').textContent + ' · IZ2S Platform';
+  document.title = (globalThis.RUN21_LANGUAGE?.t(title)||title) + ' · IZ2S Platform';
 }
 function storeNavigation(method) {
   const url = new URL(location.href);
@@ -686,25 +645,13 @@ let state = null,
   logWriting = false,
   backendNotice = '';
 let startupPreferences;try{startupPreferences=localStorage;}catch{}
-const startupChoices=globalThis.IZ2S_STARTUP.create(startupPreferences);
-const startupSelection=startupChoices.selected;
 let startupStamp = '';
 // The manual-input design is a local UI preview, separate from session settings.
 let inputDesign = 'arm', manualDesignStage = 1;
-const advSetup = globalThis.IZ2S_ADV_SETUP.create({document, changed:()=>{if(state)renderControls();},
-  confirmUsb:()=>act('/api/cardputer/confirm-usb',{}),refreshUsb:()=>act('/api/check',{})});
-const civStartup=()=>startupChoices.payload($('preload-enabled').checked);
+
 let ftpConnection = null, ftpPoll = null, connectionAction = false;
 const iz2scivUI = globalThis.IZ2S_IZ2SCIV.create({document,act,getLink:()=>{const value=coreView.current();return value?.refreshError?{online:false,error:value.refreshError.message}:value?.pcLink;},openLibrary:()=>openCorePcTool('apps'),openFiles:()=>openCorePcTool('files'),openFtp:openFtpDialog,getFtp:()=>ftpConnection,refreshLink:()=>Promise.all([coreView.refresh(true),refreshFtpStatus()]),setPcLink,closeFtp:disconnectFtp,resetSession:resetLauncherSession,isUnavailable:()=>serverUnavailable,isPanelBusy:()=>busy,showLog:()=>{iz2scivLogFull=true;renderActivity();$('session-activity').open=true;$('log').setAttribute('tabindex','-1');$('log').focus();$('session-activity').scrollIntoView({block:'nearest'});},downloadWifiReport:report=>saveDownload(new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json'}),'iz2s-windows-wifi.json'),downloadSd:async()=>saveDownload(await api('/api/iz2sciv/sd-package',undefined,{responseType:'blob',timeoutMs:60000}),'iz2sciv-core-sd.zip')});
-const civswitchLdnUI = globalThis.IZ2S_CIVSWITCH_LDN.create({document,act,getStartup:civStartup,isUnavailable:()=>serverUnavailable});
-const civswitchUI = globalThis.IZ2S_CIVSWITCH.create({document, act,getStartup:civStartup,isUnavailable:()=>serverUnavailable,downloadArm:()=>downloadArmInstaller('civ7'),setupInput:event=>{
-  const adapter = state?.platform?.configuration?.inputAdapter;
-  if (adapter === 'switch-wifi') {
-    const picker = document.querySelector('#device-arm .device-picker');
-    if (picker) {event?.stopPropagation();closeTransientMenus(picker);picker.open = true;picker.querySelector('summary').focus();return;}
-  }
-  openDeviceSettings(adapter === 'cardputer-wifi' ? {tab:1} : {});
-}});
+
 let workspaceReady = false;
 let workspaceRevision = 0;
 function openWorkspaceTab(tab, select = true) {
@@ -732,14 +679,8 @@ const workspace = globalThis.IZ2S_WORKSPACE.create({document,api,notice,invoke:a
   if (navigation === 'push') window.scrollTo({top:0, left:0, behavior:'instant'});
 }});
 const manualDesignConfirmed = new Set();
-function syncStartupChoices(){
- if(state&&startupChoices.activate(state)){
-  $('preload-enabled').checked=false;
-  startupStamp='';
- }
-}
-function saveStartup(){startupChoices.save();}
-$('preload-enabled').checked=false;
+
+;
 const words = {
   server: ['Server x64 PC', 'i-server'],
   arm: ['ARM PC', 'i-arm'],
@@ -881,7 +822,6 @@ function stopSession() {
   actionGeneration++;
   busy = true;
   pendingStart = false;
-  $('screen-ready').checked = false;
   document.querySelectorAll('.up-ready,.up-source-ready').forEach(input => {input.checked = false;});
   stopTask = Promise.resolve().then(async () => {
     try {
@@ -919,7 +859,6 @@ async function openCorePcTool(view) {
     return;
   }
   if (serverUnavailable || state?.preview || openingPcFiles) return;
-  if(view==='files'&&globalThis.IZ2S_CORE.rpcAvailable(coreView.current())&&!coreView.current()?.pcLink?.files)return openDolphin();
   openingPcFiles = true;
   try {
     const target=await api('/api/iz2s-core/pc-tool?'+new URLSearchParams({view,open:'1'}),undefined,{timeoutMs:5000});
@@ -934,8 +873,8 @@ function refreshFtpStatus() {
   if (ftpPoll || !state || state.preview || serverUnavailable || state.platform?.loaderId!=='iz2sciv-core') return ftpPoll;
   ftpPoll = api('/api/iz2s-core/ftp/status', undefined, {timeoutMs:12000})
     .then(value => { ftpConnection = value; })
-    .catch(() => { ftpConnection = null; })
-    .finally(() => { ftpPoll = null; iz2scivUI.render(state); });
+    .catch(() => { ftpConnection = {...ftpConnection,online:false,refreshError:true}; })
+    .finally(() => { ftpPoll = null; iz2scivUI.render(state); renderConnectionStatus(); });
   return ftpPoll;
 }
 async function changeLauncherConnection(action) {
@@ -993,7 +932,7 @@ $('ftp-form').onsubmit=async event=>{
   }finally{button.disabled=cancel.disabled=false;}
 };
 const coreText = globalThis.IZ2S_CORE.t;
-const coreView=globalThis.IZ2S_CORE.create({api,changed:()=>{renderPlatform();renderControls();renderDevices();},updated:()=>{if(state){void refreshFtpStatus();iz2scivUI.render(state);renderDevices();renderConnectionStatus();renderSessionPresentation();renderConsoleApps();renderDolphin();if(homeView==='apps')renderLibrary();updateBlitBunTab();showBlitBunWindowRequest();}},
+const coreView=globalThis.IZ2S_CORE.create({api,changed:()=>{renderPlatform();renderControls();;},updated:()=>{if(state){void refreshFtpStatus();iz2scivUI.render(state);;renderConnectionStatus();renderSessionPresentation();renderConsoleApps();;if(homeView==='apps')renderLibrary();updateBlitBunTab();showBlitBunWindowRequest();}},
  openFiles:()=>openCorePcTool('files'),
  openApps:()=>openCorePcTool('apps')});
 function switchView(id, {focusApp=false, record=true, focus=true} = {}) {
@@ -1004,7 +943,7 @@ function switchView(id, {focusApp=false, record=true, focus=true} = {}) {
   homeView = id;
   if (inputDesign === 'own' && id !== 'setup') {
     inputDesign = 'arm';
-    if (state) { renderDevices(); renderControls(); }
+    if (state) { ; renderControls(); }
   }
   for (const view of document.querySelectorAll('#workspace-home > .view')) view.hidden = view.id !== id;
   workspace.select('home');
@@ -1014,651 +953,24 @@ function switchView(id, {focusApp=false, record=true, focus=true} = {}) {
     if (focus && !focusApp) $('page-' + id + '-title').focus({preventScroll:true});
   }
 }
-function chooseStep(value) {
-  step = value;
-  requestId = null;
-  $('screen-ready').checked = false;
-  document
-    .querySelectorAll('[data-step]')
-    .forEach((e) => e.classList.toggle('selected', e.dataset.step === step));
-  renderControls();
-  if (state) renderWizard();
-}
-function fieldsDirty(container, values) {
-  return Object.entries(fieldValues(container)).some(
-    ([name, value]) => String(value) !== String(values?.[name] ?? ''),
-  );
-}
-function deliveryDirty() {
-  return (
-    !!state?.platform?.izModules &&
-    fieldsDirty($('delivery-fields'), state.platform.loaderSettings)
-  );
-}
+
 let sessionModeChoice=null,sessionModeScope='';
-function renderSessionConnectionMode(){
- const view=globalThis.IZ2S_PRESENTATION.connectionMode(state),scope=state?.active?.id||'idle';
- if(scope!==sessionModeScope){sessionModeScope=scope;sessionModeChoice=null;}
- const mode=sessionModeChoice||view.preferred,visible=step==='launch'&&state?.platform?.izModules===true&&!['civswitch','civswitch-ldn','iz2sciv-core'].includes(state.platform.loaderId);
- $('session-mode').hidden=!visible;
- for(const value of ['new','restore']){const button=$('session-mode-'+value);button.classList.toggle('selected',mode===value);button.setAttribute('aria-pressed',String(mode===value));button.disabled=busy||serverUnavailable||value==='new'&&view.retained||value==='restore'&&!view.available;}
- $('session-mode-note').textContent=mode==='restore'||view.retained?view.note:'After a full console restart, open SmileBASIC 4 → Make a Program → Direct, then start a new launcher session. Recovery reconnects to the same running launcher.';
- $('session-mode-restore').title=view.note;
- if(!visible)return;
- const panel=$('session-mode'),summary=$('console-apps')||$('session-summary');
- if(globalThis.IZ2S_PRESENTATION.session(state).compact){if(summary?.after&&panel.previousElementSibling!==summary)summary.after(panel);}
- else if(panel.parentElement!==$('iz-flow')&&$('iz-flow')?.insertBefore)$('iz-flow').insertBefore(panel,$('delivery-options'));
- const restore=mode==='restore';
- $('restore-connection').hidden=!restore;$('restore-connection').disabled=serverUnavailable||busy||state.preview||!view.canRestore;$('restore-connection').textContent=view.label;
- if(restore){$('start').hidden=true;$('session-confirmation').hidden=true;$('launch-modules').hidden=true;$('delivery-options').hidden=true;$('gate-message').textContent=view.note;}
+
+function renderControls(){
+ if(!state)return;
+ $('library-core-add').hidden=!!state.preview||!(state.coreSd?.selected||coreView.current()?.pcLink?.online);
+ $('library-core-add').disabled=busy||serverUnavailable;
+ $('library-core-add').textContent=coreText('addApp');
+ const error=selection.size?storageControls.selectionError([...selection]):'';
+ $('load').disabled=busy||!(state.coreSd?.selected?state.coreSd.ready:coreView.current()?.pcLink?.online)||!selection.size||!!state.preview||!!error;
+ $('load').title=error;storageControls.updateAll();
+ document.querySelectorAll('.module-host-actions button').forEach(button=>{button.disabled=busy||!!state.preview||button.dataset.unavailable==='true';});
+ iz2scivUI.render(state);renderServerAvailability();
 }
-function renderControls() {
-  syncStartupChoices();
-  if($('library-core-add')){
-    $('library-core-add').hidden=!!state?.preview||!(state?.coreSd?.selected||coreView.selected()||coreView.current()?.pcLink?.online);
-    $('library-core-add').disabled=busy||serverUnavailable;
-    $('library-core-add').textContent=coreText('addApp');
-  }
-  document.querySelectorAll('.segmented button,[data-step]').forEach(button=>button.setAttribute('aria-pressed',String(button.classList.contains('selected'))));
-  renderPlatformControls();
-  const setup = state?.active?.kind === 'bootstrap' ? state.active.setup : null,
-    reboot = setup?.stage === 'reboot',
-    active = !!state?.active,
-    ready = !!state?.checks.ready,
-    ack = $('screen-ready').checked,
-    initial = !active || reboot;
-  const engineAllowed = !state?.platform || RUN21_CATALOG.engineAvailable(
-    state.platform.loaders.find(loader => loader.id === state.platform.loaderId),
-    state.platform.variant,
-  );
-  const residentLaunch=initial&&(step==='launch'||reboot)&&state?.platform?.residentGraphics===true&&['izlauncher'].includes(state?.platform?.variant);
-  const startupIds=state?.platform?.sdLauncher?[]:$('preload-enabled').checked?[...startupSelection]:[];
-  const residentBad=residentLaunch?startupIds.map(id=>state.library.find(p=>p.id===id)).filter(p=>!residentEligibility(p)?.compatible):[];
-  const residentAudioCount=startupIds.map(id=>(state?.library||[]).find(p=>p.id===id)).filter(p=>residentEligibility(p)?.code==='finite-audio-candidate').length;
-  const residentIssue=residentLaunch?(residentAudioCount>1?'Select one qualified game for retained audio.':(state.library.some(p=>!residentEligibility(p))?'Restart the panel to enable module compatibility checks.':residentBad.length?'Remove incompatible apps from the retained set: '+residentBad.map(p=>p?.name||'unknown module').join(', ')+'.':!startupIds.length?'Select at least one compatible app at startup.':'')):'';
-  $('recovery-option').hidden =
-    step !== 'bootstrap' || !initial || !state?.recoverySetupAvailable;
-  $('recovery-enabled').disabled =
-    busy || !initial || !state?.recoverySetupAvailable;
-  if (state && !state.recoverySetupAvailable)
-    $('recovery-enabled').checked = false;
-  $('launch-app-library').hidden = step !== 'launch' && !reboot;
-  const civMode=['civswitch','civswitch-ldn','iz2sciv-core'].includes(state?.platform?.loaderId);
-  if(!civMode&&$('launch-modules').parentElement!==$('iz-flow'))$('iz-flow').insertBefore($('launch-modules'),document.querySelector('#iz-flow .launch-row'));
-  $('launch-modules').hidden = civMode?$('launch-modules').hidden:state?.platform?.sdLauncher===true || (step !== 'launch' && !reboot);
-  $('preload-options').hidden = !$('preload-enabled').checked;
-  const preloadLocked = busy || serverUnavailable || !initial || (civMode && !!(state.platform.loaderId === 'civswitch-ldn' ? state.civswitchLdn?.busy : state.civswitch?.busy));
-  $('preload-enabled').disabled = preloadLocked;
-  $('preload-clear').disabled = preloadLocked;
-  document
-    .querySelectorAll('#preload-list input')
-    .forEach((e) => (e.disabled = preloadLocked || e.dataset.unavailable === 'true' || (e.dataset.residentUnavailable === 'true'&&!e.checked)));
-  $('preload-count').textContent = startupSelection.size + ' selected';
-  $('start').disabled =
-    busy ||
-    !!state?.emergencyInputPending ||
-    !initial ||
-    !ready ||
-    !ack ||
-    !!state?.preview ||
-    !state?.setupWizard ||
-    !engineAllowed ||
-    !!residentIssue ||
-    deliveryDirty();
-  $('start-label').textContent =
-    reboot || step === 'launch'
-      ? 'Load ' + selectedShellName()
-      : 'Install ' +
-        ($('recovery-enabled').checked && state?.recoverySetupAvailable
-          ? state?.platform?.delivery?.recoveryBootstrapName || 'NS2R'
-          : state?.platform?.delivery?.baseBootstrapName || 'NS2');
-  $('start').hidden = !initial;
-  $('session-confirmation').hidden = false;
-  $('gate-message').textContent = !engineAllowed
-    ? 'Choose IZ2S Core or ns2jb by BermTheSequel, or use Core only.'
-    : deliveryDirty()
-    ? 'Saving session settings…'
-    : residentIssue
-      ? residentIssue
-    : state?.emergencyInputPending
-      ? 'Check the ARM PC connection. Press red STOP to retry input cancellation.'
-      : !state?.setupWizard
-        ? 'Restart Platform to activate the updated setup flow'
-        : active && !reboot
-          ? state.active.status==='running'?'The console session is running.':'Leave the console on the indicated screen.'
-          : state?.preview
-            ? 'Preview · device commands disabled'
-            : state?.checks?.setupRequired
-              ? state.checks.requirements?.[0] || 'Set up the input device before continuing.'
-            : !ready
-              ? 'Waiting for '+(state?.checks?.items?.length || 0)+' device checks'
-              : !ack
-                ? 'Confirm the console screen to continue'
-                : 'All checks passed · ready to start';
-  $('hard-stop').hidden = !state?.emergencyInputPending && !state?.active?.stopTimedOut;
-  $('hard-stop').disabled = hardStopping || !state?.hardStopAvailable;
-  $('stop').hidden = !active && !pendingStart && !stopTask;
-  $('stop').disabled = !!stopTask || state?.active?.status === 'stopping';
-  $('stop').textContent =
-    stopTask || state?.active?.status === 'stopping'
-      ? state?.active?.nativeParentRetention?.awaitingActualClose && !stopTask ? 'Shutdown unconfirmed' : 'Disconnecting…'
-      : state?.active?.kind === 'bootstrap'
-        ? 'Cancel setup'
-        : 'Stop session';
-  $('screen-ready').disabled = !initial || busy;
-  $('screen-ready').parentElement.hidden = !initial;
-  document
-    .querySelectorAll('[data-step]')
-    .forEach((e) => (e.disabled = active || busy));
-  $('recheck').disabled = !!state?.active?.inputActive || busy;
-  const destinationError=selection.size?storageControls.selectionError([...selection]):'';
-  $('load').disabled = busy || !(state?.coreSd?.selected?state.coreSd.ready:state?.connected) || !selection.size || !!state?.preview || !!destinationError;
-  $('load').title=destinationError;
-  if(state?.coreSd?.selected)$('library-sd-refresh').disabled=busy||serverUnavailable;
-  storageControls.updateAll();
-  document.querySelectorAll('.module-host-actions button').forEach(button => {
-    const source = button.closest('.local-module')?.querySelector('.local-source');
-    button.disabled = busy || !!state?.preview || button.dataset.unavailable === 'true' || (!!source && !source.value.trim());
-  });
-  document
-    .querySelectorAll(
-      '.transport-choice button,.transport-choice input,.address-form input,.address-form select,.address-form button,.detected-peer',
-    )
-    .forEach(
-      (e) =>
-        (e.disabled =
-          busy ||
-          !state?.connections ||
-          !!state?.connections?.locked ||
-          !!state?.preview ||
-          e.dataset.unavailable === 'true' || e.dataset.fixed === 'true'),
-    );
-  const hidDisabled = busy || !ready || !!state?.preview || !state?.setupWizard;
-  $('verify-source').disabled = hidDisabled || !$('review-ready').checked;
-  $('skip-source').disabled =
-    busy || !$('review-ready').checked || !state?.setupWizard;
-  $('save-source').disabled = hidDisabled;
-  $('compare-source').disabled =
-    busy ||
-    !$('check-lines').checked ||
-    !Array.from({ length: 6 }, (_, i) => $('metric-' + i).value).every((s) =>
-      /^[0-9]{1,8}$/.test(s),
-    );
-  $('reverify-source').disabled = hidDisabled;
-  $('confirm-saved').disabled = busy || !$('saved-ready').checked;
-  $('restart-setup').disabled = busy;
-  $('edit-readings').disabled = busy;
-  if(state?.platform)renderMenuLayout();
-  renderManualInputDesign();
-  advSetup.render({state,step,busy,serverUnavailable,manual:inputDesign==='own',preparation:cardputerRequest||state?.hardwareOperation});
-  if(state?.platform)renderArmSetup(state.platform);
-  if(state&&!serverUnavailable)iz2scivUI.render(state);
-  renderSessionConnectionMode();
-  renderServerAvailability();
-}
-function renderWizard() {
-  if (state?.platform && !state.platform.izModules) {
-    renderControls();
-    renderEngineInstall();
-    return;
-  }
-  const row = state.active;
-  if (row?.kind === 'launch') {
-    step = 'launch';
-    document
-      .querySelectorAll('[data-step]')
-      .forEach((e) =>
-        e.classList.toggle('selected', e.dataset.step === 'launch'),
-      );
-  }
-  const setup = row?.kind === 'bootstrap' ? row.setup : null,
-    stage = setup?.stage || 'prepare',
-    show = step === 'bootstrap' || !!setup;
-  $('wizard-results').hidden = !setup?.comparison || !['mismatch', 'save'].includes(stage);
-  $('wizard-steps').hidden = !show;
-  renderInstallationSlot();
-  const source =
-      setup ||
-      ($('recovery-enabled').checked && state.recoverySetupAvailable
-        ? state.recoverySource
-        : state.platform?.baseSource),
-    lines = source?.lines || 229,
-    sourceSlot = source?.sourceSlot ?? 0,
-    name =
-      setup?.name ||
-      ($('recovery-enabled').checked && state.recoverySetupAvailable
-        ? state.platform?.delivery?.recoveryBootstrapName || 'NS2R'
-        : state.platform?.delivery?.baseBootstrapName || 'NS2');
-  document.querySelector('[data-phase=typing]').textContent = lines + ' lines';
-  document.querySelector('[data-phase=save]').textContent = 'Save ' + name;
-  for (let i = 0; i < 3; i++) {
-    const part = source?.parts?.[i];
-    if (part)
-      document.querySelector('label[for=metric-' + i * 2 + ']').textContent =
-        i + 1 + ' · lines ' + part.first + '-' + part.last;
-  }
-  $('check-lines').nextElementSibling.textContent =
-    'The check finished without errors. SOURCE LINES shows ' +
-    lines +
-    ', or ' +
-    (lines + 1) +
-    ' with only one empty final line.';
-  $('save-source').firstChild.textContent = 'Save as ' + name + ' ';
-  $('saved-ready').nextElementSibling.textContent =
-    name + ' was saved successfully on the console.';
-  $('recovery-status').hidden = !state.recoverySetupAvailable;
-  $('recovery-status').textContent =
-    state.link?.state === 'waiting-for-dock'
-      ? 'Connection interrupted · waiting for the console to reconnect.'
-      : state.link?.protocol === 2
-        ? 'Automatic connection recovery is active.'
-        : state.active?.kind === 'launch'
-          ? 'This session uses the original NS2. Install NS2R to enable recovery.'
-          : state.bootstrapProfile?.recovery
-            ? (state.platform?.delivery?.bootstrapName || 'NS2R') +
-              ' is selected for the next launch.'
-            : 'Connection recovery needs a one-time NS2R installation.';
-  const descriptions = {
-    prepare:
-      'In SmileBASIC, choose Make a Program and open Direct mode (the black console screen). Slot 0 must be empty. I will enter LIST 0:1 first, then the original 229 lines.',
-    typing:
-      'Entering the original source into EDIT0. Keep SmileBASIC open and do not switch screens.',
-    review:
-      'Are all 229 source lines present, with END on the last source line? An empty line 230 after the final Enter is normal. The three-part source check is optional.',
-    checking:
-      'Switching to Direct automatically when needed, then entering ordinary read-only source checks. The bootstrap is not executed.',
-    values:
-      'Read the six numbers from the Switch. The PC cannot read or validate the console output automatically.',
-    mismatch:
-      'Some source readings differ. Review the marked part and line range. Download a diagnostic for analysis, correct the readings if mistyped, or start again.',
-    save: 'Ready to save the source as NS2. Saving is a separate action and never starts the bootstrap.',
-    saving:
-      'Sending the save command in Direct mode. Confirm any on-console Save / Overwrite dialog.',
-    save_confirmation:
-      'Has SmileBASIC saved NS2 successfully? Confirm the result on the Switch before continuing.',
-    reboot:
-      'Fully restart the Switch. Then open SmileBASIC → Make a Program → Direct (the black screen). Only confirm the checkbox below after this is done.',
-  };
-  if (show) {
-    $('step-description').textContent = (
-      descriptions[stage] || descriptions.prepare
-    )
-      .replaceAll('229', String(lines))
-      .replaceAll('230', String(lines + 1))
-      .replaceAll('original ', name === 'NS2R' ? 'recovery ' : 'original ')
-      .replaceAll('as NS2.', 'as ' + name + '.')
-      .replaceAll('saved NS2 successfully', 'saved ' + name + ' successfully')
-      .replaceAll('Slot 0', 'Slot ' + sourceSlot)
-      .replaceAll('LIST 0:1', 'LIST ' + sourceSlot + ':1')
-      .replaceAll('EDIT0', 'EDIT' + sourceSlot);
-    $('screen-label').textContent =
-      stage === 'reboot'
-        ? 'I fully restarted the Switch and opened fresh SmileBASIC Direct.'
-        : 'I opened fresh SmileBASIC → Make a Program → Direct, slot ' +
-          sourceSlot +
-          ' is empty, keyboard is English (US), Caps Lock is off.';
-  } else {
-    $('step-description').textContent =
-      row?.kind === 'launch'
-          ? 'Keep SmileBASIC open. The original launch sequence is running; no memory preparation is repeated automatically.'
-          : 'Use the program already saved on your console. Fully restart the Switch and open fresh SmileBASIC Direct before launching.';
-    $('screen-label').textContent = state.platform?.delivery?.preloaded
-      ? 'After a full restart, the bootstrap is loaded in slot 0 and Direct is open; RUN and REMOVE have not been executed.'
-      : 'I fully restarted the Switch and opened fresh SmileBASIC Direct.';
-  }
-  if (state.platform?.configuration?.inputAdapter === 'cardputer-wifi') {
-    const capsOn = state.platform.profiles?.[state.platform.configurationId]?.cardputerCapsLock === 'on';
-    const brief = {
-      prepare:capsOn
-        ? 'Open SmileBASIC Direct. Use an empty slot, English (US), Caps Lock on.'
-        : 'Open SmileBASIC Direct. Use an empty slot, English (US), Caps Lock off.',
-      typing:'ADV is entering the preloaded source. Keep SmileBASIC open.',
-      review:'Check the source on Switch 2, then save it.',
-      checking:'ADV is entering the optional source check.',
-      values:'Enter the six numbers shown on Switch 2.',
-      mismatch:'The readings differ. Check the source or enter the readings again.',
-      save:'Save the bootstrap on Switch 2.',
-      saving:'Wait for saving to finish on Switch 2.',
-      save_confirmation:'Confirm the saved file on Switch 2.',
-      reboot:'Fully restart Switch 2 and open fresh SmileBASIC Direct.',
-    };
-    $('step-description').textContent = state.active?.status==='running'?'The launcher is running. Open App library to manage applications.':state.active?.status==='offline'?'The console session is retained. Restore the connection when the console is ready.':show ? brief[stage] || brief.prepare : 'ADV: Wi-Fi on, USB to Switch 2. Restart Switch 2 and open fresh Direct.';
-    $('screen-label').textContent = show && stage !== 'reboot'
-      ? 'Direct is open; slot ' + sourceSlot + ' is empty; English (US), Caps Lock ' + (capsOn ? 'on.' : 'off.')
-      : 'Switch 2 was fully restarted; fresh Direct is open.';
-  }
-  const stamp = (row?.id || 'none') + ':' + stage;
-  if (stamp !== setupStamp) {
-    const previous = setupStamp.split(':').at(-1);
-    setupStamp = stamp;
-    if (stage === 'review') $('review-ready').checked = false;
-    if (stage === 'values') {
-      $('check-lines').checked = false;
-      if (previous === 'checking')
-        for (let i = 0; i < 6; i++) $('metric-' + i).value = '';
-    }
-    if (stage === 'save_confirmation') $('saved-ready').checked = false;
-    if (stage === 'reboot') {
-      requestId = null;
-      $('screen-ready').checked = false;
-    }
-  }
-  $('wizard-review').hidden = !setup || stage !== 'review';
-  $('wizard-values').hidden = !setup || stage !== 'values';
-  $('wizard-save').hidden = !setup || stage !== 'save';
-  $('wizard-saved').hidden = !setup || stage !== 'save_confirmation';
-  if (setup) {
-    $('review-label').textContent =
-      'All ' +
-      lines +
-      ' source lines are present, the last source line is END, and I left the console in ' +
-      (setup.screen === 'editor' ? 'the editor.' : 'Direct mode.');
-    $('save-note').textContent =
-      setup.verification === 'passed'
-        ? 'All three parts match the entered readings. The next button enters SAVE “TXT:NS2” in Direct.'
-        : 'You skipped the optional check. The received source remains unverified. The next button enters SAVE “TXT:NS2” in Direct.';
-    $('save-note').textContent =
-      $('save-note').textContent.replaceAll('TXT:NS2', 'TXT:' + name) +
-      ' · SAVE "TXT:' +
-      name +
-      '",' +
-      sourceSlot;
-    const comparison = setup.comparison;
-    if (comparison && ['mismatch', 'save'].includes(stage)) {
-      $('wizard-results').hidden = false;
-      const fingerprint = JSON.stringify(comparison);
-      if (fingerprint !== resultStamp) {
-        resultStamp = fingerprint;
-        $('part-results').replaceChildren();
-        for (const part of comparison.parts) {
-          const box = element(
-            'div',
-            'part-result' + (part.matches ? '' : ' mismatch'),
-          );
-          box.append(
-            element(
-              'strong',
-              '',
-              `Part ${part.index} · lines ${part.first}-${part.last} · ${part.matches ? 'Matches' : 'Mismatch'}`,
-            ),
-            element(
-              'span',
-              '',
-              `Characters: ${part.actual.characters} / expected ${part.characters}`,
-            ),
-            element(
-              'span',
-              '',
-              `Checksum: ${part.actual.checksum} / expected ${part.checksum}`,
-            ),
-            element(
-              'span',
-              '',
-              `Text storage: ${part.actual.characters * 2} / expected ${part.utf16Bytes} bytes (UTF-16, derived)`,
-            ),
-          );
-          $('part-results').append(box);
-        }
-      }
-      $('edit-readings').hidden = stage !== 'mismatch';
-      $('restart-setup').hidden = stage !== 'mismatch';
-    }
-  }
-  const phases = ['prepare', 'typing', 'review', 'save', 'reboot', 'launch'],
-    phase = ['checking', 'values', 'mismatch'].includes(stage)
-      ? 'review'
-      : ['saving', 'save_confirmation'].includes(stage)
-        ? 'save'
-        : stage;
-  document.querySelectorAll('[data-phase]').forEach((e) => {
-    e.classList.toggle('current', e.dataset.phase === phase);
-    e.classList.toggle(
-      'done',
-      phases.indexOf(e.dataset.phase) < phases.indexOf(phase),
-    );
-  });
-  renderControls();
-  renderEngineInstall();
-}
+function renderWizard(){renderControls();}
 
 const networkName = (mode) => (mode === 'wifi' ? 'Wi-Fi' : 'LAN');
-async function changeConnection(id, mode, ip, modes) {
-  const result = await act('/api/connection', {
-    id,
-    ...(mode === undefined ? {} : { mode }),
-    ...(ip === undefined ? {} : { ip }),
-    ...(modes === undefined ? {} : { modes }),
-  });
-  if (result?.ok) {
-    $('screen-ready').checked = false;
-    requestId = null;
-    renderControls();
-  }
-}
-function renderConsoleConnections(card, preference, locked, supported) {
-  const modes = preference.modes || [preference.mode];
-  card.querySelectorAll('[data-transport]').forEach((label) => {
-    const selected = modes.includes(label.dataset.transport),
-      input = label.querySelector('input');
-    label.classList.toggle('selected', selected);
-    input.checked = selected;
-    input.dataset.unavailable = String(
-      !supported || (selected && modes.length === 1),
-    );
-    input.disabled = locked || input.dataset.unavailable === 'true';
-  });
-  const editor = card.querySelector('.address-editor');
-  if (!editor.dataset.dual) {
-    editor.dataset.dual = 'true';
-    const summary = element('summary');
-    editor.replaceChildren(summary);
-    for (const mode of ['lan', 'wifi']) {
-      const form = element('form', 'address-form console-address');
-      form.dataset.mode = mode;
-      const label = element('label', '', networkName(mode) + ' IP'),
-        input = element('input'),
-        apply = element('button', '', 'Apply'),
-        status = element('p', 'console-path');
-      input.type = 'text';
-      input.inputMode = 'decimal';
-      input.autocomplete = 'off';
-      input.placeholder = 'Automatic · optional address';
-      input.id = 'console-address-' + mode;
-      input.setAttribute(
-        'aria-label',
-        'Console ' + networkName(mode) + ' IP address',
-      );
-      label.htmlFor = input.id;
-      apply.type = 'submit';
-      const auto = element('button', 'quiet', 'Auto');
-      auto.type = 'button';
-      auto.onclick = () =>
-        changeConnection('lan', mode, '', state.connections.devices.lan.modes);
-      form.append(label, input, apply, auto, status);
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const pref = state.connections.devices.lan;
-        await changeConnection(
-          'lan',
-          mode,
-          input.value.trim(),
-          pref.modes || [pref.mode],
-        );
-      });
-      editor.append(form);
-    }
-    editor.append(element('p', 'hint', "Switch 2's address is confirmed when the console connects. You can also enter the address shown in its network settings."));
-  }
-  const active = preference.paths?.find(
-    (p) => p.ready && !p.pending && p.address && p.mode === preference.activeMode,
-  );
-  setText(editor.querySelector('summary'), active
-    ? networkName(active.mode) + ' · ' + active.address + ' · Edit'
-    : modes.map(networkName).join(' + ') + ' · Auto / manual');
-  for (const form of editor.querySelectorAll('form')) {
-    const mode = form.dataset.mode,
-      input = form.querySelector('input'),
-      path = preference.paths?.find((p) => p.mode === mode),
-      enabled = modes.includes(mode),
-      status = form.querySelector('.console-path'),
-      value =
-        preference.addresses[mode] ||
-        preference.candidates?.find((p) => p.mode === mode)?.address ||
-        '';
-    if (document.activeElement !== input) input.value = value;
-    const lastKnown=preference.lastKnownAddresses?.[mode];input.placeholder=lastKnown?'Auto · last known '+lastKnown.address:'Automatic · optional address';
-    form.querySelectorAll('input,button').forEach((e) => {
-      e.dataset.unavailable = String(!supported);
-      e.disabled = locked || !supported;
-    });
-    setText(status, !supported
-      ? 'Restart Platform to enable both connections'
-      : !enabled
-        ? 'Not selected'
-        : !path
-          ? (lastKnown?'Last known · '+lastKnown.address+' · not checked':'Not checked')
-          : path.pending
-            ? (path.automatic ? 'Automatic · waiting for Switch' : 'Route available · waiting for Switch')+(lastKnown?' · last known '+lastKnown.address:'')
-            : path.ready
-              ? (mode === preference.activeMode ? 'In use' : 'Available') +
-                (Number.isFinite(path.latencyMs)
-                  ? ' · ' + path.latencyMs.toFixed(2) + ' ms'
-                  : '')
-              : 'Unavailable');
-    status.title = (path?.error?globalThis.IZ2S_ERRORS.canonical(path.error):'') || (lastKnown?'Verified '+lastKnown.verifiedAt+'; current connection not confirmed':'');
-    status.classList.toggle('available', !!path?.ready && !path?.pending && enabled);
-    status.classList.toggle(
-      'active',
-      mode === preference.activeMode && !!path?.ready && !path?.pending,
-    );
-  }
-}
-function openDeviceSettings({tab,addresses=false,focus}={}) {
-  const panel=$('hardware-options');
-  panel.open=true;
-  if(tab)advSetup.select(tab);
-  if(addresses)$('hardware-addresses').open=true;
-  panel.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
-  (focus ? panel.querySelector(focus) : tab ? $('adv-tab-'+tab) : panel.querySelector('summary'))?.focus({preventScroll:true});
-}
-function renderInputAddresses(card, discovery, locked, switchKeyboard) {
-  let panel = card.querySelector('.input-address-choices');
-  const candidates = discovery?.ambiguous || discovery?.incomplete ? discovery.candidates || [] : [];
-  if (!candidates.length) { if (panel) panel.hidden = true; return; }
-  if (!panel) {
-    panel = element('form','input-address-choices');
-    const select = element('select');
-    select.setAttribute('aria-label', 'Detected addresses');
-    const apply = element('button','quiet','Use this address');
-    apply.type = 'submit';
-    select.onchange = () => { apply.disabled = select.disabled || !select.value; };
-    panel.append(select, apply);
-    card.append(panel);
-  }
-  panel.hidden = false;
-  const select = panel.querySelector('select');
-  const stamp = JSON.stringify(candidates);
-  if (select.dataset.stamp !== stamp) {
-    const selected = select.value;
-    select.dataset.stamp = stamp;
-    const placeholder = element('option','','Choose an address');
-    placeholder.value = '';
-    select.replaceChildren(placeholder, ...candidates.map(candidate => {
-      const option = element('option','',candidate.address);
-      option.value = candidate.address;
-      return option;
-    }));
-    if (candidates.some(candidate => candidate.address === selected)) select.value = selected;
-  }
-  select.disabled = locked;
-  panel.querySelector('button').disabled = locked || !select.value;
-  panel.onsubmit = async event => {
-    event.preventDefault();
-    const candidate = candidates.find(row => row.address === select.value);
-    if (!candidate || select.disabled) return;
-    const configurationId = switchKeyboard ? 'pc-switch1' : 'pc-cardputer-adv';
-    const profile = {...state.platform.profiles?.[configurationId], ...(switchKeyboard
-      ? {switchAddress:candidate.address,switchManualAddress:true} : {cardputerEndpoint:candidate.endpoint})};
-    const result = await act('/api/launch-settings', {configurationId, profile});
-    if (result?.ok) await act('/api/check', {});
-  };
-}
-function renderSwitchKeyboard(meta) {
-  const panel=$('switch-keyboard-setup');if(!panel)return;
-  panel.hidden=meta.configuration.inputAdapter!=='switch-wifi';if(panel.hidden)return;
-  const dbiCopySupported = meta.host?.platform === 'linux';
-  $('switch-keyboard-install').hidden = !dbiCopySupported;
-  $('switch-keyboard-download').classList.toggle('primary', !dbiCopySupported);
-  setText($('switch-keyboard-install-instructions'), dbiCopySupported
-    ? 'Connect Switch 1 to this PC and start DBI MTP Responder.'
-    : 'Download the SD package and extract the ZIP to the root of the Switch 1 SD card.');
-  setText($('switch-keyboard-wifi-instructions'), dbiCopySupported
-    ? 'Exit DBI. Hold R while launching a game, then open IZ2S SB4 Keyboard in the homebrew menu. Keep Switch 1 and this PC on the same Wi-Fi network.'
-    : 'Hold R while launching a game, then open IZ2S SB4 Keyboard in the homebrew menu. Keep Switch 1 and this PC on the same Wi-Fi network.');
-  const profile=meta.profiles?.[meta.configurationId]||{};
-  const field=$('switch-keyboard-address');
-  if(document.activeElement!==field&&!field.dataset.edited)field.value=profile.switchAddress||'';
-  const locked=busy||serverUnavailable||!!meta.locked||!!state.preview;
-  panel.querySelectorAll('input,button').forEach(item=>item.disabled=locked);
-  const input=state.checks?.items?.find(row=>row.id==='arm'),usb=state.checks?.items?.find(row=>row.id==='usb');
-  const ready = !serverUnavailable && input?.ready && usb?.ready;
-  setText($('switch-keyboard-address-hint'), meta.configuration.inputDiscovery?.paired
-    ? 'Leave the address empty to detect Switch 1 automatically. Pairing is saved during installation; keep IZ2S SB4 Keyboard open.'
-    : 'If automatic detection cannot verify Switch 1, enter the address shown on its screen.');
-  const message = serverUnavailable ? 'Device status is unavailable.'
-    : ready ? 'Switch 1 is ready for SB4 input.'
-    : advSetup.switchConfirmed && usb?.usb?.localHost !== 'this-pc'
-      ? 'Connection confirmed. Waiting for the USB host before typing.'
-    : usb?.detail || 'Waiting for USB connection.';
-  setFeedback('switch-keyboard-status', message, ready ? 'success' : 'info');
-}
-function renderArmSetup(meta) {
-  renderSwitchKeyboard(meta);
-  const panel = $('arm-setup');
-  panel.hidden = meta.configuration.inputAdapter !== 'ssh-gadget';
-  if (panel.hidden) return;
-  $('arm-manual-command').textContent='sudo python3 '+(meta.loaderId==='civswitch'?'iz2s-civ7-arm-input.run':'iz2s-arm-input.run');
-  const source = meta.profiles?.[meta.configurationId] || {};
-  const fields = { 'arm-setup-address': source.armAddress || meta.configuration.settings?.armAddress || '', 'arm-setup-user': source.armUser || 'root', 'arm-setup-key': source.sshIdentity || '' };
-  if(panel.dataset.configuration!==meta.configurationId){panel.dataset.configuration=meta.configurationId;panel.open=!state.checks.items.find(x=>x.id==='arm')?.ready;}
-  for(const [id,value] of Object.entries(fields)) if(document.activeElement!==$(id) && !$(id).dataset.edited) $(id).value=value;
-  const ready=state.checks.items.find(x=>x.id==='arm')?.ready;
-  $('arm-setup-status').textContent=ready?'Input device ready · setup guide remains available':'Install the input package before the first connection';
-  const locked=serverUnavailable||busy||!!meta.locked||!!state.preview;
-  panel.querySelectorAll('input,button').forEach(e=>{if(!['arm-method-ssh','arm-method-manual','arm-package-download'].includes(e.id))e.disabled=locked;});
-  $('arm-install-target').textContent='Target folder: '+(meta.configuration.inputDirectory||'/opt/iz2s/arm-input')+' · service: iz2s-discovery.service';
-  $('arm-install').disabled ||= !$('arm-install-confirm').checked;
-}
-function renderDeviceDetail(container, row) {
-  const detail = String(row.detail || 'Not checked');
-  if (!container.querySelector('.detail-text')) {
-    const text = element('span', 'detail-text');
-    const help = element('button', 'detail-help', '?');
-    help.type = 'button';
-    const tooltip = element('span', 'detail-tooltip');
-    tooltip.id = 'device-help-' + row.id;
-    tooltip.setAttribute('role', 'tooltip');
-    help.setAttribute('aria-describedby', tooltip.id);
-    help.setAttribute('aria-label', 'Connection details');
-    help.setAttribute('aria-expanded', 'false');
-    help.append(tooltip);
-    help.onclick = () => {
-      const open = help.getAttribute('aria-expanded') !== 'true';
-      document.querySelectorAll('.detail-help[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
-      help.setAttribute('aria-expanded', String(open));
-    };
-    container.replaceChildren(text, help);
-  }
-  const extended = detail.length > 70 || detail.includes('\n');
-  const first = detail.split(/\.(?:\s|$)|\n/)[0];
-  const connectionLost=row.id==='lan'&&globalThis.IZ2S_PRESENTATION.session(state).offline;
-  const civPending=row.id==='lan'&&row.pending&&['civswitch','civswitch-ldn','iz2sciv-core'].includes(state?.platform?.loaderId)&&!state.connected;
-  setText(container.querySelector('.detail-text'), row.coreLabel ? detail : connectionLost?'Connection lost. Restore the connection to manage applications.':civPending?(state.platform.loaderId==='civswitch-ldn'?'Waiting for the game loader after LDN delivery.':'Wireless lobby may pause LAN. The loader is checked after input.'):row.id === 'lan' && state?.connected ? 'Console connected' : row.id === 'lan' && row.pending ? (state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected' ? 'Console connected · preparing launcher' : state?.active ? 'Waiting for a Switch session.' : state?.checks?.ready === false ? 'Console network ready.' : 'Start the launcher below to connect Switch.') : extended
-    ? (first.length <= 55 ? first.replace(/[.;]$/, '') + '.' : row.pending ? 'Waiting for connection.' : row.ready ? 'Ready.' : 'Setup required.')
-    : detail);
-  container.querySelector('.detail-help').hidden = !extended;
-  setText(container.querySelector('.detail-tooltip'), detail);
-}
+
 document.addEventListener('click', event => {
   closeTransientMenus(event.target);
   if (!event.target.closest('.detail-help'))
@@ -1680,705 +992,25 @@ document.addEventListener('keydown', event => {
   (menu?.querySelector(':scope > summary') || help)?.focus({preventScroll:true});
   event.preventDefault();
 });
-function renderDevicePicker(card, row) {
-  if (!['server', 'arm'].includes(row.id)) return;
-  if(row.id==='server'){
-    setText(card.querySelector('h3'),state.platform.host?.architecture==='arm64'?'Server ARM64PC':'Server x64 PC');
-    return;
-  }
-  const meta = state.platform,
-    inputName = inputDesign === 'own' ? 'Your input device' : meta.configuration.inputAdapter === 'ssh-gadget' ? 'ARM PC' : meta.configuration.hardware?.input?.name || 'ARM PC',
-    canChange = !state.active && !busy && !serverUnavailable && !meta.locked,
-    choices = [
-      {id:'switch1', name:'Switch 1', note:'Wi-Fi → USB keyboard · SB4', available:canChange&&!['civswitch','civswitch-ldn','iz2sciv-core'].includes(meta.loaderId)},
-      {id:'arm', name:'ARM PC', note:'USB keyboard input', available:canChange},
-      {id:'cardputer', name:'Cardputer ADV', note:'Wi-Fi → USB keyboard', available:canChange},
-      ...(state.preview && meta.izModules ? [{id:'own', name:'Manual input · preview', note:'Interface demonstration only', available:canChange}] : []),
-    ];
-  let picker = card.querySelector('.device-picker');
-  if (!picker) {
-    picker = element('details', 'device-picker');
-    const summary = element('summary');
-    summary.setAttribute('aria-label', 'Choose an input device');
-    const label = element('span', 'device-picker-label'), chevron = element('span', 'device-picker-chevron', '⌄');
-    chevron.setAttribute('aria-hidden', 'true');
-    summary.append(label, chevron);
-    const options = element('div', 'device-picker-options menu-surface');
-    options.setAttribute('role', 'group');
-    options.setAttribute('aria-label', 'Input devices');
-    picker.append(summary, options);
-    card.querySelector('h3').after(picker);
-  }
-  card.querySelector('h3').hidden = true;
-  setText(picker.querySelector('.device-picker-label'), inputName);
-  const stamp = JSON.stringify([choices, inputDesign, meta.configurationId]);
-  if (picker.dataset.choices === stamp) return;
-  picker.dataset.choices = stamp;
-  const options = picker.querySelector('.device-picker-options');
-  options.replaceChildren();
-  for (const choice of choices) {
-    const button = element('button', 'device-picker-option');
-    button.type = 'button';
-    button.disabled = !choice.available;
-    button.setAttribute('aria-label', choice.name + ' · ' + choice.note);
-    const selected = choice.id === (inputDesign === 'own' ? 'own' : meta.configurationId === 'pc-cardputer-adv' ? 'cardputer' : meta.configurationId === 'pc-switch1' ? 'switch1' : 'arm');
-    button.setAttribute('aria-pressed', String(selected));
-    const text = element('span');
-    text.append(element('strong', '', choice.name), element('small', '', choice.note));
-    button.append(text, element('span', 'device-picker-mark', selected ? '✓' : ''));
-    button.onclick = async () => {
-      picker.open = false;
-      picker.querySelector('summary').focus();
-      if (choice.id !== 'own') {
-        inputDesign = 'arm';
-        const configurationId = choice.id === 'switch1' ? 'pc-switch1' : choice.id === 'cardputer' ? 'pc-cardputer-adv'
-          : meta.configuration.inputAdapter === 'ssh-gadget' ? meta.configurationId : 'pc-arm';
-        if (configurationId !== meta.configurationId && !(await act('/api/launch-settings', {configurationId}))?.ok) return;
-      } else inputDesign = choice.id;
-      manualDesignStage = 1;
-      manualDesignConfirmed.clear();
-      $('manual-fs-preview').checked = state.platform.loaderSettings?.fsRpcMode === true;
-      renderDevices();
-      renderControls();
-      if (choice.id !== 'own') openDeviceSettings({tab:choice.id==='cardputer'?1:undefined});
-    };
-    options.append(button);
-  }
-}
-function renderManualInputDesign() {
-  const meta = state?.platform;
-  if (!meta) return;
-  if (state.active || state.emergencyInputPending || !meta.izModules) inputDesign = 'arm';
-  const shown = inputDesign === 'own', wasShown = !$('manual-input-design').hidden;
-  $('manual-input-design').hidden = !shown;
-  if (shown) $('iz-flow').hidden = true;
-  else if (wasShown) {
-    $('iz-flow').hidden = !meta.izModules||['civswitch','civswitch-ldn','iz2sciv-core'].includes(meta.loaderId);
-    renderEngineInstall();
-  }
-  const arm = $('device-arm');
-  // One owner controls tile visibility in every render path, including the
-  // busy frame before Restore connection returns a new status snapshot.
-  renderDeviceTopology();
-  if (arm) {
-    arm.classList.toggle('manual-preview', shown);
-    let note = $('manual-device-description');
-    if (!note) {
-      note = element('p', 'manual-device-description', 'Your input method · Connection is not checked.');
-      note.id = 'manual-device-description';
-      arm.querySelector('.device-heading').append(note);
-    }
-    note.hidden = !shown;
-    const row = state.checks.items.find(item => item.id === 'arm');
-    if (row) renderDevicePicker(arm, row);
-  }
-  $('hardware-options').hidden = shown || ['civswitch-ldn','iz2sciv-core'].includes(meta.loaderId);
-  if (!shown) return;
-  $('arm-setup').hidden = true;
-  $('cardputer-setup').hidden = true;
-  $('engine-install').hidden = true;
-  $('installation-options').hidden = true;
-  $('recheck').disabled = true;
-  document.querySelectorAll('.transport-choice input,.transport-choice button,.address-form input,.address-form select,.address-form button,.detected-peer')
-    .forEach(control => { control.disabled = true; });
-  document.querySelectorAll('[data-variant],[data-loader]').forEach(button => { button.disabled = true; });
-  const withFiles = $('manual-fs-preview').checked, total = withFiles ? 7 : 6;
-  document.querySelector('.manual-design-steps').style.setProperty('--manual-step-count', total);
-  if (manualDesignStage > total) manualDesignStage = total;
-  $('manual-files-step').hidden = !withFiles;
-  const stages = {
-    1: ['Preparation', 'This previews the manual input interface. Buttons only change the preview stage.'],
-    2: ['Confirm manual input', 'The panel does not read or verify the entered data.', 'I checked that the manually entered data is correct.'],
-    3: ['Verification', 'Follow the selected engine instructions to verify the result yourself.'],
-    4: ['Confirm save', 'This switch records your confirmation in the preview.', 'I checked that the data was saved correctly.'],
-    5: ['Continue', 'The next preview stage. No commands are sent to the device.'],
-    6: ['Confirm result', 'You verify the result. This preview cannot confirm the device state.', 'I checked the result and it is correct.'],
-    7: ['Filesystem', 'Open an empty file manager preview in another tab. Device connections and file reads are disabled.'],
-  };
-  const [title, description, confirmation] = stages[manualDesignStage];
-  setText($('manual-stage-counter'), 'STAGE ' + manualDesignStage + ' / ' + total);
-  setText($('manual-stage-title'), title);
-  setText($('manual-stage-description'), description);
-  $('manual-confirm-row').hidden = !confirmation;
-  setText($('manual-confirm-label'), confirmation || '');
-  $('manual-stage-confirm').checked = manualDesignConfirmed.has(manualDesignStage);
-  $('manual-next').disabled = !!confirmation && !manualDesignConfirmed.has(manualDesignStage);
-  $('manual-next').hidden = manualDesignStage === 7;
-  $('manual-files-link').hidden = manualDesignStage !== 7;
-  setText($('manual-next'), manualDesignStage === total ? 'Return to the beginning' : 'Next stage');
-  setText($('manual-engine-folder'), meta.loaders.find(loader => loader.id === meta.loaderId)?.folder || 'Find this path in Files → Engine.');
-  document.querySelectorAll('[data-manual-stage]').forEach(button => {
-    const selected = Number(button.dataset.manualStage) === manualDesignStage;
-    button.classList.toggle('selected', selected);
-    if (selected) button.setAttribute('aria-current', 'step');
-    else button.removeAttribute('aria-current');
-  });
-}
+
 document.querySelectorAll('[data-manual-stage]').forEach(button => {
-  button.onclick = () => { manualDesignStage = Number(button.dataset.manualStage); renderManualInputDesign(); };
+  button.onclick = () => { manualDesignStage = Number(button.dataset.manualStage); ; };
 });
-$('manual-fs-preview').onchange = renderManualInputDesign;
-$('manual-stage-confirm').onchange = () => {
-  if ($('manual-stage-confirm').checked) manualDesignConfirmed.add(manualDesignStage);
-  else manualDesignConfirmed.delete(manualDesignStage);
-  renderManualInputDesign();
-};
-$('manual-next').onclick = () => {
-  if (inputDesign !== 'own' || state?.active || state?.emergencyInputPending || $('manual-next').disabled) return;
-  if (manualDesignStage !== 7) { manualDesignStage = manualDesignStage === 6 ? ($('manual-fs-preview').checked ? 7 : 1) : manualDesignStage + 1; renderManualInputDesign(); }
-};
-$('manual-exit').onclick = () => { inputDesign = 'arm'; renderDevices(); renderControls(); };
-function retainDeviceControls(rows=state.checks.items){
-  for(const card of $('devices').children||[]){card.classList.remove('civ-run-console');card.classList.remove('awaiting-loader');}
-  for(const prefix of ['civ','ldn']){const endpoint=$(prefix+'-run-endpoint'),home=$(prefix+'-run-connection'),selected=state.platform?.loaderId==='civswitch-ldn'?'ldn':state.platform?.loaderId==='civswitch'?'civ':'';if(endpoint&&home&&$('devices').contains(endpoint)&&(prefix!==selected||!state.checks.items.some(row=>row.id==='lan')))home.append(endpoint);}
-  const confirmation=$('adv-usb-next'),devices=$('devices');
-  // This shared control lives in the USB tile while it exists. Keep it alive
-  // when changing to a game that has no USB tile.
-  if(confirmation&&devices.contains(confirmation)&&!rows.some(row=>row.id==='usb'))devices.after(confirmation);
-}
-function renderDeviceConnections(){
- const devices=$('devices');if(!devices)return;
- devices.classList.add('network-topology');
- const cards=[...devices.children].filter(card=>!card.hidden&&card.offsetWidth>0).map(card=>({x:card.offsetLeft,y:card.offsetTop,width:card.offsetWidth,height:card.offsetHeight,tone:card.classList.contains('connection-lost')?'lost':card.classList.contains('ready')&&!card.classList.contains('pending')?'ready':'waiting'}));
- const width=devices.clientWidth,height=Math.max(0,...cards.map(card=>card.y+card.height)),links=globalThis.IZ2S_PRESENTATION.deviceLinks(cards);
- const stamp=JSON.stringify([width,height,links]);if(devices.dataset.connections===stamp)return;devices.dataset.connections=stamp;
- const colors={ready:'#8bd0ff',waiting:'#d6b05a',lost:'#ef9494'};
- const content=links.map(link=>{const color=colors[link.tone];return `<path d="${link.d}" fill="none" stroke="${color}" stroke-opacity=".55"/><circle cx="${link.x}" cy="${link.y}" r="5" fill="#171d19" stroke="${color}" stroke-opacity=".5"/><circle cx="${link.x}" cy="${link.y}" r="2.5" fill="${color}"/>`;}).join('');
- const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${content}</svg>`;
- devices.style.setProperty('--network-paths',links.length?`url("data:image/svg+xml,${encodeURIComponent(svg)}")`:'none');
-}
+;
+;
+;
+;
+
 // Change the topology only at the handoff from input hardware to networking.
 // Repeated status polls keep the same DOM and never replay this transition.
-function renderDeviceTopology(){
- const devices=$('devices'),direct=!!coreView.current()?.session||globalThis.IZ2S_PRESENTATION.directNetwork(state),mode=direct?'direct':'input';
- const changed=devices.dataset.topology!==mode,previous=devices.dataset.topology;
- const animate=changed&&previous&&devices.getBoundingClientRect().height>0&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
- const before=animate?devices.getBoundingClientRect():null,positions=new Map();
- if(animate)for(const card of devices.children)if(!card.hidden)positions.set(card.id,card.getBoundingClientRect());
- if(changed){devices.getAnimations().forEach(animation=>animation.cancel());for(const card of devices.children)card.getAnimations().forEach(animation=>animation.cancel());}
- devices.classList.toggle('direct-network',direct);
- for(const id of ['arm','usb']){const card=$('device-'+id);if(!card)continue;const hidden=direct||id==='usb'&&inputDesign==='own';if(hidden&&card.contains(document.activeElement))$('recheck').focus({preventScroll:true});card.hidden=hidden;}
- devices.style.setProperty('--device-count',[...devices.children].filter(card=>!card.hidden).length);
- devices.dataset.topology=mode;
- if(!renderDeviceTopology.observer&&typeof ResizeObserver==='function'){renderDeviceTopology.observer=new ResizeObserver(renderDeviceConnections);renderDeviceTopology.observer.observe(devices);}
- if(!animate){renderDeviceConnections();return;}
- const after=devices.getBoundingClientRect(),timing={duration:280,easing:'cubic-bezier(.2,.75,.25,1)'};
- devices.animate([{height:before.height+'px'},{height:after.height+'px'}],timing);
- for(const card of devices.children){if(card.hidden)continue;const old=positions.get(card.id),next=card.getBoundingClientRect();
-  card.animate(old?[{transformOrigin:'top left',transform:`translate(${old.x-next.x}px,${old.y-next.y}px) scale(${old.width/next.width},${old.height/next.height})`,opacity:.75},{transformOrigin:'top left',transform:'none',opacity:1}]:[{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],timing);
- }
- renderDeviceConnections();
-}
-function renderDevices() {
-  const core = coreView.current();
-  const rows = (state.platform?.loaderId === 'civswitch-ldn'
-    ? state.checks.items.filter(row => ['server', 'lan', 'ldn'].includes(row.id))
-    : state.checks.items).map(row => globalThis.IZ2S_CORE.deviceRow(row, core));
-  retainDeviceControls(rows);
-  const config = state.connections;
-  $('devices').classList.toggle('ldn-devices',state.platform?.loaderId==='civswitch-ldn');
-  for(const card of [...$('devices').children])if(!rows.some(row=>card.id==='device-'+row.id))card.remove();
-  $('devices').style.setProperty('--device-count',rows.length);
-  for (const [index, row] of rows.entries()) {
-    const deviceInfo = words[row.id] || [row.label || 'Device', document.getElementById(row.icon)?.tagName.toLowerCase() === 'symbol' ? row.icon : 'i-server'];
-    let card = $('device-' + row.id);
-    const preference = config?.devices?.[row.id];
-    if (!card) {
-      card = element('article', 'device');
-      card.id = 'device-' + row.id;
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
-        use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-      use.setAttribute('href', '#' + deviceInfo[1]);
-      svg.setAttribute('aria-hidden', 'true');
-      svg.append(use);
-      const heading = element('div', 'device-heading');
-      heading.append(
-        svg,
-        element('span', 'state'),
-        element('h3', '', deviceInfo[0]),
-        element('p', 'device-detail'),
-        element('p', 'device-ping'),
-      );
-      card.append(heading);
-      if (row.id !== 'usb') {
-        const group = element('div', 'transport-choice');
-        group.setAttribute('role', 'group');
-        group.setAttribute(
-          'aria-label',
-          deviceInfo[0] + ' network connection',
-        );
-        for (const mode of ['lan', 'wifi']) {
-          const button = element(
-            ['lan', 'server'].includes(row.id) ? 'label' : 'button',
-            'transport-option',
-          );
-          button.dataset.transport = mode;
-          button.title = networkName(mode);
-          if (['lan', 'server'].includes(row.id)) {
-            const input = element('input');
-            input.type = 'checkbox';
-            input.setAttribute(
-              'aria-label',
-              row.id === 'lan' ? 'Enable console ' + networkName(mode) : 'PC · ' + networkName(mode),
-            );
-            input.addEventListener('change', () => {
-              const current = state.connections.devices[row.id].modes || [
-                  state.connections.devices[row.id].mode,
-                ],
-                modes = input.checked
-                  ? [...new Set([...current, mode])]
-                  : current.filter((m) => m !== mode);
-              if (!modes.length) {
-                input.checked = true;
-                return;
-              }
-              changeConnection(row.id, undefined, undefined, modes);
-            });
-            button.append(input, element('span', 'transport-tick', '✓'));
-          } else {
-            button.type = 'button';
-            button.setAttribute('aria-label', networkName(mode));
-            button.addEventListener('click', () =>
-              changeConnection(row.id, mode),
-            );
-          }
-          const icon = document.createElementNS(
-              'http://www.w3.org/2000/svg',
-              'svg',
-            ),
-            symbol = document.createElementNS(
-              'http://www.w3.org/2000/svg',
-              'use',
-            );
-          symbol.setAttribute('href', mode === 'wifi' ? '#i-wifi' : '#i-lan');
-          icon.setAttribute('aria-hidden', 'true');
-          icon.append(symbol);
-          button.append(icon);
-          group.append(button);
-        }
-        const editor = element('details', 'address-editor'),
-          summary = element('summary'),
-          form = element('form', 'address-form'),
-          label = element(
-            'label',
-            '',
-            row.id === 'server' ? 'Listen on this PC' : 'Device IP address',
-          );
-        const input = element(row.id === 'server' ? 'select' : 'input');
-        input.id = 'address-' + row.id;
-        input.setAttribute('aria-label', deviceInfo[0] + ' IP address');
-        if (row.id !== 'server') {
-          input.type = 'text';
-          input.inputMode = 'decimal';
-          input.autocomplete = 'off';
-          input.placeholder = 'Automatic · or enter IP';
-          const list = element('datalist');
-          list.id = 'addresses-' + row.id;
-          input.setAttribute('list', list.id);
-          form.append(list);
-        }
-        const apply = element('button', '', 'Apply');
-        apply.type = 'submit';
-        label.htmlFor = input.id;
-        const automatic = element('button', 'quiet', 'Auto');
-        automatic.type = 'button';
-        automatic.onclick = () =>
-          act('/api/connection', {
-            id: row.id,
-            mode: state.connections.devices[row.id].mode,
-            automatic: true,
-          });
-        form.append(label, input, apply, automatic);
-        form.addEventListener('submit', async (event) => {
-          event.preventDefault();
-          const pref = state.connections?.devices[row.id];
-          if (!pref) return;
-          const mode = input.selectedOptions?.[0]?.dataset.mode || pref.mode;
-          const address = input.selectedOptions?.[0]?.dataset.address ?? input.value;
-          await changeConnection(row.id, mode, address.trim());
-        });
-        const suggestions = element('div', 'detected-peers');
-        editor.append(summary, suggestions, form);
-        card.append(group, editor);
-      } else {
-        const fixed = element('div', 'fixed-transport');
-        fixed.title = 'USB · direct cable';
-        fixed.setAttribute('aria-label', 'USB · direct cable');
-        const usb = svg.cloneNode(true);
-        fixed.append(usb);
-        card.append(fixed);
-      }
-    }
-    placeChild($('devices'), card, index);
-    setText(card.querySelector('h3'), row.label || deviceInfo[0]);
-    renderDevicePicker(card, row);
-    const connectionLost=row.id==='lan'&&globalThis.IZ2S_PRESENTATION.session(state).offline;
-    const setupPending = !row.ready && row.status === 'setup';
-    const waiting = !row.ready && (row.pending || row.status === 'waiting' || !state.checks.at && !state.preview);
-    const pending = (setupPending || waiting || row.pending) && !connectionLost && !(row.id === 'lan' && state.connected);
-    card.classList.toggle('connection-lost',connectionLost);
-    card.classList.toggle('ready', row.ready&&!connectionLost);
-    card.classList.toggle('pending', !!pending);
-    setText(card.querySelector('.state'), row.coreLabel|| (connectionLost?'CONNECTION LOST':row.id === 'lan' && state?.connected ? '✓ READY' : row.ready
-      ? row.pending
-        ? (row.id === 'lan' && state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected' ? 'INITIALIZING' : row.id === 'lan' && !state?.active ? (state.checks.ready ? 'START SESSION' : 'NETWORK READY') : 'WAITING')
-        : '✓ READY'
-      : setupPending
-        ? 'SETUP NEEDED'
-      : state.preview
-        ? 'PREVIEW'
-        : waiting ? '○ WAITING' : 'CHECK FAILED'));
-    if(row.id==='usb'){
-      const confirmable = ['cardputer-wifi','switch-wifi'].includes(state.platform?.configuration?.inputAdapter);
-      const connection=card.querySelector('.fixed-transport');
-      connection.classList.toggle('usb-connection-actions',confirmable);
-      if(confirmable&&$('adv-usb-next').parentElement!==connection)connection.append($('adv-usb-next'));
-    }
-    const detailRow = row.coreLabel ? row : row.id === 'usb' && state.platform?.configuration?.inputAdapter === 'cardputer-wifi'
-      ? {...row, detail: globalThis.IZ2S_ADV_SETUP.usbDescription(state.checks.items.find(item => item.id === 'arm'), row)}
-      : row;
-    renderDeviceDetail(card.querySelector('.device-detail'), detailRow);
-    let settingsButton=card.querySelector('.device-setup-button');
-    const adv=state.platform?.configuration?.inputAdapter==='cardputer-wifi';
-    const configurable=row.id==='arm'&&inputDesign!=='own'||row.id==='usb'&&(adv||state.platform.configuration.inputAdapter==='switch-wifi');
-    if(configurable&&!settingsButton){
-      settingsButton=element('button','device-setup-button quiet');settingsButton.type='button';
-      settingsButton.onclick=()=>openDeviceSettings({tab:state.platform.configuration.inputAdapter==='cardputer-wifi'?(row.id==='usb'?3:1):undefined});
-      card.append(settingsButton);
-    }
-    if(settingsButton){
-      settingsButton.hidden=!configurable;
-      settingsButton.textContent=row.id==='usb'?'USB settings':adv?'Setup and firmware':'Device setup';
-      settingsButton.disabled=serverUnavailable;
-    }
-    const ping = card.querySelector('.device-ping');
-    ping.hidden = !Number.isFinite(row.latencyMs);
-    setText(ping, Number.isFinite(row.latencyMs)
-      ? 'Last ping · ' + row.latencyMs.toFixed(2) + ' ms'
-      : '\u00a0');
-    const transport=card.querySelector('.transport-choice');
-    if(transport){
-      transport.hidden=row.id==='ldn';
-      for(const option of transport.children)option.hidden=option.classList.contains('ldn-transport');
-    }
-    if(state.platform.loaderId==='civswitch-ldn'){
-      if(transport){
-        let badge=transport.querySelector('.ldn-transport');
-        if(!badge){badge=element('span','ldn-transport');badge.append(transport.querySelector('[data-transport="wifi"] svg').cloneNode(true),element('span','','Wi-Fi · LDN'));transport.append(badge);}
-        for(const option of transport.children)option.hidden=option!==badge;
-      }
-      const editor=card.querySelector('.address-editor');if(editor)editor.hidden=true;continue;
-    }
-    if (preference) {
-      const locked = busy || !!config.locked || !!state.preview || !!core?.owned;
-      const switchKeyboard=state.platform.configuration.inputAdapter==='switch-wifi';
-      const cardputer = row.id === 'arm' && ['cardputer-wifi','switch-wifi'].includes(state.platform.configuration.inputAdapter);
-      const addressEditor = card.querySelector('.address-editor');
-      addressEditor.hidden = cardputer;
-      let cardputerAddress = card.querySelector('.cardputer-address');
-      if (cardputer && !cardputerAddress) {
-        cardputerAddress = element('button', 'cardputer-address quiet');
-        cardputerAddress.type = 'button';
-        cardputerAddress.onclick = () => {
-          openDeviceSettings(state.platform.configuration.inputAdapter==='switch-wifi'?{focus:'#switch-keyboard-address'}:{addresses:true,focus:'[name="cardputerEndpoint"]'});
-        };
-        card.append(cardputerAddress);
-      }
-      if (cardputerAddress) cardputerAddress.hidden = !cardputer;
-      if (!cardputer) {
-        const picker = card.querySelector('.input-address-choices');
-        if (picker) picker.hidden = true;
-      }
-      card.querySelectorAll('[data-transport]').forEach(button => { button.hidden = cardputer && button.dataset.transport !== 'wifi'; button.dataset.fixed = String(cardputer); });
-      if (cardputer) {
-        const wifi = card.querySelector('[data-transport="wifi"]');
-        wifi.classList.add('selected');
-        wifi.setAttribute('aria-pressed', 'true');
-        wifi.disabled = true;
-        const settings = state.platform.profiles?.[state.platform.configurationId] || {};
-        const detected=state.platform.configuration.inputDiscovery?.address;
-        const configuredAddress=switchKeyboard?(settings.switchAddress||'Switch 1 Wi-Fi'):(settings.cardputerEndpoint || 'http://iz2s-adv.local');
-        const displayed=detected&&!configuredAddress.includes(detected)?configuredAddress+' → '+detected:configuredAddress;
-        setText(cardputerAddress, displayed + ' · Edit');
-        cardputerAddress.disabled = locked;
-        renderInputAddresses(card, state.platform.configuration.inputDiscovery, locked, switchKeyboard);
-        continue;
-      }
-      if (row.id === 'lan') {
-        renderConsoleConnections(
-          card,
-          preference,
-          locked,
-          config.dualConsoleSupported,
-        );
-        card
-          .querySelector('.device-heading use')
-          .setAttribute(
-            'href',
-            '#' +
-              (preference.activeMode === 'wifi' ||
-              (preference.modes?.length !== 2 && preference.mode === 'wifi')
-                ? 'i-wifi'
-                : 'i-lan'),
-          );
-        continue;
-      }
-      card.querySelectorAll('[data-transport]').forEach((button) => {
-        const enabled = preference.modes || [preference.mode];
-        const selected = enabled.includes(button.dataset.transport);
-        button.classList.toggle('selected', selected);
-        const input = button.querySelector('input');
-        if (input) {
-          input.checked = selected;
-          input.dataset.unavailable = String(selected && enabled.length === 1);
-          input.disabled = locked || input.dataset.unavailable === 'true';
-        } else {
-          button.setAttribute('aria-pressed', String(selected));
-          button.disabled = locked;
-        }
-      });
-      const icon =
-        row.id === 'lan'
-          ? preference.mode === 'wifi'
-            ? 'i-wifi'
-            : 'i-lan'
-          : deviceInfo[1];
-      card.querySelector('use').setAttribute('href', '#' + icon);
-      const editor = card.querySelector('.address-editor'),
-        input = $('address-' + row.id);
-      const dualServer = row.id === 'server' && preference.modes?.length === 2;
-      setText(editor.querySelector('summary'), row.id === 'server' && preference.needsChoice ? 'Choose a network adapter' : dualServer
-        ? preference.paths.map(({mode, address}) => networkName(mode) + (address ? ' · ' + address : '')).join(' / ')
-        : preference.address
-        ? (preference.automatic ? 'Auto · ' : '') +
-          preference.address +
-          ' · Edit'
-        : 'Auto / manual · ' + networkName(preference.mode));
-      if (document.activeElement !== input) {
-        if (row.id === 'server') {
-          const enabledModes = preference.modes || [preference.mode];
-          const options = preference.options.flatMap(item => (item.mode === 'unknown' ? enabledModes
-            : enabledModes.filter(mode => mode === item.mode)).map(mode => ({...item, selectionMode:mode}))),
-            stamp = JSON.stringify([
-              options,
-              preference.address,
-              preference.automatic,
-            ]);
-          if (input.dataset.stamp !== stamp) {
-            input.dataset.stamp = stamp;
-            input.replaceChildren();
-            const automatic = element('option', '', 'Automatic');
-            automatic.value = '';
-            input.append(automatic);
-            if (
-              preference.address &&
-              !options.some((o) => o.address === preference.address && o.selectionMode === preference.mode)
-            ) {
-              const option = element(
-                'option',
-                '',
-                preference.address ||
-                  'No active ' + networkName(preference.mode) + ' adapter',
-              );
-              option.value = preference.mode + '@' + preference.address;
-              option.dataset.mode = preference.mode;
-              option.dataset.address = preference.address;
-              input.append(option);
-            }
-            for (const item of options) {
-              const option = element(
-                'option',
-                '',
-                item.address + ' · ' + item.name + ' · ' + (item.mode === 'unknown'
-                  ? (item.selectionMode === 'wifi' ? 'Use as Wi-Fi' : 'Use as LAN') : networkName(item.mode)),
-              );
-              option.value = item.selectionMode + '@' + item.address;
-              option.dataset.mode = item.selectionMode;
-              option.dataset.address = item.address;
-              input.append(option);
-            }
-            input.value = preference.automatic ? '' : preference.mode + '@' + preference.address;
-          }
-        } else if (input.dataset.mode !== preference.mode || !editor.open)
-          input.value = preference.address;
-        input.dataset.mode = preference.mode;
-      }
-      if (row.id !== 'server') {
-        const list = $('addresses-' + row.id),
-          stamp = JSON.stringify(preference.options);
-        if (list.dataset.stamp !== stamp) {
-          list.dataset.stamp = stamp;
-          list.replaceChildren();
-          for (const item of preference.options) {
-            const option = element('option');
-            option.value = item.address;
-            option.label = item.name || item.address;
-            list.append(option);
-          }
-        }
-      }
-      const suggestions = editor.querySelector('.detected-peers'),
-        choices =
-          row.id === 'server'
-            ? []
-            : preference.options.filter(
-                (p) => p.address !== state.connections.devices.server.address,
-              ),
-        choiceStamp = JSON.stringify([preference.mode, choices]);
-      if (suggestions.dataset.stamp !== choiceStamp) {
-        suggestions.dataset.stamp = choiceStamp;
-        suggestions.replaceChildren();
-        if (choices.length) {
-          suggestions.append(
-            element('span', '', 'Detected input devices'),
-          );
-          for (const item of choices.slice(0, 5)) {
-            const choose = element(
-              'button',
-              'detected-peer',
-              (item.name ? item.name + ' · ' : '') + item.address +
-                (['lan','wifi'].includes(item.mode) ? ' · ' + networkName(item.mode) : ''),
-            );
-            choose.type = 'button';
-            choose.addEventListener('click', () =>
-              changeConnection(
-                row.id,
-                ['lan','wifi'].includes(item.mode) ? item.mode : state.connections.devices[row.id].mode,
-                item.address,
-              ),
-            );
-            suggestions.append(choose);
-          }
-        }
-      }
-      input.disabled = locked;
-      editor
-        .querySelectorAll('button')
-        .forEach((button) => (button.disabled = locked));
-    } else if (row.id !== 'usb') {
-      if(row.id==='ldn'){
-        card.querySelector('.transport-choice').hidden=true;
-        card.querySelector('.address-editor').hidden=true;
-      }
-      card
-        .querySelectorAll('button,input,select')
-        .forEach((e) => (e.disabled = true));
-    }
-  }
-  // Give every endpoint the same header / connection / settings rows.
-  for(const card of $('devices').children){
-    const heading=card.querySelector('.device-heading'),connection=card.querySelector('.transport-choice,.fixed-transport');
-    let controls=card.querySelector('.device-controls');
-    if(!controls){controls=element('div','device-controls');card.append(controls);}
-    for(const node of [...card.children])if(node!==heading&&node!==connection&&node!==controls)controls.append(node);
-    const editor=card.querySelector('.address-editor');
-    if(editor&&!editor.querySelector('.address-popover')){
-      const content=element('div','address-popover menu-surface');
-      for(const node of [...editor.children])if(node.tagName!=='SUMMARY')content.append(node);
-      editor.append(content);
-    }
 
-  }
-  advSetup.renderUsbTile(state);
-  const consoleState = state.consoleState,
-    known = state.connected && consoleState && !consoleState.stale;
-  const modeLine = $('console-mode-state');
-  modeLine.hidden = !known;
-  if (known) {
-    const mode =
-        consoleState.mode === 'docked'
-          ? 'TV mode'
-          : consoleState.mode === 'handheld'
-            ? 'Portable mode'
-            : 'Output mode unknown',
-      network =
-        consoleState.network.type === 'ethernet'
-          ? 'Ethernet'
-          : consoleState.network.type === 'wifi'
-            ? 'Wi-Fi'
-            : 'network unknown',
-      display = consoleState.display;
-    modeLine.textContent =
-      mode +
-      ' · ' +
-      display.width +
-      ' × ' +
-      display.height +
-      ' · ' +
-      network +
-      (consoleState.network.connected ? '' : ' (disconnected)') +
-      (consoleState.warning ? ' · Ethernet is not connected.' : '');
-    modeLine.classList.toggle('warning', !!consoleState.warning);
-  }
-
-}
-
-function residentEligibility(pkg) {
-  return state?.platform?.residentFiniteAudio ? pkg?.residentAudio : pkg?.resident;
-}
 function selectedShellName() {
   const id=['civswitch','civswitch-ldn','iz2sciv-core'].includes(state?.platform?.loaderId)?state.civLauncher?.shell||'izlauncher':state?.platform?.variant;
   return id==='original'?'Core only':state?.platform?.shells?.find(shell=>shell.id===id)?.name||(id==='izpslauncher'?'IZPSlauncher':'IZ2S');
 }
 
-function renderStartupModules() {
-  syncStartupChoices();
-  const resident=state.platform?.residentGraphics===true&&['izlauncher'].includes(state.platform?.variant);
-  const stamp = JSON.stringify(
-    [resident,state.moduleErrors,state.platform?.sdLauncher,state.platform?.residentFiniteAudio,state.library.map((p) => [p.id, p.name, p.version, p.icon, p.supported,p.resident,p.residentAudio,p.session])],
-  );
-  if (stamp === startupStamp) return;
-  startupStamp = stamp;
-  const valid = new Set(state.library.filter(p => p.supported !== false&&p.session?.compatible!==false).map(p => p.id));
-  for (const id of startupSelection)
-    if (!valid.has(id)) startupSelection.delete(id);
-  $('preload-list').replaceChildren();
-  if(!state.library.length)$('preload-list').append(element('p','hint',state.moduleErrors?.length?'Could not read the modules. Open App library for details.':'No modules installed. Open App library to add applications.'));
-  for (const pkg of state.library) {
-    const eligibility=residentEligibility(pkg);
-    const label = element('label', 'preload-item'),
-      input = element('input'),
-      image = element('img'),
-      text = element('span');
-    input.type = 'checkbox';
-    input.checked = startupSelection.has(pkg.id);
-    input.dataset.unavailable = String(pkg.supported === false);
-    input.dataset.residentUnavailable=String(resident&&eligibility?.compatible!==true);
-    input.disabled = pkg.supported === false || pkg.session?.compatible===false || (resident&&eligibility?.compatible!==true&&!input.checked);
-    if(pkg.session?.compatible===false)input.dataset.unavailable='true';
-    if(resident&&eligibility?.compatible!==true)label.title=eligibility?.userReason||'Restart the panel to check compatibility.';
-    input.setAttribute('aria-label', 'Load ' + pkg.name + ' at startup');
-    input.addEventListener('change', () => {
-      input.checked
-        ? startupSelection.add(pkg.id)
-        : startupSelection.delete(pkg.id);
-      saveStartup();
-      renderControls();
-    });
-    image.src = pkg.icon;
-    image.alt = '';
-    text.append(
-      element('strong', 'app-name', pkg.name),
-      element('small', '', pkg.version),
-    );
-    if(pkg.session?.compatible===false)text.append(element('small','',pkg.session.reason||'Unavailable for this game'));
-    else if(resident)text.append(element('small','',eligibility?.userReason||'Compatibility has not been checked.'));
-    label.append(input, image, text);
-    $('preload-list').append(label);
-  }
-}
-$('preload-enabled').addEventListener('change', () => {
-  saveStartup();
-  renderControls();
-});
-$('preload-clear').addEventListener('click', () => {
-  startupSelection.clear();
-  document
-    .querySelectorAll('#preload-list input')
-    .forEach((e) => (e.checked = false));
-  saveStartup();
-  renderControls();
-});
+;
+;
 let libraryContext=null;
 let shownBlitBunWindowRequest;
 let blitBunTab;
@@ -2563,7 +1195,7 @@ function renderConsoleApps(){
     const known=state.library?.find(p=>p.id===row.id);
     return {id:row.id,name:known?.name||row.name||row.id,icon:known?.icon||'/icon.svg',sd:true,format:row.format||'.iza'};
   }):globalThis.IZ2S_PRESENTATION.consoleApps(state);
-  box.hidden=!apps.length;
+  box.hidden=!apps.length||serverUnavailable||!!state?.preview||!core?.session;
   const stamp=JSON.stringify(apps);if(list.dataset.stamp===stamp)return;list.dataset.stamp=stamp;list.replaceChildren();
   for(const app of apps){
     const item=element('button','console-app'),img=element('img'),copy=element('span','console-app-copy'),name=element('strong','app-name',app.name),places=element('span','console-app-places');
@@ -3011,88 +1643,13 @@ function appendProblem(container,message){
   container.append(box);
 }
 const sessionActionHomes=new Map();
-function placeSessionActions(view){
- const civ=state.platform?.loaderId,selected=civ==='civswitch-ldn'?'ldn-stop':civ==='civswitch'?'civ-stop':'stop';
- const target=$('session-summary-session-actions');
- for(const id of ['stop','restore-connection','civ-stop','ldn-stop']){
-  const button=$(id);if(!button||!target)continue;
-  const show=view.compact&&(id===selected||id==='restore-connection'&&selected==='stop');
-  if(show){if(!sessionActionHomes.has(id))sessionActionHomes.set(id,{parent:button.parentElement,next:button.nextSibling});if(button.parentElement!==target)target.append(button);}
-  else {const home=sessionActionHomes.get(id);if(home?.parent&&button.parentElement!==home.parent){if(home.next?.parentElement===home.parent)home.parent.insertBefore(button,home.next);else home.parent.append(button);}}
- }
-}
+
 let configurationOpen=false,libraryBatch=false,historyLimit=10;
 function renderSessionPresentation(){
- const core=coreView.current(),coreSession=!!core?.session&&state?.platform?.loaderId!=='iz2sciv-core';
- const view=coreSession
-  ? {compact:true,running:!!core.pcLink?.online,offline:false,stopping:false,unconfirmed:false,
-    title:core.pcLink?.online?'Switch 2 connected':coreText('waitingLauncher'),game:'IZ2S core',launcher:'IZ2S'}
-  : globalThis.IZ2S_PRESENTATION.session(state);
- const setup=$('setup');
- setup.classList.toggle('session-compact',view.compact);
- setup.classList.toggle('session-offline',view.offline||view.unconfirmed);
- setup.classList.toggle('session-configuration-open',configurationOpen);
- if(view.offline){$('mode').textContent='Connection interrupted';$('mode').dataset.state='offline';}
- const consoleCard=$('device-lan');if(view.offline&&consoleCard){consoleCard.classList.remove('ready','pending');consoleCard.classList.add('connection-lost');setText(consoleCard.querySelector('.state'),'CONNECTION LOST');setText(consoleCard.querySelector('.detail-text')||consoleCard.querySelector('.device-detail'),['civswitch','civswitch-ldn','iz2sciv-core'].includes(state.platform?.loaderId)?'Connection lost. Stop this session, restart Civilization VII and open Load Game.':'Connection lost. Restore the connection to manage applications.');}
- if(consoleCard){consoleCard.classList.toggle('shutdown-unconfirmed',view.unconfirmed);if(view.unconfirmed){consoleCard.classList.remove('ready','pending','connection-lost');setText(consoleCard.querySelector('.state'),'Shutdown unconfirmed');setText(consoleCard.querySelector('.detail-text')||consoleCard.querySelector('.device-detail'),'Restart Civilization VII before starting a new session.');}}
- const summary=$('session-summary');
- if(summary.hidden!==!view.compact)summary.hidden=!view.compact;
- const connected=view.running&&(coreSession||state.connected);
- const connectionHeading=$('connection-heading');
- const headingStatus=view.compact?(connected?'connected':'waiting'):'setup';
- if(connectionHeading.dataset.status!==headingStatus)connectionHeading.dataset.status=headingStatus;
- if(connectionHeading.hidden===view.compact)connectionHeading.hidden=!view.compact;
- setText($('page-setup-title'),view.compact?(connected?'Switch 2 connected':view.title):'Connection');
- setText($('session-summary-title'),view.launcher);
- setText($('session-summary-game'),view.game);
- placeSessionActions(coreSession?{compact:false}:view);
- let copy=view.offline?'Waiting for connection':state.fsRpc?.state==='ready'?'Filesystem access active':state.connected?'':'Connection pending';
- let note='The console session is retained. Restore the connection to manage applications.';
- let showNote=!view.stopping&&(view.offline||!state.connected);
- if(['civswitch','civswitch-ldn','iz2sciv-core'].includes(state.platform?.loaderId)&&(view.offline||view.unconfirmed)){
-  showNote=true;
-  note=view.unconfirmed?'Restart Civilization VII before starting a new session.':'Connection lost. Stop this session, restart Civilization VII and open Load Game.';
- }
- const savedLoader=state.civswitchLdn?.saveInstallation||state.civswitch?.saveInstallation;
- if(view.running&&state.connected&&['civswitch','civswitch-ldn','iz2sciv-core'].includes(state.platform?.loaderId)&&savedLoader?.state==='installed'){
-  showNote=true;
-  note='Save installed. Next time: Civilization VII → Load Game, then Launch in this panel.';
- }
- const coreActions=['core-add-app','core-restore','core-new-launch'].map($);
- if(coreSession){
-  copy=connected?coreText('storeHint'):coreText('connectFromConsole');
-  showNote=false;
-  note='';
-  const target=$('session-summary-session-actions');
-  if(coreActions.some(button=>button.parentElement!==target))target.append(...coreActions);
-  $('core-settings-toggle').hidden=true;
- }else{
-  const tools=$('core-session-tools'),actions=$('core-session-actions');
-  if(coreActions.slice(0,2).some(button=>button.parentElement!==tools))tools.prepend(...coreActions.slice(0,2));
-  if(coreActions[2].parentElement!==actions)actions.append(coreActions[2]);
- }
- coreActions[1].hidden=coreSession&&!!connected;
- const nextStep=$('connection-next-step'),showNextStep=coreSession&&!connected;
- if(nextStep.hidden!==!showNextStep)nextStep.hidden=!showNextStep;
- setText(nextStep,showNextStep?coreText('openLauncherHint'):'');
- const rpcWarning=$('connection-rpc-warning');
- rpcWarning.hidden=!showNextStep;
- setText(rpcWarning,showNextStep?coreText('rpcWarning'):'');
- const summaryCopy=$('session-summary-copy'),summaryNote=$('session-summary-note');
- const hideCopy=view.stopping||!copy;
- if(summaryCopy.hidden!==hideCopy)summaryCopy.hidden=hideCopy;
- if(summaryNote.hidden!==!showNote)summaryNote.hidden=!showNote;
- setText(summaryCopy,view.stopping?'':copy);
- setText(summaryNote,note);
- setText($('session-settings-label'),configurationOpen?'Hide connection settings':'Connection settings');
- $('session-settings-toggle').setAttribute('aria-expanded',String(configurationOpen));
- if((view.running||view.offline)&&state.platform?.izModules)$('progress-note').textContent=state.connected?'Use App library to manage applications.':'The console session is retained. Restore the connection to manage applications.';
- for(const prefix of ['civ','ldn'])if(state.civLauncher?.state==='offline'){$(prefix+'-result-title').textContent='Connection interrupted';$(prefix+'-result-detail').textContent=globalThis.IZ2S_ERRORS.canonical(state.civLauncher.error||'The console session is retained.');$(prefix+'-result-detail').setAttribute('translate','no');}
- for(const prefix of ['civ','ldn'])if(state.civLauncher?.state==='running'){$(prefix+'-result-title').textContent='Launcher is running';$(prefix+'-result-detail').textContent=state.connected?'Console connected':'The console session is retained.';$(prefix+'-launch').hidden=true;}
- $('apps').classList.toggle('batch-selection',libraryBatch);$('library-batch').setAttribute('aria-pressed',String(libraryBatch));setText($('library-batch'),libraryBatch?'Finish selection':'Select multiple');
- document.querySelector('.library-bar').hidden=!libraryBatch;
- applyLibrarySearch();
- renderDeviceTopology();
+ $('apps').classList.toggle('batch-selection',libraryBatch);
+ $('library-batch').setAttribute('aria-pressed',String(libraryBatch));
+ setText($('library-batch'),libraryBatch?'Finish selection':'Select multiple');
+ document.querySelector('.library-bar').hidden=!libraryBatch;applyLibrarySearch();
 }
 function applyLibrarySearch(){
   const status=$('library-status').value,location=$('library-location').value,format=$('library-format').value,query=$('library-search').value;
@@ -3109,8 +1666,8 @@ $('library-reset').onclick=resetLibraryFilters;$('library-empty-reset').onclick=
 $('library-status').onchange=()=>{if($('library-status').value==='all')$('library-location').value='all';applyLibrarySearch();};
 $('library-location').onchange=()=>{if($('library-location').value!=='all'&&$('library-status').value==='all')$('library-status').value='installed';applyLibrarySearch();};
 
-$('session-settings-toggle').onclick=()=>{configurationOpen=!configurationOpen;renderSessionPresentation();};
-$('session-summary-library').onclick=()=>coreView.current()?.session?openCorePcTool('apps'):switchView('apps');
+;
+;
 $('library-search').oninput=applyLibrarySearch;
 $('library-format').onchange=applyLibrarySearch;
 $('library-batch').onclick=()=>{libraryBatch=!libraryBatch;if(!libraryBatch){selection.clear();for(const input of document.querySelectorAll('.app-select input'))input.checked=false;}renderSessionPresentation();renderControls();};
@@ -3387,65 +1944,13 @@ function renderActivity() {
   });
 }
 
-function renderConnectionStatus() {
-  const transferring=state?.active?.status==='running'&&!state?.offline&&(state.jobs||[]).some(j=>['loading','publishing'].includes(j.status))&&(!state.link||state.link.state==='connected');
-  const stopping = state?.active?.status === 'stopping'||state?.civLauncher?.state==='stopping';
-  const offline = state?.active?.status==='offline'||state?.civLauncher?.state==='offline';
-  const unconfirmed=stopping&&(state?.active?.nativeParentRetention?.awaitingActualClose||state?.civLauncher?.shutdownUnconfirmed);
-  const civNetwork=state?.platform?.loaderId==='civswitch'&&state?.civswitch?.networkReachable&&!state?.connected;
-  const civUsbWaiting=state?.platform?.loaderId==='civswitch'&&state?.civswitch?.wirelessNetworkPending&&state?.civswitch?.inputStatus?.keyboard;
-  const checks = state?.checks;
-  const waitingForInput = checks?.items?.length && checks.items.every(row =>
-    row.ready || row.pending || row.status === 'waiting' || row.status === 'setup');
-  const inputReady = checks?.items?.some(row => row.id === 'arm' && row.ready);
-  let connectionMode = serverUnavailable
-    ? ['disconnected', 'Server unavailable']
-    : state?.simulated
-      ? ['preview', 'Simulated devices']
-      : state?.preview
-        ? ['preview', 'Design preview']
-        : unconfirmed
-          ? ['disconnected','Shutdown unconfirmed']
-        : stopping
-          ? ['checking', 'Stopping…']
-        : offline
-          ? ['disconnected','Connection interrupted']
-          : transferring
-            ? ['transferring', 'Transferring files…']
-          : state?.active && state?.link?.state === 'waiting-for-dock'
-            ? ['connecting', 'Reconnecting…']
-            : state?.active?.kind === 'bootstrap'
-              ? ['checking', 'Setup in progress…']
-              : state?.connected
-                ? ['connected', 'Console connected']
-                : state?.active?.launchStage === 'initializing' && state?.link?.state === 'connected'
-                  ? ['checking', 'Console connected · preparing launcher']
-                : civNetwork
-                  ? ['checking', 'Console on LAN · CivSwitch :9026 not verified']
-                : civUsbWaiting
-                  ? ['checking', 'CivSwitch · waiting for LAN; USB input available']
-                : state?.active
-                  ? ['connecting', 'Connecting…']
-                : state?.platform?.loaderId==='civswitch-ldn'
-                  ? ['idle', 'Game loader not started']
-                  : checks?.ready
-                    ? ['idle', 'Session not started']
-                    : waitingForInput
-                      ? ['waiting', checks.setupRequired ? 'Device setup required' : inputReady ? 'Waiting for USB' : 'Waiting for input device']
-                      : ['disconnected', 'Not connected'];
-  const core = coreView.current();
-  const useCoreStatus = core && !serverUnavailable && !state?.preview;
-  $('connection').setAttribute('translate', useCoreStatus ? 'no' : 'yes');
-  if (useCoreStatus) connectionMode = globalThis.IZ2S_CORE.connectionState(core);
-  setText($('mode'), connectionMode[1]);
-  $('mode').dataset.state = connectionMode[0];
-  $('connection').classList.toggle('idle', connectionMode[0] === 'idle');
-  $('mode').classList.toggle('preview', !serverUnavailable && !!state?.preview);
-  $('connection').classList.toggle('online', !serverUnavailable && connectionMode[0]==='connected' && !stopping && !offline);
-  $('connection').classList.toggle('working', !serverUnavailable && ['checking','connecting','waiting'].includes(connectionMode[0]));
-  const text = connectionMode[1];
-  if ($('connection').lastChild.textContent !== text)
-    $('connection').lastChild.textContent = text;
+function renderConnectionStatus(){
+ const core=coreView.current();
+ const online=!serverUnavailable&&!state?.preview&&((!!core?.pcLink?.online&&!core?.refreshError)||(!!ftpConnection?.online&&!ftpConnection?.refreshError));
+ const status=serverUnavailable?'Server unavailable':state?.preview?'Design preview':online?'Console connected':state?.iz2sciv?.busy?'Connecting…':'Not connected';
+ $('connection').className='connection '+(online?'online':'disconnected');
+ $('connection').lastChild.textContent=globalThis.RUN21_LANGUAGE?.t(status)||status;
+ document.querySelector('.nav-dot').hidden=!online;
 }
 function renderLocalActionAvailability() {
   for (const control of document.querySelectorAll('.folder-button,[data-folder],.module-configure'))
@@ -3453,777 +1958,32 @@ function renderLocalActionAvailability() {
   for (const control of document.querySelectorAll('.app-download'))
     control.disabled = serverUnavailable || control.dataset.pending === 'true';
 }
-function renderServerAvailability() {
-  workspace.setAvailable(!serverUnavailable);
-  document.querySelector('.nav-dot').hidden=serverUnavailable||!state?.connected;
-  renderLocalActionAvailability();
-  $('panel-main').classList.toggle('server-unavailable', serverUnavailable);
-  if (!serverUnavailable) return;
-  civswitchUI.render(state);civswitchLdnUI.render(state);iz2scivUI.render(state);
-  if (state?.platform) renderArmSetup(state.platform);
-  if (state) renderHistory();
-  renderConnectionStatus();
-  for (const card of document.querySelectorAll('#devices > .device')) {
-    setText(card.querySelector('.state'), 'UNVERIFIED');
-    setText(card.querySelector('.device-ping'), 'Server unavailable');
-  }
-  const libraryConnection = $('library-connection');
-  libraryConnection.classList.remove('online');
-  setText(libraryConnection.querySelector('span'), 'Server unavailable · device status is outdated');
-  setText($('library-note'), 'Reconnect to the server to refresh device and transfer status.');
-  setText($('gate-message'), 'Server unavailable · waiting for a fresh status update.');
-  $('delivery-rpc-status').dataset.state = 'unavailable';
-  setText($('delivery-rpc-label'), 'RPC status unavailable');
-  $('console-mode-state').hidden = true;
-  $('application-recovery').hidden = true;
-  $('stream-link').hidden = true;
-  if (state?.active) setText($('progress-title'), 'Session status unavailable');
-  $('dolphin-open').disabled = true;
-  setText($('dolphin-status'), 'Server unavailable · FS status cannot be checked.');
-  document.querySelectorAll('#start,#load,#recheck,#engine-download,#engine-rescan,#arm-install,#hardware-form button,.module-host-actions button,.module-unload,.module-install,.sd-inventory-refresh,.module-configure,.folder-button,[data-folder],[data-variant],[data-loader],.address-form button,.transport-choice button,.transport-choice input,.detected-peer,.up-start,.up-save,.up-confirm,#library-sd-refresh')
-    .forEach(control => { control.disabled = true; });
+function renderServerAvailability(){
+ workspace.setAvailable(!serverUnavailable);renderLocalActionAvailability();
+ $('panel-main').classList.toggle('server-unavailable',serverUnavailable);
+ renderConnectionStatus();
+ if(!serverUnavailable)return;
+ iz2scivUI.render(state);
+ document.querySelectorAll('#load,.module-host-actions button,.module-unload,.module-install,.sd-inventory-refresh,.module-configure,.folder-button,[data-folder],#library-sd-refresh').forEach(e=>e.disabled=true);
 }
-function render() {
-  const attempt = state.active;
-  renderTransferStatus();
-  $('restore-connection').hidden=state.active?.status==='stopping'||!state.link?.recoveryAvailable||state.link?.protocol!==3||state.connected&&state.active?.status!=='offline';
-  $('restore-connection').disabled=serverUnavailable||state.preview||!attempt;
-  workspace.updateModules(state);
-  renderPlatform();
-  const ended = state.lastAttempt;
-  if (ended && ended.id !== finishedAttempt) {
-    finishedAttempt = ended.id;
-    requestId = null;
-    $('screen-ready').checked = false;
-    document.querySelectorAll('.up-ready,.up-source-ready').forEach(input => {input.checked = false;});
-  }
-  renderDevices();
-  renderStartupModules();
-  civswitchUI.render(state);civswitchLdnUI.render(state);iz2scivUI.render(state);
-  renderLibrary();
-  renderConsoleApps();
-  renderHistory();
-  renderActivity();
-  renderWizard();
-  renderConnectionStatus();
-  const applicationRecovery = state.applicationRecovery;
-  $('application-recovery').hidden = !applicationRecovery;
-  if (applicationRecovery) {
-    const labels = {
-      'waiting-for-client': 'Waiting for the console app to reconnect.',
-      'waiting-for-network': 'Connection lost. Waiting for the app to reconnect.',
-      connected: 'App state restored. Control connection is checked separately.',
-      stopped: 'App recovery channel stopped.',
-    };
-    $('application-recovery').textContent = labels[applicationRecovery.state] || 'App recovery state is unknown.';
-  }
-  $('progress-box').hidden = !attempt;
-  $('progress').hidden=['running','offline','complete'].includes(attempt?.status);
-  $('progress-value').hidden=$('progress').hidden;
-  $('progress-title').textContent = attempt
-    ? {
-        starting: attempt.inputActive?'Entering launch commands…':state.link?.state==='connected'||attempt.launchStage==='initializing'?'Console connected · preparing launcher':attempt.launchStage==='waiting-console'?'Input complete · waiting for console':'Preparing launcher',
-        typing: 'Entering bootstrap.bas',
-        running: 'Launcher is running',
-        offline: 'Connection lost · launcher retained',
-        stopping: 'Stopping safely…',
-        complete: 'Setup complete',
-        review: 'Source entered · awaiting your review',
-        checking: 'Reading the source check',
-        saving: 'Sending the save command',
-        awaiting_restart: 'Waiting for a full console restart',
-        failed: 'Attempt failed',
-        cancelled: 'Input cancelled',
-        stopped: 'Session stopped',
-      }[attempt.status] || attempt.status
-    : '';
-  if (attempt?.progress) {
-    $('progress').value = attempt.progress.line;
-    $('progress').max = attempt.progress.total;
-    $('progress-value').textContent =
-      attempt.progress.line + ' / ' + attempt.progress.total + ' lines';
-  } else {
-    if (['complete', 'running', 'offline'].includes(attempt?.status))
-      $('progress').value = 229;
-    else $('progress').removeAttribute('value');
-    $('progress-value').textContent = '';
-  }
-  $('progress-note').textContent =
-    attempt?.status==='starting'&&(state.link?.state==='connected'||attempt.launchStage==='initializing')
-      ? 'The console connection is established. FS RPC and graphics initialization are running; follow the session log below.'
-    : attempt?.status==='starting'&&attempt.launchStage==='waiting-console'
-      ? 'The input device finished its job. If SmileBASIC shows no text, check the USB keyboard connection and firmware. If the text is present, check the console screen and network.'
-    : attempt?.kind === 'bootstrap'
-      ? 'Source entry uses the original HID timings. Console execution and save results require your confirmation.'
-      : attempt?.status === 'offline'
-        ? state.platform?.residentGraphics
-          ? 'The app set remains in memory until STOP. New modules require the control connection to be restored.'
-          : 'A loaded local app may continue without Wi-Fi. Host commands and return to the launcher require a connection. STOP ends this retained session.'
-      : state.connected
-        ? 'You can close this window. Your console session will keep running.'
-        : attempt?.status === 'failed'
-          ? 'Restart the console before your next attempt.'
-          : state.platform?.delivery?.preloaded
-            ? 'RUN → prepare memory once → connect'
-            : 'LOAD “TXT:' +
-              (state.platform?.delivery?.bootstrapName ||
-                (state.bootstrapProfile?.recovery ? 'NS2R' : 'NS2')) +
-              '” → RUN → prepare memory once → connect';
-  if (state.notification) {
-    backendNotice = state.notification.at || state.notification.message;
-    notice(state.notification.message, state.notification.type, backendNotice);
-  } else if (backendNotice) {
-    if (notificationKey === backendNotice) $('toast').hidden = true;
-    backendNotice = '';
-  }
-  renderSessionPresentation();
-  if(state?.platform?.loaderId==='iz2sciv-core'){
-    $('adv-usb-next').hidden=true; $('hardware-options').hidden=true; $('progress-box').hidden=true;
-  }
-}
-function renderMenuLayout() {
-  const id=state?.platform?.loaderId,civ=['civswitch','civswitch-ldn','iz2sciv-core'].includes(id);
-  $('devices').hidden=id==='iz2sciv-core';
-  $('device-toolbar').hidden=id==='iz2sciv-core';
-
-  $('connection-files').hidden=civ;
-  $('mode').hidden=civ;
-  for(const [button,engine]of [['civ-mode-iz2sciv','iz2sciv-core']]){
-    const needsRestart=engine==='civswitch-ldn'&&state.platform.civswitchLdnAvailable!==true;
-    $(button).disabled=serverUnavailable||busy||state.platform.locked||needsRestart;
-    $(button).title=needsRestart?(state.platform.locked||busy?'Restart the panel after ending the current session to enable CIV7 LAN.':'Restart the panel to enable CIV7 LAN.'):'';
-  }
-  document.querySelector('#panel-sidebar [data-view="apps"]').hidden=false;
-  $('hardware-options').hidden=['civswitch-ldn','iz2sciv-core'].includes(id);
-  if(['civswitch-ldn','iz2sciv-core'].includes(id))$('adv-usb-next').hidden=true;
-  $('civ-input-settings').hidden=id!=='civswitch';
-  if(civ){$('iz-flow').hidden=true;$('installation-options').hidden=true;}
+function render(){
+ renderTransferStatus();workspace.updateModules(state);renderPlatform();
+ renderLibrary();renderConsoleApps();renderHistory();renderActivity();renderControls();renderConnectionStatus();renderSessionPresentation();
+ if(state.notification){backendNotice=state.notification.at||state.notification.message;notice(state.notification.message,state.notification.type,backendNotice);}
+ else if(backendNotice){if(notificationKey===backendNotice)$('toast').hidden=true;backendNotice='';}
 }
 
 let platformMenuStamp = '',
   configurationStamp = '';
 const upstreamSteps = { izmysh: 'launch' };
-function fieldsFor(schema) {
-  if (Array.isArray(schema)) return schema;
-  if (schema?.fields) return schema.fields;
-  return Object.entries(schema?.properties || schema || {}).map(([id, v]) => ({
-    id,
-    ...v,
-  }));
-}
-function buildFields(container, schema, values) {
-  container.replaceChildren();
-  for (const field of fieldsFor(schema)) {
-    const id = field.id || field.key || field.name;
-    if (!id) continue;
-    const label = element('label', 'configuration-field'),
-      input = field.options ? element('select') : element('input');
-    input.name = id;
-    input.dataset.kind = field.type || 'string';
-    if (field.options)
-      for (const value of field.options) {
-        const o = element(
-          'option',
-          '',
-          typeof value === 'object' ? value.label : value,
-        );
-        o.value = typeof value === 'object' ? value.value : value;
-        input.append(o);
-      }
-    else
-      input.type = ['boolean', 'checkbox'].includes(field.type)
-        ? 'checkbox'
-        : field.type === 'number'
-          ? 'number'
-          : field.type === 'password' ? 'password' : 'text';
-    if (input.type === 'checkbox') {
-      input.classList.add('panel-switch');
-      input.setAttribute('role', 'switch');
-    }
-    input.autocomplete = 'off';
-    const value = values?.[id] ?? field.default ?? '';
-    if (input.type === 'checkbox') input.checked = !!value;
-    else input.value = value;
-    label.append(element('span', '', field.label || field.title || id), input);
-    if (field.description || field.help)
-      label.append(element('small', 'hint', field.description || field.help));
-    container.append(label);
-  }
-}
-function fieldValues(container) {
-  const value = {};
-  for (const input of container.querySelectorAll('input,select'))
-    value[input.name] =
-      input.type === 'checkbox'
-        ? input.checked
-        : input.dataset.kind === 'number'
-          ? Number(input.value)
-          : input.value.trim();
-  return value;
-}
-function upstreamPanel(id) {
-  return document.querySelector('[data-upstream-panel="' + id + '"]');
-}
-function renderAutomaticRpcStatus(meta) {
-  const loader = meta.loaders.find(item => item.id === meta.loaderId);
-  const status = $('delivery-rpc-status'),
-    automatic = meta.izModules && loader?.settingsSchema?.some(item => item.key === 'rpcMode'),
-    dirty = deliveryDirty(),
-    fs = state.active ? state.fsRpc : null;
-  status.hidden = !automatic;
-  if (!automatic) {
-    setText($('delivery-rpc-note'), dirty ? 'Saving session settings…' : 'Applies to First Setup and Launch.');
-    return;
-  }
-  status.dataset.state = fs?.state || 'automatic';
-  setText($('delivery-rpc-label'), fs?.state === 'ready'
-    ? 'Filesystem access · Active'
-    : fs?.state === 'starting' ? 'Filesystem access · Connecting'
-    : fs?.state === 'failed' ? 'Filesystem access · Unavailable' : meta.loaderSettings?.fsRpcMode ? 'Enabled for next launch' : 'Disabled');
-  const note = dirty ? 'Saving session settings…'
-    : fs?.state === 'ready' ? 'Filesystem access is active for this session.'
-    : fs?.state === 'starting' ? 'Connecting to the console filesystem…'
-    : fs?.state === 'failed' ? globalThis.IZ2S_ERRORS.canonical(fs.error) || 'Filesystem access is unavailable for this session.'
-    : state.active ? 'Session settings are locked until this session ends.'
-    : meta.loaderSettings?.fsRpcMode ? 'Filesystem access will be requested before the launcher starts.'
-    : 'Enable filesystem access before starting a session.';
-  setText($('delivery-rpc-note'), note);
-}
-function renderPlatform() {
-  const meta = state?.platform;
-  if (!meta) return;
-  const civ=['civswitch','civswitch-ldn','iz2sciv-core'].includes(meta.loaderId);
-  $('game-civ7-linux-only').hidden=meta.host?.platform!=='win32';
-  $('civ-mode-selector').hidden=!civ;
-  for(const [id,engine] of [['civ-mode-iz2sciv','iz2sciv-core']]){
-    $(id).classList.toggle('selected',meta.loaderId===engine);
-    $(id).setAttribute('aria-pressed',String(meta.loaderId===engine));
-  }
-  for(const [id,selectedGame]of [['game-sm4',!civ],['game-civ7',civ]]){
-    $(id).classList.toggle('selected',selectedGame);$(id).setAttribute('aria-pressed',String(selectedGame));$(id).disabled=busy||meta.locked;
-  }
-  document.querySelector('.launch-selector').hidden=false;
-  $('engine-options').hidden=civ;
-  const shellId = civ?(state.civLauncher?.shell||'izlauncher'):meta.izModules?meta.variant||'izlauncher':null;
-  const shellName = meta.shells?.find(item => item.id === shellId)?.name || (meta.izModules ? 'IZ2S' : 'Core only');
-  for (const button of document.querySelectorAll('[data-folder="shell"]')) {
-    button.hidden = !shellId;
-    button.querySelector('span').textContent = shellName + ' folder';
-    button.setAttribute('aria-label', shellName + ' folder');
-    button.title = 'Open the selected shell folder';
-  }
-  $('footer-shell').textContent = shellName;
-  const locked = busy || meta.locked,
-    selected = !civ&&coreView.selected()?'iz2s-core':meta.loaderId;
-  const engineChoices = [];
-  engineChoices.splice(Math.max(0,engineChoices.findIndex(item=>item.id==='izmysh')+1),0,{id:'iz2s-core',name:'IZ2S core',integrationStatus:coreText('engineCaption')});
-  const inventoryStamp = JSON.stringify(
-    engineChoices.map((l) => [l.id, l.name, l.integrationStatus]),
-  );
-  const tabs = document.querySelector('.loader-tabs');
-  tabs.hidden = !engineChoices.length;
-  tabs.style.setProperty('--engine-count', engineChoices.length);
-  if (tabs.dataset.inventory !== inventoryStamp) {
-    tabs.dataset.inventory = inventoryStamp;
-    tabs.replaceChildren();
-    engineChoices.forEach((loader, i) => {
-      const b = element('button');
-      b.type = 'button';
-      b.dataset.loader = loader.id;
-      b.setAttribute('role', 'tab');
-      b.append(
-        element('span', '', String(i + 1).padStart(2, '0')),
-        element('strong', '', loader.name),
-      );
-      b.append(element('small', 'engine-integration-status', loader.integrationStatus || ''));
-      b.onclick = () => {coreView.select(loader.id==='iz2s-core');if(loader.id!=='iz2s-core')return act('/api/launch-settings', { loaderId: loader.id });};
-      tabs.append(b);
-    });
-  }
-  const shellSelect = $('launch-runtime'),
-    shellStamp = JSON.stringify((meta.shells || []).map((p) => [p.id, p.name]));
-  if (shellSelect.dataset.inventory !== shellStamp) {
-    shellSelect.dataset.inventory = shellStamp;
-    shellSelect.replaceChildren();
-    for (const v of [
-      ...(meta.shells || []),
 
-    ]) {
-      const b = element('button', '', v.name);
-      b.type = 'button';
-      b.dataset.variant = v.id;
-      b.onclick = () => state.platform.loaderId==='iz2sciv-core'?undefined:['civswitch','civswitch-ldn'].includes(state.platform.loaderId)?act('/api/'+state.platform.loaderId,{action:'select-shell',launcher:v.id}):act('/api/launch-settings', { variant: v.id });
-      shellSelect.append(b);
-    }
-  }
-  document.querySelector('[data-step=bootstrap]').hidden =
-    meta.loaders.find((l) => l.id === selected)?.menu?.sourceSetup === false;
-  $('iz-flow').hidden = !meta.izModules||['civswitch','civswitch-ldn','iz2sciv-core'].includes(meta.loaderId);
-  const label = selected==='iz2s-core'?'IZ2S core':meta.loaders.find((l) => l.id === selected)?.name || selected;
-  coreView.render(state?.platform?.loaderId==='iz2sciv-core'||!civ&&selected==='iz2s-core',locked,state);
-  setText($('engine-folder-name'), label);
-  setText($('engine-folder-path'), meta.loaders.find(loader => loader.id === selected)?.folder || 'Folder path is unavailable. Use the Engine button above.');
-  renderIssueList('extension-errors', meta.extensionErrors);
-  const deliverySchema = (
-    meta.loaders.find((l) => l.id === selected)?.settingsSchema || []
-  ).filter(
-    (f) =>
-      (!f.runtimes || f.runtimes.includes('izlauncher')) &&
-      f.key !== 'holdRpc' &&
-      f.key !== 'mode' &&
-      f.key !== 'basicArity',
-  );
-  const deliveryForm = $('delivery-options'),
-    deliverySchemaStamp = JSON.stringify([selected, deliverySchema]),
-    deliveryStamp = JSON.stringify(meta.loaderSettings);
-  if (deliveryForm.dataset.schema !== deliverySchemaStamp) {
-    buildFields($('delivery-fields'), deliverySchema.map(field => field.key === 'fsRpcMode'
-      ? {...field, label: 'Filesystem access', description: '', help: ''} : field), meta.loaderSettings);
-    const fsInput = $('delivery-fields').querySelector('[name=fsRpcMode]');
-    if (fsInput) {
-      fsInput.setAttribute('aria-describedby', 'delivery-rpc-note delivery-fs-help');
-    }
-    deliveryForm.dataset.schema = deliverySchemaStamp;
-    delete deliveryForm.dataset.stamp;
-  }
-  $('delivery-fs-help').hidden = !deliverySchema.some(field => field.key === 'fsRpcMode');
-  if (deliveryForm.dataset.stamp !== deliveryStamp) {
-    for (const input of $('delivery-fields').querySelectorAll('input,select')) {
-      const field = deliverySchema.find(item => (item.id || item.key || item.name) === input.name),
-        saved = meta.loaderSettings?.[input.name] ?? field?.default ?? '',
-        value = input.type === 'checkbox' ? !!saved : saved,
-        draft = input.type === 'checkbox' ? input.checked : input.value;
-      // Preserve an unsaved edit when another panel updates the saved settings.
-      if (input.dataset.savedValue === undefined || String(draft) === input.dataset.savedValue) {
-        if (input.type === 'checkbox') input.checked = value;
-        else input.value = value;
-      }
-      input.dataset.savedValue = String(value);
-    }
-    deliveryForm.dataset.stamp = deliveryStamp;
-  }
-  $('delivery-options').hidden = !meta.izModules || !deliverySchema.length;
-  $('delivery-options')
-    .querySelectorAll('input,select,button')
-    .forEach((e) => (e.disabled = locked));
-  $('launch-runtime').hidden = false;
-  document.querySelectorAll('[data-loader]').forEach((button) => {
-    button.classList.toggle('selected', button.dataset.loader === selected);
-    const entry = meta.loaders.find(loader => loader.id === button.dataset.loader);
-    const available = button.dataset.loader==='iz2s-core'||RUN21_CATALOG.engineAvailable(entry, meta.variant);
-    const integrationStatus = button.querySelector('.engine-integration-status');
-    if (integrationStatus) {
-      const installing = button.dataset.loader === selected && state.active?.kind === 'bootstrap';
-      integrationStatus.textContent = installing && state.active.progress
-        ? 'Slot ' + (state.active.setup?.sourceSlot ?? 0) + ' · ' + state.active.progress.line + '/' + state.active.progress.total
-        : available ? button.dataset.loader==='iz2s-core'?coreText('engineCaption'):entry?.integrationStatus || '' : 'Core only mode';
-    }
-    button.setAttribute(
-      'aria-selected',
-      String(button.dataset.loader === selected),
-    );
-    button.disabled = locked || !available;
-    button.classList.toggle('unavailable', !available);
-    button.setAttribute('aria-disabled', String(locked || !available));
-    button.title = available ? '' : 'Available in Core only mode';
-  });
-  document.querySelectorAll('[data-variant]').forEach((button) => {
-    button.classList.toggle(
-      'selected',
-      button.dataset.variant === (civ?state.civLauncher?.shell||'izlauncher':meta.variant),
-    );
-    button.disabled = locked;
-  });
-  const configuration = meta.configurations.find(
-      (c) => c.id === meta.configurationId,
-    ),
-    stamp = JSON.stringify([
-      meta.configurationId,
-      configuration?.settingsSchema,
-      configuration?.fields,
-      meta.profiles?.[meta.configurationId],
-    ]);
-  if (
-    stamp !== configurationStamp &&
-    !$('hardware-form').contains(document.activeElement)
-  ) {
-    configurationStamp = stamp;
-    buildFields(
-      $('hardware-fields'),
-      configuration?.settingsSchema || configuration?.fields || [],
-      meta.profiles?.[meta.configurationId] || {},
-    );
-  }
-  $('hardware-form')
-    .querySelectorAll('input,select,button')
-    .forEach((e) => (e.disabled = locked));
-  renderArmSetup(meta);
-  const needs = meta.configuration.setupRequired;
-  $('configuration-note').textContent =
-    (needs ? 'Setup required. ' : '') +
-    (Array.isArray(meta.configuration.requirements)
-      ? meta.configuration.requirements
-          .map((x) => (typeof x === 'string' ? x : x.message || x.label || ''))
-          .filter(Boolean)
-          .join(' · ')
-      : meta.configuration.requirements || '');
-  const menuStamp = JSON.stringify(
-    meta.loaders.map((l) => [l.id, l.menu, l.settingsSchema]),
-  );
-  if (menuStamp !== platformMenuStamp) {
-    platformMenuStamp = menuStamp;
-    $('upstream-menus').replaceChildren();
-    for (const loader of meta.loaders.filter(loader => !['civswitch','civswitch-ldn','iz2sciv-core'].includes(loader.id))) {
-      const id = loader.id;
-      upstreamSteps[id] ??= 'launch';
-      const panel = element('section', 'installation upstream-menu');
-      panel.dataset.upstreamPanel = id;
-      const heading = element('div', 'section-heading'),
-        title = element('div'),
-        tabs = element('div', 'segmented');
-      title.append(
-        element('span', 'eyebrow', 'CONNECTION CORE'),
-        element('h2', '', loader.menu?.title || loader.name || id),
-      );
-      for (const value of loader.menu?.sourceSetup === false
-        ? ['launch']
-        : ['bootstrap', 'launch']) {
-        const button = element(
-          'button',
-          '',
-          value === 'launch' ? 'Launch' : 'First setup',
-        );
-        button.type = 'button';
-        button.dataset.upstreamStep = value;
-        button.onclick = () => {
-          upstreamSteps[id] = value;
-          panel.querySelector('.up-ready').checked = false;
-          renderPlatformControls();
-        };
-        tabs.append(button);
-      }
-      heading.append(title, tabs);
-      panel.append(
-        heading,
-        element(
-          'p',
-          'subtitle',
-          loader.menu?.description ||
-            loader.menu?.subtitle ||
-            loader.description ||
-            '',
-        ),
-      );
-      const fields = element('form', 'configuration-form loader-settings'),
-        fieldBox = element('div');
-      fieldBox.className = 'loader-fields';
-      fields.append(fieldBox);
-      fields.oninput = () => {
-        panel.querySelector('.up-ready').checked = false;
-        renderPlatformControls();
-      };
-      const saveSettings = async () => {
-        const meta = state?.platform;
-        if (busy || meta?.locked || meta?.loaderId !== id || !fieldsDirty(fieldBox, meta.loaderSettings)) return;
-        const loaderSettings = {...meta.loaderSettings, ...fieldValues(fieldBox)};
-        const result = await act('/api/launch-settings', {loaderSettings});
-        if (state?.platform?.loaderId !== id) return;
-        if (result?.ok) state.platform.loaderSettings = loaderSettings;
-        // Restore confirmed settings after an error; a draft is never presented
-        // as the settings that the next launch will actually use.
-        buildFields(fieldBox, (loader.settingsSchema || []).filter(field => !field.runtimes || field.runtimes.includes('original')), state.platform.loaderSettings);
-        delete panel.dataset.fieldsStamp;
-        renderPlatformControls();
-      };
-      fields.onchange = saveSettings;
-      fields.onsubmit = event => {event.preventDefault(); void saveSettings();};
-      panel.append(fields);
-      const note = element('p', 'subtitle up-description'),
-        source = element('button', 'quiet up-source', 'Download source .bas');
-      source.type = 'button';
-      source.onclick = async () => {
-        try {
-          const blob = await api('/api/loader-source?id=' + encodeURIComponent(id), undefined, {responseType:'blob',timeoutMs:30000});
-          saveDownload(blob, id + '-bootstrap.bas');
-        } catch (e) {
-          notice(e.message);
-        }
-      };
-      const ack = element('label', 'ack'),
-        ready = element('input'),
-        readyText = element(
-          'span',
-          '',
-          'Switch is fully restarted and SmileBASIC Direct is open.',
-        );
-      ready.type = 'checkbox';
-      ready.className = 'up-ready';
-      readyText.className = 'up-ready-label';
-      ready.onchange = renderPlatformControls;
-      ack.append(ready, readyText);
-      const actions = element('div', 'launch-row'),
-        start = element('button', 'primary up-start', 'Launch'),
-        saveSource = element('button', 'secondary up-save', 'Save source'),
-        confirm = element(
-          'button',
-          'secondary up-confirm',
-          'Source saved · continue',
-        ),
-        stop = element('button', 'soft-stop up-stop danger', 'Stop session'),
-        hard = element('button', 'hard-stop up-hard', '! STOP'),
-        status = element('span', 'hint up-status');
-      start.onclick = () =>
-        act('/api/start', {
-          kind: upstreamSteps[id] || 'launch',
-          requestId: crypto.randomUUID(),
-          screenReady: ready.checked,
-          sourceReady: panel.querySelector('.up-source-ready').checked,
-          moduleIds: [],
-        });
-      saveSource.onclick = () =>
-        act('/api/setup', { action: 'save', requestId: crypto.randomUUID() });
-      confirm.onclick = () =>
-        act('/api/setup', {
-          action: 'saved',
-          requestId: crypto.randomUUID(),
-          savedConfirmed: true,
-        });
-      stop.onclick = () => act('/api/stop', {});
-      hard.onclick = async () => {
-        if (hardStopping) return;
-        hardStopping = true;
-        try {
-          await api('/api/hard-stop', {});
-          await poll();
-        } catch (e) {
-          notice(e.message);
-        } finally {
-          hardStopping = false;
-          renderPlatformControls();
-        }
-      };
-      actions.append(start, saveSource, confirm, stop, hard, status);
-      const sourceAck = element('label', 'ack source-preparation'),
-        sourceReady = element('input'),
-        sourceText = element('span');
-      sourceReady.type = 'checkbox';
-      sourceReady.className = 'up-source-ready';
-      sourceReady.onchange = renderPlatformControls;
-      sourceText.className = 'up-source-label';
-      sourceAck.append(sourceReady, sourceText);
-      panel.append(note, source, sourceAck, ack, actions);
-      $('upstream-menus').append(panel);
-    }
-  }
-  for (const loader of meta.loaders) {
-    const panel = upstreamPanel(loader.id);
-    if (!panel) continue;
-    panel.hidden = meta.izModules || loader.id !== selected;
-    const fieldBox = panel.querySelector('.loader-fields'),
-      fieldsStamp = JSON.stringify([
-        loader.id,
-        loader.settingsSchema,
-        selected === loader.id ? meta.loaderSettings : {},
-      ]);
-    if (
-      panel.dataset.fieldsStamp !== fieldsStamp &&
-      !panel.querySelector('.loader-settings').contains(document.activeElement)
-    ) {
-      panel.dataset.fieldsStamp = fieldsStamp;
-      buildFields(
-        fieldBox,
-        (loader.settingsSchema || []).filter(f => !f.runtimes || f.runtimes.includes('original')),
-        selected === loader.id ? meta.loaderSettings : {},
-      );
-    }
-    panel.querySelector('.loader-settings').hidden = !fieldBox.children.length;
-  }
-  const inputName =
-    meta.configurationId === 'arm-only'
-      ? 'ARM PC · local input'
-      : meta.configurationId === 'pc-switch1' ? 'Switch 1' : meta.configurationId === 'pc-cardputer-adv'
-        ? 'Cardputer ADV'
-        : 'ARM PC';
-  words.arm[0] = inputName;
-  words.usb[0] = inputName === 'ARM PC' ? 'ARM Type C - Switch' : 'USB · ' + inputName + ' → Switch';
-  for (const row of state.checks.items) {
-    const card = $('device-' + row.id);
-    if (card && words[row.id])
-      setText(card.querySelector('h3'), row.label || words[row.id][0]);
-  }
-  renderPlatformControls();
-  renderEngineInstall();
+function renderPlatform(){
+ if(!state?.platform)return;
+ coreView.render(true,busy,state);
+ $('footer-shell').textContent='Civilization VII';
+ renderIssueList('extension-errors',state.platform.extensionErrors||[]);
 }
-function renderInstallationSlot() {
-  if(state?.platform?.configuration?.externalWorkflow){$('installation-options').hidden=true;return;}
-  const meta = state?.platform,
-    installation = meta?.installation;
-  const firstSetup = meta?.izModules
-    ? step === 'bootstrap'
-    : upstreamSteps[meta?.loaderId] === 'bootstrap';
-  $('installation-options').hidden = !installation || !firstSetup;
-  if (!installation) return;
-  $('install-slot').value = String(installation.slot);
-  $('install-slot').disabled = busy || !!meta.locked;
-  $('install-slot-commands').textContent =
-    installation.list + ' → source entry → ' + installation.save;
-  $('install-slot-warning').querySelector('span').textContent = 'Installation can overwrite code in slot ' + installation.slot + ' and the saved file TXT:' + installation.name + '. Back up anything you need first.';
-}
-function renderEngineInstall() {
-  const meta = state?.platform;
-  if (!meta) return;
-  if(meta.configuration.externalWorkflow){$('engine-install').hidden=true;return;}
-  const missing = meta.engineInstalled === false;
-  $('engine-install').hidden = !missing;
-  const selectedEngine = meta.loaders.find((e) => e.id === meta.loaderId);
-  $('engine-source').href = selectedEngine?.upstream?.repository || '#';
-  $('engine-install-note').textContent =
-    'Download the engine source from its published repository, or add it manually. The engine runs only when you launch a session.';
-  $('engine-install-folder').textContent =
-    'Manual installation: copy the complete repository into engines/' +
-    (selectedEngine?.directory || meta.loaderId) + '/upstream/, then choose Check manual folder.';
-  $('engine-install-folder').title = meta.engineInstallation?.folder || '';
-  $('engine-download').disabled = serverUnavailable || busy || meta.locked || state.preview;
-  $('engine-rescan').disabled = serverUnavailable || busy || meta.locked;
-  if (missing) {
-    $('iz-flow').hidden = true;
-    $('installation-options').hidden = true;
-    for (const p of document.querySelectorAll('[data-upstream-panel]'))
-      p.hidden = true;
-  }
-}
-function renderPlatformControls() {
-  renderInstallationSlot();
-  const meta = state?.platform;
-  if (!meta) return;
-  const locked = serverUnavailable || busy || meta.locked;
-  $('game-sm4').disabled=locked;$('game-civ7').disabled=locked;
-  $('library-source-options').hidden=meta.variant==='original'||meta.loaderId==='civswitch';
-  $('library-source').value=meta.sdLauncher?'sd':'pc';$('library-source').disabled=locked;
-  $('library-source-note').textContent=meta.sdLauncher?'Install compatible apps to console SD in App library first. This source requires filesystem access.':'Load apps from the PC into RAM using Startup modules or App library. They are cleared when the game closes.';
-  $('library-source-lock').textContent=state.active||meta.locked?'Stop the session to change the application source.':'Choose the source before starting the launcher.';
-  const sdSource=$('library-source').querySelector('option[value=sd]');if(sdSource){sdSource.disabled=meta.loaderId!=='izmysh';sdSource.title=sdSource.disabled?'SD mode currently requires IZ2S Core':'';}
 
-  $('native-recovery-option').hidden=meta.variant==='original';
-  $('native-recovery-enabled').checked=meta.nativeRecovery===true;
-  $('native-recovery-enabled').disabled=true;
-  document.querySelectorAll('[data-variant]').forEach(button => {
-    button.disabled = locked;
-    button.setAttribute('aria-pressed', String(button.classList.contains('selected')));
-  });
-  document.querySelectorAll('[data-loader]').forEach(button => {
-    const available = button.dataset.loader==='iz2s-core'||RUN21_CATALOG.engineAvailable(meta.loaders.find(loader => loader.id === button.dataset.loader), meta.variant);
-    button.disabled = locked || !available;
-    button.setAttribute('aria-disabled', String(locked || !available));
-  });
-  document.querySelectorAll('#delivery-options input,#delivery-options select,#delivery-options button,#hardware-form input,#hardware-form select,#hardware-form button')
-    .forEach(control => { control.disabled = locked; });
-  renderAutomaticRpcStatus(meta);
-  for (const panel of document.querySelectorAll('[data-upstream-panel]')) {
-    const id = panel.dataset.upstreamPanel,
-      phase = upstreamSteps[id] || 'launch',
-      preparation = state.sourcePreparation,
-      active = state.active,
-      locked = busy || meta.locked,
-      stage = active?.setup?.stage;
-    const fields = panel.querySelector('.loader-fields'),
-      draft = fieldValues(fields),
-      dirty = id === meta.loaderId && fieldsDirty(fields, meta.loaderSettings),
-      preloaded = draft.bootstrapMode === 'loaded';
-    const sourceRequired =
-      phase === 'launch' && !preloaded && !preparation?.ready;
-    panel.querySelectorAll('[data-upstream-step]').forEach((button) => {
-      button.classList.toggle(
-        'selected',
-        button.dataset.upstreamStep === phase,
-      );
-      button.disabled = locked;
-    });
-    panel
-      .querySelectorAll(
-        '.loader-settings input,.loader-settings select,.loader-settings button',
-      )
-      .forEach((e) => (e.disabled = locked));
-    panel.querySelector('.source-preparation').hidden = !sourceRequired;
-    panel.querySelector('.up-source-label').textContent =
-      'I confirm: the selected bootstrap has been saved as ' +
-      (draft.bootstrapName || preparation?.name || 'NS2') +
-      '.';
-    panel.querySelector('.up-source-ready').disabled = locked;
-    panel.querySelector('.up-source').hidden = !preparation?.name;
-    panel.querySelector('.up-ready-label').textContent =
-      phase === 'bootstrap'
-        ? 'Fresh SmileBASIC Direct is open; slot ' +
-          (preparation?.sourceSlot ?? 0) +
-          ' is empty; English (US) keyboard, Caps Lock off.'
-        : preloaded
-          ? 'After a full restart, the bootstrap is loaded in slot 0 and Direct is open; RUN and REMOVE have not been executed.'
-          : 'After a full restart, SmileBASIC Direct is open; RUN and REMOVE have not been executed.';
-    if (meta.configuration?.inputAdapter === 'cardputer-wifi' &&
-        meta.profiles?.[meta.configurationId]?.cardputerCapsLock === 'on') {
-      const label = panel.querySelector('.up-ready-label');
-      label.textContent = label.textContent.replace('Caps Lock off.', 'Caps Lock on.');
-    }
-    panel.querySelector('.up-description').textContent =
-      phase === 'launch'
-        ? preloaded
-          ? 'Source is already in slot 0. The engine will provide the connection commands.'
-          : 'The panel will load the saved file ' +
-            (draft.bootstrapName || preparation?.name || 'bootstrap') +
-            ' with LOAD confirmation, then enter RUN → REMOVE → START.'
-        : 'Source will be entered into empty slot ' +
-          (preparation?.sourceSlot ?? 0) +
-          '. Save it separately as ' +
-          (preparation?.name || 'NS2') +
-          ', then restart Switch. Other slots remain unchanged.';
-    const start = panel.querySelector('.up-start');
-    start.textContent =
-      phase === 'launch' ? 'Launch' : 'Enter source';
-    start.hidden = !!active || pendingStart || !!stopTask;
-    start.disabled =
-      busy ||
-      dirty ||
-      !!state.preview ||
-      !RUN21_CATALOG.engineAvailable(meta.loaders.find(loader => loader.id === id), meta.variant) ||
-      !state.checks.ready ||
-      !panel.querySelector('.up-ready').checked ||
-      (sourceRequired && !panel.querySelector('.up-source-ready').checked) ||
-      !!state.emergencyInputPending;
-    panel.querySelector('.up-ready').disabled = locked;
-    panel.querySelector('.up-save').hidden = stage !== 'review';
-    panel.querySelector('.up-save').disabled = busy;
-    panel.querySelector('.up-confirm').hidden = stage !== 'save_confirmation';
-    panel.querySelector('.up-confirm').disabled = busy;
-    panel.querySelector('.up-stop').hidden = !active && !pendingStart && !stopTask;
-    panel.querySelector('.up-stop').disabled =
-      !!stopTask || active?.status === 'stopping';
-    panel.querySelector('.up-hard').hidden =
-      !active && !state.emergencyInputPending;
-    panel.querySelector('.up-hard').disabled = hardStopping;
-    panel.querySelector('.up-status').textContent = active
-      ? active.inputActive
-        ? 'Entering commands…'
-        : stage === 'review'
-          ? 'Review the source on Switch, then save.'
-          : stage === 'save_confirmation'
-            ? 'Confirm saving on Switch before continuing.'
-            : active.status
-      : state.emergencyInputPending
-        ? 'Input cancellation needs confirmation.'
-        : dirty
-          ? 'Saving session settings…'
-          : state.preview
-            ? 'Preview · device commands disabled'
-            : !state.checks.ready
-              ? 'Configure the connections to continue.'
-              : !panel.querySelector('.up-ready').checked
-                ? 'Confirm the console screen to continue'
-                : sourceRequired && !panel.querySelector('.up-source-ready').checked
-                  ? 'Confirm the saved SmileBASIC program to continue.'
-                  : 'Ready to launch.';
-  }
-  renderServerAvailability();
-}
 document
   .querySelectorAll('[data-loader]')
   .forEach(
@@ -4231,16 +1991,9 @@ document
       (button.onclick = () =>
         act('/api/launch-settings', { loaderId: button.dataset.loader })),
   );
-$('game-civ7').onclick=()=>{
-  if (inputDesign === 'own') {
-    inputDesign = 'arm';
-    renderDevices();
-    renderControls();
-  }
-  return act('/api/launch-settings',{loaderId:'iz2sciv-core',variant:'original'});
-};
-$('civ-mode-iz2sciv').onclick=()=>act('/api/launch-settings',{loaderId:'iz2sciv-core',variant:'original'});
-$('game-sm4').onclick=()=>act('/api/launch-settings',{loaderId:'iz2s-core',variant:state?.platform?.variant==='original'?'izlauncher':state.platform.variant});
+;
+;
+;
 document
   .querySelectorAll('[data-variant]')
   .forEach(
@@ -4248,97 +2001,16 @@ document
       (button.onclick = () =>
         act('/api/launch-settings', { variant: button.dataset.variant })),
   );
-$('hardware-form').onsubmit = (e) => {
-  e.preventDefault();
-  const profile=fieldValues($('hardware-fields'));
-  if(profile.cardputerEndpoint){
-    const address=profile.cardputerEndpoint.trim();
-    profile.cardputerEndpoint=address.includes('://')?address:'http://'+address;
-  }
-  act('/api/launch-settings', {
-    configurationId: state.platform.configurationId,
-    profile,
-  });
-};
+;
 
 let polling = null;
 let initialRenderComplete = false;
 let dolphinOpening = false;
 let dolphinMessage = '';
-function dolphinReady() {
-  return !serverUnavailable && !!state?.connected && state?.active?.status === 'running' && state?.fsRpc?.state === 'ready' && !state?.preview;
-}
-function renderDolphin() {
-  const button = $('dolphin-open'), status = $('dolphin-status'), entry = $('console-files-entry');
-  if (!button || !status) return;
-  const core=coreView.current();
-  const ready = core?.session?(!!core.pcLink?.files||globalThis.IZ2S_CORE.rpcAvailable(core)):dolphinReady(), connecting=state?.fsRpc?.state==='starting';
-  const tone=serverUnavailable?'offline':dolphinOpening?'opening':ready?'ready':connecting?'waiting':'unavailable';
-  button.disabled = !ready || dolphinOpening;
-  button.title=ready?'Open console files in Super File Bros.':'Requires an active session with Filesystem access';
-  button.setAttribute('aria-busy',String(dolphinOpening));
-  if(entry){
-    entry.hidden=state?.platform?.loaderId==='iz2sciv-core'||serverUnavailable||!state?.connected&&!core?.session;
-    entry.dataset.state=tone;
-  }
-  setText($('console-files-description'),core?.session
-    ? 'Browse the SD card. Use App library to install app packages.'
-    : 'File manager · Upload games and apps to SD, or browse console folders.');
-  setText(status, serverUnavailable ? 'Server unavailable · FS status cannot be checked.' : dolphinOpening ? 'Opening file manager…' : ready
-    ? dolphinMessage || (core?.session&&!core.pcLink?.files?coreText(core.fsRpc?.ready?'rpcReady':'rpcHeld'):'Ready to open')
-    : core?.session ? coreText('waitingLauncher')
-    : connecting ? 'Connecting to console files…'
-    : state?.active?.status==='running'&&!state?.connected ? 'Restore the console connection to open files.'
-    : 'Start a session with Filesystem access to open files.');
-}
-async function openDolphin(automatic = false) {
-  const core=coreView.current(),rpc=globalThis.IZ2S_CORE.rpcAvailable(core);
-  if(core?.session&&core.pcLink?.files)return openCorePcTool('files');
-  if ((!rpc&&!dolphinReady()) || dolphinOpening || state?.preview || serverUnavailable) return;
-  if (!workspaceReady) {if(!automatic)notice('Reopen IZ2S to enable module tabs.');return;}
-  const attemptId = rpc?core.attempt.id:state.active.id;
-  dolphinOpening = true;
-  renderDolphin();
-  try {
-    const request = {attemptId, automatic};
-    let result;
-    try { result = await api('/api/rpc/open', request); }
-    catch (error) {
-      // The session owner can predate this UI update; its folder route loads lazily.
-      if (!/Unknown action|Not found/.test(error.message)) throw error;
-      result = await api('/api/folder/open', {kind: 'rpc-browser', ...request});
-    }
-    if(result.tab)openWorkspaceTab(result.tab,!automatic);
-    dolphinMessage = result.skipped ? '' : 'Super File Bros. tab is open.';
-  } catch (error) {
-    dolphinMessage = error.message;
-    notice('Super File Bros.: ' + error.message);
-  } finally {
-    dolphinOpening = false;
-    renderDolphin();
-  }
-}
-if ($('dolphin-open')) $('dolphin-open').onclick = () => openDolphin();
+
+if ($('dolphin-open')) ;
 let fsRpcLogProof = {id: null, state: null, checked: 0};
-async function readFsRpcProof(snapshot) {
-  // A panel already open during an update can keep serving its previous API.
-  // Read that session's persisted proof instead of restarting a live FS owner.
-  if (snapshot.fsRpc !== undefined || snapshot.platform?.loaderId !== 'bermthesequel') return;
-  const id = snapshot.active?.id;
-  if (!id) return;
-  if (fsRpcLogProof.id !== id) fsRpcLogProof = {id, state: null, checked: 0};
-  if (fsRpcLogProof.state !== 'ready' && Date.now() - fsRpcLogProof.checked > 10000) {
-    fsRpcLogProof.checked = Date.now();
-    try {
-      const result = await api('/api/log?id=' + encodeURIComponent(id), undefined, {timeoutMs: 15000});
-      const messages = (result.events || []).map(event => event.message || '');
-      if (messages.some(message => message === 'FS RPC ready (--rpc): native FS execution verified; endpoint retained.'))
-        fsRpcLogProof.state = 'ready';
-      else if (messages.includes('Preparing held FS RPC before graphics.')) fsRpcLogProof.state = 'starting';
-    } catch { /* The ordinary connection state still controls availability. */ }
-  }
-  if (fsRpcLogProof.state) snapshot.fsRpc = {state: fsRpcLogProof.state, source: 'session-proof-log'};
-}
+
 function showStartupMessage(message, {error, tone = 'warning', retry = true} = {}) {
   $('panel-startup').dataset.tone = tone;
   setText($('startup-message'), message);
@@ -4400,7 +2072,7 @@ function poll(fresh = false) {
       }
       serverUnavailable = false;
       render();
-      renderDolphin();
+      ;
       $('panel-status').hidden = true;
       if (!initialRenderComplete) {
         restoreNavigation(false);
@@ -4438,12 +2110,12 @@ function poll(fresh = false) {
       }
       serverUnavailable = true;
       if (!initialRenderComplete) {
-        showStartupMessage(invalidLink ? 'This window link is no longer valid. Open 0.3.1 from its shortcut.' :
+        showStartupMessage(invalidLink ? 'This window link is no longer valid. Open 0.3.2 from its shortcut.' :
           'The local server is unavailable. Try again or reopen IZ2S.', {tone:'error', retry:!invalidLink});
         return;
       }
       renderServerAvailability();
-      if (invalidLink) showPanelStatus('This window link is no longer valid.', 'Open 0.3.1 from its shortcut.', 'error', false);
+      if (invalidLink) showPanelStatus('This window link is no longer valid.', 'Open 0.3.2 from its shortcut.', 'error', false);
       else showPanelStatus(delayed ? 'Status update delayed' : 'Local server unavailable',
         delayed ? 'Showing the last known state. The panel will retry automatically.' :
           'Reopen IZ2S Platform from its shortcut to start the local server. This page will reconnect automatically.', delayed ? 'warning' : 'error');
@@ -4458,18 +2130,10 @@ document
   .forEach((e) =>
     e.addEventListener('click', () => switchView(e.dataset.view)),
   );
-document
-  .querySelectorAll('[data-step]')
-  .forEach((e) =>
-    e.addEventListener('click', () => chooseStep(e.dataset.step)),
-  );
-$('recovery-enabled').addEventListener('change', () => {
-  requestId = null;
-  renderWizard();
-});
-for(const value of ['new','restore'])$('session-mode-'+value).addEventListener('click',()=>{const view=globalThis.IZ2S_PRESENTATION.connectionMode(state);if(value==='restore'&&!view.available||value==='new'&&view.retained)return;sessionModeChoice=value;renderWizard();});
-$('screen-ready').addEventListener('change', renderControls);
-$('recheck').addEventListener('click', () => act('/api/check', {}));
+;
+;
+;
+;
 $('startup-retry').onclick = () => poll();
 $('panel-status-retry').onclick = async () => {
   const button = $('panel-status-retry');
@@ -4477,21 +2141,8 @@ $('panel-status-retry').onclick = async () => {
   try { await poll(); } finally { button.disabled = false; }
 };
 window.addEventListener('popstate', () => restoreNavigation());
-$('start').addEventListener('click', () => {
-  requestId ||= crypto.randomUUID();
-  act('/api/start', {
-    kind: state?.active?.setup?.stage === 'reboot' ? 'launch' : step,
-    screenReady: $('screen-ready').checked,
-    requestId,
-    recovery: $('recovery-enabled').checked,
-    moduleIds: state.platform?.sdLauncher?[]:$('preload-enabled').checked ? [...startupSelection] : [],
-    restoreInstalled: false,
-  });
-});
-$('stop').addEventListener('click', async () => {
-  const result=await act('/api/stop', {});
-  if(result?.ok){requestId=null;pendingSetup=null;$('screen-ready').checked=false;chooseStep('launch');}
-});
+;
+;
 $('load').addEventListener('click', () => {try{return act('/api/load',storageControls.selection([...selection]));}catch(error){notice(error.message);}});
 $('about').addEventListener('click', () => $('about-dialog').showModal());
 document
@@ -4523,72 +2174,18 @@ document.querySelector('.brand').addEventListener('click', (e) => {
   e.preventDefault();
   switchView('setup');
 });
-chooseStep('launch');
+;
 poll().finally(() => setInterval(poll, 2000));
 // No unload/visibility handler: closing or hiding Chrome never ends the session.
 
-async function setupAction(action, extra = {}) {
-  if (!pendingSetup || pendingSetup.action !== action)
-    pendingSetup = { action, requestId: crypto.randomUUID() };
-  const result = await act('/api/setup', { ...pendingSetup, ...extra });
-  if (result) pendingSetup = null;
-  return result;
-}
-async function restartFirstSetup() {
-  const result = await act('/api/retry', {});
-  if (result?.ok) {
-    requestId = null;
-    pendingSetup = null;
-    setupStamp = '';
-    resultStamp = '';
-    $('toast').hidden = true;
-    dismissed = notificationKey;
-    backendNotice = '';
-    $('screen-ready').checked = false;
-    $('review-ready').checked = false;
-    $('check-lines').checked = false;
-    $('saved-ready').checked = false;
-    for (let i = 0; i < 6; i++) $('metric-' + i).value = '';
-    chooseStep('bootstrap');
-  }
-}
-$('verify-source').addEventListener('click', () =>
-  setupAction('verify', { reviewed: $('review-ready').checked }),
-);
-$('skip-source').addEventListener('click', () =>
-  setupAction('skip', { reviewed: $('review-ready').checked }),
-);
-$('reverify-source').addEventListener('click', () =>
-  setupAction('verify', { reviewed: true }),
-);
-$('compare-source').addEventListener('click', () =>
-  setupAction('compare', {
-    values: Array.from({ length: 6 }, (_, i) => $('metric-' + i).value),
-    linesConfirmed: $('check-lines').checked,
-  }),
-);
-$('edit-readings').addEventListener('click', () => setupAction('edit-values'));
-$('save-source').addEventListener('click', () => setupAction('save'));
-$('confirm-saved').addEventListener('click', () =>
-  setupAction('saved', { savedConfirmed: $('saved-ready').checked }),
-);
-$('restart-setup').addEventListener('click', restartFirstSetup);
-for (const id of [
-  'review-ready',
-  'check-lines',
-  'saved-ready',
-  ...Array.from({ length: 6 }, (_, i) => 'metric-' + i),
-])
-  $(id).addEventListener('input', renderControls);
-$('export-source').addEventListener('click', async () => {
-  try {
-    const row = state.active || state.lastAttempt,
-      data = await api('/api/setup-report?id=' + encodeURIComponent(row.id), undefined, {timeoutMs:15000});
-    saveDownload(new Blob([data.text], {type:'text/plain;charset=utf-8'}), 'IZ2S-source-check-' + row.id + '.txt');
-  } catch (e) {
-    notice(e.message);
-  }
-});
+;
+;
+;
+;
+;
+;
+;
+;
 $('log').addEventListener('scroll', () => {
   if (!logWriting && $('log').clientHeight)
     logFollow =
@@ -4623,74 +2220,24 @@ document.querySelector('.activity').addEventListener('toggle', (event) => {
     $('log').scrollTop = $('log').scrollHeight;
 });
 
-$('hard-stop').addEventListener('click', async () => {
-  if (hardStopping) return;
-  hardStopping = true;
-  renderControls();
-  try {
-    await api('/api/hard-stop', {});
-    await poll();
-  } catch (e) {
-    notice(e.message, 'error');
-  } finally {
-    hardStopping = false;
-    renderControls();
-  }
-});
+;
 
+;
+;
+;
 
-$('delivery-options').oninput = () => {
-  $('screen-ready').checked = false;
-  renderControls();
-};
-$('delivery-options').onsubmit = e => e.preventDefault();
-$('delivery-options').onchange = async () => {
-  if (!deliveryDirty() || busy || state.platform.locked) return;
-  const loaderId = state.platform.loaderId,
-    loaderSettings = {...state.platform.loaderSettings, ...fieldValues($('delivery-fields'))};
-  const result = await act('/api/launch-settings', {loaderSettings});
-  if (result?.ok && state.platform.loaderId === loaderId)
-    state.platform.loaderSettings = loaderSettings;
-  // A failed save restores the last confirmed value instead of leaving a draft.
-  for (const input of $('delivery-fields').querySelectorAll('input,select'))
-    delete input.dataset.savedValue;
-  delete $('delivery-options').dataset.stamp;
-  renderPlatform();
-  renderControls();
-};
+;
 
-$('install-slot').onchange = () => {
-  $('screen-ready').checked = false;
-  document.querySelectorAll('.up-ready').forEach((e) => (e.checked = false));
-  act('/api/launch-settings', { installSlot: Number($('install-slot').value) });
-};
+;
+;
 
-$('engine-download').onclick = () =>
-  act('/api/engine/install', { id: state.platform.loaderId });
-$('engine-rescan').onclick = () => act('/api/engine/rescan', {});
+;
+;
+;
+;
+;
 
-for(const id of ['arm-setup-address','arm-setup-user','arm-setup-key']) $(id).oninput=()=>{$(id).dataset.edited='true';};
-$('arm-install-confirm').onchange=()=>{if(state?.platform)renderArmSetup(state.platform);};
-for(const mode of ['ssh','manual']) $('arm-method-'+mode).onclick=()=>{for(const item of ['ssh','manual']){$('arm-method-'+item).classList.toggle('selected',mode===item);$('arm-method-'+item).setAttribute('aria-pressed',String(mode===item));$('arm-'+item+'-pane').hidden=mode!==item;}};
-$('arm-install-form').onsubmit=async(event)=>{
-  event.preventDefault();
-  setFeedback('arm-install-result', 'Installing the verified package over SSH…');
-  const result=await act('/api/input/install',{address:$('arm-setup-address').value.trim(),user:$('arm-setup-user').value.trim(),identity:$('arm-setup-key').value.trim(),confirm:$('arm-install-confirm').checked});
-  if(result?.ok){setFeedback('arm-install-result', result.keyboard?'Installed. Check the console USB connection before launch.':'Installed. Connect the USB data port to Switch and check again.', 'success');for(const id of ['arm-setup-address','arm-setup-user','arm-setup-key'])delete $(id).dataset.edited;}
-  else setFeedback('arm-install-result', 'Installation was not confirmed. Check the SSH connection or use the manual package.', 'error');
-};
-$('arm-check').onclick=()=>act('/api/check', {});
-async function downloadArmInstaller(profile) {
-  try {
-    const response = await api('/api/input-package?' + new URLSearchParams({format:'installer',profile}), undefined, {responseType:'response',timeoutMs:30000});
-    const bytes = await response.arrayBuffer();
-    const installer = (response.headers.get('content-disposition') || '').includes('.run')
-      ? bytes : await IZ2S_ARM_INSTALLER.create(bytes);
-    saveDownload(new Blob([installer], {type:'application/octet-stream'}), profile === 'civ7' ? 'iz2s-civ7-arm-input.run' : 'iz2s-arm-input.run');
-  } catch (error) { notice(error.message); }
-}
-$('arm-package-download').onclick=()=>downloadArmInstaller(state?.platform?.loaderId==='civswitch'?'civ7':'sb4');
-
+;
 
 window.addEventListener('run21:languagechange', () => {
   updateNavigation();
@@ -4711,95 +2258,21 @@ for (const placeholder of document.querySelectorAll('[data-folder]')) {
   placeholder.replaceWith(button);
 }
 
-async function downloadCardputerPackage() {
-  const blob = await api('/api/cardputer/package', undefined, {responseType:'blob',timeoutMs:30000});
-  saveDownload(blob, 'iz2s-cardputer-adv-sd.zip');
-}
-async function prepareCardputer(action){
-  if(busy||cardputerRequest)return;
-  cardputerRequest={id:crypto.randomUUID(),kind:action==='install'?'firmware':'package',stopping:false};
-  const id='cardputer-setup-result';
-  setFeedback(id,action==='install'?'Copying to the ADV SD card…':'Preparing the SD package…');
-  try{
-    const result=await act('/api/cardputer/'+action,{requestId:cardputerRequest.id});
-    if(result?.cancelled){setFeedback(id,'Cancelled. Incomplete SD files were removed. Existing firmware and Wi-Fi settings are preserved.','warning');return;}
-    if(action==='install')setFeedback(id,result?.verified?'Copied. Start '+result.filename.replace(/^Utilities\//,'')+' from M5Launcher.':'Copy failed. Open M5Launcher USB storage and mount its SD card.',result?.verified?'success':'error');
-    else if(result?.ok){await downloadCardputerPackage();setFeedback(id,'Extract the ZIP to the SD card, then start IZ2S-ADV.bin in M5Launcher.','success');}
-    else setFeedback(id,'Could not prepare the SD package.','error');
-  }catch(error){setFeedback(id,'Could not download the SD package.','error');notice(error.message);}
-  finally{cardputerRequest=null;renderControls();}
-}
-$('cardputer-install').onclick=()=>prepareCardputer('install');
-$('cardputer-file').onclick=()=>prepareCardputer('prepare');
-$('cardputer-cancel').onclick=async()=>{
-  const operation=cardputerRequest||state?.hardwareOperation;if(!operation||operation.stopping)return;
-  operation.stopping=true;renderControls();
-  setFeedback('cardputer-setup-result','Cancelling… Waiting for the current SD write to close safely. Keep ADV connected.','warning');
-  try{await api('/api/cardputer/cancel',{requestId:operation.id});await poll();}
-  catch(error){operation.stopping=false;notice(error.message);}
-  finally{renderControls();}
-};
-$('cardputer-check').onclick=()=>act('/api/check',{});
-$('adv-usb-check').onclick=()=>act('/api/check',{});
-$('adv-address').onclick=()=>openDeviceSettings({addresses:true,focus:'[name="cardputerEndpoint"]'});
+;
+;
+;
+;
+;
+;
 
-$('library-source').addEventListener('change',()=>act('/api/launch-settings',{sdLauncher:$('library-source').value==='sd'}));
-$('native-recovery-enabled').addEventListener('change',()=>act('/api/launch-settings',{nativeRecovery:$('native-recovery-enabled').checked}));
-$('restore-connection').addEventListener('click',()=>act('/api/connection/restore',{}));
+;
+;
+;
 
-const switchAddressField = $('switch-keyboard-address'), switchAddressError = $('switch-keyboard-address-error');
-function showSwitchAddressError(message = '') {
-  setText(switchAddressError, message);
-  switchAddressError.hidden = !message;
-  if (message) switchAddressField.setAttribute('aria-invalid', 'true');
-  else switchAddressField.removeAttribute('aria-invalid');
-}
-switchAddressField.oninput = () => {
-  switchAddressField.dataset.edited = 'true';
-  showSwitchAddressError();
-};
-$('switch-keyboard-form').onsubmit = async event => {
-  event.preventDefault();
-  if (busy || serverUnavailable || state?.platform?.configurationId !== 'pc-switch1') return;
-  const switchAddress = switchAddressField.value.trim();
-  const parts = switchAddress.split('.');
-  if (switchAddress && (parts.length !== 4 || parts.some(part => !/^(0|[1-9][0-9]{0,2})$/.test(part) || Number(part) > 255))) {
-    showSwitchAddressError('Enter a valid IPv4 address, for example 192.168.1.50.');
-    switchAddressField.focus();
-    return;
-  }
-  showSwitchAddressError();
-  const result = await act('/api/launch-settings', {configurationId:'pc-switch1',
-    profile:{...state.platform.profiles?.['pc-switch1'], switchAddress, switchManualAddress:!!switchAddress}},
-    {onError:error => showSwitchAddressError(globalThis.IZ2S_ERRORS.describe(error).title)});
-  if (result?.ok) {
-    switchAddressField.value = switchAddress;
-    delete switchAddressField.dataset.edited;
-    await act('/api/check', {});
-  }
-};
-$('switch-keyboard-check').onclick = () => act('/api/check', {});
-$('switch-keyboard-install').onclick = async () => {
-  const id = 'switch-keyboard-install-status';
-  setFeedback(id, 'Copying homebrew to Switch 1…');
-  const result = await act('/api/switch-keyboard/install', {});
-  setFeedback(id, result?.verified
-    ? 'Copy verified. Automatic pairing saved. Exit DBI and open IZ2S SB4 Keyboard.'
-    : 'Copy not confirmed. Keep DBI MTP Responder open, or download the SD package.', result?.verified?'success':'error');
-};
-$('switch-keyboard-download').onclick = async () => {
-  const id = 'switch-keyboard-install-status';
-  setFeedback(id, 'Preparing the SD package…');
-  try {
-    const prepared = await act('/api/switch-keyboard/prepare', {});
-    if (!prepared?.ok) {setFeedback(id, 'Could not prepare the SD package.', 'error');return;}
-    const blob = await api('/api/switch-keyboard/package', undefined, {responseType:'blob', timeoutMs:15000});
-    saveDownload(blob, prepared.filename || 'IZ2S-SB4-Keyboard-0.24.zip');
-    setFeedback(id, 'Extract the ZIP to the root of the Switch 1 SD card.', 'success');
-  } catch (error) {
-    setFeedback(id, 'Could not download the Switch 1 SD package.', 'error');
-    notice(error.message);
-  }
-};
+;
+;
+;
+;
+;
 
 } // Ordinary panel; the standalone files preview above never starts polling.

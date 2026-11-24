@@ -4,11 +4,7 @@
 globalThis.IZ2S_CORE_MESSAGES = (() => {
   const messages = `
 openAddAppToInstall|Ready to install. Open Add App on Switch to receive it.|Пакет готов. Откройте Add App на Switch, чтобы установить его.|El paquete está listo. Abre Add App en Switch para instalarlo.|安装包已准备好。在 Switch 上打开 Add App 进行安装。
-rpcWarning|RPC mode is available only while SmileBASIC remains open.|RPC-режим доступа к FS доступен только до закрытия SmileBASIC.|El modo RPC solo está disponible mientras SmileBASIC siga abierto.|RPC 模式仅在 SmileBASIC 保持打开时可用。
 rpcReady|Filesystem RPC connected|Файловый RPC подключён|RPC del sistema de archivos conectado|文件系统 RPC 已连接
-rpcHeld|SmileBASIC RPC session retained|RPC-сеанс SmileBASIC удерживается|La sesión RPC de SmileBASIC sigue abierta|SmileBASIC RPC 会话保持打开
-rpcKeep|Keep SmileBASIC open to use console files and installed games.|Оставьте SmileBASIC открытым для работы с файлами консоли и установленными играми.|Mantén SmileBASIC abierto para acceder a los archivos y juegos instalados.|保持 SmileBASIC 打开以访问主机文件和已安装的游戏。
-rpcNext|Open Super File Bros. to browse files now. To switch to the IZ2S menu, finish file operations, close SmileBASIC via HOME, then open a game while holding R.|Откройте Super File Bros. для работы с файлами. Для перехода в меню IZ2S завершите файловые операции, закройте SmileBASIC через HOME и откройте игру, удерживая R.|Abre Super File Bros. para explorar archivos. Para pasar al menú IZ2S, termina las operaciones, cierra SmileBASIC desde HOME y abre un juego manteniendo R.|打开 Super File Bros. 浏览文件。若要切换到 IZ2S 菜单，请先完成文件操作，通过 HOME 关闭 SmileBASIC，然后按住 R 打开游戏。
 menuVersion|Menu version: {version}|Версия меню: {version}|Versión del menú: {version}|菜单版本：{version}
 menuUpdate|Update launcher menu|Обновить меню лаунчера|Actualizar el menú|更新启动器菜单
 menuUpdate_idle||||
@@ -32,12 +28,9 @@ restartSetup|Restart|Начать заново|Reiniciar|重新开始
 setupStepInput|Source entry|Ввод исходника|Introducción del código|输入源代码
 setupStepReview|Review|Проверка|Revisión|校验
 setupStepSave|Save|Сохранение|Guardado|保存
-setupIntro|In SmileBASIC 4, open Make a Program. Set up NS2IZA once. If it is already saved, open Launch.|В SmileBASIC 4 выберите «Создание программы» (Make a Program). Настройте NS2IZA один раз. Если он уже сохранён, откройте «Запуск».|En SmileBASIC 4, selecciona Make a Program. Configura NS2IZA una sola vez. Si ya está guardado, abre Inicio.|在 SmileBASIC 4 中选择 Make a Program。NS2IZA 只需设置一次。如果已保存，请打开“启动”。
 slot|Program slot {n}|Слот программы {n}|Ranura de programa {n}|程序槽 {n}
 slotLabel|Empty program slot|Пустой слот программы|Ranura de programa vacía|空程序槽
 setupReady|Direct is open, the selected slot is empty and the keyboard is set to English (US).|Открыт Direct, выбранный слот пуст, клавиатура настроена на English (US).|Direct está abierto, la ranura seleccionada está vacía y el teclado está en inglés (EE. UU.).|已打开 Direct，所选程序槽为空，键盘已设为英语（美国）。
-enterSource|Enter 229 lines|Ввести 229 строк|Introducir 229 líneas|输入 229 行
-reviewed|All 229 lines are in the editor. The last line is END.|В редакторе есть все 229 строк. Последняя строка — END.|El editor contiene las 229 líneas. La última es END.|编辑器中已有全部 229 行，最后一行为 END。
 verify|Check the source|Проверить исходник|Verificar el código|校验源代码
 save|Save NS2IZA|Сохранить NS2IZA|Guardar NS2IZA|保存 NS2IZA
 optional|Checking is optional. Confirm the save or overwrite on Switch.|Проверка необязательна. Подтвердите сохранение или замену файла на Switch.|La verificación es opcional. Confirma el guardado o la sustitución en Switch.|校验为可选操作。请在 Switch 上确认保存或覆盖。
@@ -46,7 +39,6 @@ part|Part|Часть|Parte|部分
 chars|Characters|Символы|Caracteres|字符数
 checksum|Checksum|Контрольная сумма|Suma de verificación|校验和
 metric|Part {n}, {field}|Часть {n}, {field}|Parte {n}, {field}|第 {n} 部分：{field}
-lines|The check finished without errors. SOURCE LINES shows 229, or 230 with a final blank line.|Проверка прошла без ошибок. SOURCE LINES показывает 229 или 230 с пустой последней строкой.|La verificación terminó sin errores. SOURCE LINES muestra 229 o 230 con una última línea vacía.|校验已完成且无错误。SOURCE LINES 显示 229，或末行为空时显示 230。
 compare|Compare values|Сверить значения|Comparar valores|比对数值
 match|All three parts match.|Все три части совпали.|Coinciden las tres partes.|三个部分均匹配。
 mismatch|Some values differ. Check the readings on Switch and compare again.|Некоторые значения не совпали. Проверьте числа на Switch и сверьте их снова.|Algunos valores no coinciden. Revisa los datos en Switch y compáralos de nuevo.|部分数值不匹配。请检查 Switch 上的读数并重新比对。
@@ -77,19 +69,14 @@ waitingLauncher|Waiting for IZ2S|Ожидание IZ2S|Esperando a IZ2S|正在�
 storeHint|On Switch, open Add App to choose an app from the PC library.|На Switch откройте Add App и выберите приложение из библиотеки на ПК.|Abre Add App en Switch para elegir una aplicación de la biblioteca del PC.|在 Switch 上打开 Add App，从电脑应用库中选择应用。
 resetSession|Force reset session|Принудительно сбросить сеанс|Forzar el reinicio de la sesión|强制重置会话
 resetPrompt|Reset this session in the panel? Transfers will stop and the new launch form will open. Logs and pairing will be kept. This does not reboot the console.|Сбросить текущий сеанс в панели? Передачи остановятся, откроется форма нового запуска. Журналы и сопряжение сохранятся. Консоль не будет перезагружена.|¿Restablecer la sesión del panel? Se detendrán las transferencias y se abrirá un nuevo inicio. Se conservarán registros y vinculación. La consola no se reiniciará.|重置面板会话？传输将停止，并显示新的启动表单。日志和配对将保留。主机不会重启。
-openLauncherHint|Close SmileBASIC via HOME → open a Switch 2 game while holding R.|Закройте SmileBASIC через HOME → откройте игру Switch 2, удерживая R.|Cierra SmileBASIC desde HOME → abre un juego de Switch 2 manteniendo R.|通过 HOME 关闭 SmileBASIC → 按住 R 打开 Switch 2 游戏。
 continueOnConsole|Connection is complete. Now open IZ2S on Switch 2.|Подключение завершено. Теперь откройте IZ2S на Switch 2.|La conexión se ha completado. Abre IZ2S en Switch 2.|连接已完成。现在请在 Switch 2 上打开 IZ2S。
-exitSB4|Close SmileBASIC 4|Закройте SmileBASIC 4|Cierra SmileBASIC 4|关闭 SmileBASIC 4
 openWithR|Hold R and open a Switch 2 game|Удерживая R, откройте игру Switch 2|Mantén R y abre un juego de Switch 2|按住 R 打开 Switch 2 游戏
 showSettings|Connection settings|Настройки подключения|Ajustes de conexión|连接设置
 hideSettings|Hide connection settings|Скрыть настройки|Ocultar ajustes|隐藏连接设置
-handoffKeep|IZ2S is already running on the console. You can close SB4 now; keep this panel open for apps and files.|IZ2S уже работает на консоли. SB4 можно закрыть; оставьте панель открытой для приложений и файлов.|IZ2S ya se ejecuta en la consola. Puedes cerrar SB4; deja abierto este panel para aplicaciones y archivos.|IZ2S 已在主机上运行。现在可以关闭 SB4；请保持此面板打开以管理应用和文件。
-handoffDone|SB4 has closed. IZ2S remains on the console; this is the current session, not a new launch.|SB4 закрыт. IZ2S остаётся на консоли; текущий сеанс сохранён.|SB4 se ha cerrado. IZ2S permanece en la consola; esta sesión sigue activa.|SB4 已关闭。IZ2S 仍在主机上运行；当前会话已保留。
 recordedSession|The last successful launch is saved. If you have not restarted Switch 2, continue with R; after a console restart, choose New launch.|Последний успешный запуск сохранён. Если Switch 2 не перезагружалась, продолжайте через R; после перезагрузки выберите «Новая попытка».|Se ha guardado el último inicio correcto. Si no reiniciaste Switch 2, continúa con R; después de reiniciar, elige Nuevo intento.|已保存上次成功启动。如果未重启 Switch 2，请按 R 继续；重启后请选择新建尝试。
 confirmed|IZ2S launch confirmed|Запуск IZ2S подтверждён|Inicio de IZ2S confirmado|已确认 IZ2S 启动
 lastConfirmed|Last IZ2S launch confirmed|Последний запуск IZ2S подтверждён|Se confirmó el último inicio de IZ2S|上次 IZ2S 启动已确认
 pid|IZ2S PID {pid}. Continue on Switch.|PID IZ2S {pid}. Продолжайте на Switch.|PID de IZ2S {pid}. Continúa en Switch.|IZ2S PID {pid}。请在 Switch 上继续。
-closeSmile|Close SmileBASIC from the HOME menu.|Закройте SmileBASIC через меню HOME.|Cierra SmileBASIC desde el menú HOME.|在 HOME 菜单中关闭 SmileBASIC。
 holdR|Keep R held until IZ2S appears. If the game starts normally, close it and repeat once.|Не отпускайте R, пока не появится IZ2S. Если открылась обычная игра, закройте её и повторите один раз.|Mantén pulsado R al abrir un juego de Switch 2. Repite una vez si no aparece el menú.|按住 R 打开一款 Switch 2 游戏。如果菜单未出现，请再试一次。
 menuReady|IZ2S is open on Switch.|IZ2S открыт на Switch.|IZ2S está abierto en Switch.|IZ2S 已在 Switch 上打开。
 menuConfirmed|You confirmed that IZ2S opened.|Вы подтвердили открытие IZ2S.|Has confirmado que IZ2S se abrió.|你已确认 IZ2S 打开。
@@ -99,7 +86,6 @@ ps2Hint|Open IZPS2, then select a BIOS and a game on the SD card.|Откройт
 return|Return|Возврат|Volver|返回
 returnHint|Press the right stick twice to exit IZA. Press + to leave the menu.|Из IZA выйдите двумя короткими нажатиями правого стика, из меню — кнопкой «+».|Pulsa dos veces el stick derecho para salir de IZA. Pulsa + para salir del menú.|按两次右摇杆退出 IZA。按 + 退出菜单。
 newLaunch|New launch|Новая попытка|Nuevo intento|新建尝试
-finishSmile|Close SmileBASIC to finish this session.|Закройте SmileBASIC, чтобы завершить сеанс.|Cierra SmileBASIC para terminar esta sesión.|关闭 SmileBASIC 以结束此会话。
 offlineMenu|The console menu runs independently of the PC panel.|Меню на консоли работает без панели на ПК.|El menú de la consola funciona sin el panel del PC.|主机菜单可独立于电脑面板运行。
 stop|Stop attempt|Остановить попытку|Detener intento|停止尝试
 stopping|Stopping…|Остановка…|Deteniendo…|正在停止…
@@ -132,8 +118,6 @@ phaseStatus|Stage {n}/4 · {name}|Этап {n}/4 · {name}|Etapa {n}/4 · {name}
 starting|Starting the installer|Запуск установщика|Iniciando el instalador|正在启动安装程序
 typing|{device} is typing|{device} вводит команды|{device} está escribiendo|{device} 正在输入
 waiting|Waiting for Switch|Ожидание Switch|Esperando a Switch|正在等待 Switch
-waitingForConsole|Input finished. Waiting for SmileBASIC at {host}:39380. IZ2S loading has not started. Check the Switch screen and the PC network address. FTP is not required.|Ввод завершён. Ожидаем SmileBASIC на {host}:39380. Загрузка IZ2S ещё не началась. Проверьте экран Switch и адрес ПК в сети консоли. FTP не требуется.|Entrada completada. Esperando SmileBASIC en {host}:39380. IZ2S aún no se está cargando. Comprueba la pantalla de Switch y la dirección de red del PC. No se necesita FTP.|输入已完成。正在 {host}:39380 等待 SmileBASIC。IZ2S 尚未开始加载。请检查 Switch 屏幕和电脑网络地址。无需 FTP。
-consoleConnectTimeout|SmileBASIC did not connect to the PC. Check the V=START result on Switch and the PC address on the console network. FTP and keyboard pairing are separate from this connection.|SmileBASIC не подключился к ПК. Проверьте результат V=START на Switch и адрес ПК в сети консоли. FTP и сопряжение клавиатуры не относятся к этому подключению.|SmileBASIC no se conectó al PC. Comprueba el resultado de V=START y la dirección del PC en la red de la consola. FTP y la vinculación del teclado son conexiones distintas.|SmileBASIC 未连接到电脑。请检查 Switch 上的 V=START 结果及主机网络中的电脑地址。FTP 和键盘配对与此连接不同。
 connected|Switch connected|Switch подключён|Switch conectada|Switch 已连接
 lastFailed|Last attempt failed|Последняя попытка завершилась ошибкой|El último intento falló|上次尝试失败
 failed|Attempt failed|Попытка завершилась ошибкой|El intento falló|尝试失败
@@ -148,7 +132,6 @@ save_confirmation|Confirm the save on Switch|Подтвердите сохран
 saved|Setup complete|Настройка завершена|Configuración completada|设置完成
 reboot|Fully restart Switch before trying again.|Перед повтором полностью перезагрузите Switch.|Reinicia Switch por completo antes de volver a intentarlo.|再次尝试前，请完全重启 Switch。
 noInput|No input was sent to Switch.|Команды на Switch не отправлялись.|No se enviaron comandos a Switch.|未向 Switch 发送任何命令。
-keepOpen|Keep SmileBASIC open until IZ2S is confirmed.|Оставьте SmileBASIC открытым до подтверждения IZ2S.|Mantén SmileBASIC abierto hasta que se confirme IZ2S.|在确认 IZ2S 前，请保持 SmileBASIC 打开。
 pcError|Could not refresh IZ2S status and log. Check the panel connection and retry.|Не удалось обновить статус и журнал IZ2S. Проверьте связь с панелью и повторите обновление.|No se pudo actualizar el estado y el registro de IZ2S. Comprueba la conexión con el panel y vuelve a intentarlo.|无法刷新 IZ2S 状态和日志。请检查与面板的连接并重试。
 requestError|The IZ2S operation failed.|Не удалось выполнить действие IZ2S.|No se pudo completar la operación de IZ2S.|IZ2S 操作失败。
 downloadError|Could not download the log.|Не удалось скачать журнал.|No se pudo descargar el registro.|无法下载日志。

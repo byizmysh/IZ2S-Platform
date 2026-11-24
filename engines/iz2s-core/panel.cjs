@@ -11,7 +11,6 @@ const diagnostics = require('./ui/view.js');
 const { timings } = require('./journal.cjs');
 const LOG_LIMIT = 24000;
 const assets = Object.freeze({
-  'connection.css': 'text/css; charset=utf-8',
   'messages.js': 'text/javascript; charset=utf-8',
   'view.js': 'text/javascript; charset=utf-8',
 });
@@ -56,14 +55,7 @@ async function pcTool(view, request = fetch, options = {}) {
   } catch { return unavailable; }
 }
 
-async function insertConnection(html) {
-  const connection = await fs.readFile(path.join(ui, 'connection.html'), 'utf8');
-  const includes = Object.keys(assets).filter(name => !html.includes('/engines/iz2s-core/' + name)).map(name => name.endsWith('.css')
-    ? '<link rel="stylesheet" href="/engines/iz2s-core/' + name + '">'
-    : '<script src="/engines/iz2s-core/' + name + '" defer></script>').join('');
-  return html.replace('<!-- IZ2S_CORE_ASSETS -->', () => includes)
-    .replace('<!-- IZ2S_CORE_CONNECTION -->', () => connection);
-}
+async function insertConnection(html) { return html.replace('<!-- IZ2S_CORE_ASSETS -->','').replace('<!-- IZ2S_CORE_CONNECTION -->',''); }
 
 function logPath(out, id) {
   if (typeof id !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id)) return null;

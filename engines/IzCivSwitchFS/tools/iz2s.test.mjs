@@ -16,7 +16,7 @@ async function moduleAt(entry, context = {}, plugins = [iz2sRuntimePlugin]) {
     return module.exports;
 }
 
-test("RUN25 runtime is verified and all targets stay in /iz2s", () => {
+test("Packaged runtime is verified and all targets stay in /iz2s", () => {
     const data = loadIz2sRuntime();
     assert.equal(data.packagePath, "@Sdcard:/iz2s/core/bin/core/exefs.nsp");
     assert.equal(data.manifest.launcher.path, "/iz2s/izlauncher.iza");
@@ -98,6 +98,6 @@ test("readable persistent image fits save and loader limits and round-trips", as
     const encoded = result.image.stage.match(/B64\("([A-Za-z0-9+/=]+)"\)/)[1];
     assert.equal(inflateRawSync(Buffer.from(encoded, "base64")).toString("ascii"), result.standalone);
     assert.doesNotMatch(result.standalone, /\/kaihen\/|\/hbmenu\.nro|HEN IS RUNNING/);
-    assert.match(result.standalone, /IZ2Sciv 0\.2 by IZMYSH/);
+    assert.match(result.standalone, /IZ2s 0\.3\.2 by IZMYSH/);
     assert.doesNotMatch(result.standalone, /CivSwitch 1\.0 by Gezine|IZCIV 0\.1 by IZMYSH/);
 });

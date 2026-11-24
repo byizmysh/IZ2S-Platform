@@ -21,12 +21,12 @@ function child(file, args = []) {
 
 export async function main(args = process.argv.slice(2)) {
     if (args.includes("--help") || args.includes("-h")) {
-        console.log("IZ2SCiv core — RUN25 IZ2s, no kaiHEN\n" +
+        console.log("IZ2SCiv core — Civilization VII entry for IZ2S\n" +
             "Usage: ./iz2sciv.sh [launch|install|setup|prepare-sd|build|check] [--host IPv4]\n" +
             "prepare-sd: build an offline ZIP to extract to the SD card root\n" +
             "launch: find Awaiting payload and start IZ2S using the existing /iz2s files\n" +
             "install: install the IZ2S chain into the Civ7 trigger save\n" +
-            "setup: run Wi-Fi First Setup, then discover the loader and install the chain\n" +
+            "setup: legacy alias; use the PC panel for initial Wi-Fi setup\n" +
             "build/check: local only, no console connection\n" +
             "After installation, restart Civ7 and open Load Game. After IZ2S starts,\n" +
             "close Civ7 and hold R while opening a Switch 2 game; repeat once if needed.");

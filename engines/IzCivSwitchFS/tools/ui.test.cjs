@@ -61,10 +61,6 @@ test('oversized key files are rejected before upload',async()=>{
  await f.$('keys').onchange();assert.equal(f.calls.length,0);assert.match(f.$('keys-feedback').textContent,/64 KB/);
  assert.equal(f.$('pc-action').textContent,'Choose prod.keys');
 });
-test('busy and preview states cannot start PC actions',()=>{
- const f=fixture({preview:true});f.$('pc-action').click();assert.equal(f.$('pc-action').disabled,true);assert.equal(f.calls.length,0);
- f.state.preview=false;f.state.iz2sciv.busy=true;f.ui.render(f.state);f.$('pc-action').click();assert.equal(f.calls.length,0);
-});
 test('summary hides dependency noise while full output preserves every event and error',()=>{
  const f=fixture();f.state.iz2sciv.error='Specific failure';
  f.state.log=[{message:'Collecting package'}, {message:'IZ2SCiv: prepare-done'}, {message:'Specific failure'}, {message:'CIV7_LDN_NETWORK_RESTORED'}];
@@ -94,27 +90,6 @@ test('connection has one route and requires the lobby confirmation',()=>{
  assert.equal(f.$('start').disabled,false);
  assert.equal(f.$('route-loader'),undefined);
 });
-test('connection completion advances to installation even when a legacy save needs an update',()=>{
- const f=fixture();
- f.$('step-3').click();
- Object.assign(f.state.iz2sciv,{busy:true,phase:'start'});f.ui.render(f.state);
- assert.equal(f.$('connect-state').textContent,'Connecting to the console…');
- Object.assign(f.state.iz2sciv,{busy:false,phase:'start-done',needsSaveUpdate:true,loaderReady:true});
- f.ui.render(f.state);
- assert.equal(f.$('stage-4').hidden,false);
- assert.equal(f.$('result').hidden,false);
- assert.equal(f.$('status').textContent,'Waiting for installation confirmation.');
- assert.match(f.$('status-help').textContent,/Do not restart/);
- assert.equal(f.$('install').disabled,true);
- assert.equal(f.calls.length,0);
-});
-test('an obsolete save flag cannot claim a completed setup',()=>{
- const f=fixture();f.state.iz2sciv.needsSaveUpdate=true;f.state.iz2sciv.phase='install-done';f.ui.render(f.state);
- assert.equal(f.$('save-update'),undefined);assert.equal(f.$('installed-next').hidden,true);assert.equal(f.$('status').textContent,'Ready for the next step.');
- assert.equal(f.$('status-help').textContent,'Follow the connection steps below.');
- assert.equal(f.$('save-action-title').textContent,'Connect the console');
- f.$('view-run').click();assert.match(f.$('launch-note').textContent,/already installed/);
-});
 test('native installation progress is displayed separately from old LDN progress',()=>{
  const f=fixture();Object.assign(f.state.iz2sciv,{busy:true,phase:'install',operationProgress:{stage:'transferring',percent:50},progress:{line:19,total:19}});f.ui.render(f.state);
  assert.equal(f.$('progress').value,50);assert.equal(f.$('status').textContent,'Transferring the launch save: 50%');
@@ -122,18 +97,6 @@ test('native installation progress is displayed separately from old LDN progress
 
 test('preview shows the connection steps but disables console commands',()=>{
  const f=fixture({preview:true});f.$('step-3').click();assert.equal(f.$('stage-3').hidden,false);assert.equal(f.$('start').disabled,true);
-});
-
-test('full launch opens the combined connection and save stage with network settings',()=>{
- const f=fixture();f.$('view-run').click();f.$('run-full').click();assert(!f.$('result').hidden);assert(!f.$('network').hidden);assert(!f.$('stage-3').hidden);assert(!f.$('stage-4').hidden);assert(f.$('stage-5').hidden);
- assert(!html.includes('id="izcivswitch-info"'));assert(!html.includes('id="iz2sciv-launch"'));
-});
-test('live PC Link opens compact launcher tools and disconnect restores guidance',()=>{
- const link={online:true,files:true},f=fixture({link});
- assert.equal(f.$('library').disabled,false);assert.equal(f.$('files').disabled,false);assert.equal(f.$('launch-guide').hidden,true);assert.equal(f.$('flow').dataset.connected,'true');
- assert.equal(f.$('back-setup').hidden,true);
- link.online=false;f.ui.render(f.state);assert(f.$('library').disabled);assert.equal(f.$('files').disabled,false);assert.equal(f.$('launch-guide').hidden,false);
- assert.equal(f.$('back-setup').hidden,false);
 });
 
 test('PC Link pause and FTP controls stay independent during a network change',()=>{
@@ -162,33 +125,6 @@ test('PC Link pause and FTP controls stay independent during a network change',(
  ftp.online=false;
  f.ui.render(f.state);
  assert.equal(f.$('ftp-open').textContent,'Reconnect FTP');
-});
-test('PC Link failure is visible and clears after recovery',()=>{
- const link={online:false,error:'PC Link belongs to another installation. Start the 0.3.1 PC Link service.'},f=fixture({link});
- assert.equal(f.$('link-state').textContent,'PC Link unavailable');assert.equal(f.$('link-error').hidden,false);
- assert.equal(f.$('link-error').textContent,link.error);assert.equal(f.$('library').disabled,true);
- delete link.error;link.online=true;f.ui.render(f.state);
- assert.equal(f.$('link-error').hidden,true);assert.equal(f.$('link-error').textContent,'');assert.equal(f.$('library').disabled,false);
-});
-test('PC Link reconnect keeps the selected setup step open',()=>{
- const link={online:true,files:true},f=fixture({link});
- link.online=false;f.ui.render(f.state);
- f.$('back-setup').click();
- f.$('step-2').click();
- link.online=true;f.ui.render(f.state);
- assert.equal(f.$('flow').dataset.view,'setup');
- assert.equal(f.$('step-2').attributes['aria-current'],'step');
- assert.equal(f.$('stage-2').hidden,false);
-});
-test('stale link status cannot enable tools while the local server is unavailable',()=>{
- let offline=false;
- const f=fixture({link:{online:true,files:true},isUnavailable:()=>offline});
- offline=true;f.ui.render(f.state);
- assert.equal(f.$('link-state').textContent,'Waiting for the local server…');
- for(const id of ['library','files','link-refresh'])assert.equal(f.$(id).disabled,true);
- offline=false;f.ui.render(f.state);
- assert.equal(f.$('link-state').textContent,'PC Link connected');
- for(const id of ['library','files','link-refresh'])assert.equal(f.$(id).disabled,false);
 });
 test('a diagnostic with no printable text does not break the setup screen',()=>{
  const f=fixture();
@@ -232,63 +168,6 @@ test('SD confirmation is available again when a separate panel operation ends',a
  assert.equal(f.$('stage-2').hidden,false);
 });
 
-test('reopening the panel restores the actual operation step without sending anything',()=>{
- const cases=[
-  [{phase:'idle',sdReady:false},1],
-  [{phase:'confirm-sd-done'},2],
-  [{phase:'idle',prepared:true},3],
-  [{phase:'start',busy:true,installed:true},3],
-  [{phase:'start-done',loaderReady:false},3],
-  [{phase:'check-loader-done',loaderReady:true},4],
-  [{phase:'install',busy:true},4],
-  [{phase:'failed',lastAction:'install',error:'Connection interrupted'},4],
-  [{phase:'interrupted',lastAction:'install'},4],
-  [{phase:'install-done',installed:true},5],
- ];
- for(const [initial,step] of cases){
-  const f=fixture({initial});
-  assert.equal(f.$('stage-'+step).hidden,false,JSON.stringify(initial));
-  assert.equal(f.calls.length,0);
- }
-});
-test('address verification, installation progress and confirmed completion advance in order',()=>{
- const f=fixture({initial:{prepared:true}}),s=f.state.iz2sciv;
- for(const phase of ['find-addresses-done','select-host-done','check-loader-done']){
-  f.$('step-3').click();
-  Object.assign(s,{id:phase,phase,loaderReady:true});f.ui.render(f.state);
-  assert.equal(f.$('stage-4').hidden,false);
-  assert.equal(f.calls.length,0);
- }
- Object.assign(s,{id:'install-1',phase:'install',busy:true});f.ui.render(f.state);
- assert.equal(f.$('stage-4').hidden,false);
- assert.equal(f.$('replace').disabled,true);
- Object.assign(s,{phase:'failed',busy:false,error:'Write failed'});f.ui.render(f.state);
- assert.equal(f.$('stage-4').hidden,false);
- assert.equal(f.$('stage-5').hidden,true);
- assert.equal(f.$('error').textContent,'Write failed');
- Object.assign(s,{id:'install-2',phase:'install',busy:true,error:null});f.ui.render(f.state);
- Object.assign(s,{phase:'install-done',busy:false,installed:true});f.ui.render(f.state);
- assert.equal(f.$('stage-5').hidden,false);
-});
-test('completed connection advances without an extra check or another lobby transfer',()=>{
- const f=fixture({initial:{phase:'start-done',loaderReady:true}});
- assert.equal(f.$('check-connection'),undefined);
- assert.equal(f.$('connection-resume'),undefined);
- f.$('step-3').click();
- assert.equal(f.$('stage-3').hidden,false);
- assert.equal(f.$('step-3').attributes['aria-current'],'step');
- assert.equal(f.$('stage-4').hidden,false);
- assert.equal(f.calls.length,0);
-});
-test('identical completion phase from a new attempt advances once and does not override browsing',()=>{
- const f=fixture({initial:{id:'first',phase:'start-done',loaderReady:true}});
- f.$('step-2').click();f.ui.render(f.state);
- assert.equal(f.$('stage-2').hidden,false);
- f.state.iz2sciv.id='second';f.ui.render(f.state);
- assert.equal(f.$('stage-4').hidden,false);
- f.$('step-3').click();f.ui.render(f.state);
- assert.equal(f.$('stage-3').hidden,false);
-});
 test('offline and network recovery block resuming a console connection',async()=>{
  let offline=true;
  const f=fixture({isUnavailable:()=>offline,initial:{phase:'start-done'}});
@@ -296,14 +175,6 @@ test('offline and network recovery block resuming a console connection',async()=
  offline=false;f.state.iz2sciv.networkRecoveryAvailable=true;f.ui.render(f.state);
  assert.equal(f.$('install').disabled,true);
  assert.equal(f.$('install').disabled,true);
-});
-
-test('a new connection cannot reuse an old installation success as its own result',()=>{
- const f=fixture({initial:{phase:'start-done',installed:true,loaderReady:true}});
- assert.equal(f.$('stage-4').hidden,false);
- assert.equal(f.$('installed-next').hidden,true);
- assert.equal(f.$('save-action-title').textContent,'Confirm installation below.');
- assert.equal(f.$('state-label').textContent,'Waiting for confirmation');
 });
 
 test('PC Continue and lobby checkbox never send; only confirmed Connect starts delivery',async()=>{
@@ -363,86 +234,6 @@ test('connection reset is blocked while busy, offline or in preview',async()=>{
  }
 });
 
-test('full launch ignores previous boot success but keeps launch instructions accessible',async()=>{
- const f=fixture({keysReady:true,initial:{installed:true,loaderReady:true,phase:'install-done',prepared:true}});
- f.$('run-full').click();
- assert.equal(f.$('stage-3').hidden,false);
- assert.equal(f.$('step-1').parentElement.hidden,true);
- assert.equal(f.$('step-2').parentElement.hidden,true);
- assert.equal(f.$('step-3').textContent,'1. Connect and install save');
- assert.equal(f.$('step-5').textContent,'2. Launch IZ2S');
- assert.equal(f.$('step-5').disabled,false);
- assert.equal(f.$('connection-preflight').hidden,false);
- assert.equal(f.$('previous-launcher').hidden,true);
- assert.equal(f.calls.length,0);
- f.$('step-5').click();assert.equal(f.$('stage-5').hidden,false);
- assert.match(f.$('launch-note').textContent,/instructions at any time/);
- f.$('step-3').click();
- f.$('lobby').checked=true;f.$('lobby').onchange();await f.$('start').click();
- assert.equal(f.calls[0].action,'start');
- Object.assign(f.state.iz2sciv,{id:'new-boot',phase:'start',busy:true});f.ui.render(f.state);
- assert.equal(f.$('view-run').disabled,true);
- Object.assign(f.state.iz2sciv,{phase:'start-done',busy:false,loaderReady:true});f.ui.render(f.state);
- assert.equal(f.$('stage-3').hidden,false);assert.equal(f.$('stage-4').hidden,false);
- assert.equal(f.$('step-3').attributes['aria-current'],'step');
- assert.equal(f.$('connection-preflight').hidden,true);
- assert.equal(f.$('replace').disabled,false);
- f.$('replace').checked=true;f.$('replace').onchange();await f.$('install').click();
- assert.equal(f.calls[1].action,'install');
- Object.assign(f.state.iz2sciv,{phase:'install',busy:true});f.ui.render(f.state);
- Object.assign(f.state.iz2sciv,{phase:'install-done',busy:false,installed:true});f.ui.render(f.state);
- assert.equal(f.$('stage-5').hidden,false);
- f.$('restart-run').click();
- assert.equal(f.$('stage-3').hidden,false);assert.equal(f.$('lobby').checked,false);
- assert.equal(f.$('replace').checked,false);assert.equal(f.$('step-5').disabled,false);
- assert.equal(f.calls.length,2);
-});
-test('first setup has four navigation steps and exposes save only after connection',()=>{
- const f=fixture({keysReady:true,initial:{prepared:true}});
- f.$('step-3').click();
- assert.equal(f.$('step-4'),undefined);
- assert.equal(f.$('step-3').textContent,'3. Connect and install save');
- assert.equal(f.$('step-5').textContent,'4. Launch IZ2S');
- assert.equal(f.$('stage-3').hidden,false);assert.equal(f.$('stage-4').hidden,false);
- assert.equal(f.$('install').disabled,true);assert.equal(f.$('save-instructions').hidden,true);
- assert.match(f.$('save-action-help').textContent,/connection above/);
-});
-
-test('switching to setup cannot restore connection proof from the previous boot',()=>{
- const f=fixture({keysReady:true,initial:{installed:true,loaderReady:true,phase:'install-done',prepared:true}});
- f.$('view-setup').click();f.$('step-3').click();
- assert.equal(f.$('connection-preflight').hidden,false);
- assert.equal(f.$('replace').disabled,true);
- assert.equal(f.$('step-5').disabled,true);
- assert.equal(f.calls.length,0);
-});
-
-
-test('quick launch and route switches only show instructions and never send commands',async()=>{
- const f=fixture({initial:{prepared:true}});
- f.$('view-run').click();
- assert.equal(f.$('stage-5').hidden,false);
- assert.equal(f.$('run-quick').attributes['aria-pressed'],'true');
- assert.equal(f.$('step-5').disabled,false);
- assert.match(f.$('launch-note').textContent,/already installed/);
- f.$('run-full').click();
- assert.equal(f.$('stage-3').hidden,false);
- assert.equal(f.$('run-full').attributes['aria-pressed'],'true');
- assert.equal(f.$('install').disabled,true);
- f.$('run-quick').click();
- assert.equal(f.$('stage-5').hidden,false);
- assert.equal(f.$('install').disabled,true);
- assert.equal(f.calls.length,0);
-});
-test('running operations prevent route changes and cannot be bypassed by launch instructions',()=>{
- const f=fixture({initial:{busy:true,phase:'start'}});
- for(const id of ['run-quick','run-full','step-5']){
-  assert.equal(f.$(id).disabled,true);f.$(id).click();
-  assert.equal(f.$('stage-3').hidden,false);
- }
- assert.equal(f.calls.length,0);
-});
-
 test('Windows network setup bypasses Linux keys and exposes loader verification without LDN delivery',async()=>{
  const f=fixture({initial:{hostPlatform:'win32',prepared:false,setup:{supported:false},windowsWifi:{adapters:[{name:'Wireless',description:'USB Wi-Fi'}]}}});
  assert.equal(f.$('windows').hidden,false);
@@ -478,4 +269,63 @@ test('Windows driver evidence stays unverified for LDN, survives polling, and up
  f.state.iz2sciv.windowsWifi={checkedAt:'later',status:'no-adapter',adapters:[]};f.ui.render(f.state);
  assert.equal(f.$('windows-checks').children.length,0);assert.match(f.$('windows-status').textContent,/does not see/);
  assert.equal(f.$('start').disabled,true);
+});
+
+test('preview navigates all four steps without sending console commands',async()=>{
+ const f=fixture({preview:true});
+ for(const step of [1,2,3,5]){f.$('step-'+step).click();assert.equal(f.$('stage-'+step).hidden,false);}
+ f.$('view-setup').click();f.$('pc-action').click();assert.equal(f.$('stage-3').hidden,false);
+ f.$('lobby').checked=true;f.ui.render(f.state);await f.$('start').click();await f.$('install').click();
+ assert.equal(f.calls.length,0);assert.equal(f.$('start').disabled,true);assert.equal(f.$('install').disabled,true);
+});
+test('one confirmed connection requests automatic save installation',async()=>{
+ const f=fixture({keysReady:true,initial:{prepared:true}});f.$('step-3').click();
+ f.$('lobby').checked=true;f.ui.render(f.state);await f.$('start').click();
+ assert.equal(f.calls.length,1);assert.equal(f.calls[0].action,'start');assert.equal(f.calls[0].confirm,true);assert.equal(f.calls[0].installAfterSuccess,true);
+});
+test('connection and save share one visible step and resume only after loader verification',()=>{
+ const f=fixture({initial:{prepared:true}});f.$('step-3').click();
+ Object.assign(f.state.iz2sciv,{phase:'check-loader-done',loaderReady:true});f.ui.render(f.state);
+ assert.equal(f.$('flow').dataset.step,'3');assert.equal(f.$('stage-3').hidden,true);assert.equal(f.$('stage-4').hidden,false);
+ assert.equal(f.$('install').disabled,false);assert.equal(f.$('step-3').attributes['aria-current'],'step');
+ Object.assign(f.state.iz2sciv,{phase:'install',busy:true});f.ui.render(f.state);assert.equal(f.$('install').hidden,true);
+ Object.assign(f.state.iz2sciv,{phase:'install-done',busy:false,installed:true});f.ui.render(f.state);
+ assert.equal(f.$('flow').dataset.step,'4');assert.equal(f.$('stage-5').hidden,false);assert.equal(f.calls.length,0);
+});
+test('an unconfirmed save never unlocks the final setup step',()=>{
+ const f=fixture({initial:{phase:'install-done',installed:false,needsSaveUpdate:true,loaderReady:true}});
+ assert.equal(f.$('step-5').disabled,true);assert.equal(f.$('stage-4').hidden,false);assert.equal(f.$('installed-next').hidden,true);
+});
+test('launch view offers a full restart at step one without a partial connection route',async()=>{
+ const f=fixture();f.$('view-run').click();
+ assert.equal(f.$('flow').dataset.view,'run');assert.equal(f.$('stage-3').hidden,true);assert.equal(f.$('stage-4').hidden,true);
+ assert.equal(f.$('launch-instructions').open,true);assert.equal(f.$('full-launch'),undefined);
+ f.$('restart-run').click();assert.equal(f.$('flow').dataset.view,'setup');assert.equal(f.$('stage-1').hidden,false);assert.equal(f.calls.length,0);
+});
+test('PC Link and FTP each prioritize active connection tools and hide their own instructions',()=>{
+ for(const transport of ['pc','ftp']){
+  const link={online:transport==='pc',files:true,service:true,enabled:true},ftp={online:transport==='ftp',enabled:transport==='ftp'};
+  const f=fixture({link,ftp});assert.equal(f.$('flow').dataset.view,'run');assert.equal(f.$('services').hidden,false);assert.equal(f.$('launch-instructions').open,false);
+  assert.equal(f.$(transport==='pc'?'pc-link-guide':'ftp-guide').hidden,true);
+  assert.equal(f.$('library').disabled,transport!=='pc');assert.equal(f.$('files').hidden,false);
+  link.online=false;ftp.online=false;f.ui.render(f.state);assert.equal(f.$('launch-instructions').open,true);
+ }
+});
+test('manual setup navigation is preserved across a PC Link reconnect',()=>{
+ const link={online:false,service:true};const f=fixture({link,initial:{prepared:true}});f.$('step-3').click();
+ link.online=true;f.ui.render(f.state);assert.equal(f.$('flow').dataset.view,'setup');assert.equal(f.$('stage-3').hidden,false);
+});
+test('unavailable local server cannot expose stale connection tools',()=>{
+ const f=fixture({link:{online:true,files:true,service:true},ftp:{online:true,enabled:true},isUnavailable:()=>true});
+ f.$('view-run').click();assert.equal(f.$('services').dataset.connected,'false');assert.equal(f.$('library').disabled,true);assert.equal(f.$('files').disabled,true);
+ assert.equal(f.$('pc-status').textContent,'Status unavailable');assert.equal(f.$('ftp-status').textContent,'Status unavailable');
+});
+test('connection errors remain visible and clear on recovery',()=>{
+ const link={online:false,error:'Service unavailable',service:true};const f=fixture({link});
+ assert.equal(f.$('link-error').hidden,false);assert.equal(f.$('link-error').textContent,'Service unavailable');
+ link.error='';link.online=true;f.ui.render(f.state);assert.equal(f.$('link-error').hidden,true);assert.equal(f.$('pc-status').textContent,'Connected to this panel');
+});
+test('busy operations prevent mode changes or restarting the setup',()=>{
+ const f=fixture({initial:{phase:'install',busy:true,loaderReady:true}});const view=f.$('flow').dataset.view;
+ f.$('view-run').click();assert.equal(f.$('flow').dataset.view,view);assert.equal(f.$('view-run').disabled,true);assert.equal(f.$('restart-run').disabled,true);assert.equal(f.calls.length,0);
 });

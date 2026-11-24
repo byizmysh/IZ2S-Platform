@@ -1,14 +1,45 @@
-# Quick help
+# Frequently asked questions
 
-- **How do I install?** Extract the complete OS-specific archive. Linux: `sh ./install.sh --launch`. Windows: double-click `Start.cmd` (`Install.cmd` is an alias).
-- **How do I start it later?** Linux: use the desktop/application-menu shortcut or `start.sh`. Windows: keep the extracted folder and use `Start.vbs` or `Start.cmd`.
-- **Why is a terminal visible on Windows?** `Start.cmd` shows first-run setup and diagnostics. Use `Start.vbs` for later launches without a console window.
-- **How do I prepare Switch 1 on Windows?** Download the SD package in Device setup and extract it at the SD card root. Keep `switch/iz2skeyboard/iz2skeyboard.nro` with the generated pairing file.
-- **Where do applications go?** Install through App library or export through the platform to `SD:/iz2s/modules/<id>/launcher.iza`, keeping the companion resources and signatures.
-- **Where does Foldrift start?** The signed Foldrift package can open `SD:/` with the matching native filesystem service. Its folder is `SD:/iz2s/modules/foldrift/`.
-- **Where do IZPSX BIOS and games go?** Follow [README.md](README.md#izpsx-bios-and-games). They are not included.
-- **Can I stream from Windows?** The bundled BlitBun and VacooTube PC media services require Linux.
-- **Which FTP port should I use?** Use the port shown in the console menu; the current default is **1425**.
-- **Does Windows reinstall Node.js every time?** No. Node.js is bundled, and prepared dependencies are reused. A Windows Firewall prompt is a network permission request, not an installation request.
-- **Do I need keys to connect Cardputer ADV or Switch 1?** You do not need to obtain or enter keys. Device setup generates pairing settings automatically. If the device was prepared on another PC, restore those settings or prepare it again. This is unrelated to Nintendo `prod.keys`.
-- **Does Civilization VII work on Windows?** No. The tile is marked **Linux Only**; use Linux with a compatible Wi-Fi adapter for that launch route.
+[English](FAQ.md) · [Русский](FAQ.ru.md) · [简体中文](FAQ.zh.md) · [Español](FAQ.es.md)
+
+[Русский](FAQ.ru.md) · [Full installation guide](docs/INSTALLATION.md)
+
+## 1. What is needed for the first installation?
+
+A Nintendo Switch 2 on firmware **23.0.1**, the **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**, a microSD card, native Linux with a compatible Wi-Fi adapter, and your own Switch 1 `prod.keys`. Select English for the console interface and English (US) for USB keyboard input before opening the game.
+
+## 2. Which console languages should I select?
+
+Choose English for the interface and English (US) for USB keyboard input before launching the game. The paths are `HOME → System Settings → System → Language → English` and `HOME → System Settings → Controllers & Accessories → USB Keyboard → English (US)`. This edition includes the PC panel only for native Linux; Windows and WSL are not supported release hosts.
+
+## 3. Where should I extract the SD archive?
+
+Into the SD root, so the paths begin with `SD:/iz2s/`. Merge folders and replace matching package files when updating. Keep `Nintendo`, other apps, BIOS, games, saves and settings. Preserve the included license files and safely eject the card.
+
+## 4. I have an old IZ2S version or another loader. What changes?
+
+Update the SD files and follow the full procedure. The conditional cleanup step uses `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`. This deletes that profile's game save data; read the step before confirming. A launch save from another runtime revision is not interchangeable with this package.
+
+## 5. Do I install the save manually after reconnecting?
+
+No. **Connect and install save** restores PC Wi-Fi, verifies the loader and automatically writes `IZ2SCIV.Civ7Save`. Leave Awaiting payload open until the operation finishes. If installation fails, the panel offers a retry; it does not treat an unconfirmed write as success.
+
+## 6. Will the automatic installer remove my other game saves?
+
+The current installer replaces only its own trigger save and confirms the filesystem commit. Deleting the profile's saves in System Settings when migrating from an older loader is a separate action that does remove that profile's progress.
+
+## 7. The console IP was not found. What should I do?
+
+Expand the IP settings directly under **Session status**. Search and check a proposed address or enter the IP displayed by the console. Keep Awaiting payload open and ensure PC Wi-Fi has been restored. FTP availability alone does not prove that the game loader is ready.
+
+## 8. How do I launch after installation?
+
+Return to HOME, close Civilization VII with X, reopen it and choose Load Game without rebooting the console. Follow the panel until IZ2S CORE IS RUNNING, close Civilization VII, then hold R while opening a Switch 2 game. Repeat the R-held launch once if required. Full failure/retry instructions are in the [guide](docs/INSTALLATION.md#4-launch-iz2s).
+
+## 9. Why is FTP enabled on the console but disconnected in the panel?
+
+These are separate server/client states. Enable FTP with L + R3, then select **Connect FTP** in the panel. PC Link uses R + L3 and has its own status. The actual address and port are shown on the console.
+
+## 10. Why does the launcher sometimes start slowly or show sd-verify?
+
+A new shader/driver cache can require compilation. This revision fixes a cache-replacement failure that previously repeated compilation at every launch. Preserve the local cache; do not distribute another console's cache. An sd-verify error means the expected runtime and installed files must be compared by size and SHA-256, including the launch save's manifest. Use one matching package and reinstall its save when required. An old RUN25 label alone does not identify the loaded build.

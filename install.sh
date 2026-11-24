@@ -21,7 +21,7 @@ while [ "$#" -gt 0 ]; do
 done
 case "$(uname -s):$(uname -m)" in
   Linux:x86_64) IZ2S_ARCH=x64;; Linux:aarch64|Linux:arm64) IZ2S_ARCH=arm64;;
-  *) echo 'Open Install.cmd on Windows or Install.command on macOS. This entry point supports Linux x64/ARM64.' >&2; exit 1;;
+  *) echo 'This package supports native Linux x64/ARM64.' >&2; exit 1;;
 esac
 iz2s_missing() {
   for iz2s_tool in python3 curl tar xz ssh; do
@@ -118,7 +118,6 @@ PY
 fi
 IZ2S_ROOT="$IZ2S_TMP" IZ15_ROOT="$IZ2S_TMP" "$IZ2S_TMP/tools/node" -e 'require(process.argv[1]).publish(process.argv[2]).then(r=>{if(r.errors.length)throw Error(JSON.stringify(r.errors))})' "$IZ2S_TMP/sdk/publish-modules.cjs" "$IZ2S_TMP"
 IZ2S_ROOT="$IZ2S_TMP" IZ15_ROOT="$IZ2S_TMP" "$IZ2S_TMP/tools/node" "$IZ2S_TMP/distribution/verify.cjs"
-IZ2S_ROOT="$IZ2S_TMP" IZ15_ROOT="$IZ2S_TMP" "$IZ2S_TMP/tools/node" "$IZ2S_TMP/hardware/dependencies.cjs" --host-only --ssh
 mv -- "$IZ2S_TMP" "$IZ2S_DEST"
 trap - EXIT HUP INT TERM
 if [ "$IZ2S_DESKTOP" -eq 1 ]; then "$IZ2S_DEST/tools/node" "$IZ2S_DEST/desktop/install.cjs"; fi

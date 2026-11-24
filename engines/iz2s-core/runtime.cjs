@@ -39,5 +39,4 @@ async function verify() {
   }
   return { files: manifest.files.length, bytes, directory };
 }
-module.exports = { directory, DEFAULT_OUT, output, logs, runs, journal, displayPath, displayedBytes, verify,
-  start: path.join(__dirname, 'start.cjs'), bootstrap: path.join(directory, 'bootstrap.bas') };
+module.exports = { directory, DEFAULT_OUT, output, logs, runs, journal, displayPath, displayedBytes, verify };

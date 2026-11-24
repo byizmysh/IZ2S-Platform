@@ -30,28 +30,31 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
 },create({document,act,downloadSd,downloadWifiReport=()=>{},isUnavailable=()=>false,isPanelBusy=()=>false,showLog=()=>{},getLink=()=>null,openLibrary=()=>{},openFiles=()=>{},openFtp=()=>{},refreshLink=()=>{},resetSession=()=>{},getFtp=()=>null,setPcLink=()=>{},closeFtp=()=>{}}){
  const $=id=>document.getElementById('iz2sciv-'+id),t=value=>globalThis.RUN21_LANGUAGE?.t(value)||value;
  let snapshot=null,current=null,step=1,view='setup',posting=false,stamp='',radioStamp='',initialized=false;
- let actionError='',wasOnline=false,setupChosen=false;
- let resettingSession=false, freshRun=false, runMethod='quick';
+ let actionError='',wasOnline=false,setupChosen=false,launchContext='';
+ let resettingSession=false, freshRun=false;
  let downloading=false,addressStamp='',wifiStamp='',keyLoading=false,keyName='',keyError='',keyImported=false;
  const phases={idle:'Ready for setup.',prepare:'Preparing PC dependencies…',permissions:'Waiting for network permissions…',
   start:'Connecting to the console…','restore-network':'Restoring PC Wi-Fi…','restore-network-done':'PC Wi-Fi restored.',
   'check-loader':'Finding the game loader…',install:'Building and installing the IZ2SCiv save…',launch:'Starting IZ2S core…',
   'check-launcher':'Checking IZ2S FTP…','prepare-done':'PC dependencies prepared.','permissions-done':'Network permissions enabled.',
-  'confirm-sd-done':'SD copy confirmed. Continue with PC setup.','start-done':'Game loader found. Continue with save installation.',
-  'check-loader-done':'Game loader found. Continue with save installation.','install-done':'IZ2SCiv save installed. Continue with Launch.',
+  'confirm-sd-done':'SD copy confirmed. Continue with PC setup.','start-done':'Game loader found. Ready to install the launch save.',
+  'check-loader-done':'Game loader found. Ready to install the launch save.','install-done':'IZ2SCiv save installed. Continue with Launch.',
   'launch-done':'IZ2S core started. Follow the console steps to open the launcher.',
-  'find-addresses':'Finding the game loader…','find-addresses-done':'Game loader found. Continue with save installation.',
+  'find-addresses':'Finding the game loader…','find-addresses-done':'Game loader found. Ready to install the launch save.',
   'select-host':'Checking the selected console address…','select-host-done':'Selected address verified. It will be checked again before sending.',
   'auto-host-done':'Automatic console detection is enabled.',
   'check-launcher-done':'IZ2S FTP is available and the required files are present.',failed:'Operation failed.',interrupted:'Operation stopped.'};
  function text(id,value){const translated=t(value);if($(id).textContent!==translated)$(id).textContent=translated;}
+ function focusStep(){
+  const target=[3,4].includes(step)&&!$('stage-4').hidden?$('stage-4'):$('stage-'+step);
+  target.querySelector('h3').focus({preventScroll:true});
+ }
  function go(next){
   if(view==='setup')setupChosen=true;
   if(next===3&&step!==3)$('lobby').checked=false;
   step=next;
   render(snapshot);
-  const heading=$('stage-'+step).querySelector('h3');
-  (step===5&&$('flow').dataset.connected==='true'?$('link-state'):heading).focus();
+  focusStep();
  }
  function mode(next){
   if(posting||current?.busy||isPanelBusy())return;
@@ -59,20 +62,14 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   setupChosen=next==='setup';
   if(next==='run')document.getElementById('session-activity').open=false;
   if(next==='run')freshRun=!getLink()?.online;
-  if(freshRun){$('lobby').checked=false;$('replace').checked=false;}
-  go(next==='run'?(getLink()?.online||runMethod==='quick'?5:3):1);
+  if(freshRun){$('lobby').checked=false;}
+  go(next==='run'?5:1);
  }
- function chooseRun(method){
-  if(posting||current?.busy||isPanelBusy())return;
-  view='run';setupChosen=false;runMethod=method;
-  if(method==='full'&&!getLink()?.online&&step===5){freshRun=true;$('lobby').checked=false;$('replace').checked=false;}
-  go(method==='quick'?5:3);
- }
- for(const i of [1,2,3,5])$('step-'+i).onclick=()=>{if(!$('step-'+i).disabled){if(view==='run'&&i===3)runMethod='full';go(i);}};
- $('run-quick').onclick=()=>chooseRun('quick');$('run-full').onclick=()=>chooseRun('full');
- $('restart-run').onclick=()=>chooseRun('full');
+ // Launch is a read-only guide. A fresh installation always starts at step 1.
+ for(const i of [1,2,3,5])$('step-'+i).onclick=()=>{if(view==='setup'&&!$('step-'+i).disabled)go(i);};
+ $('restart-run').onclick=()=>mode('setup');
  for(const button of document.querySelectorAll('[data-iz2sciv-next]'))button.onclick=()=>go(Number(button.dataset.iz2scivNext));
- $('view-setup').onclick=()=>mode('setup');$('view-run').onclick=()=>mode('run');$('back-setup').onclick=()=>mode('setup');
+ $('view-setup').onclick=()=>mode('setup');$('view-run').onclick=()=>mode('run');
  async function execute(action,extra={},options={}){
   if(posting||resettingSession||current?.busy||isPanelBusy()||isUnavailable()||snapshot?.preview)return;
   posting=true;actionError='';render(snapshot);
@@ -90,7 +87,8 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
  $('open-log').onclick=()=>showLog();
  $('installed-next').onclick=()=>{if(current?.installed)go(5);};
  $('pc-action').onclick=()=>{
-  if(posting||keyLoading||current?.busy||isPanelBusy()||snapshot?.preview||isUnavailable())return;
+  if(snapshot?.preview){go(3);return;}
+  if(posting||keyLoading||current?.busy||isPanelBusy()||isUnavailable())return;
   const action=globalThis.IZ2S_IZ2SCIV.pcAction(current);
   if(action==='keys')$('keys').click();
   else if(action==='continue')go(3);
@@ -117,14 +115,14 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
  };
  $('start').onclick=()=>{
   if(![3,4].includes(step)||$('start').disabled||!$('lobby').checked)return;
-  return execute('start',{confirm:true});
+  return execute('start',{confirm:true,installAfterSuccess:true});
  };
  $('connection-reset').onclick=async()=>{
   if($('connection-reset').disabled)return;
   const result=await execute('reset-connection');
-  if(result?.ok){freshRun=false;$('lobby').checked=false;$('replace').checked=false;go(3);}
+  if(result?.ok){freshRun=false;$('lobby').checked=false;go(3);}
  };
- $('install').onclick=()=>{if(!$('install').disabled)return execute('install',{replaceTrigger:$('replace').checked});};
+ $('install').onclick=()=>{if(!$('install').disabled)return execute('install',{replaceTrigger:true});};
  $('library').onclick=()=>openLibrary();
  $('files').onclick=()=>{const link=getLink();return link?.online&&link.files?openFiles():openFtp({reuse:true});};
  $('link-refresh').onclick=()=>refreshLink();
@@ -137,7 +135,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   render(snapshot);
   try{
    if(!(await resetSession())?.ok)return;
-   for(const id of ['lobby','replace','sd-copied'])$(id).checked=false;
+   for(const id of ['lobby','sd-copied'])$(id).checked=false;
    actionError='';
    mode('setup');
   }finally{
@@ -158,14 +156,16 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   }catch(error){keyError=error.message;actionError=error.message;}
   finally{keyLoading=false;$('keys').value='';render(snapshot);}
  };
- for(const id of ['lobby','replace','sd-copied'])$(id).onchange=()=>render(snapshot);
+ for(const id of ['lobby','sd-copied'])$(id).onchange=()=>render(snapshot);
  function render(state){
   const previousStep=step,wasInitialized=initialized;
   snapshot=state;
   const shown=state?.platform?.loaderId==='iz2sciv-core';$('flow').hidden=!shown;$('result').hidden=!shown;if(!shown)return;
   current=state.iz2sciv;if(!current)return;
+  // A preview opens a fresh guide, independent of the live console's last phase.
+  if(state.preview)current={...current,phase:'preview',id:'preview',busy:false,installed:false,needsSaveUpdate:false,loaderReady:false,error:null,networkRecoveryAvailable:false,host:'',selectedHost:'',addressOptions:[]};
   if(!initialized){
-   initialized=true;step=globalThis.IZ2S_IZ2SCIV.setupStep(current);
+   initialized=true;step=state.preview?1:globalThis.IZ2S_IZ2SCIV.setupStep(current);
    if(step===5){
     view='run';document.getElementById('session-activity').open=false;
     if(!current.busy&&!getLink()?.online){freshRun=true;}
@@ -180,7 +180,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
    if(wasInitialized&&(current.busy||['start-done','check-loader-done','find-addresses-done','select-host-done'].includes(current.phase)))freshRun=false;
    const next=current.busy?globalThis.IZ2S_IZ2SCIV.setupStep(current):
     {'confirm-sd-done':2,'start-done':current.loaderReady?4:3,'check-loader-done':current.loaderReady?4:3,'find-addresses-done':current.loaderReady?4:3,'select-host-done':current.loaderReady?4:3,'install-done':current.installed?5:4}[current.phase];
-   if(next&&!freshRun){step=next;if(view==='run'&&[3,4].includes(next))runMethod='full';}
+   if(next&&!freshRun){step=next;if([3,4].includes(next))view='setup';}
    if(current.error&&step>=3&&current.networkRestored)$('network').open=true;
   }
   $('preview').hidden=!state.preview;
@@ -201,24 +201,36 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   $('connect-state').hidden=!connectionStatus;
   text('connect-state',connectionStatus);
   $('connect-help').hidden=!!connectionStatus;
-  text('connect-help',!current.sdReady?'Copy the SD archive and confirm it in step 1 first.':!current.prepared?'Complete PC setup in step 2 before connecting.':'If detection fails, check the console IP options below.');
+  text('connect-help',!current.sdReady?'Copy the SD archive and confirm it in step 1 first.':!current.prepared?'Complete PC setup in step 2 before connecting.':'If detection fails, open Console IP below Session status.');
   $('save-instructions').hidden=!connectionVerified&&!current.busy;
   $('installed-next').hidden=!installationComplete;$('installed-next').disabled=locked;
-  const link=getLink(),online=!!link?.online&&!state.preview&&!serverOffline,filesOnline=online&&!!link.files;
-  if(online&&!wasOnline&&!setupChosen){
+  const link=getLink(),ftp=getFtp();
+  const online=!!link?.online&&!state.preview&&!serverOffline,filesOnline=online&&!!link.files;
+  const ftpOnline=!!ftp?.online&&!ftp?.refreshError&&!state.preview&&!serverOffline;
+  const connected=online||ftpOnline;
+  if(connected&&!wasOnline&&!setupChosen){
    view='run';
    step=5;freshRun=false;
    document.getElementById('session-activity').open=false;
   }
-  wasOnline=online;
-  $('flow').dataset.connected=String(online&&view==='run');
-  $('launch-guide').hidden=online;
-  text('launch-note',installationComplete?'Connection and save installation are complete. Open Load Game now.':view==='run'&&runMethod==='quick'?'Open Load Game using the save already installed on the console.':view==='run'?'You can read these launch instructions at any time. Complete connection and save installation in step 1 before following the full procedure.':'Install the save first, then follow these launch instructions.');
-  $('restart-run').hidden=online;
+  wasOnline=connected;
+  $('flow').dataset.connected=String(connected&&view==='run');
+  const saveUpdateRequired=view==='run'&&!!current.needsSaveUpdate;
+  const nextLaunchContext=JSON.stringify([connected,saveUpdateRequired]);
+  if(nextLaunchContext!==launchContext){
+   $('launch-instructions').open=!connected;
+   $('restart-options').open=saveUpdateRequired;
+   launchContext=nextLaunchContext;
+  }
+  $('launch-instructions').hidden=saveUpdateRequired;
+  $('launch-guide').hidden=saveUpdateRequired;
+  $('restart-help').hidden=saveUpdateRequired;
+  text('launch-note',installationComplete?'Connection and save installation are complete. Open Load Game now.':view==='run'?'Open Load Game using the save already installed on the console.':'Install the save first, then follow these launch instructions.');
+  $('restart-run').hidden=false;
   $('restart-run').disabled=working||serverOffline;
   $('previous-launcher').hidden=view==='run';
   $('connect-back').hidden=view==='run';
-  $('windows').hidden=!windows||online;
+  $('windows').hidden=!windows||online||view==='run'||![2,3,4].includes(step);
   $('windows-refresh').disabled=locked;
   $('windows-report').disabled=!!state.preview||!current.windowsWifi?.checkedAt;
   $('windows-find').hidden=step!==3&&step!==4;
@@ -261,42 +273,41 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   const wifiError=wifi.error||wifi.inventoryError||'';
   text('windows-error',wifiError);$('windows-error').hidden=!wifiError;
   $('linux-checks').hidden=$('linux-requirements').hidden=windows;
-  $('run-help').hidden=view!=='run'||online;
-  for(const method of ['quick','full']){
-   $('run-'+method).setAttribute('aria-pressed',String(runMethod===method));
-   $('run-'+method).disabled=working;
-  }
-  text('link-state',state.preview?'Preview · device commands disabled':serverOffline?'Waiting for the local server…':online?'PC Link connected':link?.enabled===false?'Paused on this PC':link?.error?'PC Link unavailable':'Waiting for PC Link');
-  $('link-card').dataset.connected=String(online);
-  const ftp=getFtp();
+  $('save-update').hidden=!saveUpdateRequired;
+  text('save-update','Installation of a Civilization VII save for this IZ2S build has not been confirmed yet. Start the full procedure to update the SD files and install the matching save.');
+  text('link-state',state.preview?'Preview · device commands disabled':serverOffline?'Waiting for the local server…':connected?'The console is available. No need to repeat the launch steps.':'If IZ2S is already running, connect PC Link or FTP below. Otherwise, follow the launch instructions.');
+  $('services').dataset.connected=String(connected);
+  text('services-state',online&&ftpOnline?'PC Link + FTP connected':online?'PC Link connected':ftpOnline?'FTP connected':'No active connection');
   const linkControlsLocked=state.preview||serverOffline||resettingSession;
   const pcPaused=link?.enabled===false;
-  const pcStatus=pcPaused?'Paused on this PC':online?'Connected':'Waiting for console';
+  const pcStatus=state.preview?'Preview · device commands disabled':serverOffline||link?.error?'Status unavailable':pcPaused?'Paused on this PC':online?'Connected to this panel':!link?'Checking connection…':'Waiting for console';
+  $('pc-card').dataset.online=String(online);
   text('pc-status',t(pcStatus)+(online&&link.consoleAddress?' · '+link.consoleAddress:''));
   text('pc-toggle',pcPaused?'Resume PC Link':'Pause PC Link');
   $('pc-toggle').disabled=linkControlsLocked||!link?.service||link.fileTransfers||!!link.queued;
-  const ftpStatus=ftp?.online?'Connected':ftp?.enabled?'Waiting for console':'Disconnected';
-  text('ftp-status',t(ftpStatus)+(ftp?.online&&ftp.host?' · '+ftp.host:''));
+  const ftpStatus=state.preview?'Preview · device commands disabled':serverOffline||ftp?.refreshError?'Status unavailable':ftpOnline?'Connected to this panel':!ftp?'Checking connection…':ftp.enabled?'Connection lost':'Not connected to this panel';
+  $('ftp-card').dataset.online=String(ftpOnline);
+  text('ftp-status',t(ftpStatus)+(ftpOnline&&ftp.host?' · '+ftp.host:''));
+  text('ftp-help',ftpOnline?'File access through FTP is ready.':ftp?.refreshError||serverOffline?'Refresh the status to check the connection.':'If FTP is already enabled on the console, click Connect FTP here.');
   text('ftp-open',ftp?.enabled?'Reconnect FTP':'Connect FTP');
-  $('ftp-open').hidden=!!ftp?.online;
+  $('ftp-open').hidden=ftpOnline;
   $('ftp-close').hidden=!ftp?.enabled;
   $('ftp-open').disabled=$('ftp-close').disabled=linkControlsLocked||!!ftp?.busy;
   $('pc-link-guide').hidden=online||serverOffline||pcPaused;
-  $('ftp-guide').hidden=!!ftp?.online||serverOffline;
+  $('ftp-guide').hidden=ftpOnline||serverOffline;
   $('link-error').hidden=!link?.error;text('link-error',link?.error||'');
-  $('back-setup').hidden=online;
   text('files',filesOnline?'Super File Bros':'Super File Bros. · FTP');
-  $('files').hidden=!filesOnline&&!ftp?.online;
+  $('files').hidden=!filesOnline&&!ftpOnline;
   $('library').disabled=!online;
   $('files').disabled=$('link-refresh').disabled=state.preview||serverOffline||resettingSession;
   $('reset-session').disabled=locked||!!link?.fileTransfers;
   text('reset-session',resettingSession?'Resetting session…':'Reset session');
 
   $('flow').dataset.view=view;
-  $('steps').hidden=online&&view==='run';
-  text('step-3',view==='run'?'1. Connect and install save':'3. Connect and install save');
-  text('step-5',view==='run'?'2. Launch IZ2S':'4. Launch IZ2S');
-  $('network').hidden=step<3||step===5;
+  $('steps').hidden=view==='run';
+  text('step-3','3. Connection and save');
+  text('step-5','4. Launch IZ2S');
+  $('network').hidden=view!=='setup'||![3,4].includes(step);
   const addresses=current.addressOptions||[],nextAddresses=JSON.stringify([addresses,t('Network candidate'),current.selectedHost]);
   if(addressStamp!==nextAddresses){
    addressStamp=nextAddresses;const previous=$('host-options').value;$('host-options').replaceChildren();
@@ -310,7 +321,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   for(let i=1;i<=5;i++)$('stage-'+i).hidden=[3,4].includes(i)?![3,4].includes(step):step!==i;
   for(const i of [1,2,3,5]){
    const selected=i===(step===4?3:step);
-   $('step-'+i).parentElement.hidden=view==='run'&&i<3;
+   $('step-'+i).parentElement.hidden=false;
    $('step-'+i).setAttribute('aria-current',selected?'step':'false');
    $('step-'+i).classList.toggle('selected',selected);
    $('step-'+i).parentElement.classList.toggle('current',selected);
@@ -325,32 +336,37 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   $('download-sd').disabled=downloading||isUnavailable();
   $('confirm-sd').disabled=working||serverOffline||!$('sd-copied').checked;
   $('start').disabled=windows||locked||primaryLoaded||!current.prepared||!current.sdReady||!$('lobby').checked;
-  for(const id of ['lobby','replace','sd-copied'])$(id).disabled=working||serverOffline;
-  $('replace').disabled=working||serverOffline||!connectionVerified;
-  $('install').disabled=locked||!connectionVerified||current.networkRecoveryAvailable||!current.sdReady||!$('replace').checked;
+  for(const id of ['lobby','sd-copied'])$(id).disabled=working||serverOffline;
+  $('install').disabled=locked||!connectionVerified||current.networkRecoveryAvailable||!current.sdReady;
   const installing=current.busy&&current.phase==='install';
-  text('save-action-title',installing?'Installation is in progress.':installationComplete?'Launch save installed.':!connectionVerified?'Connect the console':'Confirm installation below.');
-  text('save-action-help',installing?'Wait for completion. Progress is shown in Session status above.':installationComplete?'Continue on the console using the launch instructions below.':!current.sdReady?'Copy the SD archive and confirm it in step 1 first.':!connectionVerified?'Complete the console connection above. Save installation becomes available after verification.':'Select the confirmation checkbox, then press Install launch save.');
-  text('install',installing?'Installing…':'Install launch save');
+  text('save-action-title',installing?'Installation is in progress.':installationComplete?'Launch save installed.':!connectionVerified?'Connect the console':'Install the launch save');
+  text('save-action-help',installing?'Wait for completion. Progress is shown in Session status above.':installationComplete?'Continue on the console using the launch instructions below.':!current.sdReady?'Copy the SD archive and confirm it in step 1 first.':!connectionVerified?'The launch save will be installed automatically after the connection is verified.':'The connection is verified. Install the launch save or retry if the transfer failed.');
+  text('install',installing?'Installing…':current.error?'Retry save installation':'Install launch save');
+  $('install').hidden=working||installationComplete||!connectionVerified;
+  $('stage-4').hidden=view!=='setup'||![3,4].includes(step)||(!connectionVerified&&!installing);
+  $('stage-3').hidden=view!=='setup'||![3,4].includes(step)||installing||connectionVerified;
+  if(view==='run'){$('stage-5').hidden=false;step=5;}
+  $('services').hidden=view!=='run'&&step!==5;
+  $('flow').dataset.step=String(step===4?3:step===5?4:step);
 
   $('stop').hidden=!current.busy;$('stop').disabled=posting||isUnavailable();
   const error=actionError||current.error||'';
   $('result').hidden=!current.busy&&!error&&!current.networkRecoveryAvailable&&!(step>=3&&step<=4);
   const recovering=current.networkRecoveryAvailable&&!current.busy;
   const stages={preparing:'Preparing Wi-Fi for the console…',searching:'Finding and joining the wireless lobby…',sending:'Sending the initial loader…',restoring:'Restoring PC Wi-Fi…',restored:'PC Wi-Fi restored. Checking the console…',checking:'Checking the console connection…',ready:'Console connection verified.'};
-  const stepHelp={1:'Extract the archive to the SD card, then confirm the copy below.',2:'Complete the three PC checks below. IZ2S Platform offers the next action.',3:'Follow the connection steps below.',4:'Keep the connection screen open and confirm installation below.',5:'Continue on the console using the launch instructions below.'};
+  const stepHelp={1:'Extract the archive to the SD card, then confirm the copy below.',2:'Complete the three PC checks below. IZ2S Platform offers the next action.',3:'Follow the connection steps below.',4:'Keep the connection screen open while the launch save is installed.',5:'Continue on the console using the launch instructions below.'};
   let status=current.busy?(current.phase==='start'?stages[current.networkStage]||phases.start:phases[current.phase]||'Please wait…'):error?'Operation failed.':recovering?'Wi-Fi recovery is needed.':current.phase==='install-done'&&step===5?phases['install-done']:current.phase==='launch-done'?phases['launch-done']:connectionVerified&&step>=3&&step<=4?'Console connection verified.':'Ready for the next step.';
   if(current.busy&&current.phase==='install')status=current.operationProgress?.stage==='writing'?'Writing the launch save on the console…':current.operationProgress?t('Transferring the launch save: {percent}%').replace('{percent}',current.operationProgress.percent):'Preparing the launch save…';
-  if(!current.busy&&!error&&!recovering&&step===4&&connectionVerified)status=installationComplete?'Launch save installed.': 'Waiting for installation confirmation.';
-  if(!current.busy&&!error&&!recovering&&step===3&&primaryLoaded)status='Game loader found. Continue with save installation.';
+  if(!current.busy&&!error&&!recovering&&step===4&&connectionVerified)status=installationComplete?'Launch save installed.': 'Ready to install the launch save.';
+  if(!current.busy&&!error&&!recovering&&step===3&&primaryLoaded)status='Game loader found. Ready to install the launch save.';
   text('stop',current.phase==='start'||current.phase==='restore-network'?'Stop and restore Wi-Fi':'Stop');
   if(isUnavailable())status='Waiting for the local server…';
   text('status',status);
-  text('state-label',isUnavailable()?'Offline':error||recovering?'Needs attention':current.busy?'In progress':step===4&&connectionVerified&&!installationComplete?'Waiting for confirmation':'Ready');
+  text('state-label',isUnavailable()?'Offline':error||recovering?'Needs attention':current.busy?'In progress':step===4&&connectionVerified&&!installationComplete?'Ready':'Ready');
   $('result').dataset.tone=error||recovering?'error':current.busy?'busy':'ready';
   let help=current.busy?(current.phase==='start'&&current.networkStage==='restoring'?'Wait for the saved Wi-Fi connection and its IP address. IZ2S Platform checks the console only after recovery.':'Keep the console screen open. You can follow the details in the session log.'):recovering?'Restore the saved PC Wi-Fi connection before continuing.':error?'Check the console screen and the session log before retrying.':stepHelp[step];
-  if(!current.busy&&!error&&!recovering&&step===4&&connectionVerified)help=installationComplete?'Continue on the console using the launch instructions below.':'Keep Awaiting payload open. Do not restart the console. Confirm save installation below.';
-  if(!current.busy&&!error&&!recovering&&step===3&&primaryLoaded)help='Keep Awaiting payload open. Do not restart the console. Confirm save installation below.';
+  if(!current.busy&&!error&&!recovering&&step===4&&connectionVerified)help=installationComplete?'Continue on the console using the launch instructions below.':'Keep Awaiting payload open. Do not restart the console. Use the save installation button only to resume an interrupted transfer.';
+  if(!current.busy&&!error&&!recovering&&step===3&&primaryLoaded)help='Keep Awaiting payload open. Do not restart the console. Use the save installation button only to resume an interrupted transfer.';
   if(!current.busy&&!error&&!recovering&&step===4&&!connectionVerified)help=stepHelp[3];
   text('status-help',help);
   const firstErrorLine=error.split('\n').find(line=>line.trim());
@@ -366,12 +382,13 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   const wifiReady=setup.capabilitiesReady&&setup.networkManager&&radios.includes(current.phy);
   const readyCount=[setup.keysReady,setup.dependenciesReady,wifiReady].filter(Boolean).length;
   const pcLabels={keys:'Choose prod.keys',prepare:'Prepare PC',permissions:'Allow Wi-Fi access',refresh:'Check again',radio:'Choose Wi-Fi adapter',continue:'Continue to connection',unsupported:'Linux is required'};
-  const pcHelp={keys:'Choose your prod.keys. IZ2S Platform will validate it before saving.',prepare:'The components will be installed automatically. This may take a few minutes.',permissions:'The next action opens a Linux administrator prompt for the network helper.',refresh:!setup.networkManager?'Start NetworkManager on this PC, then check again.':'Connect a Wi-Fi adapter to this PC, then check again.',radio:'Choose the adapter that will connect to the console lobby.',continue:'PC setup is complete. Continue opens step 3 only. Nothing is sent to the console until you confirm the fresh lobby and click Connect and continue.',unsupported:'First setup requires native Linux. Open IZ2S Platform on a Linux PC with Wi-Fi.'};
+  const pcHelp={keys:'Choose your prod.keys. IZ2S Platform will validate it before saving.',prepare:'The components will be installed automatically. This may take a few minutes.',permissions:'The next action opens a Linux administrator prompt for the network helper.',refresh:!setup.networkManager?'Start NetworkManager on this PC, then check again.':'Connect a Wi-Fi adapter to this PC, then check again.',radio:'Choose the adapter that will connect to the console lobby.',continue:'PC setup is complete. Continue opens step 3 only. Nothing is sent to the console until you confirm the fresh lobby and click Connect and install save.',unsupported:'First setup requires native Linux. Open IZ2S Platform on a Linux PC with Wi-Fi.'};
   text('pc-state',keyLoading?'Checking prod.keys…':current.busy?(phases[current.phase]||'Please wait…'):t('{count} of 3 ready').replace('{count}',readyCount));
   if(windows)text('pc-state','Windows · Civ7 network mode');
   $('pc-state').dataset.ready=String(nextAction==='continue');
   text('pc-action',keyLoading?'Checking prod.keys…':current.busy?'Please wait…':pcLabels[nextAction]);
-  $('pc-action').disabled=locked||nextAction==='unsupported';
+  $('pc-action').disabled=state.preview?serverOffline:locked||nextAction==='unsupported';
+  if(state.preview)text('pc-action','Continue to connection');
   text('pc-help',windows?'Continue to find a loader already open on the console. No Linux tools or prod.keys are needed for this network stage.':pcHelp[nextAction]);
   for(const [id,ready] of [['keys',setup.keysReady],['tools',setup.dependenciesReady],['wifi',wifiReady]]){
    $('check-'+id).dataset.ready=String(!!ready);
@@ -392,7 +409,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
    for(const value of radios.length?radios:['']){const option=document.createElement('option');option.value=value;option.textContent=value||t('No Wi-Fi radio found');$('radio').append(option);}
    $('radio').value=current.phy||(radios.length===1?radios[0]:'')||'';
   }
-  if(wasInitialized&&previousStep!==step)$('stage-'+step).querySelector('h3').focus();
+  if(wasInitialized&&previousStep!==step)focusStep();
  }
  function activityLog(state,full){
   const entries=state.log||[];if(full)return entries;

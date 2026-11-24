@@ -1,4 +1,4 @@
-// Offline SD kit: no console, FTP, keys or previous SB4 installation needed.
+// Offline SD kit: no console, FTP, keys or previous launcher installation needed.
 import fs from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
@@ -14,6 +14,7 @@ export const FILENAME = "iz2sciv-core-sd.zip";
 
 export async function buildSdPackage() {
     const {manifest} = loadIz2sRuntime();
+    const provenance = JSON.parse(await fs.readFile(path.join(runtime, "provenance.json"), "utf8"));
     const entries = [];
     async function add(source, target, expected) {
         const bytes = await fs.readFile(path.join(runtime, "package", source));
@@ -24,18 +25,25 @@ export async function buildSdPackage() {
     for (const [name, [source, target]] of Object.entries(RUNTIME_FILES))
         await add(source, target.slice(1), manifest[name]);
     const records = JSON.parse(await fs.readFile(path.join(runtime, "package-manifest.json"), "utf8"));
+    // The native menu is embedded in game/main. No standalone NRO is needed.
     for (const record of records.filter(row => row.path.startsWith("licenses/")))
         await add(record.path, "iz2s/" + record.path, {...record, size: record.bytes});
     const applications = await buildSdApplications();
     entries.push(...applications.entries);
-    const contents = entries.map(({name, bytes}) => ({path: name, bytes: bytes.length, sha256: archive.sha(bytes)}));
-    entries.push({name: "iz2s/iz2sciv-sd-manifest.json", bytes: Buffer.from(JSON.stringify({
-        name: "IZ2SCiv core", format: "iz2sciv.sd.v1", apps: applications.apps, files: contents
-    }, null, 2) + "\n")});
     entries.push({name: "iz2s/README-IZ2SCiv.txt", bytes: Buffer.from(
         "Extract the contents of the ZIP to the root of the SD card. If the iz2s folder already exists, merge the folders\n" +
         "and replace matching files from the archive. Keep all other applications.\n" +
-        "Insert the SD card back into the powered-off console.\n")});
+        "Included apps: IZ2S Cheese, IZPSX, IZPS2, and IZ File Deck (Foldrift).\n" +
+        "Insert the SD card back into the powered-off console.\n" +
+        `RUN32: PC panel 0.3.2; launcher ${provenance.launcher.version}, ${provenance.launcher.revision}. The native launcher is embedded in game/main; no standalone IZ2S.nro is required.\n` +
+        "After changing the runtime revision, reinstall the Civ7 launch save using this panel: its SD manifest is embedded at installation.\n")});
+    const contents = entries.map(({name, bytes}) => ({path: name, bytes: bytes.length, sha256: archive.sha(bytes)}));
+    entries.push({name: "iz2s/iz2sciv-sd-manifest.json", bytes: Buffer.from(JSON.stringify({
+        name: "IZ2SCiv core", format: "iz2sciv.sd.v1", packageVariant: "four-apps",
+        panelVersion: "0.3.2", launcherVersion: provenance.launcher.version,
+        revision: provenance.launcher.revision, menuId: provenance.launcher.packagedMenuId,
+        apps: applications.apps, files: contents
+    }, null, 2) + "\n")});
     const bytes = archive.encode(entries);
     return {filename: FILENAME, bytes, sha256: archive.sha(bytes)};
 }

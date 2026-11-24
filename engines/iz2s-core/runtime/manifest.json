@@ -2,579 +2,14 @@
   "format": "iz2s-core.runtime.v1",
   "files": [
     {
-      "path": "bootstrap.bas",
-      "bytes": 8117,
-      "sha256": "5a2b86da8787318652365b2e4cf710f67ce618d6c21087dfc78716533a510d32"
-    },
-    {
-      "path": "installer/.gitignore",
-      "bytes": 28,
-      "sha256": "0e1a161ceaef81ebbdbf727dbdfb574b3b9429faba1b647e40f34f1ae59bb9ee"
-    },
-    {
-      "path": "installer/README.md",
-      "bytes": 10438,
-      "sha256": "14b2ea3a1220f05312b36b7c206bc02cbcef96b334043740391b3bbb24da73ba"
-    },
-    {
-      "path": "installer/bootstrap.bas",
-      "bytes": 8029,
-      "sha256": "dca34ac7977cfd3f7cb657a79da925450472b6527ea83d022a9aa25510b168d5"
-    },
-    {
-      "path": "installer/core.cjs",
-      "bytes": 5913,
-      "sha256": "a68718b99badc1f615694a0f1e376c54810133e681924cebe71ef59626667f4d"
-    },
-    {
-      "path": "installer/dump-firmware.cjs",
-      "bytes": 519,
-      "sha256": "e68d989fa24375882767b96d2baff0e0c398b597e7c97bee62dd048891080521"
-    },
-    {
-      "path": "installer/engine/lib/bridge.cjs",
-      "bytes": 3619,
-      "sha256": "3eacb60cf7206851cdabe98aeae111c7661cd125869af2accdf9f45eb94ea9cb"
-    },
-    {
-      "path": "installer/engine/lib/connection.cjs",
-      "bytes": 5121,
-      "sha256": "8967986f113b9d80e0b6f5b2f5cb413fd69e9ef4f866627df2c8d4189fb3ee2f"
-    },
-    {
-      "path": "installer/engine/lib/native.cjs",
-      "bytes": 6170,
-      "sha256": "6c95f441331501b9c549f9bd7fc24f6993b32dd4e265ebe71160d679c6aecbc6"
-    },
-    {
-      "path": "installer/engine/lib/qualify.cjs",
-      "bytes": 2235,
-      "sha256": "78ae0842170f7837e4a1ca46efd00fc4be1bfe68987a71717debc51a38a6ee7c"
-    },
-    {
-      "path": "installer/engine/shared/domain.cjs",
-      "bytes": 3077,
-      "sha256": "f82b2ae06ebcb9b95cf06729e2d2c2cf7fb725f36641fa8126a5ca96f517a4c2"
-    },
-    {
-      "path": "installer/engine/shared/frames.cjs",
-      "bytes": 3783,
-      "sha256": "e58f0ebed0cc4a6a5978b4c75374f0531788b1a3901587fa61a8661a1710e045"
-    },
-    {
-      "path": "installer/engine/shared/ipc.cjs",
-      "bytes": 2486,
-      "sha256": "a29650186333a7bc6b3e5ef69a5d1a48dc9c8a471325616994a8a77739304412"
-    },
-    {
-      "path": "installer/engine/shared/paths.cjs",
-      "bytes": 429,
-      "sha256": "2923272ea81ce8cf55934dc8bbfa7a442dbed77f7dca461754b4016635e9e35d"
-    },
-    {
-      "path": "installer/engine/shared/rpc.cjs",
-      "bytes": 2875,
-      "sha256": "52191c882e08fe92f94871d6b48a8ad25f9bfc469feefae030fedb9e3a905880"
-    },
-    {
-      "path": "installer/engine/shared/sdk-functions.json",
-      "bytes": 1718,
-      "sha256": "53364e1a8596323b0e4d106ed25c67dc927d5ae4ed068be5c07c3eb3e3589d0e"
-    },
-    {
-      "path": "installer/engine/shared/sdk-layout.json",
-      "bytes": 1460,
-      "sha256": "3c789f9f54c74ed933d9bfd13025e4380b6bb1cd9a2ceb81e03b5963deee244a"
-    },
-    {
-      "path": "installer/engine/shared/stages.cjs",
-      "bytes": 1913,
-      "sha256": "a34801ebb44f64eca745a1cb6b18d2f74dbd52f53b0c97ffe74a853567afbe95"
-    },
-    {
-      "path": "installer/engine/switch2/acquire.cjs",
-      "bytes": 7604,
-      "sha256": "4c9f54d6f6ed137c952b934f587291a21fbb10d5ca540772dd0a00ddf8664b08"
-    },
-    {
-      "path": "installer/engine/switch2/acquisition-stop.cjs",
-      "bytes": 1160,
-      "sha256": "8325559a6e5024e724a7709507f33f10e0090e7b2874b02458d2920ac1dc8e90"
-    },
-    {
-      "path": "installer/engine/switch2/app/affinity.cjs",
-      "bytes": 3904,
-      "sha256": "3e138a1238f8e9e8cd47afb04138fdc350ff1687baa166d3d3bc7e1bc4001420"
-    },
-    {
-      "path": "installer/engine/switch2/app/bulk-transfer.cjs",
-      "bytes": 673,
-      "sha256": "68c7ca5134687bf11727e5b8c335691b49b7c40709740c9fce4e2f3970c3db9f"
-    },
-    {
-      "path": "installer/engine/switch2/app/compat-affinity-reference.json",
-      "bytes": 1643,
-      "sha256": "3b329e6b37a63c070c37f5f56b71cca0a1079865f1ed0b5f1267e442e5a5bf8f"
-    },
-    {
-      "path": "installer/engine/switch2/app/domain.cjs",
-      "bytes": 2634,
-      "sha256": "17ccbbf02d93a290cbd6817c0d0f34279718397f9878b00fe9b5066e742d326e"
-    },
-    {
-      "path": "installer/engine/switch2/app/event-code.json",
-      "bytes": 2152,
-      "sha256": "8b85067373cc6c08ca5baf1b9a89ddc4f3c537742a915e0dd479daf61625ccd1"
-    },
-    {
-      "path": "installer/engine/switch2/app/events.cjs",
-      "bytes": 1312,
-      "sha256": "eb24f159b069aeff737bd5fd1caef05672cfe2da5de1854abf320f938e597cb5"
-    },
-    {
-      "path": "installer/engine/switch2/app/filesystem.cjs",
-      "bytes": 6868,
-      "sha256": "2b26eea0e99a1e4cbd9135ea6c0cd45ab5bf3d45729747ffdcec9cdfeb554148"
-    },
-    {
-      "path": "installer/engine/switch2/app/hash-code.json",
-      "bytes": 387,
-      "sha256": "6ff6a6a114c4b7c1866a75acff45361dbcf3692e260acc051c9a766b93f550c7"
-    },
-    {
-      "path": "installer/engine/switch2/app/inspect-mounts.cjs",
-      "bytes": 2097,
-      "sha256": "3311b51d44269957b0dc2f2515655aa7f889032c70d23d5e8abd7ac2230ac115"
-    },
-    {
-      "path": "installer/engine/switch2/app/map.cjs",
-      "bytes": 968,
-      "sha256": "34d2f6b8a015931f0742d4f36bfccc7643d0f7b606e467dd60b3bf4f150135ad"
-    },
-    {
-      "path": "installer/engine/switch2/app/mounted-save.cjs",
-      "bytes": 3429,
-      "sha256": "313117c9407a960b3e365d3df62474cb2213e001594eee3d3afba4b37e124854"
-    },
-    {
-      "path": "installer/engine/switch2/app/native-worker.cjs",
-      "bytes": 5788,
-      "sha256": "9bae134898e6052c4c20460df7f5be8bc90f4b02b39dbf7a63a962a5c6864eba"
-    },
-    {
-      "path": "installer/engine/switch2/app/qualify.cjs",
-      "bytes": 3591,
-      "sha256": "adfaec53805a8e3a18a158f079bba66cfd3c48822242db77614f10c1219d12c3"
-    },
-    {
-      "path": "installer/engine/switch2/app/rpc.cjs",
-      "bytes": 2458,
-      "sha256": "32bbe2a3324ed850b0ebca482a8a1285ecf0cb80ec3486dae182cfabe16506df"
-    },
-    {
-      "path": "installer/engine/switch2/app/sdk-proxy-code.json",
-      "bytes": 378,
-      "sha256": "1a572c9255f4f6adf8051b8f1ae57555f36359d0bec4beba793e19305b74af09"
-    },
-    {
-      "path": "installer/engine/switch2/app/session.cjs",
-      "bytes": 7021,
-      "sha256": "31e96a156ebd1401d8d350dabcc3cffc19b0e2f1d25811543461267406b030ce"
-    },
-    {
-      "path": "installer/engine/switch2/app/thread-code.json",
-      "bytes": 3496,
-      "sha256": "4c9d7290163df0c9e517d84def1ae05c3605a594e511c240f1caa1ede86ff051"
-    },
-    {
-      "path": "installer/engine/switch2/app/thread-scheduling-reference.json",
-      "bytes": 10388,
-      "sha256": "53873cc82e8b60f2471b9de43530b03c97f295fe38919c9d37740e519fabf019"
-    },
-    {
-      "path": "installer/engine/switch2/app/timing-code.json",
-      "bytes": 281,
-      "sha256": "d1cbda66d38640443020f53f9d39a7b7009487e7173a60852544686104556374"
-    },
-    {
-      "path": "installer/engine/switch2/app/timing.cjs",
-      "bytes": 1876,
-      "sha256": "e854e21a717de686cc86b5484bb81fa32c280e480406d1ba95861e675ce416df"
-    },
-    {
-      "path": "installer/engine/switch2/app/worker.cjs",
-      "bytes": 657,
-      "sha256": "4eb587b7bce12c5cacdf8b3c8e3dd826cbe8c9bc2d1fa8a108b5f276647ccc37"
-    },
-    {
-      "path": "installer/engine/switch2/cleanup-scratch.cjs",
-      "bytes": 2685,
-      "sha256": "661a63609e08ba08f2ced23e25b9b8eaa9f601d3f653c3796634badf5668cb58"
-    },
-    {
-      "path": "installer/engine/switch2/firmware-dump.cjs",
-      "bytes": 7652,
-      "sha256": "77ee3782c89ddf8a697d7198d09c15c2be9058436f6dfcf5e53fdd7eef324f31"
-    },
-    {
-      "path": "installer/engine/switch2/hold.cjs",
-      "bytes": 831,
-      "sha256": "8fd767c6b4ac0d7c89c923280cb9595d123c26d237ddad196de2a735d1c18fd1"
-    },
-    {
-      "path": "installer/engine/switch2/memory/cache-address-plan.cjs",
-      "bytes": 618,
-      "sha256": "e8fae3405caeef6a7663787bca1c65a2033fe1db6fa66a60042b1cf727f3d336"
-    },
-    {
-      "path": "installer/engine/switch2/memory/cache-mount-sdk.json",
-      "bytes": 1574,
-      "sha256": "f0cdd1b8c64f7ea3e236ea55b201e80dd76868a4bf53904434b0f1e402833f46"
-    },
-    {
-      "path": "installer/engine/switch2/memory/cache-mount.cjs",
-      "bytes": 2133,
-      "sha256": "9adc11ca954c3317cb3cea6d24ceba996f7d8e5ff2cce5aedce6890ae4852c82"
-    },
-    {
-      "path": "installer/engine/switch2/memory/capture-workers.cjs",
-      "bytes": 1179,
-      "sha256": "fd969a7823cb2a656015882188f5552a70ca48e02834fe88c8593ee56dfc76ca"
-    },
-    {
-      "path": "installer/engine/switch2/memory/clean-acquisition-retry.cjs",
-      "bytes": 1955,
-      "sha256": "a51a21f6a4c6ca31eda3d88498548cc87de3708020ef525391c9cc2a4463c8f2"
-    },
-    {
-      "path": "installer/engine/switch2/memory/fs-memory-control.cjs",
-      "bytes": 19852,
-      "sha256": "3fc070a1e699888ba02f2527eee59f50b15e07c55272a70972928273a4c8076b"
-    },
-    {
-      "path": "installer/engine/switch2/memory/fs-root-control.cjs",
-      "bytes": 7778,
-      "sha256": "7222e5df91aabbfd7d1988184ade9e6f00624e80aa0b29b80b95a613bab1400b"
-    },
-    {
-      "path": "installer/engine/switch2/memory/live-report-read.cjs",
-      "bytes": 1108,
-      "sha256": "ea08b080d26c26d090a466bc0bf072d088e65d3fef0a336eafdb95acbd358a2d"
-    },
-    {
-      "path": "installer/engine/switch2/memory/local-release.cjs",
-      "bytes": 2148,
-      "sha256": "70be93001710894cc907e4ccea3f51c2c68a9302e6f079ea3e1736b75d3d37a4"
-    },
-    {
-      "path": "installer/engine/switch2/memory/mounted-rom.cjs",
-      "bytes": 2624,
-      "sha256": "b0cb30f07c08ff2fd4bffce30a8ffc93e7e3271bdb818b990b65859f50764492"
-    },
-    {
-      "path": "installer/engine/switch2/memory/native-links.cjs",
-      "bytes": 2353,
-      "sha256": "d3f6e7a023dfcabeef16d7c20fc26394dd366b20168fc5cb3003ca8992a3d6e8"
-    },
-    {
-      "path": "installer/engine/switch2/memory/normalized-path.cjs",
-      "bytes": 486,
-      "sha256": "f835b0183e4dddf749959bc8ca785bb71247ebc257e88dbdda13a938f5d09318"
-    },
-    {
-      "path": "installer/engine/switch2/memory/paths.cjs",
-      "bytes": 1670,
-      "sha256": "67206c9d6a2fcc533f2db89e1c8f23c9a2e557d7e61b97483c4c4a2f98be66b3"
-    },
-    {
-      "path": "installer/engine/switch2/memory/pinning-control.cjs",
-      "bytes": 1542,
-      "sha256": "bd4251560266181d4a5d1f552cfa567b9f30330e30b4583ae24401141793dda3"
-    },
-    {
-      "path": "installer/engine/switch2/memory/positive-readback.cjs",
-      "bytes": 9280,
-      "sha256": "5b2758fac6d86fd89b3c46fe7e41e64715ef94dc91f8a2e7253f2d837b160dac"
-    },
-    {
-      "path": "installer/engine/switch2/memory/probe-reserved-gap.cjs",
-      "bytes": 80080,
-      "sha256": "f1f4e9d9beac32bbda08cc6301286c18673b5a79a4a37e0ff06798d33cd41b30"
-    },
-    {
-      "path": "installer/engine/switch2/memory/range-read-trace.cjs",
-      "bytes": 1728,
-      "sha256": "d9d53f0414a00c2481b7c00093a81e010b652a577aa700b6de4031c69f6efe94"
-    },
-    {
-      "path": "installer/engine/switch2/memory/run-control.cjs",
-      "bytes": 2150,
-      "sha256": "86a5d7416d5b278e93be241f4088c746ed7aaf406708c16d8a845b00739b8b1a"
-    },
-    {
-      "path": "installer/engine/switch2/memory/session-tools.cjs",
-      "bytes": 3284,
-      "sha256": "78fd8389e823475f48374757f432123fb8a99b27e5721e57e62d76e357131d82"
-    },
-    {
-      "path": "installer/engine/switch2/memory/session.cjs",
-      "bytes": 869,
-      "sha256": "7c897244c481210f495bdddcab32a2c69d1a1cf9159ffbfbfb420041dd69be72"
-    },
-    {
-      "path": "installer/engine/switch2/memory/signed-cache-plan.cjs",
-      "bytes": 5203,
-      "sha256": "27f2496c19bf96345977c61eb07eb85bde13a4a76ad0f4937f54ba7305c059d7"
-    },
-    {
-      "path": "installer/engine/switch2/memory/verify-proof.cjs",
-      "bytes": 3130,
-      "sha256": "d5bc4a8482c976c948eef96b793c97a3669defd180506a3570d47309de0ad982"
-    },
-    {
-      "path": "installer/engine/switch2/memory/wave-overlap.cjs",
-      "bytes": 978,
-      "sha256": "535fb180272fffabb592225786a712d0c77eef0f19286801d12f8ec2527e267e"
-    },
-    {
-      "path": "installer/engine/switch2/pipeline.cjs",
-      "bytes": 10109,
-      "sha256": "03825677c95bd1bc885b6392ebaaa2993c7c678a0f2668f02358f1aace3fa2fa"
-    },
-    {
-      "path": "installer/engine/switch2/process/bind-notifier.cjs",
-      "bytes": 2321,
-      "sha256": "9a9b740a9308424e47ce60959fceb73594e1f63f51a566354cafb2a5f1073f65"
-    },
-    {
-      "path": "installer/engine/switch2/process/client.cjs",
-      "bytes": 7117,
-      "sha256": "0c3ce1d7d5ef22f3b1c2f5da2f57efcd725a0cd14e27961145a89436dc75333d"
-    },
-    {
-      "path": "installer/engine/switch2/process/fs-execute.cjs",
-      "bytes": 5543,
-      "sha256": "87ec302667c9c7e095e3c4b0d8ca55038541afbb14a25e9a34aa8a56df45ceda"
-    },
-    {
-      "path": "installer/engine/switch2/process/qualify.cjs",
-      "bytes": 5793,
-      "sha256": "283c6fd18545c04d208a8309b9461dae6cf6956f23f6c36db04634f38b93d1e7"
-    },
-    {
-      "path": "installer/engine/switch2/process/test-function.bin",
-      "bytes": 72,
-      "sha256": "71544d5064344d40567311b57c6fd4d726c23346d02eec0bba4c210591401b42"
-    },
-    {
-      "path": "installer/engine/switch2/retained/cache-shape.cjs",
-      "bytes": 976,
-      "sha256": "9743ceed25a68a4862850f4dc9fbc2affe08f6562a9133a61e7196ca6cb07581"
-    },
-    {
-      "path": "installer/engine/switch2/retained/find-metadata.cjs",
-      "bytes": 10426,
-      "sha256": "a3ed3bf01ae69244068edf16f151280c933569766eb593bba32f0a7889508093"
-    },
-    {
-      "path": "installer/engine/switch2/retained/link-anchor.cjs",
-      "bytes": 812,
-      "sha256": "0499395ae2a98919d6a60e638a63236f00bce3c0ea59cd6fe24ddf18dcd7931a"
-    },
-    {
-      "path": "installer/engine/switch2/retained/links.cjs",
-      "bytes": 630,
-      "sha256": "de59b615a753d4edda5f6f450b841aee1ac65a5886cc16de163014e5ba38f555"
-    },
-    {
-      "path": "installer/engine/switch2/retained/lower-window.cjs",
-      "bytes": 1631,
-      "sha256": "0dc95d9c7fd1a9eb840ba6c4aead1da3e8d9e88d636015dd077efb85bf321c2b"
-    },
-    {
-      "path": "installer/engine/switch2/retained/metadata-window.cjs",
-      "bytes": 1040,
-      "sha256": "a48ef8e021b2109671d443d5d3ea7619b2c7ef4d5e83695b97a2ef9dd5e2bd13"
-    },
-    {
-      "path": "installer/engine/switch2/retained/retained-memory.cjs",
-      "bytes": 27079,
-      "sha256": "a0f00088bedefed0b586f531cf0fbacae77bfbecafecdfd24d1cbeedb6762817"
-    },
-    {
-      "path": "installer/engine/switch2/ro/bind-sessions.cjs",
-      "bytes": 3560,
-      "sha256": "98a035bac90ba0b8337e745d0e475076e025aa36bb0846cdf00e3294735f534e"
-    },
-    {
-      "path": "installer/engine/switch2/ro/control.cjs",
-      "bytes": 12305,
-      "sha256": "55a621fe1b9ba13dae2bb830c3f72ea8576a270775dc9cc1577ba4fba6158793"
-    },
-    {
-      "path": "installer/engine/switch2/ro/copy-loader-root.cjs",
-      "bytes": 4655,
-      "sha256": "d50bb91dd0b16cb59ab7e0dd3d196be930a5771ab8cc7ebf4cf2195bb583b6da"
-    },
-    {
-      "path": "installer/engine/switch2/ro/export-handle.cjs",
-      "bytes": 1850,
-      "sha256": "b95c731a241a85eea6cd46c8ca59574a30f6177f3394c1e4de7e6be41ac7c896"
-    },
-    {
-      "path": "installer/engine/switch2/ro/files.cjs",
-      "bytes": 18901,
-      "sha256": "21c573fbdc7f59da638c03df72c192771c06f1a17b69432d977e00cb5cc5a7a7"
-    },
-    {
-      "path": "installer/engine/switch2/ro/gate.cjs",
-      "bytes": 11220,
-      "sha256": "8cb2c115ef11c02443aff071cb9ae00b7df6b1bad82f6ebdede00b71f6f44c57"
-    },
-    {
-      "path": "installer/engine/switch2/ro/install-retained.cjs",
-      "bytes": 4367,
-      "sha256": "be92e293ee03e6bb9a32a01b243aa77c38548b7fa2f4111100e14ac93eb438d9"
-    },
-    {
-      "path": "installer/engine/switch2/ro/launch.cjs",
-      "bytes": 10831,
-      "sha256": "4440b020fe6011b61c38939afdf72ee21623ce50adae716d5f12e99894290b00"
-    },
-    {
-      "path": "installer/engine/switch2/ro/layout.cjs",
-      "bytes": 7212,
-      "sha256": "36ea6c7db261516c8bff2165abab1f26bc2d0dd3f24006d2719e0c2510623237"
-    },
-    {
-      "path": "installer/engine/switch2/ro/ncm.cjs",
-      "bytes": 3523,
-      "sha256": "fdda25755a8023356d92995e9493f6ab515a69bf91a334e544fd66d5e289f7f6"
-    },
-    {
-      "path": "installer/engine/switch2/ro/nro.cjs",
-      "bytes": 3754,
-      "sha256": "f25963c9025ff14e3418db18140b0d8f33b43acf09153895895d56b0e3622fe7"
-    },
-    {
-      "path": "installer/engine/switch2/ro/objects.cjs",
-      "bytes": 7197,
-      "sha256": "2ddbb7a8851d82c3933302917eb42edd311c270370e7763372621770e9d92ef9"
-    },
-    {
-      "path": "installer/engine/switch2/ro/package-build.cjs",
-      "bytes": 1425,
-      "sha256": "38bd63aa1730995c0634d422c11c8d04d42b3ceb79115230f6f45e9dcaf8ce65"
-    },
-    {
-      "path": "installer/engine/switch2/ro/package.cjs",
-      "bytes": 11303,
-      "sha256": "59f81203a5017930e524d696c55a9e5b5d0c9426f2fcb5ce4f8bd35e0a29e024"
-    },
-    {
-      "path": "installer/engine/switch2/ro/payload/main",
-      "bytes": 4757,
-      "sha256": "d590cbfc5d9152c24d5a36f083f8470a2f3164be6b78130129d44132b939701a"
-    },
-    {
-      "path": "installer/engine/switch2/ro/payload/manifest.json",
-      "bytes": 252,
-      "sha256": "98b300d0aae014d9ae6a0f08341a66f4f81a9915f374259a9fd48151aea315aa"
-    },
-    {
-      "path": "installer/engine/switch2/ro/prepare-event.cjs",
-      "bytes": 1899,
-      "sha256": "f1d8d81d45abe065032d0f58efa93801937da486113548fe54fbc06244d52871"
-    },
-    {
-      "path": "installer/engine/switch2/ro/prepare-workers.cjs",
-      "bytes": 2143,
-      "sha256": "cf489aa63edcd13a783fa441ac685c6ac4888292fb5b0dfdb8bf285e869886eb"
-    },
-    {
-      "path": "installer/engine/switch2/ro/probe.cjs",
-      "bytes": 3530,
-      "sha256": "30561bca02f0647d3c2c2cfd4f6e7ae7bfc91e73d3e07e0a70d3ab6a0987bd77"
-    },
-    {
-      "path": "installer/engine/switch2/ro/process-test.cjs",
-      "bytes": 3942,
-      "sha256": "612e3b8b94ef179213bae988b3a32612b053e0cc7acdade907ad5d3da42e5274"
-    },
-    {
-      "path": "installer/engine/switch2/ro/ready.cjs",
-      "bytes": 645,
-      "sha256": "50bd464e40a353b35110ad91b8bed5eaac03fcaa94a808ccf66a304b30159981"
-    },
-    {
-      "path": "installer/engine/switch2/ro/runtime.cjs",
-      "bytes": 4975,
-      "sha256": "7553e3314e0c5657a8687eb2c7fdca87114ebbd6772149847a4a237ae40454ff"
-    },
-    {
-      "path": "installer/engine/switch2/ro/sdk-thread.cjs",
-      "bytes": 2156,
-      "sha256": "4cd273be76724a94ffe38a561bf12ad9e352b7ae4e9fa4659f4c0ffc10300736"
-    },
-    {
-      "path": "installer/engine/switch2/ro/stage-image.cjs",
-      "bytes": 2681,
-      "sha256": "61765c8e28fb8e7e21bb3740b9b120e35750b5972b77c8ac093a7950366dd22a"
-    },
-    {
-      "path": "installer/engine/switch2/ro/start-core.cjs",
-      "bytes": 8142,
-      "sha256": "a87f405c6cca218638f6ab2ee568a5783aba8ccec0cd41498f52f35289417e81"
-    },
-    {
-      "path": "installer/engine/switch2/ro/test-gate.cjs",
-      "bytes": 3576,
-      "sha256": "c7187b43571189ca023949f520bfe687ec13d0190f0341daedf66d9784bd7bff"
-    },
-    {
-      "path": "installer/engine/switch2/ro/test-sm.cjs",
-      "bytes": 2135,
-      "sha256": "05325900fdb1f82735eec0125a92a05c16c3cd6cb4e4e5e9a0bbd1730812ebee"
-    },
-    {
-      "path": "installer/engine/switch2/ro/worker-control.cjs",
-      "bytes": 13280,
-      "sha256": "3da021822e2470091634f33eff54a507a2dfcfac0eeb7f5ccc918561dd067f68"
-    },
-    {
-      "path": "installer/engine/switch2/tools/endpoint.cjs",
-      "bytes": 1878,
-      "sha256": "054fea852ab206cdc912aa683df1c6e2a66c18bcfe8c5442f4a4aaf0fc86f25b"
-    },
-    {
-      "path": "installer/engine/switch2/tools/fs-memory.cjs",
-      "bytes": 7646,
-      "sha256": "78cdd40e60254c4eb236db626d59ed78e096316c5c6cc6cb90af7a95a687e220"
-    },
-    {
-      "path": "installer/engine/switch2/tools/fs-root-pid.cjs",
-      "bytes": 3083,
-      "sha256": "ea079bcefa25ea3a430958811352f0a2de19a33e9a891b222cb9a36b87347705"
-    },
-    {
-      "path": "installer/rpc.cjs",
-      "bytes": 2027,
-      "sha256": "b38987c45d813708c3a86d19915a647e76476def8cd533889197a7f6e2dec7b4"
-    },
-    {
-      "path": "installer/run.cjs",
-      "bytes": 15036,
-      "sha256": "0ea596a4f520117ae21f6e37fa7bc7f823fb01f5a89181613ddd97b3249dab3b"
-    },
-    {
       "path": "menu-build.json",
-      "bytes": 10826,
-      "sha256": "954507528cfe158dcdc54e919b094a747ac101857eeef870df044f4f5e5fef64"
+      "bytes": 18204,
+      "sha256": "81598c60cad8eb2bcf3bd2e0f3b9ca8afceeb309d60e1b0363950c08dbe6b46a"
     },
     {
       "path": "package-manifest.json",
-      "bytes": 6910,
-      "sha256": "e05cdf5bb350463d163a4321bdafc00ff3e317a5af41523e7156e77b37f4c69f"
+      "bytes": 7203,
+      "sha256": "f000b6e9e4badd9c38fa6966a0fb5d3031b153fe4b1a46e93478c1ceabbac937"
     },
     {
       "path": "package/bootstrap.bin",
@@ -587,19 +22,24 @@
       "sha256": "d8163aaaf979089becfadc67713d31d63f9cf4d5ff430bc211064c99bbf7bd6c"
     },
     {
+      "path": "package/game/exefs.nsp",
+      "bytes": 19402163,
+      "sha256": "a6463a5143073696e46e237798538b58812a7fdd9b7555c99515e6ea606c9367"
+    },
+    {
       "path": "package/game/main",
-      "bytes": 19391712,
-      "sha256": "6d953ed3e1d78db321841cfe18437160c8003c3a7b48bf50ecefd012897b3a84"
+      "bytes": 19400245,
+      "sha256": "5bb5e63f89da30f0d85c64f72911046e3135e4ee8fbbf04572971dbfa7e1d24d"
     },
     {
       "path": "package/iz2s/izlauncher.iza",
-      "bytes": 841696,
-      "sha256": "1d7d9fae9fcd8172513e580fe5b7d70ecaa31d6b895f5a0a36c3fdc016bdb14c"
+      "bytes": 900504,
+      "sha256": "b6a35e9a1a353cd915a458a78ad0dfe3a4c425c3a140f43ed4bc902b1eb387aa"
     },
     {
       "path": "package/iz2s/izlauncher.romfs",
-      "bytes": 26785192,
-      "sha256": "86f01b934a5ee4c78bafa91be4f121bcbfd5b5fc9e8b4d7306da93cdc2a788bd"
+      "bytes": 26734392,
+      "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
     },
     {
       "path": "package/iz2s/modules/foldrift/launcher.iza",
@@ -610,6 +50,11 @@
       "path": "package/iz2s/modules/foldrift/launcher.iza.sig",
       "bytes": 64,
       "sha256": "8362eb08a0104a44af5519555058b132cccdcbf24f8bfa30779a65f244087369"
+    },
+    {
+      "path": "package/licenses/Octicons-MIT.txt",
+      "bytes": 1068,
+      "sha256": "da259c8bd0de62713ccdcf88910aebca810644f98c2c912bad814fc79ea778df"
     },
     {
       "path": "package/licenses/bzip2/LICENSE",
@@ -808,8 +253,13 @@
     },
     {
       "path": "provenance.json",
-      "bytes": 11097,
-      "sha256": "fd36dbe76bece7d4cb5390b79c090ef0fe434444e1bbfeb8170e9117c614d2f0"
+      "bytes": 13989,
+      "sha256": "d4039cc0e175f66aaacec2281b1e0385847f7c4fba22080bcd00aa59238c43bd"
+    },
+    {
+      "path": "run32-component-validation.json",
+      "bytes": 2514,
+      "sha256": "880aead67caeef74aeca9f6dc5a1ebe76285288e043ab6876ff5685529580702"
     },
     {
       "path": "sd-layout.json",

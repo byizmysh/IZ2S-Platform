@@ -1,9 +1,9 @@
 {
   "name": "iz2sciv-core",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "type": "module",
-  "description": "IZ2SCiv core — Civilization VII entry for the RUN25 IZ2s",
+  "description": "IZ2SCiv core \u2014 Civilization VII entry for IZ2S",
   "scripts": {
     "build": "node tools/build.mjs",
     "persist:build": "node tools/persist-build.mjs",

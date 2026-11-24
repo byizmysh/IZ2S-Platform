@@ -1,0 +1,74 @@
+{
+  "format": "iz2s.run32-component-validation.v1",
+  "revision": "RUN32-0.32-Civ7-UI-Cache-Fix",
+  "panelVersion": "0.3.2",
+  "nativeRebuilt": true,
+  "nativeReproducedTwice": true,
+  "nsoSegments": [
+    {
+      "segment": 0,
+      "bytes": 80928,
+      "sha256": "f2e49bef2cf846679d5e6f6a8d66a559e4b6e4380941f13f910964a5d0a18887"
+    },
+    {
+      "segment": 1,
+      "bytes": 37463924,
+      "sha256": "f71f5d6c2f9bd6c099b9c2d79ee6ddf464908da437aaec83703f8928c45a95d1"
+    },
+    {
+      "segment": 2,
+      "bytes": 16040,
+      "sha256": "304c1d30e3d3685f3dc6fd04c13c00d2c491695e866a12aca531debef86f597a"
+    }
+  ],
+  "nativeApplicationEmbeddedByteIdentical": [
+    {
+      "segment": 1,
+      "offset": 8192,
+      "bytes": 37445632,
+      "sha256": "1e97c4811ef0422e820a368924149fe3a547c6868fb43cfada9b3211bc14d73d"
+    }
+  ],
+  "pcExefsPolicySha256": "03be52aef0d7f0cf3164fe984afd14468cbb9434c4585a7b5e3e03e58cb1e163",
+  "consoleLaunchVerified": false,
+  "hardwareStartupTimingMeasured": false,
+  "standaloneNroDistributed": false,
+  "changedInputs": [
+    "sources/run32-launcher/status/menu-pipeline-cache.h",
+    "sources/run32-launcher/status/run32-system-status.patch"
+  ],
+  "unchangedInterfaceAndResources": {
+    "iz2s/izlauncher.iza": {
+      "bytes": 900504,
+      "sha256": "b6a35e9a1a353cd915a458a78ad0dfe3a4c425c3a140f43ed4bc902b1eb387aa"
+    },
+    "iz2s/izlauncher.romfs": {
+      "bytes": 26734392,
+      "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
+    }
+  },
+  "components": {
+    "game/main": {
+      "bytes": 19400245,
+      "sha256": "5bb5e63f89da30f0d85c64f72911046e3135e4ee8fbbf04572971dbfa7e1d24d"
+    },
+    "game/exefs.nsp": {
+      "bytes": 19402163,
+      "sha256": "a6463a5143073696e46e237798538b58812a7fdd9b7555c99515e6ea606c9367"
+    },
+    "iz2s/izlauncher.iza": {
+      "bytes": 900504,
+      "sha256": "b6a35e9a1a353cd915a458a78ad0dfe3a4c425c3a140f43ed4bc902b1eb387aa"
+    },
+    "iz2s/izlauncher.romfs": {
+      "bytes": 26734392,
+      "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
+    }
+  },
+  "tests": [
+    "Previous code reproduces cache replacement failure on non-overwriting rename",
+    "New code passes cache replacement, permission denial, interrupted publication and invalid temporary-file recovery tests",
+    "Cache digest/GPU/driver/interface/size validation remains enforced",
+    "Two native builds byte-identical; NSO segment digests and embedded NRO verified; ExeFS NPDM unchanged"
+  ]
+}

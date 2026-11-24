@@ -45,15 +45,15 @@ test('prebuilt import rejects missing, damaged and undeclared companions and mis
  const different=JSON.parse(metadata.bytes);different.assets[0].path='../escape.izdata';
  assert.throws(()=>compat.directImage(descriptor,files.map(f=>f===metadata?{...f,bytes:Buffer.from(JSON.stringify(different))}:f)),/path/);
 });
-test('Civ7 ZIP is a complete six-app SD tree with verified resources and original binaries',async()=>{
+test('Civ7 ZIP is a complete four-app SD tree with verified resources and original binaries',async()=>{
  const {buildSdPackage}=await import('../../engines/IzCivSwitchFS/tools/sd-package.mjs');
  const output=await buildSdPackage(),entries=archive.decode(output.bytes);
  const files=new Map(entries.map(f=>[f.name,f.bytes]));
  assert(entries.every(f=>f.name.startsWith('iz2s/')&&!f.name.includes('..')));
  const manifest=JSON.parse(files.get('iz2s/iz2sciv-sd-manifest.json'));
- assert.deepEqual(manifest.apps.map(a=>a.id),['iz2s-cheese','izpsx','izps2','iz-file-deck','book-reader','vacootube']);
+ assert.deepEqual(manifest.apps.map(a=>a.id),['iz2s-cheese','izpsx','izps2','iz-file-deck']);
  for(const row of manifest.files){const bytes=files.get(row.path);assert(bytes,row.path);assert.equal(bytes.length,row.bytes);assert.equal(archive.sha(bytes),row.sha256);}
- assert.equal(manifest.files.length+2,entries.length);
+ assert.equal(manifest.files.length+1,entries.length);
  for(const app of manifest.apps){
   const bytes=files.get(app.path+'launcher.iza'),header=packages.decode(bytes),bundle=JSON.parse(files.get(app.path+'sd-bundle.json'));
   assert.equal(header.id,app.id);assets.verifyBinding(header,bundle.assets);
@@ -63,8 +63,9 @@ test('Civ7 ZIP is a complete six-app SD tree with verified resources and origina
  assert(files.has('iz2s/modules/foldrift/launcher.iza'));assert(!files.has('iz2s/modules/iz-file-deck/launcher.iza'));
  assert(!entries.some(f=>/\/(?:bios|games|saves)\/|\.(?:iso|chd|pbp|key|log)$/.test(f.name)));
  assert(files.has('iz2s/licenses/applications/izps2/COPYING.GPLv3'));
- assert.equal(files.get('iz2s/README-IZ2SCiv.txt').toString(),
-  'Extract the contents of the ZIP to the root of the SD card. If the iz2s folder already exists, merge the folders\n'+
-  'and replace matching files from the archive. Keep all other applications.\n'+
-  'Insert the SD card back into the powered-off console.\n');
+ assert.equal(manifest.packageVariant,'four-apps');
+ assert.equal(manifest.panelVersion,'0.3.2');
+ assert.equal(manifest.launcherVersion,'0.32');
+ assert(!entries.some(f=>/\.nro$|menu-vulkan|shader-cache/i.test(f.name)));
+ assert(files.has('iz2s/README-IZ2SCiv.txt'));
 });

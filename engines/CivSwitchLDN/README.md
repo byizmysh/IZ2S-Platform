@@ -1,3 +1,5 @@
+> **Retained upstream documentation.** For IZ2S 0.3.2 use the [current Civilization VII installation guide](../../docs/INSTALLATION.md). Commands and save-replacement behavior below describe the upstream tool, not the current panel workflow. Original instructions and notices are retained for provenance.
+
 # CivSwitchLDN
 
 > [!IMPORTANT]

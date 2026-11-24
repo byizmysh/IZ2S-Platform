@@ -1,29 +1,45 @@
-# Working with IZ2S Platform 0.3.1
+# Build and verify IZ2S for Civilization VII 0.3.2
 
-## Install
+This release targets **native Linux x64 / ARM64 only**. Use Node.js 24 and Python 3 for development checks. Component-local production JavaScript dependencies are included. The Git checkout retains application development sources and omits the large Electron binaries included in the Linux installation archive.
 
-Use the Linux or Windows installation archive linked from [README.md](README.md). The source checkout omits the large Electron runtime binaries. The release archives are separate sealed installation trees; copying this checkout is not the same as unpacking either installer.
+This workflow packages existing compatible native components. A complete native rebuild is not claimed; see [SOURCES.md](SOURCES.md).
 
-## Check the source snapshot
-
-Use Node.js 24 and Python 3. Production JavaScript dependencies needed by the verifier are included next to their components.
+## Offline checks
 
 ```sh
 npm run check
+node --test tests/release/sd-kit.test.cjs
+node --test engines/IzCivSwitchFS/tools/session.test.cjs engines/IzCivSwitchFS/tools/iz2s.test.mjs
 ```
 
-This checks the recorded source/runtime files, seven packaged modules, descriptors, native artifact hashes, installer resources, and the six-app Civ7 SD kit. It does not rebuild the native console runtime or issue commands to a console.
+The CI workflow also runs the Civ7-only navigation, save handling, UI and process/session lifecycle tests. These checks do not contact a console. The verifier checks recorded files, native build input/output bindings, descriptors, seven PC library modules, child-process resources and the four-app SD package. Tests preserve official IZA/companion bytes, reject malformed bundles and check every SD manifest entry.
 
-## Repackage the prepared installers
+## Build the SD archive
 
-Create a separate folder with `staging/IZ2S-Platform-0.3.1-linux/` and `staging/IZ2S-Platform-0.3.1-windows-x64/`, populated by extracting the corresponding full installation assets. Both `data/` and `dist/` must remain empty. Do not copy an installed user's state into staging. Then run from this checkout:
+From the repository root:
+
+```sh
+node engines/IzCivSwitchFS/tools/sd-package.mjs
+```
+
+This writes `engines/IzCivSwitchFS/dist/iz2sciv-core-sd.zip` and prints its SHA-256, using this checkout's verified runtime and applications. Keep generated output outside the prepared installation tree. For interface review, `node start.cjs --preview --no-open` opens a temporary local port with console actions disabled. Stop preview and exclude its generated state before sealing a release.
+
+## Package the Linux installer
+
+Prepare a separate workspace containing only:
+
+```text
+staging/IZ2S-Platform-0.3.2-linux/
+```
+
+Use a verified complete release tree, not an installed user's folder. Include both Linux Electron runtime kits and all their notices. Root `data/` and `dist/` must be empty. No keys, pairing, console caches, logs or old sessions belong in staging. The profile's `releaseTarget` is `linux`; Windows installation files and executables must be absent.
+
+Run from the source checkout:
 
 ```sh
 python3 tools/release/package-prepared.py --workspace /absolute/path/to/release-workspace
 ```
 
-The command verifies both prepared trees, emits deterministic archives in `archives/`, and writes their SHA-256 checksums. The Linux folder must contain the complete Electron kits from the release, including all licenses and manifests. A modified prepared tree requires an intentional inventory update and new installation verification; this command does not bypass an integrity failure.
+The tool checks the exact allowed inventory, creates a deterministic Linux tar.gz under `archives/`, reads every file back and writes SHA-256 plus reports. It refuses existing output archives. Hash updates are a deliberate release step after provenance and compatibility review; the tool never changes hashes to bypass failures.
 
-## Native builds
-
-See [SOURCES.md](SOURCES.md) for the exact scope and remaining gaps. Application sources and their build recipes are under `sources/applications/`; IZPSX and IZPS2 have their own `sources/izpsx/BUILDING.md` and `sources/izps2/BUILDING.md`. No claim is made that the entire native runtime can be rebuilt from this checkout alone. Installer packaging does not run native compilers, install anything on Switch, or publish to GitHub.
+A source snapshot alone does not contain all inputs needed to reconstruct the complete host package or native runtime. See `distribution/application-origins.json`, native provenance and [SOURCES.md](SOURCES.md). Local packaging does not publish to GitHub or verify a console launch. ARM64 host execution must be tested separately from x64 packaging.

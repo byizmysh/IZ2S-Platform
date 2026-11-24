@@ -69,14 +69,8 @@ async function verify(){
  const {buildSdApplications,APP_IDS}=await import('../engines/IzCivSwitchFS/tools/sd-apps.mjs');
  const sdKit=await buildSdApplications(root);
  assert.deepEqual(sdKit.apps.map(app=>app.id),APP_IDS);
- for(const name of ['manifest.json','manifest-sb4.json','manifest-civ.json']){
-  const home=path.join(root,'hardware/devices/cardputer-adv/firmware'),m=JSON.parse(await fs.readFile(path.join(home,name))),bytes=await fs.readFile(path.join(home,m.file));assert.equal(hash(bytes),m.sha256,name);assert.equal(bytes.length,m.bytes);
- }
  const fontHome=path.join(root,'language/fonts'),fonts=JSON.parse(await fs.readFile(path.join(fontHome,'manifest.json')));
  for(const [name,digest]of Object.entries(fonts.files))assert.equal(hash(await fs.readFile(path.join(fontHome,name))),digest,'Font: '+name);
- const agents=require('../hardware/agents.cjs');await agents.files(root);await agents.installer(root,'sb4');await agents.installer(root,'civ7');
- const keyboard=path.join(root,'hardware/devices/switch1/firmware');
- for(const line of (await fs.readFile(path.join(keyboard,'SHA256SUMS.txt'),'utf8')).trim().split('\n')){const m=/^([a-f0-9]{64})\s+\*?(.+)$/.exec(line);assert(m);assert.equal(hash(await fs.readFile(path.join(keyboard,m[2]))),m[1]);}
  const report={verified:true,edition:profile.edition,files:checked.files+1,bytes:checked.bytes,engines:catalog.engine.map(e=>e.id),shells:catalog.shell.map(e=>e.id),profiles:catalog.profile.map(e=>e.id),modules,sdApplications:sdKit.apps.map(({id,version})=>({id,version})),coreFiles:core.files,launchResources:launchResources.length};
  console.log(JSON.stringify(report));return report;
 }

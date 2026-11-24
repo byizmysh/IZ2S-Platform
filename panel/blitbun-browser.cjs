@@ -33,7 +33,7 @@ function create({root,out,ensure=link.ensure,fetch=globalThis.fetch,idleMs=8000}
     try {
       const status=await ensure(out);
       assert(capture===session,'Browser capture ended. Choose a browser tab again.');
-      assert(status?.service?.root===path.resolve(root),'Start PC Link from this 0.3.1 installation.');
+      assert(status?.service?.root===path.resolve(root),'Start PC Link from this 0.3.2 installation.');
       assert(!['starting','running','retrying'].includes(status.media?.blitbun?.phase),'Stop the current BlitBun source first.');
       const selected=status.blitbunProfile||blitbunProfile();
       session.initialWidth=selected.width;

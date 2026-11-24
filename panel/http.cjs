@@ -86,9 +86,7 @@ async function createWindowServer({
     '/blitbun-capture.js': ['blitbun-capture.js', 'text/javascript; charset=utf-8'],
     '/storage.js': ['storage.js', 'text/javascript; charset=utf-8'],
     '/startup.js': ['startup.js', 'text/javascript; charset=utf-8'],
-    '/cardputer-setup.js': ['cardputer-setup.js', 'text/javascript; charset=utf-8'],
     '/iz2sciv.js': ['iz2sciv.js', 'text/javascript; charset=utf-8'],
-    '/civswitch.js': ['civswitch.js', 'text/javascript; charset=utf-8'],
     '/style.css': ['style.css', 'text/css; charset=utf-8'],
     '/icon.svg': ['icon.svg', 'image/svg+xml'],
   };
@@ -152,8 +150,8 @@ async function createWindowServer({
       if (req.method === 'GET' && url.pathname === '/health')
         return reply(res, 200, {
           version: 22,
-          edition: '0.3.1',
-          release: '0.3.1',
+          edition: '0.3.2',
+          release: '0.3.2',
           coreApi: '/api/iz2s-core',
           pid: process.pid,
           preview: manager.preview === true,
@@ -242,33 +240,12 @@ async function createWindowServer({
       if (req.method === 'GET' && url.pathname === '/api/startup') {
         return reply(res, 200, await withCoreSd(await snapshot({startup: true})));
       }
-      if (req.method === 'GET' && url.pathname === '/api/loader-source') {
-        const source = await manager.source(url.searchParams.get('id'));
-        return await sendFile(res, source.file, {
-          'content-type': 'text/plain; charset=utf-8',
-          'content-disposition': 'attachment; filename=' + source.name + '.bas',
-        });
-      }
-      if (req.method === 'GET' && url.pathname === '/api/switch-keyboard/firmware')
-        return await sendFile(res, require('../hardware/switch-keyboard.cjs').firmwarePath(root), {'content-type':'application/octet-stream','content-disposition':'attachment; filename="iz2skeyboard.nro"'});
-      if (req.method === 'GET' && url.pathname === '/api/switch-keyboard/package') {
-        const archive = require('../hardware/switch-keyboard.cjs').packagePath(root);
-        return await sendFile(res, archive, {'content-type':'application/zip','content-disposition':`attachment; filename="${path.basename(archive)}"`});
-      }
-      if (req.method === 'GET' && url.pathname === '/api/cardputer/firmware') {
-        const firmware=require('../hardware/cardputer.cjs'),profile=url.searchParams.get('profile')||'sb4';
-        return await sendFile(res, firmware.firmwarePath(root,profile), {'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+firmware.profileFile(profile)+'"'});
-      }
-      if (req.method === 'GET' && url.pathname === '/api/cardputer/package')
-        return await sendFile(res, require('../hardware/cardputer.cjs').packagePath(root), {'content-type':'application/zip','content-disposition':'attachment; filename="iz2s-cardputer-adv-sd.zip"'});
-      if (req.method === 'GET' && url.pathname === '/api/input-package') {
-        if(url.searchParams.get('format')==='installer'){
-          const file=await require('../hardware/agents.cjs').installer(root,url.searchParams.get('profile')||'sb4');
-          return await sendFile(res,file,{'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+path.basename(file)+'"'});
-        }
-        const file=await require('../hardware/agents.cjs').archive(root);
-        return await sendFile(res, file, {'content-type':'application/gzip','content-disposition':'attachment; filename="iz2s-arm-input.tar.gz"'});
-      }
+
+
+
+
+
+
       if (req.method === 'GET' && url.pathname === '/api/setup-report')
         return reply(res, 200, {
           text: await manager.setupReport(url.searchParams.get('id')),
@@ -398,8 +375,8 @@ async function createWindowServer({
         if(manager.preview)return reply(res,403,{error:'Preview cannot reset PC Link'});
         return reply(res,200,await coreController.reset());
       }
-      if(url.pathname==='/api/iz2s-core/setup')return reply(res,200,await coreController.setup(body));
-      if(url.pathname==='/api/iz2s-core/start')return reply(res,200,await coreController.start(body));
+
+
       if(url.pathname==='/api/iz2s-core/stop')return reply(res,200,await coreController.stop());
       coreController.assertAvailable(url.pathname);
       // Emergency stop must bypass a blocked ordinary mutation queue.
@@ -415,11 +392,7 @@ async function createWindowServer({
         lastSnapshot = null;
         return reply(res, 200, result);
       }
-      if(url.pathname==='/api/cardputer/cancel'){
-        const cancelled=await manager.cancelCardputerSD(body);
-        stateRead=null;lastSnapshot=null;
-        return reply(res,200,cancelled);
-      }
+
       if (url.pathname === '/api/stop') {
         mutationEpoch++;
         mutation = Promise.resolve();
@@ -516,31 +489,28 @@ async function createWindowServer({
           return require('../core/host-modules.cjs').stop(body.id);
         if (url.pathname === '/api/install-host')
           return require('../core/modules.cjs').install(root, body.id, {source:body.source});
-        if (url.pathname === '/api/engine/install')
-          return manager.installEngine(body.id);
-        if (url.pathname === '/api/engine/rescan')
-          return manager.rescanEngine();
+
+
         if (url.pathname === '/api/launch-settings')
           return manager.configureLaunch(body);
-        if (url.pathname === '/api/ns2hb/check')
-          return manager.inspectNS2HB();
-        if (url.pathname === '/api/switch-keyboard/prepare') return manager.prepareSwitchKeyboardSD();
-        if (url.pathname === '/api/switch-keyboard/install') return manager.installSwitchKeyboard();
-        if (url.pathname === '/api/cardputer/confirm-usb') return manager.confirmCardputerUsb();
-        if (url.pathname === '/api/cardputer/prepare') return manager.prepareCardputerSD(body);
-        if (url.pathname === '/api/cardputer/install') return manager.installCardputerSD(body);
-        if (url.pathname === '/api/input/install') return manager.installInput(body);
-        if (url.pathname === '/api/hardware/open') return manager.openHardwareApp();
+
+
+
+
+
+
+
+
         if (url.pathname === '/api/check') return manager.refresh(true);
         if (url.pathname === '/api/connection')
           return manager.configureConnection(body);
-        if(url.pathname==='/api/connection/restore')return manager.restoreConnection();
-        if (url.pathname === '/api/start') return manager.begin(body);
-        if (url.pathname === '/api/setup') return manager.setupAction(body);
+
+
+
         if (url.pathname === '/api/iz2sciv') return manager.iz2scivAction(body);
-        if (url.pathname === '/api/civswitch') return manager.civswitchAction(body);
-        if (url.pathname === '/api/civswitch-ldn') return manager.civswitchLdnAction(body);
-        if (url.pathname === '/api/retry') return manager.retry();
+
+
+
         if (url.pathname === '/api/iz2s-core/sd/select') return coreController.sdStore.select(body.target);
         if (body.store === 'core-sd') {
           if (url.pathname === '/api/load') return coreController.sdStore.load(body.ids,body.selection);

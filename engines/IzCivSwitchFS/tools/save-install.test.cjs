@@ -41,7 +41,7 @@ test('generated save renames only framed template game titles and preserves the 
  const bytes=fs.readFileSync(path.join(__dirname,'../persist/save_template.bin')), original=Buffer.from(bytes),window={};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../persist/save-codec.js'),'utf8'),{window,Uint8Array,DataView});
  const codec=window.__cfsSaveCodec,result=Buffer.from(codec.replace(new Uint8Array(bytes),'/* IZ2S fixture */',false,true));
- assert.deepEqual(bytes,original);assert(!result.includes(Buffer.from("Gezine's Game")));assert.equal(result.toString('latin1').split('IZ2s 0.3.1  ').length-1,2);
+ assert.deepEqual(bytes,original);assert(!result.includes(Buffer.from("Gezine's Game")));assert.equal(result.toString('latin1').split('IZ2S 0.3.2  ').length-1,2);
  assert.doesNotThrow(()=>codec.inspect(new Uint8Array(result)));
 });
 
@@ -52,8 +52,10 @@ test('fresh installation writes the canonical save without requiring a previous 
  assert.equal(f.files.get(ORDINARY),'ordinary save');
  assert.deepEqual([...f.files.keys()].sort(),[TARGET,ORDINARY].sort());
 });
-test('built installer has exactly one game save target matching the source installer',()=>{
- const bootstrap=fs.readFileSync(path.join(__dirname,'../dist/persist/persist-bootstrap.js'),'utf8');
+test('built installer has exactly one game save target matching the source installer',async()=>{
+ const {build}=await import('../node_modules/esbuild/lib/main.js');
+ const result=await build({entryPoints:[path.join(__dirname,'../persist/installer.js')],bundle:true,write:false,format:'iife'});
+ const bootstrap=result.outputFiles[0].text;
  const targets=[...new Set(bootstrap.match(/save:\/saves\/Single\/[^"']+/g))];
  assert.deepEqual(targets,[TARGET]);
 });

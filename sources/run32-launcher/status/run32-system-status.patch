@@ -1,0 +1,600 @@
+--- a/engines/iz2s-core/source/izlauncher/ounce/main.c
++++ b/engines/iz2s-core/source/izlauncher/ounce/main.c
+@@ -11,6 +11,7 @@
+ #include <sys/socket.h>
+ #include <unistd.h>
+ #include <time.h>
++#include "menu-status.h"
+ #include "platform.h"
+ #include "apps.h"
+ #include "import.h"
+@@ -21,6 +22,7 @@
+ #include "ftp-connect.h"
+ #include "menu-update.h"
+ #include "menu-factory.h"
++#include "menu-pipeline-cache.h"
+ 
+ static IzOunceLaunch next_program;
+ static bool next_program_ready;
+@@ -43,6 +45,7 @@
+ }
+ 
+ typedef struct {char version[16];uint8_t digest[32];} IzVersionReceipt;
++#include "menu-versions.h"
+ 
+ typedef struct {char name[78];u32 bytes;} IzInstalledAsset;
+ 
+@@ -599,11 +602,13 @@
+ }
+ 
+ static u32 run_menu(bool import){
++    iz2_start_begin();
+     bool romfs_owned=false;
+     u32 result=romfsMountFromFsdev(iz_menu_romfs(),0,"romfs");
+     if(R_FAILED(result))return result;
+     romfs_owned=true;
+     if(import)record_sd_import(iz_import_incoming(0));
++    iz2_start_mark("mount_and_import");
+     IzContext *c=calloc(1,sizeof(*c));void *menu=NULL,*image=NULL,*atlas=NULL,*legacy_atlas=NULL;size_t image_bytes=0,atlas_bytes=0,legacy_bytes=0;
+     if(!c){result=0xe851;goto finished;}
+     c->magic=0x44535a49;c->version=1;
+@@ -624,7 +629,9 @@
+     result=buffer(&c->snapshot,IZ_SHARED_BYTES);if(result)goto cleanup;
+     c->arena_bytes=512*1024;result=buffer(&c->arena,c->arena_bytes);if(result)goto cleanup;
+     c->library_capacity=IZ_LIBRARY_CAPACITY;result=buffer(&c->library_staging,c->library_capacity);if(result)goto cleanup;
++    iz2_start_mark("resources");
+     result=iz_ounce_platform_open(c);if(result)goto cleanup;
++    iz2_start_mark("graphics_device");
+     fprintf(stderr,"IZLAUNCHER_PLATFORM_READY\n");
+     unsigned char *controls=(void*)(uintptr_t)c->controls;
+     memcpy(controls,(unsigned char*)image+header->section[SEC_STATE].offset,header->section[SEC_STATE].bytes);
+@@ -640,7 +647,10 @@
+     // A menu replacement can share the running server with the old menu.
+     iz_ounce_add_ftp_tick(add,false,false);
+     iz_ounce_link_tick(add,false,false);
+-    result=iz_native_menu_build(c,header,image,&menu);if(result)goto cleanup;
++    iz2_cache_install(c,image,image_bytes);
++    result=iz_native_menu_build(c,header,image,&menu);
++    iz2_cache_unhook(c);if(result)goto cleanup;
++    iz2_start_mark("menu_ready");
+     fprintf(stderr,"IZLAUNCHER_MENU_READY services=%u\n",c->service_bridge->count);
+     result=(u32)iz_run(c);
+     fprintf(stderr,"IZLAUNCHER_RUN_RETURN rc=0x%08x native=0x%08x state=%u poisoned=%u frames=%llu\n",result,c->native_status,c->state,c->poisoned,(unsigned long long)c->frames);
+@@ -648,6 +658,7 @@
+     iz_pc_allow_auto_fetch(false);
+     {
+         u32 close=iz_native_menu_destroy(c,menu);
++        if(!close)iz2_cache_close();
+         if(!close)close=iz_ounce_platform_close(c);
+         fprintf(stderr,"IZLAUNCHER_CLOSE rc=0x%08x\n",close);
+         if(close){
+@@ -691,6 +702,7 @@
+             menu_reload=true;
+         }
+     }while(menu_reload);
++    iz2_menu_status_close();
+     iz_ftp_close();
+     iz_pc_close();
+     /* The loader request is published only after all module, service and GPU
+--- a/engines/iz2s-core/source/izlauncher/legacy/native/launcher.c
++++ b/engines/iz2s-core/source/izlauncher/legacy/native/launcher.c
+@@ -237,6 +237,11 @@
+ extern u32 iz_ounce_remove_module(const char *id);
+ extern void iz_ounce_activity_record(const char *name,const char *action);
+ extern void iz_ounce_activity_publish(u8 *controls,u8 *snapshot);
++extern void iz2_menu_status_publish(u8 *controls,u8 *snapshot);
++extern void iz2_startup_catalog_ready(void);
++extern void iz2_startup_frame(u64 frames);
++extern void iz2_menu_versions_clear(u8 *snapshot);
++extern void iz2_menu_version_write(u8 *snapshot,u32 slot,const IzAppHeader *header,u32 program);
+ 
+ static void add_app_tiles(IzContext *c, const IzLocalAdd *message){
+  u8 *menu=(void*)(uintptr_t)c->snapshot;
+@@ -267,6 +272,9 @@
+  u32 rc=0;sort_dirs(dirs,count);u32 fingerprint=0;int overflow=reuse_full_host;
+  u8*snapshot=(void*)(uintptr_t)c->snapshot;
+  memset(snapshot+MENU_TILES_AT,0,MENU_TILES_BYTES);
++#ifdef IZ_OUNCE_PRESENTATION
++ iz2_menu_versions_clear(snapshot);
++#endif
+  if(c->host_mode&&!sd_page)for(unsigned i=0;i<c->host_count;i++){
+   memset(&apps[i],0,sizeof apps[i]);apps[i].host=1;memcpy(apps[i].folder,c->host_catalog[i].id,48);memcpy(&c->catalog[i],&c->host_catalog[i],sizeof c->catalog[i]);c->catalog_source[i]=1;
+   u8*tile=snapshot+1024+IZ_ATLAS_BYTES+i*IZ_TILE_BYTES;memcpy(tile,(u8*)(uintptr_t)c->parent_snapshot+1024+IZ_ATLAS_BYTES+i*IZ_TILE_BYTES,IZ_TILE_BYTES);W(tile,102512,0);if(c->platform_title)c->platform_title(tile,c->catalog[i].name);c->count++;
+@@ -288,6 +296,7 @@
+    fallback_tile(c,snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES,snapshot,&entry->h);
+ #ifdef IZ_OUNCE_PRESENTATION
+    iz_ounce_apps_icon(programs[i].token,snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES+65536,96*96*4);
++   iz2_menu_version_write(snapshot,c->count,NULL,programs[i].token);
+ #endif
+    W(snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES,102524,1);
+    W(snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES,102512,0x44534453u);
+@@ -330,7 +339,11 @@
+    if((rc||!GET(tile,102400)||GET(tile,102400)>512||!GET(tile,102404)||GET(tile,102404)>128)&&!c->poisoned&&!(h.flags&IZ_APP_MANAGED)){
+     fallback_tile(c,tile,snapshot,&h);rc=0;
+    }
+-  if(!rc){if(c->platform_title)c->platform_title(tile,h.name);W(tile,102524,0);W(tile,102512,0x44534453u);W(tile,102516,(h.flags&IZ_APP_MANAGED)?2:1);apps[c->count].h=h;apps[c->count].host=(h.flags&IZ_APP_MANAGED)?2:0;c->catalog_source[c->count]=apps[c->count].host;c->catalog_header_crc[c->count]=iz_crc(&h,sizeof h);memcpy(apps[c->count].folder,dirs[i],48);memcpy(c->catalog[c->count].id,h.id,48);memcpy(c->catalog[c->count].name,h.name,64);c->count++;}}
++  if(!rc){
++#ifdef IZ_OUNCE_PRESENTATION
++   iz2_menu_version_write(snapshot,c->count,&h,0);
++#endif
++   if(c->platform_title)c->platform_title(tile,h.name);W(tile,102524,0);W(tile,102512,0x44534453u);W(tile,102516,(h.flags&IZ_APP_MANAGED)?2:1);apps[c->count].h=h;apps[c->count].host=(h.flags&IZ_APP_MANAGED)?2:0;c->catalog_source[c->count]=apps[c->count].host;c->catalog_header_crc[c->count]=iz_crc(&h,sizeof h);memcpy(apps[c->count].folder,dirs[i],48);memcpy(c->catalog[c->count].id,h.id,48);memcpy(c->catalog[c->count].name,h.name,64);c->count++;}}
+   if(c->poisoned)return rc?rc:0xe001;
+   u32 close=iz_fs_close(fs,file);if(close)return close;if(rc){c->rejected++;c->last_app_error=rc;}
+  }
+@@ -829,6 +842,9 @@
+  int directories_valid=!listing;
+  if(listing&&(c->poisoned||c->ram_only)){c->state=4;return c->error=listing;}
+  u32 rc=publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,0);
++#ifdef IZ_OUNCE_PRESENTATION
++ iz2_startup_catalog_ready();
++#endif
+  if(rc){c->state=4;return c->error=rc;}
+  u64 retry_scan_at=0;
+  if(c->auto_scan_error&&!c->ram_only){
+@@ -1150,6 +1166,7 @@
+    }
+   }
+ #ifdef IZ_OUNCE_PRESENTATION
++  if(!c->active)iz2_menu_status_publish(controls,(void*)(uintptr_t)c->snapshot);
+   if(!c->active&&!held)iz_ounce_activity_publish(controls,(void*)(uintptr_t)c->snapshot);
+ #endif
+   if(c->active&&native->initialized&&!native->stopping&&!c->owner.sdk.ending){native->app.frames++;rc=iz_native_event(native,IZ_NATIVE_FRAME);if(rc){c->last_app_error=rc;if(c->poisoned)break;W(controls,1016,1);rc=0;}}
+@@ -1159,6 +1176,9 @@
+ #endif
+   if(presentation_paused)CALL(c,F_SLEEP,16666667,0,0,0,0,0,0,0);
+   else{rc=present(c,c->active?gpu.commands:c->menu_commands);if(rc){c->poisoned=1;break;}if(c->active)sdkm_frame(c);}c->frames++;
++#ifdef IZ_OUNCE_PRESENTATION
++ if(!c->active)iz2_startup_frame(c->frames);
++#endif
+ #ifdef IZ_OUNCE_PRESENTATION
+   if(!c->active&&!held&&!c->host_mode&&iz_ounce_menu_frame(
+      !picker_open&&!GET(controls,0x700004)&&!GET(controls,884)&&
+--- /dev/null
++++ b/engines/iz2s-core/source/izlauncher/ounce/menu-status.h
+@@ -0,0 +1,186 @@
++#ifndef IZ2S_MENU_STATUS_H
++#define IZ2S_MENU_STATUS_H
++
++#include <switch.h>
++#include <fcntl.h>
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++#include <time.h>
++#include <unistd.h>
++
++/* The 16-byte status record sits between activity and tile animation. */
++#define IZ2_STATUS_OFFSET (1024u + 0xf0080u)
++#define IZ2_CLOCK_MAGIC UINT32_C(0x495a434b)
++#define IZ2_BATTERY_MAGIC UINT32_C(0x495a4254)
++#define IZ2_BATTERY_CHARGING (UINT32_C(1) << 8)
++
++typedef struct {
++    uint32_t clock_magic, minute_of_day, battery_magic, battery;
++} IzMenuStatus;
++
++_Static_assert(sizeof(IzMenuStatus) == 16, "IZ2S menu status record size");
++
++static IzMenuStatus iz2_status;
++static u64 iz2_clock_tick, iz2_battery_tick;
++static bool iz2_clock_sampled, iz2_battery_sampled, iz2_psm_open;
++static uint32_t iz2_clock_source, iz2_battery_source;
++static Result iz2_clock_result, iz2_battery_result;
++static u64 iz2_sd_local_time, iz2_sd_clock_tick, iz2_sd_attempt_tick;
++static bool iz2_sd_sampled, iz2_sd_attempted;
++static bool iz2_status_started;
++static u64 iz2_status_start;
++static uint32_t iz2_local_seconds;
++
++static bool iz2_menu_status_sd_time(u64 now, struct tm *local)
++{
++    const u64 resample = armNsToTicks(UINT64_C(1800000000000));
++    if (!iz2_sd_attempted || now - iz2_sd_attempt_tick >= resample) {
++        iz2_sd_attempted = true;
++        iz2_sd_attempt_tick = now;
++        FsFileSystem *sd = fsdevGetDeviceFileSystem("sdmc");
++        if (sd) {
++            char path[80];
++            snprintf(path, sizeof path, "sdmc:/iz2s/.clock-%016llx", (unsigned long long)now);
++            int file = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
++            if (file >= 0) {
++                bool wrote = write(file, "1", 1) == 1;
++                bool closed = close(file) == 0;
++                FsTimeStampRaw timestamp = {0};
++                if (wrote && closed &&
++                    R_SUCCEEDED(fsFsGetFileTimeStampRaw(sd, path + 5, &timestamp)) &&
++                    timestamp.is_valid && timestamp.modified >= UINT64_C(946684800) &&
++                    timestamp.modified < UINT64_C(4102444800)) {
++                    /* FAT encodes the console's local calendar as a raw timestamp. */
++                    iz2_sd_local_time = timestamp.modified;
++                    iz2_sd_clock_tick = now;
++                    iz2_sd_sampled = true;
++                }
++                unlink(path);
++            }
++        }
++    }
++    if (!iz2_sd_sampled || now - iz2_sd_clock_tick > 2u*resample) return false;
++    time_t calendar = (time_t)(iz2_sd_local_time + (now - iz2_sd_clock_tick)/armNsToTicks(UINT64_C(1000000000)));
++    return gmtime_r(&calendar, local) != NULL;
++}
++
++static void iz2_menu_status_sample_clock(u64 ticks)
++{
++    u64 utc = 0;
++    TimeCalendarTime local = {0};
++    iz2_status.clock_magic = 0;
++    iz2_clock_source = 0;
++    iz2_clock_result = timeGetCurrentTime(TimeType_UserSystemClock, &utc);
++    if (R_FAILED(iz2_clock_result))
++        iz2_clock_result = timeGetCurrentTime(TimeType_LocalSystemClock, &utc);
++    if (R_SUCCEEDED(iz2_clock_result))
++        iz2_clock_result = timeToCalendarTimeWithMyRule(utc, &local, NULL);
++    if (R_SUCCEEDED(iz2_clock_result) && local.year >= 2000 &&
++        local.hour < 24 && local.minute < 60) {
++        iz2_status.minute_of_day = (uint32_t)local.hour * 60u + local.minute;
++        iz2_local_seconds = iz2_status.minute_of_day * 60u + local.second;
++        iz2_clock_source = 1;
++    } else {
++        struct tm fallback;
++        time_t now = time(NULL);
++        bool have_local = now != (time_t)-1 && localtime_r(&now, &fallback) && fallback.tm_year >= 100 &&
++                          fallback.tm_hour >= 0 && fallback.tm_hour < 24 &&
++                          fallback.tm_min >= 0 && fallback.tm_min < 60;
++        /* SD timestamp fallback remains available, after the menu can be shown. */
++        if (!have_local && (ticks - iz2_status_start < armNsToTicks(UINT64_C(2000000000)) ||
++                            !iz2_menu_status_sd_time(ticks, &fallback))) return;
++        iz2_status.minute_of_day = (uint32_t)(fallback.tm_hour * 60 + fallback.tm_min);
++        iz2_local_seconds = iz2_status.minute_of_day * 60u + (uint32_t)fallback.tm_sec;
++        iz2_clock_source = have_local ? 2 : 3;
++    }
++    iz2_status.clock_magic = IZ2_CLOCK_MAGIC;
++}
++
++static void iz2_menu_status_sample_battery(void)
++{
++    iz2_status.battery_magic = 0;
++    iz2_battery_source = 0;
++    if (!iz2_psm_open) {
++        iz2_battery_result = psmInitialize();
++        if (R_FAILED(iz2_battery_result)) return;
++        iz2_psm_open = true;
++    }
++
++    u32 percentage = 0;
++    iz2_battery_result = psmGetBatteryChargePercentage(&percentage);
++    if (R_SUCCEEDED(iz2_battery_result) && percentage <= 100) {
++        iz2_battery_source = 1;
++    } else {
++        double raw = 0;
++        iz2_battery_result = psmGetRawBatteryChargePercentage(&raw);
++        if (R_FAILED(iz2_battery_result) || !(raw >= 0.0 && raw <= 100.0)) return;
++        percentage = (u32)(raw + .5);
++        iz2_battery_source = 2;
++    }
++
++    PsmBatteryChargeInfoFields info = {0};
++    bool charging = R_SUCCEEDED(psmGetBatteryChargeInfoFields(&info)) && info.battery_charging;
++    iz2_status.battery = percentage | (charging ? IZ2_BATTERY_CHARGING : 0u);
++    iz2_status.battery_magic = IZ2_BATTERY_MAGIC;
++}
++
++static void iz2_menu_status_report(void)
++{
++#ifdef IZ2_MENU_STATUS_DIAGNOSTICS
++    static uint32_t previous[4] = {UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX};
++    const uint32_t current[] = {iz2_clock_source, iz2_battery_source, iz2_clock_result, iz2_battery_result};
++    if (!memcmp(previous, current, sizeof current)) return;
++    memcpy(previous, current, sizeof current);
++    FILE *log = fopen("sdmc:/iz2s/izlauncher-status.log", "w");
++    if (!log) return;
++    fprintf(log, "IZ2S 0.32 status publisher\nclock=%s rc=0x%08x\nbattery=%s rc=0x%08x\n",
++            iz2_clock_source == 1 ? "system" : iz2_clock_source == 2 ? "localtime" :
++            iz2_clock_source == 3 ? "sd-timestamp" : "unavailable",
++            (unsigned)iz2_clock_result,
++            iz2_battery_source == 1 ? "psm" : iz2_battery_source == 2 ? "psm-raw" : "unavailable",
++            (unsigned)iz2_battery_result);
++    fclose(log);
++#endif
++}
++
++void iz2_menu_status_publish(uint8_t *controls, uint8_t *snapshot)
++{
++    const u64 now = armGetSystemTick();
++    if (!iz2_status_started) {
++        iz2_status_started = true;
++        iz2_status_start = now;
++    }
++    const u64 age = now - iz2_status_start;
++    const u64 clock_interval = iz2_status.clock_magic ? UINT64_C(60000000000) : UINT64_C(2000000000);
++    if (age >= armNsToTicks(UINT64_C(300000000)) &&
++        (!iz2_clock_sampled || now - iz2_clock_tick >= armNsToTicks(clock_interval))) {
++        iz2_menu_status_sample_clock(now);
++        iz2_clock_tick = now;
++        iz2_clock_sampled = true;
++    }
++    if (iz2_status.clock_magic) {
++        u64 elapsed = (now - iz2_clock_tick) / armNsToTicks(UINT64_C(1000000000));
++        iz2_status.minute_of_day = (uint32_t)((iz2_local_seconds + elapsed) / 60u % 1440u);
++    }
++    if (age >= armNsToTicks(UINT64_C(600000000)) &&
++        (!iz2_battery_sampled || now - iz2_battery_tick >= armNsToTicks(UINT64_C(5000000000)))) {
++        iz2_menu_status_sample_battery();
++        iz2_battery_tick = now;
++        iz2_battery_sampled = true;
++    }
++    iz2_menu_status_report();
++    memcpy(controls + IZ2_STATUS_OFFSET, &iz2_status, sizeof iz2_status);
++    memcpy(snapshot + IZ2_STATUS_OFFSET, &iz2_status, sizeof iz2_status);
++}
++
++static void iz2_menu_status_close(void)
++{
++    if (iz2_psm_open) psmExit();
++    iz2_psm_open = false;
++    iz2_clock_sampled = iz2_battery_sampled = false;
++    iz2_status_started = iz2_sd_sampled = iz2_sd_attempted = false;
++    iz2_status = (IzMenuStatus){0};
++}
++
++#endif
+--- /dev/null
++++ b/engines/iz2s-core/source/izlauncher/ounce/menu-versions.h
+@@ -0,0 +1,69 @@
++#ifndef IZ2S_MENU_VERSIONS_H
++#define IZ2S_MENU_VERSIONS_H
++
++/* Imported from the installed .iza header or the selected NRO's NACP. */
++#define IZ2_MENU_VERSIONS_OFFSET (1024u + 0xf0200u)
++#define IZ2_MENU_VERSION_BYTES 16u
++#include "menu-official-versions.h"
++
++static bool iz2_menu_valid_version(const char version[16])
++{
++    size_t size = strnlen(version, 16);
++    if (!size || size >= 16) return false;
++    for (size_t i = 0; i < size; ++i) {
++        unsigned char ch = (unsigned char)version[i];
++        if (!((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') ||
++              (ch >= 'a' && ch <= 'z') || ch == '.' || ch == '-' || ch == '+' || ch == '_')) return false;
++    }
++    return true;
++}
++
++static bool iz2_menu_sd_version(char version[16], const IzAppHeader *header)
++{
++    uint8_t digest[32];
++    sha256CalculateHash(digest, header, sizeof *header);
++    /* Exact shipped header digests need no SD receipt lookup. */
++    for (size_t i = 0; i < sizeof iz2_shipped_versions / sizeof iz2_shipped_versions[0]; ++i) {
++        if (!memcmp(iz2_shipped_versions[i].header, digest, sizeof digest)) {
++            memcpy(version, iz2_shipped_versions[i].version, 16);
++            return true;
++        }
++    }
++    char image[128], path[128];
++    if (module_files(header->id, image, path)) {
++        FILE *file = fopen(path, "rb");
++        if (file) {
++            IzVersionReceipt receipt;
++            bool complete = fread(&receipt, 1, sizeof receipt, file) == sizeof receipt &&
++                            fgetc(file) == EOF && !ferror(file);
++            if (!fclose(file) && complete && !memcmp(receipt.digest, digest, sizeof digest) &&
++                iz2_menu_valid_version(receipt.version)) {
++                memcpy(version, receipt.version, 16);
++                return true;
++            }
++        }
++    }
++    return false;
++}
++
++/* Metadata cache is rebuilt by every apps_page scan, never used to authorize launch. */
++extern bool iz_ounce_apps_version(u32 token, char version[16]);
++static bool iz2_menu_nro_version(char version[16], u32 program)
++{
++    return iz_ounce_apps_version(program, version) && iz2_menu_valid_version(version);
++}
++
++void iz2_menu_versions_clear(u8 *snapshot)
++{
++    memset(snapshot + IZ2_MENU_VERSIONS_OFFSET, 0, IZ_MAX_APPS*IZ2_MENU_VERSION_BYTES);
++}
++
++void iz2_menu_version_write(u8 *snapshot, u32 slot, const IzAppHeader *header, u32 program)
++{
++    if (slot >= IZ_MAX_APPS) return;
++    char bytes[16] = {0};
++    bool ok = header ? iz2_menu_sd_version(bytes, header) : iz2_menu_nro_version(bytes, program);
++    if (ok) memcpy(snapshot + IZ2_MENU_VERSIONS_OFFSET + slot*IZ2_MENU_VERSION_BYTES, bytes, 16);
++}
++
++#endif
+--- /dev/null
++++ b/engines/iz2s-core/source/izlauncher/ounce/menu-pipeline-cache.h
+@@ -0,0 +1,173 @@
++#ifndef IZ2_MENU_PIPELINE_CACHE_H
++#define IZ2_MENU_PIPELINE_CACHE_H
++#include <vulkan/vulkan.h>
++#include <sys/stat.h>
++
++/* Optional acceleration only. Runtime/package validation is unchanged. */
++#define IZ2_CACHE_LIMIT (16u*1024u*1024u)
++#define IZ2_CACHE_PATH "sdmc:/iz2s/cache/menu-vulkan.bin"
++typedef struct {
++    uint8_t magic[8], shader[32], uuid[16], digest[32];
++    uint32_t vendor, device, driver, bytes;
++} Iz2CacheHeader;
++_Static_assert(sizeof(Iz2CacheHeader)==104,"Cache header layout");
++static VkDevice iz2_cache_device;
++static VkPipelineCache iz2_pipeline_cache;
++static PFN_vkDestroyPipelineCache iz2_cache_destroy;
++static PFN_vkGetPipelineCacheData iz2_cache_data;
++static Iz2CacheHeader iz2_cache_identity;
++static bool iz2_cache_hit,iz2_cache_saved,iz2_cache_from_tmp;
++static const char *iz2_cache_write;
++static int iz2_cache_errno;
++static unsigned iz2_pipeline_hits,iz2_pipeline_requests;
++static IzFunction iz2_graphics_original,iz2_compute_original;
++static u64 iz2_start_tick,iz2_first_frame_tick;
++static unsigned iz2_phase_count;
++static struct {const char *name;u64 tick;} iz2_phases[16];
++static bool iz2_start_reported;
++static void iz2_start_mark(const char *name){
++    if(iz2_phase_count<16)iz2_phases[iz2_phase_count++]=(typeof(iz2_phases[0])){name,armGetSystemTick()};
++}
++static void iz2_start_begin(void){
++    iz2_start_tick=armGetSystemTick();iz2_phase_count=0;iz2_first_frame_tick=0;iz2_start_reported=false;
++}
++static uint32_t iz2_cache_le32(const uint8_t *p){return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
++static bool iz2_cache_valid(const Iz2CacheHeader *h,const uint8_t *data,size_t bytes,const Iz2CacheHeader *expected){
++    if(bytes<32||bytes>IZ2_CACHE_LIMIT||h->bytes!=bytes||memcmp(h->magic,"IZVK0002",8)||
++       memcmp(h->shader,expected->shader,32)||memcmp(h->uuid,expected->uuid,16)||
++       h->vendor!=expected->vendor||h->device!=expected->device||h->driver!=expected->driver||
++       iz2_cache_le32(data)!=32||iz2_cache_le32(data+4)!=VK_PIPELINE_CACHE_HEADER_VERSION_ONE||
++       iz2_cache_le32(data+8)!=expected->vendor||iz2_cache_le32(data+12)!=expected->device||
++       memcmp(data+16,expected->uuid,16))return false;
++    uint8_t digest[32];sha256CalculateHash(digest,data,bytes);
++    return !memcmp(digest,h->digest,32);
++}
++static void iz2_cache_open(IzContext *c,const void *shader,size_t size){
++    iz2_cache_hit=iz2_cache_saved=false;iz2_pipeline_cache=VK_NULL_HANDLE;
++    iz2_cache_from_tmp=false;iz2_cache_write="pending";iz2_cache_errno=0;
++    iz2_pipeline_hits=iz2_pipeline_requests=0;
++    iz2_cache_device=(VkDevice)(uintptr_t)c->device;
++    PFN_vkCreatePipelineCache create=(PFN_vkCreatePipelineCache)vkGetDeviceProcAddr(iz2_cache_device,"vkCreatePipelineCache");
++    iz2_cache_destroy=(PFN_vkDestroyPipelineCache)vkGetDeviceProcAddr(iz2_cache_device,"vkDestroyPipelineCache");
++    iz2_cache_data=(PFN_vkGetPipelineCacheData)vkGetDeviceProcAddr(iz2_cache_device,"vkGetPipelineCacheData");
++    if(!create||!iz2_cache_destroy||!iz2_cache_data)return;
++    VkPhysicalDeviceProperties properties;vkGetPhysicalDeviceProperties((VkPhysicalDevice)(uintptr_t)c->graphics_physical,&properties);
++    memset(&iz2_cache_identity,0,sizeof iz2_cache_identity);memcpy(iz2_cache_identity.magic,"IZVK0002",8);
++    sha256CalculateHash(iz2_cache_identity.shader,shader,size);
++    memcpy(iz2_cache_identity.uuid,properties.pipelineCacheUUID,16);
++    iz2_cache_identity.vendor=properties.vendorID;iz2_cache_identity.device=properties.deviceID;iz2_cache_identity.driver=properties.driverVersion;
++    void *data=NULL;size_t bytes=0;
++    const char *paths[]={IZ2_CACHE_PATH,IZ2_CACHE_PATH ".tmp"};
++    for(unsigned candidate=0;candidate<2&&!bytes;candidate++){
++        FILE *f=fopen(paths[candidate],"rb");if(!f)continue;
++        free(data);data=NULL;
++        Iz2CacheHeader h;struct stat st;
++        if(!fstat(fileno(f),&st)&&S_ISREG(st.st_mode)&&st.st_size>=(off_t)(sizeof h+32)&&
++           st.st_size<=(off_t)(sizeof h+IZ2_CACHE_LIMIT)&&fread(&h,1,sizeof h,f)==sizeof h&&
++           h.bytes==(size_t)st.st_size-sizeof h){
++            data=malloc(h.bytes);
++            if(data&&fread(data,1,h.bytes,f)==h.bytes&&fgetc(f)==EOF&&!ferror(f)&&
++               iz2_cache_valid(&h,data,h.bytes,&iz2_cache_identity))bytes=h.bytes;
++        }
++        if(fclose(f))bytes=0;
++        if(bytes)iz2_cache_from_tmp=candidate==1;
++    }
++    VkPipelineCacheCreateInfo info={.sType=VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,.initialDataSize=bytes,.pInitialData=bytes?data:NULL};
++    VkResult rc=create(iz2_cache_device,&info,NULL,&iz2_pipeline_cache);
++    iz2_cache_hit=rc==VK_SUCCESS&&bytes>0;
++    if(!iz2_cache_hit)iz2_cache_from_tmp=false;
++    if(rc!=VK_SUCCESS&&bytes){info.initialDataSize=0;info.pInitialData=NULL;rc=create(iz2_cache_device,&info,NULL,&iz2_pipeline_cache);}
++    if(rc!=VK_SUCCESS)iz2_pipeline_cache=VK_NULL_HANDLE;
++    free(data);
++}
++static void iz2_pipeline_feedback(const VkPipelineCreationFeedback *feedback){
++    ++iz2_pipeline_requests;
++    if((feedback->flags&VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT)&&
++       (feedback->flags&VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT))++iz2_pipeline_hits;
++}
++static u64 iz2_graphics_cached(u64 a,u64 b,u64 d,u64 e,u64 f,u64 g,u64 h,u64 i){
++    if(d!=1)return iz2_graphics_original(a,b,d,e,f,g,h,i);
++    VkGraphicsPipelineCreateInfo info=*(const VkGraphicsPipelineCreateInfo*)(uintptr_t)e;
++    VkPipelineCreationFeedback feedback={0};
++    VkPipelineCreationFeedbackCreateInfo report={.sType=VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO,.pNext=info.pNext,.pPipelineCreationFeedback=&feedback};
++    info.pNext=&report;
++    /* Menu UI: favour bounded startup compilation; application pipelines are untouched. */
++    info.flags|=VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT;
++    u64 rc=iz2_graphics_original(a,b?b:(u64)(uintptr_t)iz2_pipeline_cache,d,(u64)(uintptr_t)&info,f,g,h,i);
++    iz2_pipeline_feedback(&feedback);iz2_start_mark("graphics_pipeline");return rc;
++}
++static u64 iz2_compute_cached(u64 a,u64 b,u64 d,u64 e,u64 f,u64 g,u64 h,u64 i){
++    if(d!=1)return iz2_compute_original(a,b,d,e,f,g,h,i);
++    VkComputePipelineCreateInfo info=*(const VkComputePipelineCreateInfo*)(uintptr_t)e;
++    VkPipelineCreationFeedback feedback={0};
++    VkPipelineCreationFeedbackCreateInfo report={.sType=VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO,.pNext=info.pNext,.pPipelineCreationFeedback=&feedback};
++    info.pNext=&report;
++    /* Menu UI: favour bounded startup compilation; application pipelines are untouched. */
++    info.flags|=VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT;
++    u64 rc=iz2_compute_original(a,b?b:(u64)(uintptr_t)iz2_pipeline_cache,d,(u64)(uintptr_t)&info,f,g,h,i);
++    iz2_pipeline_feedback(&feedback);iz2_start_mark("compute_pipeline");return rc;
++}
++static void iz2_cache_install(IzContext *c,const void *shader,size_t bytes){
++    iz2_cache_open(c,shader,bytes);iz2_start_mark("pipeline_cache");
++    iz2_graphics_original=FN(c,F_CREATE_GRAPHICS);iz2_compute_original=FN(c,F_CREATE_COMPUTE);
++    c->functions[F_CREATE_GRAPHICS]=(u64)(uintptr_t)iz2_graphics_cached;c->functions[F_CREATE_COMPUTE]=(u64)(uintptr_t)iz2_compute_cached;
++}
++static void iz2_cache_unhook(IzContext *c){
++    c->functions[F_CREATE_GRAPHICS]=(u64)(uintptr_t)iz2_graphics_original;c->functions[F_CREATE_COMPUTE]=(u64)(uintptr_t)iz2_compute_original;
++}
++static bool iz2_cache_publish(void){
++    if(!rename(IZ2_CACHE_PATH ".tmp",IZ2_CACHE_PATH))return true;
++    /* Switch FS rename does not replace an existing destination. Keep the
++       complete temporary cache until publication succeeds. If interrupted
++       after unlink, cache_open validates and recovers that temporary file. */
++    if(errno!=EEXIST)return false;
++    if(unlink(IZ2_CACHE_PATH)&&errno!=ENOENT)return false;
++    return !rename(IZ2_CACHE_PATH ".tmp",IZ2_CACHE_PATH);
++}
++static void iz2_cache_save(void){
++    if(iz2_cache_saved)return;iz2_cache_saved=true;
++    iz2_cache_write="failed";iz2_cache_errno=0;
++    if(!iz2_pipeline_cache){iz2_cache_write="unavailable";return;}
++    if(iz2_cache_hit&&iz2_pipeline_requests&&iz2_pipeline_hits==iz2_pipeline_requests){
++        if(!iz2_cache_from_tmp){iz2_cache_write="reused";return;}
++        if(iz2_cache_publish())iz2_cache_write="recovered";
++        else iz2_cache_errno=errno;
++        return;
++    }
++    size_t bytes=0;if(iz2_cache_data(iz2_cache_device,iz2_pipeline_cache,&bytes,NULL)!=VK_SUCCESS||bytes<32||bytes>IZ2_CACHE_LIMIT)return;
++    void *data=malloc(bytes);if(!data)return;
++    if(iz2_cache_data(iz2_cache_device,iz2_pipeline_cache,&bytes,data)==VK_SUCCESS&&bytes>=32&&bytes<=IZ2_CACHE_LIMIT){
++        Iz2CacheHeader header=iz2_cache_identity;header.bytes=(uint32_t)bytes;sha256CalculateHash(header.digest,data,bytes);
++        if(iz2_cache_valid(&header,data,bytes,&iz2_cache_identity)&&(!mkdir("sdmc:/iz2s/cache",0777)||errno==EEXIST)){
++            FILE *f=fopen(IZ2_CACHE_PATH ".tmp","wb");
++            if(f){bool ok=fwrite(&header,1,sizeof header,f)==sizeof header&&fwrite(data,1,bytes,f)==bytes;
++                if(ok&&(fflush(f)||fsync(fileno(f))))ok=false;
++                int error=ok?0:errno;
++                if(fclose(f)){ok=false;error=errno;}
++                if(ok){if(iz2_cache_publish())iz2_cache_write="saved";else iz2_cache_errno=errno;}
++                else{iz2_cache_errno=error;unlink(IZ2_CACHE_PATH ".tmp");}
++            }else iz2_cache_errno=errno;
++        }
++    }
++    free(data);
++}
++void iz2_startup_catalog_ready(void){iz2_start_mark("catalog");}
++void iz2_startup_frame(u64 frames){
++    if(!frames)return;
++    if(!iz2_first_frame_tick){iz2_first_frame_tick=armGetSystemTick();iz2_start_mark("first_present");}
++    if(iz2_start_reported||armGetSystemTick()-iz2_first_frame_tick<armNsToTicks(UINT64_C(2000000000)))return;
++    iz2_start_reported=true;
++    /* One delayed report/cache save, never on the first-frame critical path. */
++    iz2_cache_save();
++    FILE *f=fopen("sdmc:/iz2s/launcher-startup.json","w");
++    if(f){
++        fprintf(f,"{\"scope\":\"native_menu\",\"cacheAccepted\":%s,\"stages\":[",iz2_cache_hit?"true":"false");
++        for(unsigned n=0;n<iz2_phase_count;n++)fprintf(f,"%s{\"name\":\"%s\",\"elapsedMs\":%.3f}",n?",":"",iz2_phases[n].name,(double)(iz2_phases[n].tick-iz2_start_tick)*1000.0/(double)armNsToTicks(UINT64_C(1000000000)));
++        fprintf(f,"],\"pipelineRequests\":%u,\"pipelineCacheHits\":%u,\"cacheRead\":\"%s\",\"cacheWrite\":\"%s\",\"cacheErrno\":%d}\n",iz2_pipeline_requests,iz2_pipeline_hits,iz2_cache_hit?(iz2_cache_from_tmp?"temporary":"primary"):"none",iz2_cache_write,iz2_cache_errno);fclose(f);
++    }
++}
++static void iz2_cache_close(void){
++    if(iz2_pipeline_cache&&iz2_cache_destroy)iz2_cache_destroy(iz2_cache_device,iz2_pipeline_cache,NULL);
++    iz2_pipeline_cache=VK_NULL_HANDLE;iz2_cache_device=VK_NULL_HANDLE;
++}
++#endif
+--- /dev/null
++++ b/engines/iz2s-core/source/izlauncher/ounce/menu-official-versions.h
+@@ -0,0 +1,9 @@
++static const struct { uint8_t header[32]; char version[16]; } iz2_shipped_versions[] = {
++    {{0xc8,0xc8,0x47,0xde,0x6e,0x2e,0xa1,0x3f,0x70,0xc1,0x5e,0x59,0x17,0x24,0x2f,0x96,0xc7,0xac,0x2b,0xbb,0x47,0xe1,0x02,0x5e,0xc5,0x2f,0x36,0xc2,0x25,0x19,0x43,0x3a},"0.1.0"},
++    {{0x55,0x59,0x72,0xfb,0x75,0xb7,0x2c,0x0e,0x07,0xea,0x1d,0xf1,0xfd,0xbb,0xd4,0x74,0xde,0xd4,0x41,0xda,0x6e,0xaf,0x5a,0x33,0x7d,0x53,0xb9,0xe4,0x01,0x49,0x75,0xd0},"1.15.8"},
++    {{0xd1,0x42,0x8b,0x04,0x16,0x8e,0x50,0xca,0xa5,0xfd,0x25,0xf1,0xe1,0xfc,0xc8,0xc5,0x72,0x0a,0x86,0x7e,0x71,0xa4,0xbd,0xeb,0xde,0x3e,0x9b,0x29,0x84,0x26,0x58,0x1b},"1.5.7"},
++    {{0xa2,0xce,0xce,0x51,0x46,0xdf,0x7b,0x53,0xb9,0x98,0x89,0xed,0x77,0xa0,0xf3,0xd0,0xc3,0x8c,0xfc,0xd0,0xf2,0xa7,0x99,0x3f,0x5b,0x41,0xe2,0x3d,0xaa,0x1d,0x9c,0xaa},"0.3.3"},
++    {{0x72,0x5d,0x37,0x7d,0x9f,0x1a,0x4b,0x2b,0xe1,0x3a,0x9a,0x3d,0x31,0x70,0x23,0xaa,0x04,0x45,0x51,0x4e,0x2d,0xf3,0x2d,0x6f,0x94,0x72,0x40,0xfd,0x84,0xe8,0x77,0x7c},"0.8.7"},
++    {{0xd8,0x64,0x1b,0x73,0x4e,0xa3,0xf5,0xfe,0xbf,0xc2,0x8f,0x71,0xca,0x8a,0x16,0xb6,0xe1,0xa5,0x05,0x8f,0x80,0x4e,0xc7,0x72,0x68,0x15,0x1e,0xd9,0x95,0x78,0x8f,0x9a},"0.5.3"},
++    {{0x62,0xc3,0x0b,0x11,0xee,0x75,0xa9,0x40,0xd7,0xf3,0x6d,0xc0,0x3f,0x88,0x94,0xa2,0x89,0x5b,0x91,0x1e,0xe6,0x81,0xbb,0x2e,0x04,0xae,0xdb,0x02,0x5b,0xe0,0x3b,0xc0},"0.5.0"},
++};
