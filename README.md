@@ -1,8 +1,4 @@
-# IZ2S 0.3.2
-
-**Stability update:** optional IZPS2 VU disk persistence is disabled by default. Keep `vu-split-persist-off.flag` installed. The menu startup cache and game saves are unchanged. See [release notes](RELEASE-NOTES.md) for the tested scenarios and remaining validation.
-
-**PC panel 0.3.2 · Console launcher 0.32 · Maintained by IZMYSH**
+# IZ2S
 
 [Russian](README.ru.md) · [Installation](docs/INSTALLATION.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md)
 
@@ -58,13 +54,13 @@ The normal panel address is `http://127.0.0.1:39532/`. Use the URL opened or pri
 
 | Application | Version | Included in SD package |
 | --- | --- | --- |
-| IZ2S Cheese | 0.8.7 | Yes |
-| IZPSX emulator | 0.5.3 | Yes |
-| IZPS2 emulator | 0.5.0 | Yes |
-| Foldrift | 0.3.3 | Yes |
-| Book Reader | 0.1.0 | Available separately in the PC library |
-| BlitBun | 1.15.8 | Available separately; PC media host requires Linux |
-| VacooTube | 1.5.7 | Available separately; PC media host requires Linux |
+| [IZ2S Cheese](https://github.com/byizmysh/iz2s-cheese) | 0.8.7 | Yes |
+| [IZPSX emulator](https://github.com/byizmysh/IZPSX-emulator) | 0.5.3 | Yes |
+| [IZPS2 emulator](https://github.com/byizmysh/IZPS2-emulator) | 0.5.0 | Yes |
+| [Foldrift](modules/Foldrift) | 0.3.3 | Yes |
+| [Book Reader](modules/BookReader) | 0.1.0 | Available separately in the PC library |
+| [BlitBun](https://github.com/byizmysh/BlitBun) | 1.15.8 | Available separately; PC media host requires Linux |
+| [VacooTube](https://github.com/byizmysh/VacooTube) | 1.5.7 | Available separately; PC media host requires Linux |
 
 In the launcher, **A** opens the selected application and **X** opens Add app. **R + L3** toggles PC Link; **L + R3** toggles FTP. L3/R3 mean clicking the left/right stick. Enabling FTP on the console and connecting the panel's FTP client are separate states.
 

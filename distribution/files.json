@@ -278,13 +278,13 @@
       "executable": false
     },
     "README.md": {
-      "bytes": 10854,
-      "sha256": "5a73549449c3702551007c4397b8d4c2724dd62a01d49869c449c2634ffdca9b",
+      "bytes": 10768,
+      "sha256": "766b8aa0cc4526695fd9ff9ffd8dbc18fe6bfc7d3b0242d657efcc62f8652ba1",
       "executable": false
     },
     "README.ru.md": {
-      "bytes": 7431,
-      "sha256": "69aeeeecda342f9ad68f9f68369326c90219a38c5412c4faf15a15e4049306d3",
+      "bytes": 7316,
+      "sha256": "12422dbda35fb60c70c9d9bbd0d38562dde0cad874976c8f1f4640f9f239b6d2",
       "executable": false
     },
     "RELEASE-NOTES.md": {

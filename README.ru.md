@@ -1,6 +1,4 @@
-# IZ2S 0.3.2
-
-**Панель ПК 0.3.2 · Лаунчер консоли 0.32 · Автор интеграции IZMYSH**
+# IZ2S
 
 [English](README.md) · [Установка по шагам](docs/INSTALLATION.ru.md) · [FAQ](FAQ.ru.md) · [Совместимость](COMPATIBILITY.md)
 
