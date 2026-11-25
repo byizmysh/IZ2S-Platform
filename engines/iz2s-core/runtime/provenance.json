@@ -71,7 +71,8 @@
     "RUN32 0.32 Menu-Fast: rebuilt native menu cache/metadata/status/title objects and shaders; replaced only the existing catalog font in RomFS from the validated existing runtime; removed standalone launcher NRO and its Homebrew download by user request; removed Add App tile; X opens Add App, A launches the selected application. No hardware startup-time claim.",
     "RUN32 0.32 Menu-Fast: rebuilt native menu cache/metadata/status/title objects and shaders; replaced only the existing catalog font in RomFS from the validated existing runtime; removed standalone launcher NRO and its Homebrew download by user request; removed Add App tile; X opens Add App, A launches the selected application. No hardware startup-time claim.",
     "RUN32 Civ7-UI: panel 0.3.2 only supports Civilization VII; removed BASIC delivery and hardware-input installers. Recompiled menu shaders only, validated IZA CRC and unchanged ABI/assets sections. Native main, ExeFS and ROMFS are byte-identical to validated Menu-Fast. Historical shared libsb4 ABI names are preserved for module compatibility. No console timing or launch claim.",
-    "Civ7-UI-Cache-Fix: corrected ignored cache rename failure when the destination already exists. Added validated temporary-file recovery and cache write diagnostics. Regression reproduces old failure and tests replacement, denied rename, interrupted publication and corrupt cache rejection. Rebuilt native/ExeFS with unchanged NPDM; IZA and ROMFS unchanged. Console cache repair measured first_present 14410.250 ms -> 203.140 ms on prior native; new binary requires separate console verification."
+    "Civ7-UI-Cache-Fix: corrected ignored cache rename failure when the destination already exists. Added validated temporary-file recovery and cache write diagnostics. Regression reproduces old failure and tests replacement, denied rename, interrupted publication and corrupt cache rejection. Rebuilt native/ExeFS with unchanged NPDM; IZA and ROMFS unchanged. Console cache repair measured first_present 14410.250 ms -> 203.140 ms on prior native; new binary requires separate console verification.",
+    "Lifecycle-Audit-1: status publication respects host hold and active module ownership; battery sessions close after sampling including failed queries; remove SD clock fallback; retire optional driver pipeline cache before app/host entry; add bounded transition-only memory/worker/presentation diagnostics. IZA, ROMFS, modules and lifecycle safety checks unchanged. Console crash cause and fix remain unconfirmed."
   ],
   "launcher": {
     "entry": "runtime/package/iz2s/izlauncher.iza",
@@ -81,8 +82,8 @@
     "route": "IZ2S R entry -> /iz2s/core/bin/game/main -> /iz2s/izlauncher.iza",
     "nativePrograms": "/switch/*.nro and nested directories (up to eight levels, 1024 programs)",
     "standaloneNroRequired": false,
-    "coreSha256": "5bb5e63f89da30f0d85c64f72911046e3135e4ee8fbbf04572971dbfa7e1d24d",
-    "resourcesSha256": "86f01b934a5ee4c78bafa91be4f121bcbfd5b5fc9e8b4d7306da93cdc2a788bd",
+    "coreSha256": "473a95e63638c787129c8c03649770291b8880b87a247af214a586a27d6edd92",
+    "resourcesSha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868",
     "labels": "Unified clock/battery capsule; matching Open/Network typography; centred A key and 0.32 badge; retained bold app title and icon background",
     "catalog": "Single paged NRO/IZA catalog; isolated folder errors; idle inventory and import refresh",
     "hotMenuAbi": 1,
@@ -108,12 +109,13 @@
     },
     "version": "0.32",
     "panelVersion": "0.3.2",
-    "revision": "RUN32-0.32-Civ7-UI-Cache-Fix",
+    "revision": "RUN32-0.32-Civ7-Lifecycle-Audit-1",
     "packagedMenuId": "affec539427b435e727437246edc2cc7",
     "componentValidation": "runtime/run32-component-validation.json",
     "consoleLaunchVerified": false,
     "standaloneNroDistributed": false,
-    "startup": "Validated menu pipeline cache; replace existing cache on non-overwriting filesystem; recover validated temporary cache after interrupted publication; flush before publish; report cache read/write and errno. Menu/shaders/ROMFS unchanged from Civ7-UI."
+    "startup": "Existing validated shader cache retained on SD; driver cache object retired after one save or before ownership handoff. No startup trace before first frame. Battery sessions close after each sample. No filesystem clock fallback.",
+    "crashFixConfirmedOnConsole": false
   },
   "pathBase": "engines/iz2s-core",
   "installerDirectory": "runtime/installer",

@@ -130,27 +130,30 @@
     "sources/run32-launcher/shaders/tiny-calc-input.glsl": "fb853f560899f52593f042923dffad36e6a3cc2d51b613b4fc6bf9b101cf7778",
     "sources/run32-launcher/shaders/tiny-calc-number.glsl": "e8e6e54668b385ccdfb8176a4e8653d9025f838f5945dc2d0801507cb23104e5",
     "sources/run32-launcher/shaders/tiny-calc.glsl": "bfddeb5a28f432c6e7907fb58e2b3adac88d7c798cc754a650ae254203c71697",
-    "sources/run32-launcher/status/build-homebrew.py": "2bba022fc7b05160734c193479976515458cee142d657fccf41bcbb694a9a973",
-    "sources/run32-launcher/status/menu-status.h": "4227de02c538206a94cd4e9c857fbf9f6daba17c2656f34c735f0fca6e2696d8",
+    "sources/run32-launcher/status/build-homebrew.py": "d67fdb895f849dc465b11bbdc9c2ae381d1c31dcc09c984175bf849d3591b811",
+    "sources/run32-launcher/status/menu-status.h": "a5b4eee858dae37915310e6870bc19fccd489a94c232a41908ad82f80ba36939",
     "sources/run32-launcher/status/menu-versions.h": "a98cf5df9abb142a52af8ce6398ed8f37b61713ec8f8cd7d8cfa0cc519ea51a5",
-    "sources/run32-launcher/status/run32-system-status.patch": "569ca8c35e18acb0e2ed884c48c716dbe86de72edcab7cb4223a936522342a64",
+    "sources/run32-launcher/status/run32-system-status.patch": "9130a2dc67b9677519b68033ca2b636aa18e3b2a537167602ac0a61ec6b2f765",
     "sources/run32-launcher/native/apps.c": "6ede75e0575916a4ce0000401abbdc3f6372a9b4d1bd89caf65044f61b93515b",
     "sources/run32-launcher/native/apps.h": "3dae0772ac3215d6d9451c0e90b4c3b279160eab7fa3edd264e62ac7b8ad91f6",
     "sources/run32-launcher/native/font.c": "551acad6c112c8f6b6c9c2a36bf4a6ab7a4febdc664fb52b1618967685f1fe34",
     "sources/run32-launcher/status/baseline-menu-build.json": "954507528cfe158dcdc54e919b094a747ac101857eeef870df044f4f5e5fef64",
     "sources/run32-launcher/BUILD-NOTES.txt": "143afbde01f4ed7f5577ecb95fe37efaa0f68840b6a5aa1a806c88e89195c9f1",
     "sources/run32-launcher/build-romfs.py": "a61b0e1c1ec7f1f1834f66fe9421c3208d3d5ed1e938b174a12124efeda6b1da",
-    "sources/run32-launcher/status/menu-pipeline-cache.h": "501d14d7b4d6c098056a1547d2a1c4e18c668063d6e98d6350637982c46374db",
+    "sources/run32-launcher/status/menu-pipeline-cache.h": "bf62306c6ed458bab78fabbf7c11cc730fd95768972c3941e80595dc3c27c02e",
     "language/fonts/DejaVuSans-Bold.ttf": "b5d64817b6331723b5e59eaaa6db90057cbed58e9733f65687f110638192359f",
-    "sources/run32-launcher/status/tests/pipeline-cache.c": "e980a9bfc9d65e1f381cda6af46edbdb47d438543ffb6398a31dd5462474285c"
+    "sources/run32-launcher/status/tests/pipeline-cache.c": "46fe6e13d5a5eb42adf0227defecb1f8a1ab9a610bbef49107bdc5f6076b32a2",
+    "sources/run32-launcher/status/menu-lifecycle.h": "69c7f47ce5cf6dd4443f269b7b3d6bd3ae0942737bf9a4d5664cf224982ea8aa",
+    "sources/run32-launcher/status/tests/status.c": "11e8e473281e48b59c677a645a1bb0e81d1b930fa255aa15e89050509ed3cf38",
+    "sources/run32-launcher/status/tests/stub/switch.h": "62ac86431cb58d31cd549e4f112c7a30637e30636532176c9fa1f422fcdcc45f"
   },
   "outputs": {
-    "engines/iz2s-core/runtime/package/game/main": "5bb5e63f89da30f0d85c64f72911046e3135e4ee8fbbf04572971dbfa7e1d24d",
+    "engines/iz2s-core/runtime/package/game/main": "473a95e63638c787129c8c03649770291b8880b87a247af214a586a27d6edd92",
     "engines/iz2s-core/runtime/package/iz2s/izlauncher.iza": "b6a35e9a1a353cd915a458a78ad0dfe3a4c425c3a140f43ed4bc902b1eb387aa",
     "engines/iz2s-core/runtime/package/iz2s/izlauncher.romfs": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868",
-    "engines/iz2s-core/runtime/package/game/exefs.nsp": "a6463a5143073696e46e237798538b58812a7fdd9b7555c99515e6ea606c9367"
+    "engines/iz2s-core/runtime/package/game/exefs.nsp": "93ba2af29912764b0bf4e559c5f1578c5b72a0d350468b36f0f13bf22591c344"
   },
-  "componentRevision": "RUN32-0.32-Civ7-UI-Cache-Fix",
+  "componentRevision": "RUN32-0.32-Civ7-Lifecycle-Audit-1",
   "baseMenuId": "d93be0d07903c6806d8d8a73a0601f96",
   "validation": "engines/iz2s-core/runtime/run32-component-validation.json"
 }

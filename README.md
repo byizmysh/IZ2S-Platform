@@ -1,5 +1,7 @@
 # IZ2S for Civilization VII
 
+**Stability-1:** optional IZPS2 VU disk persistence is disabled by default. Keep `vu-split-persist-off.flag` installed. The menu startup cache and game saves are unchanged. See [release notes](RELEASE-NOTES.md) for the tested scenarios and remaining validation.
+
 **PC panel 0.3.2 · Console launcher 0.32 · Maintained by IZMYSH**
 
 [Russian](README.ru.md) · [Installation](docs/INSTALLATION.md) · [FAQ](FAQ.md) · [Compatibility](COMPATIBILITY.md)
@@ -18,7 +20,7 @@ This is a **local release candidate**. The 0.3.2 assets have not been published 
 
 | Asset | Purpose |
 | --- | --- |
-| `IZ2S-Platform-0.3.2-linux.tar.gz` | Linux x64 / ARM64; full initial installation and PC tools |
+| `IZ2S-Platform-0.3.2-Stability-1-linux.tar.gz` | Linux x64 / ARM64; full initial installation and PC tools |
 | `iz2sciv-core-sd.zip` | Matching runtime, four SD applications, resources and licenses |
 
 ## Requirements

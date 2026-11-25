@@ -7,6 +7,7 @@ const require = createRequire(import.meta.url);
 const archive = require('../../../core/archive.cjs');
 const {directImage} = require('../../iz2s-core/sd-compat.cjs');
 const storage = require('../../../core/module-storage.cjs');
+const defaults = require('../../iz2s-core/tools/sd-defaults.cjs');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 export const APP_IDS = Object.freeze(['iz2s-cheese', 'izpsx', 'izps2', 'iz-file-deck']);
 
@@ -34,6 +35,7 @@ export async function buildSdApplications(base = root) {
         const launcher = {bytes: image.bytes.length, sha256: archive.sha(image.bytes)};
         const assets = image.companions.map(({path, bytes, sha256}) => ({file:path, path, bytes, sha256}));
         entries.push({name:prefix + 'launcher.iza', bytes:image.bytes});
+        for (const file of defaults.files(id)) entries.push({name:prefix + file.name, bytes:file.bytes});
         for (const row of image.companions) entries.push({name:prefix + row.path, bytes:row.contents});
         entries.push({name:prefix + 'sd-bundle.json', bytes:Buffer.from(JSON.stringify({
             format:'iz2s.sd-bundle', version:1, id, launcher, assets

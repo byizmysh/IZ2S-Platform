@@ -10,7 +10,7 @@
 | Console interface / USB keyboard | English / English (US) |
 | PC panel | 0.3.2 |
 | Console launcher | 0.32 |
-| Native revision | RUN32-0.32-Civ7-UI-Cache-Fix |
+| Native revision | RUN32-0.32-Civ7-Lifecycle-Audit-1 |
 | PC host | Native Linux x64 / ARM64 |
 
 **This release is Linux only.** Windows installers and Windows host executables are excluded. Windows, WSL and macOS are not supported installation targets. Other firmware/game combinations are not claimed compatible. Civilization VII is the sole entry point; historical names in source, license notices and ABI symbols do not enable an SB4 route.

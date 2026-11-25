@@ -26,44 +26,9 @@ static u64 iz2_clock_tick, iz2_battery_tick;
 static bool iz2_clock_sampled, iz2_battery_sampled, iz2_psm_open;
 static uint32_t iz2_clock_source, iz2_battery_source;
 static Result iz2_clock_result, iz2_battery_result;
-static u64 iz2_sd_local_time, iz2_sd_clock_tick, iz2_sd_attempt_tick;
-static bool iz2_sd_sampled, iz2_sd_attempted;
 static bool iz2_status_started;
 static u64 iz2_status_start;
 static uint32_t iz2_local_seconds;
-
-static bool iz2_menu_status_sd_time(u64 now, struct tm *local)
-{
-    const u64 resample = armNsToTicks(UINT64_C(1800000000000));
-    if (!iz2_sd_attempted || now - iz2_sd_attempt_tick >= resample) {
-        iz2_sd_attempted = true;
-        iz2_sd_attempt_tick = now;
-        FsFileSystem *sd = fsdevGetDeviceFileSystem("sdmc");
-        if (sd) {
-            char path[80];
-            snprintf(path, sizeof path, "sdmc:/iz2s/.clock-%016llx", (unsigned long long)now);
-            int file = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
-            if (file >= 0) {
-                bool wrote = write(file, "1", 1) == 1;
-                bool closed = close(file) == 0;
-                FsTimeStampRaw timestamp = {0};
-                if (wrote && closed &&
-                    R_SUCCEEDED(fsFsGetFileTimeStampRaw(sd, path + 5, &timestamp)) &&
-                    timestamp.is_valid && timestamp.modified >= UINT64_C(946684800) &&
-                    timestamp.modified < UINT64_C(4102444800)) {
-                    /* FAT encodes the console's local calendar as a raw timestamp. */
-                    iz2_sd_local_time = timestamp.modified;
-                    iz2_sd_clock_tick = now;
-                    iz2_sd_sampled = true;
-                }
-                unlink(path);
-            }
-        }
-    }
-    if (!iz2_sd_sampled || now - iz2_sd_clock_tick > 2u*resample) return false;
-    time_t calendar = (time_t)(iz2_sd_local_time + (now - iz2_sd_clock_tick)/armNsToTicks(UINT64_C(1000000000)));
-    return gmtime_r(&calendar, local) != NULL;
-}
 
 static void iz2_menu_status_sample_clock(u64 ticks)
 {
@@ -87,12 +52,10 @@ static void iz2_menu_status_sample_clock(u64 ticks)
         bool have_local = now != (time_t)-1 && localtime_r(&now, &fallback) && fallback.tm_year >= 100 &&
                           fallback.tm_hour >= 0 && fallback.tm_hour < 24 &&
                           fallback.tm_min >= 0 && fallback.tm_min < 60;
-        /* SD timestamp fallback remains available, after the menu can be shown. */
-        if (!have_local && (ticks - iz2_status_start < armNsToTicks(UINT64_C(2000000000)) ||
-                            !iz2_menu_status_sd_time(ticks, &fallback))) return;
+        if (!have_local) return;
         iz2_status.minute_of_day = (uint32_t)(fallback.tm_hour * 60 + fallback.tm_min);
         iz2_local_seconds = iz2_status.minute_of_day * 60u + (uint32_t)fallback.tm_sec;
-        iz2_clock_source = have_local ? 2 : 3;
+        iz2_clock_source = 2;
     }
     iz2_status.clock_magic = IZ2_CLOCK_MAGIC;
 }
@@ -136,7 +99,7 @@ static void iz2_menu_status_report(void)
     if (!log) return;
     fprintf(log, "IZ2S 0.32 status publisher\nclock=%s rc=0x%08x\nbattery=%s rc=0x%08x\n",
             iz2_clock_source == 1 ? "system" : iz2_clock_source == 2 ? "localtime" :
-            iz2_clock_source == 3 ? "sd-timestamp" : "unavailable",
+            "unavailable",
             (unsigned)iz2_clock_result,
             iz2_battery_source == 1 ? "psm" : iz2_battery_source == 2 ? "psm-raw" : "unavailable",
             (unsigned)iz2_battery_result);
@@ -144,8 +107,9 @@ static void iz2_menu_status_report(void)
 #endif
 }
 
-void iz2_menu_status_publish(uint8_t *controls, uint8_t *snapshot)
+void iz2_menu_status_publish(uint8_t *controls, uint8_t *snapshot, bool menu_owned)
 {
+    if (!menu_owned) return;
     const u64 now = armGetSystemTick();
     if (!iz2_status_started) {
         iz2_status_started = true;
@@ -166,6 +130,8 @@ void iz2_menu_status_publish(uint8_t *controls, uint8_t *snapshot)
     if (age >= armNsToTicks(UINT64_C(600000000)) &&
         (!iz2_battery_sampled || now - iz2_battery_tick >= armNsToTicks(UINT64_C(5000000000)))) {
         iz2_menu_status_sample_battery();
+        if (iz2_psm_open) psmExit();
+        iz2_psm_open = false;
         iz2_battery_tick = now;
         iz2_battery_sampled = true;
     }
@@ -179,7 +145,7 @@ static void iz2_menu_status_close(void)
     if (iz2_psm_open) psmExit();
     iz2_psm_open = false;
     iz2_clock_sampled = iz2_battery_sampled = false;
-    iz2_status_started = iz2_sd_sampled = iz2_sd_attempted = false;
+    iz2_status_started = false;
     iz2_status = (IzMenuStatus){0};
 }
 

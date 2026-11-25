@@ -1,0 +1,24 @@
+{
+  "state": "containment-izps2-log-verified-and-iztwins2-home-close-user-confirmed",
+  "userReported": "Returned to IZ2S without error; FTP enabled",
+  "checks": {
+    "workerResourcesClosed": true,
+    "allFilesClosed": true,
+    "storageUnboundCleanly": true,
+    "vmReturnedZero": true,
+    "menuRestoredZero": true,
+    "noActiveWorkerOrPresentation": true
+  },
+  "verifiedScope": "IZPS2 exit with VU persistence disabled in Owner-Writer-Trial-1",
+  "permanentCacheFixConfirmed": false,
+  "globalLauncherCrashFixConfirmed": false,
+  "iztwins2AndHomeX2162Resolved": true,
+  "menuStartupCacheChanged": false,
+  "gameSavesChanged": false,
+  "releasePromoted": false,
+  "iztwins2AndHomeX2162Evidence": "User confirmation retained in local verification records; no new matching trace captured.",
+  "iztwins2AndHomeX2162Qualification": "No recurrence in the user-confirmed full scenario; no new matching trace or broad stability qualification",
+  "instrumentedIzps2TestCount": 1,
+  "additionalFullScenarioReports": 1,
+  "exactFaultMechanismEstablished": false
+}

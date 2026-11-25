@@ -1,9 +1,9 @@
 {
   "format": "iz2s.run32-component-validation.v1",
-  "revision": "RUN32-0.32-Civ7-UI-Cache-Fix",
-  "panelVersion": "0.3.2",
-  "nativeRebuilt": true,
+  "revision": "RUN32-0.32-Civ7-Lifecycle-Audit-1",
   "nativeReproducedTwice": true,
+  "consoleLaunchVerified": false,
+  "crashFixConfirmedOnConsole": false,
   "nsoSegments": [
     {
       "segment": 0,
@@ -13,7 +13,7 @@
     {
       "segment": 1,
       "bytes": 37463924,
-      "sha256": "f71f5d6c2f9bd6c099b9c2d79ee6ddf464908da437aaec83703f8928c45a95d1"
+      "sha256": "654d832c9e5ec676fbc34de4eff2b3b50e0b7d633e07f5fcccc4bb231de5467c"
     },
     {
       "segment": 2,
@@ -26,35 +26,20 @@
       "segment": 1,
       "offset": 8192,
       "bytes": 37445632,
-      "sha256": "1e97c4811ef0422e820a368924149fe3a547c6868fb43cfada9b3211bc14d73d"
+      "sha256": "e2b31a5f05587d0afca0cb23ba5fbd2c470148ba9ec36de0cd928e09bb7fa607"
     }
   ],
-  "pcExefsPolicySha256": "03be52aef0d7f0cf3164fe984afd14468cbb9434c4585a7b5e3e03e58cb1e163",
-  "consoleLaunchVerified": false,
-  "hardwareStartupTimingMeasured": false,
+  "npdmUnchanged": true,
   "standaloneNroDistributed": false,
-  "changedInputs": [
-    "sources/run32-launcher/status/menu-pipeline-cache.h",
-    "sources/run32-launcher/status/run32-system-status.patch"
-  ],
-  "unchangedInterfaceAndResources": {
-    "iz2s/izlauncher.iza": {
-      "bytes": 900504,
-      "sha256": "b6a35e9a1a353cd915a458a78ad0dfe3a4c425c3a140f43ed4bc902b1eb387aa"
-    },
-    "iz2s/izlauncher.romfs": {
-      "bytes": 26734392,
-      "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
-    }
-  },
+  "menuId": "affec539427b435e727437246edc2cc7",
   "components": {
     "game/main": {
-      "bytes": 19400245,
-      "sha256": "5bb5e63f89da30f0d85c64f72911046e3135e4ee8fbbf04572971dbfa7e1d24d"
+      "bytes": 19399360,
+      "sha256": "473a95e63638c787129c8c03649770291b8880b87a247af214a586a27d6edd92"
     },
     "game/exefs.nsp": {
-      "bytes": 19402163,
-      "sha256": "a6463a5143073696e46e237798538b58812a7fdd9b7555c99515e6ea606c9367"
+      "bytes": 19401267,
+      "sha256": "93ba2af29912764b0bf4e559c5f1578c5b72a0d350468b36f0f13bf22591c344"
     },
     "iz2s/izlauncher.iza": {
       "bytes": 900504,
@@ -64,11 +49,5 @@
       "bytes": 26734392,
       "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
     }
-  },
-  "tests": [
-    "Previous code reproduces cache replacement failure on non-overwriting rename",
-    "New code passes cache replacement, permission denial, interrupted publication and invalid temporary-file recovery tests",
-    "Cache digest/GPU/driver/interface/size validation remains enforced",
-    "Two native builds byte-identical; NSO segment digests and embedded NRO verified; ExeFS NPDM unchanged"
-  ]
+  }
 }

@@ -8,6 +8,7 @@ const archive = require('../../../core/archive.cjs');
 const pkg = require('../../../core/console/sd-launcher/package.cjs');
 const assets = require('../../../core/console/sd-launcher/assets.cjs');
 const compat = require('../sd-compat.cjs');
+const defaults = require('./sd-defaults.cjs');
 const { BASE } = require('../../../core/module-storage.cjs');
 const bundleRoot = BASE.slice(1);
 // IZA stores total_bytes and section offsets as unsigned 32-bit integers.
@@ -72,6 +73,8 @@ async function prepareImage(input,candidate,scratch,original,legacy=pkg.decode(o
   const staged=await assets.stage(sources,folder), sha256=archive.sha(bytes);
   await fs.writeFile(path.join(folder,'launcher.iza'),bytes,{flag:'wx'});
   await assets.bundle(folder,{id:header.id,bytes:bytes.length,sha256,assets:staged});
+  for (const file of defaults.files(header.id))
+    await fs.writeFile(path.join(folder,file.name),file.bytes,{flag:'wx'});
   return {folder,id:header.id,abi:header.nativeAbi,bytes:bytes.length,sha256,assets:staged.length,
     preserved:!converted,...(converted?{adapter:converted.adapter,sourceSha256:archive.sha(original)}:{})};
 }
@@ -124,10 +127,12 @@ async function prepareBundleAt(entries,candidate,extracted) {
   const activeManifest='sd-bundle-'+archive.sha(image.bytes)+'.json';
   const files=members.filter(file=>!exportPreviews.has(file.name)&&
     (!qualifiedManifest.test(file.name)||file.name===activeManifest));
-  assert(files.length<=assets.MAX_ASSETS+3&&files.every(file=>file.name===activeManifest||
+  const header=pkg.decode(image.bytes);
+  const safeDefaults=new Map(defaults.files(header.id).map(file=>[file.name,file.bytes]));
+  assert(files.length<=assets.MAX_ASSETS+3+safeDefaults.size&&files.every(file=>file.name===activeManifest||
+    (safeDefaults.has(file.name)&&file.bytes.equals(safeDefaults.get(file.name)))||
     /^(?:launcher\.(?:iza|izapp)|sd-bundle\.json|asset-[a-f0-9]{64}\.izdata)$/.test(file.name)),
     'The SD bundle ZIP must contain only one application, its metadata, companion assets and standard export previews.');
-  const header=pkg.decode(image.bytes);
   if(prefix)assert.equal(prefix,bundleRoot+'/'+header.id+'/','SD bundle folder and application ID differ.');
   const bundle=path.join(candidate,'.bundle');
   const input=path.join(bundle,'launcher.iza');
@@ -179,7 +184,7 @@ async function portableApp(prepared) {
   const companions = await Promise.all(JSON.parse(manifest).assets.map(async ({file:name})=>({
     name,bytes:await fs.readFile(path.join(prepared.folder,name)),
   })));
-  const bytes = archive.encode([{name:'sd-bundle.json',bytes:manifest},{name:'launcher.iza',bytes:image},...companions]);
+  const bytes = archive.encode([{name:'sd-bundle.json',bytes:manifest},{name:'launcher.iza',bytes:image},...companions,...defaults.files(prepared.id)]);
   assert(bytes.length<=archive.MAX_ARCHIVE,'Prepared SD bundle exceeds the archive transfer limit.');
   return {id:prepared.id,name:prepared.id+'.iza',bytes,packed:true,executable};
 }

@@ -2,7 +2,7 @@
 
 [Русский](INSTALLATION.ru.md) · [Requirements and PC installation](../README.md#requirements)
 
-This guide follows the panel's four installation steps. Use panel 0.3.2 and the matching launcher 0.32 `RUN32-0.32-Civ7-UI-Cache-Fix` package. Initial LDN delivery requires native Linux, a compatible Wi-Fi radio and your own Switch 1 keys. The target is Switch 2 firmware **23.0.1** and the **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
+This guide follows the panel's four installation steps. Use panel 0.3.2 and the matching launcher 0.32 `RUN32-0.32-Civ7-Lifecycle-Audit-1` package. Initial LDN delivery requires native Linux, a compatible Wi-Fi radio and your own Switch 1 keys. The target is Switch 2 firmware **23.0.1** and the **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
 
 ## 1. SD card
 

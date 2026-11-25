@@ -8,15 +8,16 @@
  #include "platform.h"
  #include "apps.h"
  #include "import.h"
-@@ -21,6 +22,7 @@
+@@ -21,6 +22,8 @@
  #include "ftp-connect.h"
  #include "menu-update.h"
  #include "menu-factory.h"
 +#include "menu-pipeline-cache.h"
++#include "menu-lifecycle.h"
  
  static IzOunceLaunch next_program;
  static bool next_program_ready;
-@@ -43,6 +45,7 @@
+@@ -43,6 +46,7 @@
  }
  
  typedef struct {char version[16];uint8_t digest[32];} IzVersionReceipt;
@@ -24,7 +25,7 @@
  
  typedef struct {char name[78];u32 bytes;} IzInstalledAsset;
  
-@@ -599,11 +602,13 @@
+@@ -599,11 +603,13 @@
  }
  
  static u32 run_menu(bool import){
@@ -38,7 +39,7 @@
      IzContext *c=calloc(1,sizeof(*c));void *menu=NULL,*image=NULL,*atlas=NULL,*legacy_atlas=NULL;size_t image_bytes=0,atlas_bytes=0,legacy_bytes=0;
      if(!c){result=0xe851;goto finished;}
      c->magic=0x44535a49;c->version=1;
-@@ -624,7 +629,9 @@
+@@ -624,7 +630,9 @@
      result=buffer(&c->snapshot,IZ_SHARED_BYTES);if(result)goto cleanup;
      c->arena_bytes=512*1024;result=buffer(&c->arena,c->arena_bytes);if(result)goto cleanup;
      c->library_capacity=IZ_LIBRARY_CAPACITY;result=buffer(&c->library_staging,c->library_capacity);if(result)goto cleanup;
@@ -48,7 +49,7 @@
      fprintf(stderr,"IZLAUNCHER_PLATFORM_READY\n");
      unsigned char *controls=(void*)(uintptr_t)c->controls;
      memcpy(controls,(unsigned char*)image+header->section[SEC_STATE].offset,header->section[SEC_STATE].bytes);
-@@ -640,7 +647,10 @@
+@@ -640,14 +648,19 @@
      // A menu replacement can share the running server with the old menu.
      iz_ounce_add_ftp_tick(add,false,false);
      iz_ounce_link_tick(add,false,false);
@@ -59,8 +60,9 @@
 +    iz2_start_mark("menu_ready");
      fprintf(stderr,"IZLAUNCHER_MENU_READY services=%u\n",c->service_bridge->count);
      result=(u32)iz_run(c);
++    iz2_lifecycle_trace(c,"menu-exit",result);
      fprintf(stderr,"IZLAUNCHER_RUN_RETURN rc=0x%08x native=0x%08x state=%u poisoned=%u frames=%llu\n",result,c->native_status,c->state,c->poisoned,(unsigned long long)c->frames);
-@@ -648,6 +658,7 @@
+ cleanup:
      iz_pc_allow_auto_fetch(false);
      {
          u32 close=iz_native_menu_destroy(c,menu);
@@ -68,7 +70,7 @@
          if(!close)close=iz_ounce_platform_close(c);
          fprintf(stderr,"IZLAUNCHER_CLOSE rc=0x%08x\n",close);
          if(close){
-@@ -691,6 +702,7 @@
+@@ -691,6 +704,7 @@
              menu_reload=true;
          }
      }while(menu_reload);
@@ -78,11 +80,13 @@
      /* The loader request is published only after all module, service and GPU
 --- a/engines/iz2s-core/source/izlauncher/legacy/native/launcher.c
 +++ b/engines/iz2s-core/source/izlauncher/legacy/native/launcher.c
-@@ -237,6 +237,11 @@
+@@ -237,6 +237,13 @@
  extern u32 iz_ounce_remove_module(const char *id);
  extern void iz_ounce_activity_record(const char *name,const char *action);
  extern void iz_ounce_activity_publish(u8 *controls,u8 *snapshot);
-+extern void iz2_menu_status_publish(u8 *controls,u8 *snapshot);
++extern void iz2_menu_status_publish(u8 *controls,u8 *snapshot,_Bool menu_owned);
++extern void iz2_lifecycle_trace(const IzContext *c,const char *phase,u32 result);
++extern void iz2_menu_cache_retire(void);
 +extern void iz2_startup_catalog_ready(void);
 +extern void iz2_startup_frame(u64 frames);
 +extern void iz2_menu_versions_clear(u8 *snapshot);
@@ -90,7 +94,7 @@
  
  static void add_app_tiles(IzContext *c, const IzLocalAdd *message){
   u8 *menu=(void*)(uintptr_t)c->snapshot;
-@@ -267,6 +272,9 @@
+@@ -267,6 +274,9 @@
   u32 rc=0;sort_dirs(dirs,count);u32 fingerprint=0;int overflow=reuse_full_host;
   u8*snapshot=(void*)(uintptr_t)c->snapshot;
   memset(snapshot+MENU_TILES_AT,0,MENU_TILES_BYTES);
@@ -100,7 +104,7 @@
   if(c->host_mode&&!sd_page)for(unsigned i=0;i<c->host_count;i++){
    memset(&apps[i],0,sizeof apps[i]);apps[i].host=1;memcpy(apps[i].folder,c->host_catalog[i].id,48);memcpy(&c->catalog[i],&c->host_catalog[i],sizeof c->catalog[i]);c->catalog_source[i]=1;
    u8*tile=snapshot+1024+IZ_ATLAS_BYTES+i*IZ_TILE_BYTES;memcpy(tile,(u8*)(uintptr_t)c->parent_snapshot+1024+IZ_ATLAS_BYTES+i*IZ_TILE_BYTES,IZ_TILE_BYTES);W(tile,102512,0);if(c->platform_title)c->platform_title(tile,c->catalog[i].name);c->count++;
-@@ -288,6 +296,7 @@
+@@ -288,6 +298,7 @@
     fallback_tile(c,snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES,snapshot,&entry->h);
  #ifdef IZ_OUNCE_PRESENTATION
     iz_ounce_apps_icon(programs[i].token,snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES+65536,96*96*4);
@@ -108,7 +112,7 @@
  #endif
     W(snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES,102524,1);
     W(snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES,102512,0x44534453u);
-@@ -330,7 +339,11 @@
+@@ -330,7 +341,11 @@
     if((rc||!GET(tile,102400)||GET(tile,102400)>512||!GET(tile,102404)||GET(tile,102404)>128)&&!c->poisoned&&!(h.flags&IZ_APP_MANAGED)){
      fallback_tile(c,tile,snapshot,&h);rc=0;
     }
@@ -121,7 +125,18 @@
    if(c->poisoned)return rc?rc:0xe001;
    u32 close=iz_fs_close(fs,file);if(close)return close;if(rc){c->rejected++;c->last_app_error=rc;}
   }
-@@ -829,6 +842,9 @@
+@@ -592,6 +607,10 @@
+  W(controls,1008,0);W(controls,1012,0);W(controls,1016,0);W(controls,960,0);
+ }
+ static u32 launch(IzFs*fs,Entry*entry,unsigned slot,Gpu*g,IzNative*n,IzCheckpointSession*checkpoint){
++#ifdef IZ_OUNCE_PRESENTATION
++ iz2_menu_cache_retire();
++ iz2_lifecycle_trace(fs->c,"launch-begin",0);
++#endif
+  IzContext*c=fs->c;c->last_app_error=0;c->load_stage=1;char path[128];iz_fs_app_path(path,entry->folder);u32 file=0;u64 size=0;u32 rc=iz_fs_open(fs,path,&file,&size);
+  if(rc){if(!c->poisoned&&package_changed(rc))c->rescan=1;return rc;}
+  IzAppHeader h,loaded;memset(&h,0,sizeof h);
+@@ -829,6 +848,9 @@
   int directories_valid=!listing;
   if(listing&&(c->poisoned||c->ram_only)){c->state=4;return c->error=listing;}
   u32 rc=publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,0);
@@ -131,27 +146,61 @@
   if(rc){c->state=4;return c->error=rc;}
   u64 retry_scan_at=0;
   if(c->auto_scan_error&&!c->ram_only){
-@@ -1150,6 +1166,7 @@
+@@ -866,6 +888,7 @@
+     if(claim>observed)__atomic_store_n(&c->host_display_observed,claim,__ATOMIC_RELEASE);
+    }
+    if(!c->active&&request&&request!=released&&claim==request){
++    iz2_menu_cache_retire();
+     /* Every previous presentation has reached QueueWaitIdle. No controller,
+      * filesystem or graphics call may run until the host returns ownership. */
+     HostRpcMenu rpc_menu;u64 rpc_previous=0,rpc_first=0;u32 rpc_polls=0,rpc_local_return=0,rpc_return_reason=IZ_HOST_RETURN_USER,rpc_cancel_error=0;if(rpc_owner)host_rpc_backup(c,&rpc_menu);
+@@ -950,19 +973,24 @@
+    else if(c->recovery_wake)__atomic_add_fetch((u32*)(uintptr_t)c->recovery_wake,1,__ATOMIC_RELEASE);
+   }
+   if(c->active&&(exit||GET(controls,1016)||native->stopping||c->owner.sdk.ending)){
++   iz2_lifecycle_trace(c,"stop-request",0);
+    u32 sdk_stopped=sdkm_stop(c);if(sdk_stopped){if(sdk_stopped!=SDKM_STOP_PENDING||c->owner.sdk.retained){c->last_app_error=sdk_stopped;c->owner.sdk.ending=0;W(controls,1016,0);}}else{
+    if(!checkpoint.ending){checkpoint.ending=1;if(!c->last_app_error){u32 saved=cp_save(fs,&apps[c->active-1].h,(void*)(uintptr_t)gpu.mapped,native,&checkpoint);if(c->poisoned){rc=saved?saved:0xe001;break;}}}
++   iz2_lifecycle_trace(c,"native-stop-enter",0);
+    rc=iz_native_unload(native);
++   iz2_lifecycle_trace(c,"native-stop-return",rc);
+    if(rc==IZ_NATIVE_STOP_PENDING)rc=0;
+    else{
+     if(rc)break;
+     if(c->last_app_error)destroy(c,&gpu);
++    iz2_lifecycle_trace(c,"restore-menu",c->last_app_error);
+     restore_menu(c,controls,c->last_app_error);
+     record_sd_return(c,&apps[c->active-1]);
+     c->active=0;c->checkpoint_time_bias=0;c->transitions++;first_release=0;
++    iz2_lifecycle_trace(c,"menu-restored",c->last_app_error);
+    }}}
+   u32 hold=__atomic_load_n(&c->host_hold_request,__ATOMIC_ACQUIRE);int held=hold&&hold!=__atomic_load_n(&c->host_hold_release,__ATOMIC_ACQUIRE);
+-  if(!c->active&&held)__atomic_store_n(&c->host_hold_ready,hold,__ATOMIC_RELEASE);
++  if(!c->active&&held){iz2_menu_cache_retire();__atomic_store_n(&c->host_hold_ready,hold,__ATOMIC_RELEASE);}
+   if(!held)__atomic_store_n(&c->host_hold_ready,0,__ATOMIC_RELEASE);
+ #ifdef IZ_OUNCE_PRESENTATION
+   iz_pc_allow_auto_fetch(!c->active&&!held&&!GET(controls,964)&&!GET(controls,1012));
+@@ -1150,6 +1178,7 @@
     }
    }
  #ifdef IZ_OUNCE_PRESENTATION
-+  if(!c->active)iz2_menu_status_publish(controls,(void*)(uintptr_t)c->snapshot);
++  iz2_menu_status_publish(controls,(void*)(uintptr_t)c->snapshot,!c->active&&!held&&!c->poisoned);
    if(!c->active&&!held)iz_ounce_activity_publish(controls,(void*)(uintptr_t)c->snapshot);
  #endif
    if(c->active&&native->initialized&&!native->stopping&&!c->owner.sdk.ending){native->app.frames++;rc=iz_native_event(native,IZ_NATIVE_FRAME);if(rc){c->last_app_error=rc;if(c->poisoned)break;W(controls,1016,1);rc=0;}}
-@@ -1159,6 +1176,9 @@
+@@ -1159,6 +1188,9 @@
  #endif
    if(presentation_paused)CALL(c,F_SLEEP,16666667,0,0,0,0,0,0,0);
    else{rc=present(c,c->active?gpu.commands:c->menu_commands);if(rc){c->poisoned=1;break;}if(c->active)sdkm_frame(c);}c->frames++;
 +#ifdef IZ_OUNCE_PRESENTATION
-+ if(!c->active)iz2_startup_frame(c->frames);
++ if(!c->active&&!held)iz2_startup_frame(c->frames);
 +#endif
  #ifdef IZ_OUNCE_PRESENTATION
    if(!c->active&&!held&&!c->host_mode&&iz_ounce_menu_frame(
       !picker_open&&!GET(controls,0x700004)&&!GET(controls,884)&&
 --- /dev/null
 +++ b/engines/iz2s-core/source/izlauncher/ounce/menu-status.h
-@@ -0,0 +1,186 @@
+@@ -0,0 +1,152 @@
 +#ifndef IZ2S_MENU_STATUS_H
 +#define IZ2S_MENU_STATUS_H
 +
@@ -180,44 +229,9 @@
 +static bool iz2_clock_sampled, iz2_battery_sampled, iz2_psm_open;
 +static uint32_t iz2_clock_source, iz2_battery_source;
 +static Result iz2_clock_result, iz2_battery_result;
-+static u64 iz2_sd_local_time, iz2_sd_clock_tick, iz2_sd_attempt_tick;
-+static bool iz2_sd_sampled, iz2_sd_attempted;
 +static bool iz2_status_started;
 +static u64 iz2_status_start;
 +static uint32_t iz2_local_seconds;
-+
-+static bool iz2_menu_status_sd_time(u64 now, struct tm *local)
-+{
-+    const u64 resample = armNsToTicks(UINT64_C(1800000000000));
-+    if (!iz2_sd_attempted || now - iz2_sd_attempt_tick >= resample) {
-+        iz2_sd_attempted = true;
-+        iz2_sd_attempt_tick = now;
-+        FsFileSystem *sd = fsdevGetDeviceFileSystem("sdmc");
-+        if (sd) {
-+            char path[80];
-+            snprintf(path, sizeof path, "sdmc:/iz2s/.clock-%016llx", (unsigned long long)now);
-+            int file = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
-+            if (file >= 0) {
-+                bool wrote = write(file, "1", 1) == 1;
-+                bool closed = close(file) == 0;
-+                FsTimeStampRaw timestamp = {0};
-+                if (wrote && closed &&
-+                    R_SUCCEEDED(fsFsGetFileTimeStampRaw(sd, path + 5, &timestamp)) &&
-+                    timestamp.is_valid && timestamp.modified >= UINT64_C(946684800) &&
-+                    timestamp.modified < UINT64_C(4102444800)) {
-+                    /* FAT encodes the console's local calendar as a raw timestamp. */
-+                    iz2_sd_local_time = timestamp.modified;
-+                    iz2_sd_clock_tick = now;
-+                    iz2_sd_sampled = true;
-+                }
-+                unlink(path);
-+            }
-+        }
-+    }
-+    if (!iz2_sd_sampled || now - iz2_sd_clock_tick > 2u*resample) return false;
-+    time_t calendar = (time_t)(iz2_sd_local_time + (now - iz2_sd_clock_tick)/armNsToTicks(UINT64_C(1000000000)));
-+    return gmtime_r(&calendar, local) != NULL;
-+}
 +
 +static void iz2_menu_status_sample_clock(u64 ticks)
 +{
@@ -241,12 +255,10 @@
 +        bool have_local = now != (time_t)-1 && localtime_r(&now, &fallback) && fallback.tm_year >= 100 &&
 +                          fallback.tm_hour >= 0 && fallback.tm_hour < 24 &&
 +                          fallback.tm_min >= 0 && fallback.tm_min < 60;
-+        /* SD timestamp fallback remains available, after the menu can be shown. */
-+        if (!have_local && (ticks - iz2_status_start < armNsToTicks(UINT64_C(2000000000)) ||
-+                            !iz2_menu_status_sd_time(ticks, &fallback))) return;
++        if (!have_local) return;
 +        iz2_status.minute_of_day = (uint32_t)(fallback.tm_hour * 60 + fallback.tm_min);
 +        iz2_local_seconds = iz2_status.minute_of_day * 60u + (uint32_t)fallback.tm_sec;
-+        iz2_clock_source = have_local ? 2 : 3;
++        iz2_clock_source = 2;
 +    }
 +    iz2_status.clock_magic = IZ2_CLOCK_MAGIC;
 +}
@@ -290,7 +302,7 @@
 +    if (!log) return;
 +    fprintf(log, "IZ2S 0.32 status publisher\nclock=%s rc=0x%08x\nbattery=%s rc=0x%08x\n",
 +            iz2_clock_source == 1 ? "system" : iz2_clock_source == 2 ? "localtime" :
-+            iz2_clock_source == 3 ? "sd-timestamp" : "unavailable",
++            "unavailable",
 +            (unsigned)iz2_clock_result,
 +            iz2_battery_source == 1 ? "psm" : iz2_battery_source == 2 ? "psm-raw" : "unavailable",
 +            (unsigned)iz2_battery_result);
@@ -298,8 +310,9 @@
 +#endif
 +}
 +
-+void iz2_menu_status_publish(uint8_t *controls, uint8_t *snapshot)
++void iz2_menu_status_publish(uint8_t *controls, uint8_t *snapshot, bool menu_owned)
 +{
++    if (!menu_owned) return;
 +    const u64 now = armGetSystemTick();
 +    if (!iz2_status_started) {
 +        iz2_status_started = true;
@@ -320,6 +333,8 @@
 +    if (age >= armNsToTicks(UINT64_C(600000000)) &&
 +        (!iz2_battery_sampled || now - iz2_battery_tick >= armNsToTicks(UINT64_C(5000000000)))) {
 +        iz2_menu_status_sample_battery();
++        if (iz2_psm_open) psmExit();
++        iz2_psm_open = false;
 +        iz2_battery_tick = now;
 +        iz2_battery_sampled = true;
 +    }
@@ -333,7 +348,7 @@
 +    if (iz2_psm_open) psmExit();
 +    iz2_psm_open = false;
 +    iz2_clock_sampled = iz2_battery_sampled = false;
-+    iz2_status_started = iz2_sd_sampled = iz2_sd_attempted = false;
++    iz2_status_started = false;
 +    iz2_status = (IzMenuStatus){0};
 +}
 +
@@ -411,8 +426,50 @@
 +
 +#endif
 --- /dev/null
++++ b/engines/iz2s-core/source/izlauncher/ounce/menu-lifecycle.h
+@@ -0,0 +1,39 @@
++#ifndef IZ2_MENU_LIFECYCLE_H
++#define IZ2_MENU_LIFECYCLE_H
++
++/* Transition-only diagnostics. No background thread and no per-frame file I/O. */
++#include <malloc.h>
++#define IZ2_LIFECYCLE_LOG "sdmc:/iz2s/launcher-lifecycle.log"
++void iz2_lifecycle_trace(const IzContext *c,const char *phase,u32 result)
++{
++    static const char *names[]={"menu-enter","launch-begin","stop-request",
++        "native-stop-enter","native-stop-return","restore-menu","menu-restored","menu-exit"};
++    static u32 seen, previous[8];
++    unsigned index=0;
++    while(index<8&&strcmp(phase,names[index]))++index;
++    if(index==8)return;
++    if(index<2)seen=0;
++    if((seen&(1u<<index))&&previous[index]==result)return;
++    seen|=1u<<index;previous[index]=result;
++    if(!c)return;
++    struct stat st;
++    if(!stat(IZ2_LIFECYCLE_LOG,&st)&&st.st_size>65536){
++        /* Keep the immediately preceding session as well as the bounded log. */
++        if(unlink(IZ2_LIFECYCLE_LOG ".previous")&&errno!=ENOENT)return;
++        if(rename(IZ2_LIFECYCLE_LOG,IZ2_LIFECYCLE_LOG ".previous"))return;
++    }
++    FILE *f=fopen(IZ2_LIFECYCLE_LOG,"a");if(!f)return;
++    u64 used=0,limit=0;
++    Result ur=svcGetInfo(&used,InfoType_UsedMemorySize,CUR_PROCESS_HANDLE,0);
++    Result lr=svcGetInfo(&limit,InfoType_TotalMemorySize,CUR_PROCESS_HANDLE,0);
++    struct mallinfo heap=mallinfo();
++    const IzNative *n=&c->owner.native;
++    fprintf(f,"build=RUN32-Lifecycle-Audit-1 tick=%llu phase=%s rc=%08x app=%.48s active=%u native_rc=%08x poisoned=%u worker=%u worker_handle=%llu presentation=%u image_busy=%u image_async=%u image_token=%llu process_used=%llu process_limit=%llu memory_rc=%08x/%08x heap_free=%llu\n",
++        (unsigned long long)armGetSystemTick(),phase,result,c->last_id,c->active,
++        c->native_status,c->poisoned,n->worker_state,(unsigned long long)n->worker_thread,
++        n->presentation_owned,n->image_busy,n->image_async,(unsigned long long)n->image_token,
++        (unsigned long long)used,(unsigned long long)limit,ur,lr,(unsigned long long)(size_t)heap.fordblks);
++    /* Close flushes each transition before the following potentially failing call. */
++    fclose(f);
++}
++#endif
+--- /dev/null
 +++ b/engines/iz2s-core/source/izlauncher/ounce/menu-pipeline-cache.h
-@@ -0,0 +1,173 @@
+@@ -0,0 +1,179 @@
 +#ifndef IZ2_MENU_PIPELINE_CACHE_H
 +#define IZ2_MENU_PIPELINE_CACHE_H
 +#include <vulkan/vulkan.h>
@@ -440,6 +497,7 @@
 +static unsigned iz2_phase_count;
 +static struct {const char *name;u64 tick;} iz2_phases[16];
 +static bool iz2_start_reported;
++static void iz2_cache_close(void);
 +static void iz2_start_mark(const char *name){
 +    if(iz2_phase_count<16)iz2_phases[iz2_phase_count++]=(typeof(iz2_phases[0])){name,armGetSystemTick()};
 +}
@@ -566,6 +624,11 @@
 +    }
 +    free(data);
 +}
++/* Stop owning driver cache memory before entering any application. */
++void iz2_menu_cache_retire(void){
++    iz2_cache_save();
++    iz2_cache_close();
++}
 +void iz2_startup_catalog_ready(void){iz2_start_mark("catalog");}
 +void iz2_startup_frame(u64 frames){
 +    if(!frames)return;
@@ -573,7 +636,7 @@
 +    if(iz2_start_reported||armGetSystemTick()-iz2_first_frame_tick<armNsToTicks(UINT64_C(2000000000)))return;
 +    iz2_start_reported=true;
 +    /* One delayed report/cache save, never on the first-frame critical path. */
-+    iz2_cache_save();
++    iz2_menu_cache_retire();
 +    FILE *f=fopen("sdmc:/iz2s/launcher-startup.json","w");
 +    if(f){
 +        fprintf(f,"{\"scope\":\"native_menu\",\"cacheAccepted\":%s,\"stages\":[",iz2_cache_hit?"true":"false");

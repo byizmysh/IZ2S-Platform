@@ -8,11 +8,11 @@ This workflow packages existing compatible native components. A complete native 
 
 ```sh
 npm run check
-node --test tests/release/sd-kit.test.cjs
-node --test engines/IzCivSwitchFS/tools/session.test.cjs engines/IzCivSwitchFS/tools/iz2s.test.mjs
+node --test tests/release/sd-kit.test.cjs tests/release/stability-defaults.test.cjs
+node --test engines/IzCivSwitchFS/tools/session.test.cjs engines/IzCivSwitchFS/tools/iz2s.test.mjs engines/IzCivSwitchFS/tools/persist-verification.test.mjs
 ```
 
-The CI workflow also runs the Civ7-only navigation, save handling, UI and process/session lifecycle tests. These checks do not contact a console. The verifier checks recorded files, native build input/output bindings, descriptors, seven PC library modules, child-process resources and the four-app SD package. Tests preserve official IZA/companion bytes, reject malformed bundles and check every SD manifest entry.
+The CI workflow also runs the Civ7-only navigation, save handling, UI and process/session lifecycle tests. These checks do not contact a console. The verifier checks recorded files, native build input/output bindings, descriptors, seven PC library modules, child-process resources and the four-app SD package. Tests preserve the selected IZA/companion bytes, including the recorded IZPS2 local overlay, reject malformed bundles and check every SD manifest entry and the stability default flag.
 
 ## Build the SD archive
 

@@ -1,8 +1,8 @@
-# IZ2S for Civilization VII - 0.3.2
+# IZ2S for Civilization VII - 0.3.2 Stability-1
 
 **Linux-only local candidate, 25 November 2026. Not yet published to GitHub.**
 
-PC panel **0.3.2** and console launcher **0.32** are different version series. This package uses native revision **RUN32-0.32-Civ7-UI-Cache-Fix**.
+PC panel **0.3.2** and console launcher **0.32** are different version series. This package uses native revision **RUN32-0.32-Civ7-Lifecycle-Audit-1**.
 
 ## Panel
 
@@ -33,3 +33,13 @@ PC panel **0.3.2** and console launcher **0.32** are different version series. T
 Use the matching SD kit and follow the [full procedure](docs/INSTALLATION.md) when updating the native runtime. A PC-only documentation or layout change does not require changing a console save.
 
 Release preparation verifies source/runtime inventories, native build bindings, application exports and archive readback. Successful packaging is separate from a successful console boot. On-console validation of the newly packaged build and native Linux ARM64 host installation must be recorded separately. Full native corresponding-source limitations remain documented in [SOURCES.md](SOURCES.md).
+
+## Stability-1
+
+- Uses the same native menu and IZPS2 engine bytes as the successful console test; native diagnostic instrumentation is retained.
+- Disables optional IZPS2 VU disk persistence by default. The full SD ZIP and individual IZPS2 download archives include `vu-split-persist-off.flag`. Extract the full SD ZIP to install it; do not rely on Add app / PC Link to install this auxiliary file. The current native importer preserves an existing flag during an application update but does not extract it from an app archive. If the IZPS2 folder is deleted, restore the flag from this SD kit before launching IZPS2.
+- Ordinary VU JIT execution remains enabled. Subsequent sessions may need to compile code again; no controlled FPS comparison is claimed. Game saves and the menu startup cache are unchanged.
+- Preserves integrity checks, asset bindings, licenses and the four-app SD layout.
+- Carries forward the Civ7 save installer change that reads back and verifies the staged and committed save.
+
+Hardware evidence: one IZPS2 exit returned to the menu with all 52 files closed and no outstanding tracked worker/image state. The user additionally repeated IZtwiNS2 launch/exit and Civilization VII HOME -> X closure without error 2162-0002. The exact shared-process fault mechanism remains undetermined. This package has been reconstructed from those components; its complete installation/Load Game/R cycle still requires separate hardware qualification.

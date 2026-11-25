@@ -5,6 +5,7 @@ const TARGET='save:/saves/Single/IZ2SCIV.Civ7Save',ORDINARY='save:/saves/Single/
 function fixture({writeFail=false,commitFail=false,freeSpace=10000000}={}){
  const files=new Map([[TARGET,'previous IZ2S'],[ORDINARY,'ordinary save']]);let commits=0;
  const fake={exists:p=>files.has(p),mkdir:()=>{},freeSpace:()=>freeSpace,read:async p=>{if(!files.has(p))throw Error('Missing');return files.get(p);},
+  verify:async(p,v)=>{assert(files.has(p));assert.deepEqual(files.get(p),v);return {ok:true};},
   writeNew:async(p,v)=>{files.set(p,v);if(writeFail)throw Error('Write failed');},delete:p=>files.delete(p),
   rename:(from,to)=>{assert(files.has(from));assert(!files.has(to));files.set(to,files.get(from));files.delete(from);},
   writeAt:async()=>({ok:true}),commit:()=>{commits++;return {ok:!commitFail,error:'Commit failed'};},dispose:()=>{}};

@@ -25,6 +25,7 @@ static u64 iz2_start_tick,iz2_first_frame_tick;
 static unsigned iz2_phase_count;
 static struct {const char *name;u64 tick;} iz2_phases[16];
 static bool iz2_start_reported;
+static void iz2_cache_close(void);
 static void iz2_start_mark(const char *name){
     if(iz2_phase_count<16)iz2_phases[iz2_phase_count++]=(typeof(iz2_phases[0])){name,armGetSystemTick()};
 }
@@ -151,6 +152,11 @@ static void iz2_cache_save(void){
     }
     free(data);
 }
+/* Stop owning driver cache memory before entering any application. */
+void iz2_menu_cache_retire(void){
+    iz2_cache_save();
+    iz2_cache_close();
+}
 void iz2_startup_catalog_ready(void){iz2_start_mark("catalog");}
 void iz2_startup_frame(u64 frames){
     if(!frames)return;
@@ -158,7 +164,7 @@ void iz2_startup_frame(u64 frames){
     if(iz2_start_reported||armGetSystemTick()-iz2_first_frame_tick<armNsToTicks(UINT64_C(2000000000)))return;
     iz2_start_reported=true;
     /* One delayed report/cache save, never on the first-frame critical path. */
-    iz2_cache_save();
+    iz2_menu_cache_retire();
     FILE *f=fopen("sdmc:/iz2s/launcher-startup.json","w");
     if(f){
         fprintf(f,"{\"scope\":\"native_menu\",\"cacheAccepted\":%s,\"stages\":[",iz2_cache_hit?"true":"false");

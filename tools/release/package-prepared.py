@@ -29,7 +29,9 @@ def main():
     forbidden=[p for p in files if any(x in p.relative_to(stage).parts for x in ['.git','.versions','.venv','.local-setup','__pycache__','test-data']) or p.suffix.lower() in ['.core','.log','.key','.pem','.pyc','.exe','.dll','.cmd','.vbs'] or p.name.lower() in ['prod.keys','title.keys','.env']]
     if forbidden:raise RuntimeError('Private/generated files or Windows executables in Linux tree: '+str(forbidden[0].relative_to(stage)))
     expected={stage.name+'/'+p.relative_to(stage).as_posix():digest(p) for p in files}
-    archive=out/(stage.name+'.tar.gz')
+    label=profile.get('buildLabel','')
+    if label and not __import__('re').fullmatch(r'[A-Za-z0-9-]+',label):raise RuntimeError('Invalid build label')
+    archive=out/('IZ2S-Platform-'+profile['version']+('-'+label if label else '')+'-linux.tar.gz')
     if archive.exists():raise RuntimeError('Archive already exists; use a fresh workspace')
     with archive.open('wb') as output,gzip.GzipFile(filename='',fileobj=output,mode='wb',compresslevel=6,mtime=EPOCH) as compressed,tarfile.open(fileobj=compressed,mode='w',format=tarfile.PAX_FORMAT) as tar:
         for p in [stage,*paths]:

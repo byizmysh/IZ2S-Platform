@@ -189,6 +189,30 @@ window.__cfsCreateSaveFS = function (c) {
                 call('close', [handle]);
             } // CloseFile returns void.
         },
+        // Reuse the existing 64 KiB transfer buffer; do not allocate another save.
+        verify: async function (name, expected) {
+            if (!(expected instanceof Uint8Array) || expected.length < 1 ||
+                expected.length > window.__cfsSaveCodec.maximum)
+                throw new Error('Invalid verification data');
+            var handle = open(name, 1);
+            try {
+                check('size', [result, handle]);
+                if (c.read64(result) !== BigInt(expected.length))
+                    throw new Error('Save verification size mismatch: ' + name);
+                for (var offset = 0; offset < expected.length; offset += 65536) {
+                    var count = Math.min(65536, expected.length - offset);
+                    check('read', [result, handle, BigInt(offset), buffer, BigInt(count)]);
+                    if (c.read64(result) !== BigInt(count))
+                        throw new Error('Incomplete save verification read: ' + name);
+                    var actual = c.read_buffer(buffer, count);
+                    if (!window.__cfsSaveCodec.equal(actual, expected.subarray(offset, offset + count)))
+                        throw new Error('Save verification mismatch: ' + name + ' at block ' + offset);
+                    await pause();
+                }
+            } finally {
+                call('close', [handle]);
+            }
+        },
         writeNew: async function (name, bytes) {
             check('create', [path(path1, name), BigInt(bytes.length)]);
             var handle = open(name, 2);

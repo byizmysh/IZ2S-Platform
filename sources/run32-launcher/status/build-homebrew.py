@@ -37,8 +37,9 @@ def apply_hooks(source, hooks):
 def integrate(source):
     return apply_hooks(source, (
         ('#include <time.h>\n', '#include <time.h>\n#include "menu-status.h"\n'),
-        ('#include "menu-factory.h"\n', '#include "menu-factory.h"\n#include "menu-pipeline-cache.h"\n'),
+        ('#include "menu-factory.h"\n', '#include "menu-factory.h"\n#include "menu-pipeline-cache.h"\n#include "menu-lifecycle.h"\n'),
         ('static u32 run_menu(bool import){\n', 'static u32 run_menu(bool import){\n    iz2_start_begin();\n'),
+        ('    result=(u32)iz_run(c);\n', '    result=(u32)iz_run(c);\n    iz2_lifecycle_trace(c,"menu-exit",result);\n'),
         ('    if(import)record_sd_import(iz_import_incoming(0));\n', '    if(import)record_sd_import(iz_import_incoming(0));\n    iz2_start_mark("mount_and_import");\n'),
         ('    result=iz_ounce_platform_open(c);if(result)goto cleanup;\n', '    iz2_start_mark("resources");\n    result=iz_ounce_platform_open(c);if(result)goto cleanup;\n    iz2_start_mark("graphics_device");\n'),
         ('    result=iz_native_menu_build(c,header,image,&menu);if(result)goto cleanup;\n',
@@ -52,16 +53,32 @@ def integrate(source):
 
 def integrate_catalog(source):
     return apply_hooks(source, (
+        ('static u32 launch(IzFs*fs,Entry*entry,unsigned slot,Gpu*g,IzNative*n,IzCheckpointSession*checkpoint){\n',
+         'static u32 launch(IzFs*fs,Entry*entry,unsigned slot,Gpu*g,IzNative*n,IzCheckpointSession*checkpoint){\n#ifdef IZ_OUNCE_PRESENTATION\n iz2_menu_cache_retire();\n iz2_lifecycle_trace(fs->c,"launch-begin",0);\n#endif\n'),
+        ('   u32 sdk_stopped=sdkm_stop(c);',
+         '   iz2_lifecycle_trace(c,"stop-request",0);\n   u32 sdk_stopped=sdkm_stop(c);'),
+        ('   rc=iz_native_unload(native);\n',
+         '   iz2_lifecycle_trace(c,"native-stop-enter",0);\n   rc=iz_native_unload(native);\n   iz2_lifecycle_trace(c,"native-stop-return",rc);\n'),
+        ('    restore_menu(c,controls,c->last_app_error);\n',
+         '    iz2_lifecycle_trace(c,"restore-menu",c->last_app_error);\n    restore_menu(c,controls,c->last_app_error);\n'),
+        ('c->transitions++;first_release=0;\n',
+         'c->transitions++;first_release=0;\n    iz2_lifecycle_trace(c,"menu-restored",c->last_app_error);\n'),
+        ('  if(!c->active&&held)__atomic_store_n(&c->host_hold_ready,hold,__ATOMIC_RELEASE);\n',
+         '  if(!c->active&&held){iz2_menu_cache_retire();__atomic_store_n(&c->host_hold_ready,hold,__ATOMIC_RELEASE);}\n'),
+        ('   if(!c->active&&request&&request!=released&&claim==request){\n',
+         '   if(!c->active&&request&&request!=released&&claim==request){\n    iz2_menu_cache_retire();\n'),
         ('extern void iz_ounce_activity_publish(u8 *controls,u8 *snapshot);\n',
          'extern void iz_ounce_activity_publish(u8 *controls,u8 *snapshot);\n'
-         'extern void iz2_menu_status_publish(u8 *controls,u8 *snapshot);\n'
+         'extern void iz2_menu_status_publish(u8 *controls,u8 *snapshot,_Bool menu_owned);\n'
+         'extern void iz2_lifecycle_trace(const IzContext *c,const char *phase,u32 result);\n'
+         'extern void iz2_menu_cache_retire(void);\n'
          'extern void iz2_startup_catalog_ready(void);\nextern void iz2_startup_frame(u64 frames);\n'
          'extern void iz2_menu_versions_clear(u8 *snapshot);\n'
          'extern void iz2_menu_version_write(u8 *snapshot,u32 slot,const IzAppHeader *header,u32 program);\n'),
         (' u32 rc=publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,0);\n',
          ' u32 rc=publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,0);\n#ifdef IZ_OUNCE_PRESENTATION\n iz2_startup_catalog_ready();\n#endif\n'),
         ('if(c->active)sdkm_frame(c);}c->frames++;\n',
-         'if(c->active)sdkm_frame(c);}c->frames++;\n#ifdef IZ_OUNCE_PRESENTATION\n if(!c->active)iz2_startup_frame(c->frames);\n#endif\n'),
+         'if(c->active)sdkm_frame(c);}c->frames++;\n#ifdef IZ_OUNCE_PRESENTATION\n if(!c->active&&!held)iz2_startup_frame(c->frames);\n#endif\n'),
         (' memset(snapshot+MENU_TILES_AT,0,MENU_TILES_BYTES);\n',
          ' memset(snapshot+MENU_TILES_AT,0,MENU_TILES_BYTES);\n#ifdef IZ_OUNCE_PRESENTATION\n'
          ' iz2_menu_versions_clear(snapshot);\n#endif\n'),
@@ -73,7 +90,7 @@ def integrate_catalog(source):
          '   iz2_menu_version_write(snapshot,c->count,&h,0);\n#endif\n'
          '   if(c->platform_title)c->platform_title(tile,h.name);'),
         ('  if(!c->active&&!held)iz_ounce_activity_publish(controls,(void*)(uintptr_t)c->snapshot);\n',
-         '  if(!c->active)iz2_menu_status_publish(controls,(void*)(uintptr_t)c->snapshot);\n'
+         '  iz2_menu_status_publish(controls,(void*)(uintptr_t)c->snapshot,!c->active&&!held&&!c->poisoned);\n'
          '  if(!c->active&&!held)iz_ounce_activity_publish(controls,(void*)(uintptr_t)c->snapshot);\n'),
     ))
 
@@ -236,6 +253,7 @@ def write_patch(base, output):
                                           'a/'+path.as_posix(),'b/'+path.as_posix()))
     for name, source in ((STATUS_HEADER.name,STATUS_HEADER.read_text()),
                          (VERSION_HEADER.name,VERSION_HEADER.read_text()),
+                         ('menu-lifecycle.h',STATUS_HEADER.with_name('menu-lifecycle.h').read_text()),
                          ('menu-pipeline-cache.h',STATUS_HEADER.with_name('menu-pipeline-cache.h').read_text()),
                          (str(OFFICIAL_HEADER),shipped_versions(base))):
         lines.extend(difflib.unified_diff([],source.splitlines(True),'/dev/null',

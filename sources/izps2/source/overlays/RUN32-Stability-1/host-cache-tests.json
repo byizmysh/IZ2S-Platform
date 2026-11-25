@@ -1,0 +1,17 @@
+{
+  "scope": "Real production cache code on Linux with modeled owner-only write permission; no Switch/JIT execution",
+  "tests": [
+    {
+      "mode": "baseline",
+      "returncode": 0,
+      "output": "PASS mode=baseline ownerWrites=0 rejectedChildWrites=2\n",
+      "sourceSha256": "3b69f465277d821c9a5b66ffc7a90ce121c957fc90de86fbb98379b8378b30f3"
+    },
+    {
+      "mode": "trial",
+      "returncode": 0,
+      "output": "PASS mode=trial ownerWrites=176 rejectedChildWrites=0\n",
+      "sourceSha256": "78867860f9b77a4310b5ae5f9627cb61297d6c363f91bc036e13ba8153c4522d"
+    }
+  ]
+}

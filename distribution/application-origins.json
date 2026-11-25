@@ -27,6 +27,15 @@
     "bytes": 17393780,
     "sha256": "b60159db3d2111769d1392b85ee76cd6e07a839cabee12b99e1b92474f1eafde",
     "source": "https://api.github.com/repos/byizmysh/IZPS2-emulator/tarball/v0.5.0",
-    "sourceArchiveSha256": "a0003298aeeb1975e2de69fbdccbf8508f53ee1baec69a3f0bebf5c91f42b848"
+    "sourceArchiveSha256": "a0003298aeeb1975e2de69fbdccbf8508f53ee1baec69a3f0bebf5c91f42b848",
+    "localOverlay": {
+      "id": "RUN32-Stability-1",
+      "launcherSha256": "56d2640699ebfee3cab472a87ebdb23a59ee8a0ff1e746c9d998645784e7dd6a",
+      "engineSha256": "cb511c6a3465f95e6ee0047b4380ee7bef82e1abee671a86f3dc1fd6f9781dba",
+      "engineBytes": 42538024,
+      "vuDiskPersistence": "disabled-by-default",
+      "diagnosticInstrumentationRetained": true,
+      "source": "sources/izps2/source/overlays/RUN32-Stability-1"
+    }
   }
 ]

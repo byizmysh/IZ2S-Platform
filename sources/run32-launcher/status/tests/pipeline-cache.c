@@ -76,9 +76,22 @@ int main(int argc,char **argv){
   iz2_start_begin();iz2_cache_install(&c,code,bytes);assert(iz2_pipeline_cache);assert(iz2_cache_hit==(pass!=0));
   VkPipeline pipeline;u64 start=armGetSystemTick();assert(!FN(&c,F_CREATE_COMPUTE)(c.device,0,1,(u64)(uintptr_t)&pi,0,(u64)(uintptr_t)&pipeline,0,0));ms[pass]=(armGetSystemTick()-start)/1e6;if(argc==4){VkPipeline gp;u64 t=armGetSystemTick();assert(!FN(&c,F_CREATE_GRAPHICS)(c.device,0,1,(u64)(uintptr_t)&gi,0,(u64)(uintptr_t)&gp,0,0));gms[pass]=(armGetSystemTick()-t)/1e6;vkDestroyPipeline(device,gp,NULL);}
   hits[pass]=iz2_pipeline_hits;
-  iz2_cache_unhook(&c);assert(c.functions[F_CREATE_COMPUTE]==(u64)(uintptr_t)compute);vkDestroyPipeline(device,pipeline,NULL);
+  iz2_cache_unhook(&c);assert(c.functions[F_CREATE_COMPUTE]==(u64)(uintptr_t)compute);
   if(!pass){assert(access(IZ2_CACHE_PATH,F_OK));iz2_cache_save();assert(!access(IZ2_CACHE_PATH,F_OK));}
-  iz2_cache_close();
+  iz2_menu_cache_retire();assert(!iz2_pipeline_cache&&!iz2_cache_device);
+  // This pipeline is still alive when the optional cache is released.
+  VkCommandPoolCreateInfo cp={.sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};VkCommandPool pool;
+  assert(!vkCreateCommandPool(device,&cp,NULL,&pool));
+  VkCommandBufferAllocateInfo cb={.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,.commandPool=pool,.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,.commandBufferCount=1};VkCommandBuffer command;
+  assert(!vkAllocateCommandBuffers(device,&cb,&command));
+  VkCommandBufferBeginInfo begin={.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};assert(!vkBeginCommandBuffer(command,&begin));
+  vkCmdBindPipeline(command,VK_PIPELINE_BIND_POINT_COMPUTE,pipeline);assert(!vkEndCommandBuffer(command));
+  VkQueue queue;vkGetDeviceQueue(device,0,0,&queue);
+  VkSubmitInfo submit={.sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,.commandBufferCount=1,.pCommandBuffers=&command};
+  assert(!vkQueueSubmit(queue,1,&submit,VK_NULL_HANDLE));assert(!vkQueueWaitIdle(queue));
+  // Repeated retire calls on later launch/return transitions are harmless.
+  iz2_menu_cache_retire();assert(!iz2_pipeline_cache&&!iz2_cache_device);
+  vkDestroyCommandPool(device,pool,NULL);vkDestroyPipeline(device,pipeline,NULL);
  }
  size_t file_bytes;uint8_t *saved=read_file(IZ2_CACHE_PATH,&file_bytes);Iz2CacheHeader *h=(void*)saved;uint8_t *payload=saved+sizeof *h;
  assert(iz2_cache_valid(h,payload,file_bytes-sizeof *h,&iz2_cache_identity));

@@ -1,0 +1,9 @@
+{
+  "trialOnly": true,
+  "candidateBytes": 42538024,
+  "candidateSha256": "cb511c6a3465f95e6ee0047b4380ee7bef82e1abee671a86f3dc1fd6f9781dba",
+  "baselineSha256": "43daa2c17e3ecf4f336c93a68edccdeaec8361e3429619cb046b624a6952f17b",
+  "relocationChecksPassed": true,
+  "consoleFixConfirmed": false,
+  "change": "VU cache writer checkpoints run on caller; background reads and cache encoding/validation unchanged."
+}

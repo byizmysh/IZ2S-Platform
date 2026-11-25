@@ -48,5 +48,7 @@
       "linux-arm64"
     ]
   },
-  "releaseTarget": "source"
+  "releaseTarget": "source",
+  "buildId": "civ7-stability-1",
+  "buildLabel": "Stability-1"
 }

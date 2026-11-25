@@ -259,7 +259,7 @@ window.__cfsCreateInstaller = function (options) {
         template.chunks.push({ index: index, offset: offset, data: data });
         return templateProgress();
     }
-    // Prepare in RAM, retain previous triggers outside the game list, then commit once.
+    // Verify the staged file before replacing the canonical save, then commit once.
     async function operate(publish, staged) {
         if (busy || disposed) throw new Error('Installer busy or closed');
         busy = true;
@@ -286,6 +286,8 @@ window.__cfsCreateInstaller = function (options) {
                         throw new Error('Not enough save space. Existing saves were kept.');
                     if (fs.exists(pendingPath)) fs.delete(pendingPath);
                     await fs.writeNew(pendingPath, candidate);
+                    state('Verifying staged save...');
+                    await fs.verify(pendingPath, candidate);
                     fs.mkdir('save:/saves');
                     fs.mkdir('save:/saves/Single');
                     // Replace only the canonical save after the complete new file is staged.
@@ -318,6 +320,9 @@ window.__cfsCreateInstaller = function (options) {
                                 ? commitResult.error
                                 : 'Commit failed'
                         );
+                    state('Verifying installed save...');
+                    await fs.verify(sourcePath, candidate);
+                    report.readbackVerified = true;
                     installed = true;
                     // Save-side UI status only; the status forwarder in the
                     // bootstrap suppresses "Installed.*" from the log — the
@@ -338,7 +343,7 @@ window.__cfsCreateInstaller = function (options) {
                 }
             });
         } catch (error) {
-            if (introStatus === null) state('Failure: ' + error.message);
+            state('Failure: ' + error.message);
             throw error;
         } finally {
             busy = false;
