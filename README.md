@@ -16,12 +16,12 @@ The panel guides SD preparation, PC preparation, connection with automatic save 
 
 ## Release 0.3.2
 
-This is a **local release candidate**. The 0.3.2 assets have not been published to GitHub yet. This edition is **Linux only**. The prepared filenames are:
+Download [IZ2S 0.3.2](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.3.2). This edition is **Linux only** and includes the matching Civilization VII SD kit:
 
 | Asset | Purpose |
 | --- | --- |
-| `IZ2S-0.3.2-linux.tar.gz` | Linux x64 / ARM64; full initial installation and PC tools |
-| `iz2sciv-core-sd.zip` | Matching runtime, four SD applications, resources and licenses |
+| [IZ2S-0.3.2-linux.tar.gz](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.2/IZ2S-0.3.2-linux.tar.gz) | Linux x64 / ARM64; full initial installation and PC tools |
+| [iz2sciv-core-sd.zip](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.2/iz2sciv-core-sd.zip) | Matching runtime, four SD applications, resources and licenses |
 
 ## Requirements
 
@@ -73,6 +73,7 @@ Application companions, manifests and license files must stay with their launche
 ## Checks, source and support
 
 - [Release notes](RELEASE-NOTES.md): Civ7-only UI, automatic save installation and shader-cache replacement fix.
+- [Validation results](docs/VALIDATION-0.3.2.md): first-install tests, confirmed console observations and remaining checks.
 - [Build and verification](BUILDING.md): local checks, SD packaging and prepared installer archives.
 - [Source scope](SOURCES.md): recorded provenance and remaining native rebuild limitations.
 - [Support](SUPPORT.md): useful diagnostics without sharing private keys or session tokens.

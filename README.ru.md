@@ -12,12 +12,12 @@ IZ2S объединяет панель настройки на ПК и лаун�
 
 ## Сборка 0.3.2
 
-Сборка подготовлена как **локальный кандидат только для Linux**; публикации 0.3.2 на GitHub пока нет.
+[Скачать IZ2S 0.3.2](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.3.2). Эта версия предназначена **только для Linux** и включает согласованный SD-комплект для Civilization VII.
 
 | Файл | Назначение |
 | --- | --- |
-| `IZ2S-0.3.2-linux.tar.gz` | Linux x64 / ARM64, полная первоначальная установка |
-| `iz2sciv-core-sd.zip` | Согласованные файлы лаунчера, четыре приложения и лицензии для SD |
+| [IZ2S-0.3.2-linux.tar.gz](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.2/IZ2S-0.3.2-linux.tar.gz) | Linux x64 / ARM64, полная первоначальная установка |
+| [iz2sciv-core-sd.zip](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.2/iz2sciv-core-sd.zip) | Согласованные файлы лаунчера, четыре приложения и лицензии для SD |
 
 ## Что потребуется
 

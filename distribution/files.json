@@ -278,18 +278,18 @@
       "executable": false
     },
     "README.md": {
-      "bytes": 10537,
-      "sha256": "5dff76c1624ddd88e434d2a855bdb46519f52f15e92c4bb569ac847a1a8b8dcf",
+      "bytes": 10854,
+      "sha256": "5a73549449c3702551007c4397b8d4c2724dd62a01d49869c449c2634ffdca9b",
       "executable": false
     },
     "README.ru.md": {
-      "bytes": 7158,
-      "sha256": "7ede1920c69b6694e98f16e4d1372ffd51a0b78a310950994058c5b4c7bc865c",
+      "bytes": 7431,
+      "sha256": "69aeeeecda342f9ad68f9f68369326c90219a38c5412c4faf15a15e4049306d3",
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "bytes": 4940,
-      "sha256": "f0396bd42c4f8211406283477f673f6a9b586fb4cbadab647cadf511211f5cfa",
+      "bytes": 5232,
+      "sha256": "fe3238c3fa57df5db33a10c2e1af9b43887eb9b04fe32aaf2988c3ad5aa5a17a",
       "executable": false
     },
     "SOURCES.md": {
@@ -2393,8 +2393,8 @@
       "executable": false
     },
     "distribution/profile.json": {
-      "bytes": 953,
-      "sha256": "7b05831f53bd47e9f4631f2707a6f0d5579f925137b8b0fbebc8b5847304ed1e",
+      "bytes": 945,
+      "sha256": "b7f11646cd160af5b8c037e8475387c0de734317709686e8c844409525ba4982",
       "executable": false
     },
     "distribution/release.py": {
@@ -140115,6 +140115,11 @@
     "tests/release/stability-defaults.test.cjs": {
       "bytes": 2985,
       "sha256": "835fe9b03b308371574b61246890392e30c7c0856a4c9573571ba7f5ebb08253",
+      "executable": false
+    },
+    "docs/VALIDATION-0.3.2.md": {
+      "bytes": 4140,
+      "sha256": "75c24f6344def1ff78f5a865d61e53604b57f9c2bb677247bd90adf760a0befa",
       "executable": false
     }
   }

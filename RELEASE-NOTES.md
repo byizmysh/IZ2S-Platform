@@ -1,6 +1,6 @@
 # IZ2S 0.3.2
 
-**Linux-only local candidate, 25 November 2026. Not yet published to GitHub.**
+**Linux-only release, 25 November 2026.**
 
 PC panel **0.3.2** and console launcher **0.32** are different version series. This package uses native revision **RUN32-0.32-Civ7-Lifecycle-Audit-1**.
 
@@ -32,7 +32,7 @@ PC panel **0.3.2** and console launcher **0.32** are different version series. T
 
 Use the matching SD kit and follow the [full procedure](docs/INSTALLATION.md) when updating the native runtime. A PC-only documentation or layout change does not require changing a console save.
 
-Release preparation verifies source/runtime inventories, native build bindings, application exports and archive readback. Successful packaging is separate from a successful console boot. On-console validation of the newly packaged build and native Linux ARM64 host installation must be recorded separately. Full native corresponding-source limitations remain documented in [SOURCES.md](SOURCES.md).
+Release preparation verifies source/runtime inventories, native build bindings, application exports and archive readback. A fresh ordinary Linux x64 installation completed on its first attempt with `sh ./install.sh --launch`; the user confirmed that the window and interface opened. A separate minimal Ubuntu container verified automatic dependency installation. See [validation results](docs/VALIDATION-0.3.2.md) for the exact scope and limitations. Successful packaging is separate from a successful console boot. On-console validation of the newly packaged build and native Linux ARM64 host installation must be recorded separately. Full native corresponding-source limitations remain documented in [SOURCES.md](SOURCES.md).
 
 ## Stability update
 
