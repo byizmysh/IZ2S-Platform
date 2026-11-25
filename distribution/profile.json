@@ -49,6 +49,5 @@
     ]
   },
   "releaseTarget": "source",
-  "buildId": "civ7-stability-1",
-  "buildLabel": "Stability-1"
+  "buildId": "civ7-stability-1"
 }

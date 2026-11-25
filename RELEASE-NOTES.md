@@ -1,4 +1,4 @@
-# IZ2S for Civilization VII - 0.3.2 Stability-1
+# IZ2S 0.3.2
 
 **Linux-only local candidate, 25 November 2026. Not yet published to GitHub.**
 
@@ -34,7 +34,7 @@ Use the matching SD kit and follow the [full procedure](docs/INSTALLATION.md) wh
 
 Release preparation verifies source/runtime inventories, native build bindings, application exports and archive readback. Successful packaging is separate from a successful console boot. On-console validation of the newly packaged build and native Linux ARM64 host installation must be recorded separately. Full native corresponding-source limitations remain documented in [SOURCES.md](SOURCES.md).
 
-## Stability-1
+## Stability update
 
 - Uses the same native menu and IZPS2 engine bytes as the successful console test; native diagnostic instrumentation is retained.
 - Disables optional IZPS2 VU disk persistence by default. The full SD ZIP and individual IZPS2 download archives include `vu-split-persist-off.flag`. Extract the full SD ZIP to install it; do not rely on Add app / PC Link to install this auxiliary file. The current native importer preserves an existing flag during an application update but does not extract it from an app archive. If the IZPS2 folder is deleted, restore the flag from this SD kit before launching IZPS2.

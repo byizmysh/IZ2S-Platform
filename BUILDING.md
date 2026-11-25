@@ -29,7 +29,7 @@ This writes `engines/IzCivSwitchFS/dist/iz2sciv-core-sd.zip` and prints its SHA-
 Prepare a separate workspace containing only:
 
 ```text
-staging/IZ2S-Platform-0.3.2-linux/
+staging/IZ2S-0.3.2-linux/
 ```
 
 Use a verified complete release tree, not an installed user's folder. Include both Linux Electron runtime kits and all their notices. Root `data/` and `dist/` must be empty. No keys, pairing, console caches, logs or old sessions belong in staging. The profile's `releaseTarget` is `linux`; Windows installation files and executables must be absent.

@@ -1,6 +1,6 @@
-# IZ2S for Civilization VII
+# IZ2S 0.3.2
 
-**Stability-1:** optional IZPS2 VU disk persistence is disabled by default. Keep `vu-split-persist-off.flag` installed. The menu startup cache and game saves are unchanged. See [release notes](RELEASE-NOTES.md) for the tested scenarios and remaining validation.
+**Stability update:** optional IZPS2 VU disk persistence is disabled by default. Keep `vu-split-persist-off.flag` installed. The menu startup cache and game saves are unchanged. See [release notes](RELEASE-NOTES.md) for the tested scenarios and remaining validation.
 
 **PC panel 0.3.2 · Console launcher 0.32 · Maintained by IZMYSH**
 
@@ -20,7 +20,7 @@ This is a **local release candidate**. The 0.3.2 assets have not been published 
 
 | Asset | Purpose |
 | --- | --- |
-| `IZ2S-Platform-0.3.2-Stability-1-linux.tar.gz` | Linux x64 / ARM64; full initial installation and PC tools |
+| `IZ2S-0.3.2-linux.tar.gz` | Linux x64 / ARM64; full initial installation and PC tools |
 | `iz2sciv-core-sd.zip` | Matching runtime, four SD applications, resources and licenses |
 
 ## Requirements
@@ -43,7 +43,7 @@ Extract the complete installation archive into a new folder.
 sh ./install.sh --launch
 ```
 
-The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S 0.3.2 - Civilization VII** shortcut or run `./start.sh` in the installed folder.
+The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S 0.3.2** shortcut or run `./start.sh` in the installed folder.
 
 The normal panel address is `http://127.0.0.1:39532/`. Use the URL opened or printed by the launcher, which includes local session authorization. Preview is available with `./preview.sh` or `node start.cjs --preview --no-open`; it opens a separate temporary port and disables console actions.
 

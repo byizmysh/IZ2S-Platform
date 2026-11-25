@@ -23,8 +23,8 @@
       "executable": false
     },
     "BUILDING.md": {
-      "bytes": 3075,
-      "sha256": "85017c5f95286f990a2de28ba7ebf78cb7314dc9601504933029f23fb49ca029",
+      "bytes": 3066,
+      "sha256": "8de73895ea80a3f203ef3c53ff89d84477c2a35e472b9656afc7662cbb960b6e",
       "executable": false
     },
     "COMPATIBILITY.md": {
@@ -273,23 +273,23 @@
       "executable": false
     },
     "README-0.3.2.txt": {
-      "bytes": 302,
-      "sha256": "c788f75f0d7ed1a3fc78d55db474d8df77c5b0c732164547446d5c9dbe5df0cd",
+      "bytes": 254,
+      "sha256": "2ea2905050d1c0488da41d05559479c79e0d0c066bcabf8d8195a2547e567dbf",
       "executable": false
     },
     "README.md": {
-      "bytes": 10587,
-      "sha256": "82227812441ce9b815d88d2d53ca183cb1cc25248b7b8e24cc02de196f236e49",
+      "bytes": 10537,
+      "sha256": "5dff76c1624ddd88e434d2a855bdb46519f52f15e92c4bb569ac847a1a8b8dcf",
       "executable": false
     },
     "README.ru.md": {
-      "bytes": 7216,
-      "sha256": "2579e334216cb0dc335240984c2af2e4c4b464a753ec44f9f7d45de0e5819b91",
+      "bytes": 7158,
+      "sha256": "7ede1920c69b6694e98f16e4d1372ffd51a0b78a310950994058c5b4c7bc865c",
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "bytes": 4970,
-      "sha256": "58768272dc3ab67267f66c45a631e21845daa009ca5674baa2f8f9a118595c06",
+      "bytes": 4940,
+      "sha256": "f0396bd42c4f8211406283477f673f6a9b586fb4cbadab647cadf511211f5cfa",
       "executable": false
     },
     "SOURCES.md": {
@@ -2363,8 +2363,8 @@
       "executable": false
     },
     "desktop/install.cjs": {
-      "bytes": 2627,
-      "sha256": "a86a3ce2bf15b0fab1bbfdccc713515d1624189418c98665b5e20c3f031c47af",
+      "bytes": 2608,
+      "sha256": "8c0262d26817f68eaee4645e2740a3c29f067ce961cecf9f5bd33446df9a4542",
       "executable": false
     },
     "desktop/iz2s.ico": {
@@ -2393,8 +2393,8 @@
       "executable": false
     },
     "distribution/profile.json": {
-      "bytes": 984,
-      "sha256": "9a0cdd2e3b188a2253caaf81bb01689e97f023d52aff232ff66ede03c92d9e28",
+      "bytes": 953,
+      "sha256": "7b05831f53bd47e9f4631f2707a6f0d5579f925137b8b0fbebc8b5847304ed1e",
       "executable": false
     },
     "distribution/release.py": {
@@ -5668,8 +5668,8 @@
       "executable": false
     },
     "engines/IzCivSwitchFS/tools/sd-package.mjs": {
-      "bytes": 4144,
-      "sha256": "9ae3a2dc7f238c3a3cdbc7055a692ca5c28338b955c3bf509f880aa29a72a74a",
+      "bytes": 4143,
+      "sha256": "5d0c70dc442c1bd458b0086a5a2a3da37b680cd6e866bc5d9b6521d96e29b0ac",
       "executable": false
     },
     "engines/IzCivSwitchFS/tools/send.mjs": {
@@ -140028,8 +140028,8 @@
       "executable": true
     },
     "tools/release/package-prepared.py": {
-      "bytes": 4467,
-      "sha256": "2f42cc3c0c70f05f926219775b7223ce7cb88a39cdf23e6767b803aa7956ff94",
+      "bytes": 4267,
+      "sha256": "d9ea1c4eae28d5f6abf658119ea19d723c299f329821d6904b376aebeb0eb0c4",
       "executable": false
     },
     "tools/resident/prepare.cjs": {

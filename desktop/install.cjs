@@ -8,7 +8,7 @@ const {launcher} = require('../engines/iz2s-core/runtime/provenance.json');
 const {panelPort} = require('../panel/profile.json');
 function desktopEntry({ root, icon }) {
   const quote = value => '"' + value.replace(/[\\"`$]/g, "\\$&").replace(/%/g, "%%") + '"';
-  return `[Desktop Entry]\nVersion=1.0\nType=Application\nName=IZ2S ${panelVersion} - Civilization VII\nGenericName=Switch 2 control panel\nComment=PC panel ${panelVersion} / Launcher ${launcher.version} / ${launcher.revision} / port ${panelPort}\nExec=${quote(path.join(root, "start.sh"))}\nPath=${root}\nIcon=${icon}\nTerminal=false\nStartupNotify=false\nCategories=Game;\nKeywords=IZ2S;IZ2s;IZPSlauncher;Switch;RUN32;${panelVersion};${launcher.version};\n`;
+  return `[Desktop Entry]\nVersion=1.0\nType=Application\nName=IZ2S ${panelVersion}\nGenericName=Switch 2 control panel\nComment=PC panel ${panelVersion} / Launcher ${launcher.version} / ${launcher.revision} / port ${panelPort}\nExec=${quote(path.join(root, "start.sh"))}\nPath=${root}\nIcon=${icon}\nTerminal=false\nStartupNotify=false\nCategories=Game;\nKeywords=IZ2S;IZ2s;IZPSlauncher;Switch;RUN32;${panelVersion};${launcher.version};\n`;
 }
 async function install({
   home = os.homedir(),

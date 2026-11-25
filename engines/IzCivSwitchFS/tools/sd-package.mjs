@@ -34,7 +34,7 @@ export async function buildSdPackage() {
         "Extract the contents of the ZIP to the root of the SD card. If the iz2s folder already exists, merge the folders\n" +
         "and replace matching files from the archive. Keep all other applications.\n" +
         "Included apps: IZ2S Cheese, IZPSX, IZPS2, and IZ File Deck (Foldrift).\n" +
-        "Stability-1 includes vu-split-persist-off.flag: optional IZPS2 VU disk persistence is disabled. Keep this file installed.\n" +
+        "IZ2S 0.3.2 includes vu-split-persist-off.flag: optional IZPS2 VU disk persistence is disabled. Keep this file installed.\n" +
         "Insert the SD card back into the powered-off console.\n" +
         `RUN32: PC panel 0.3.2; launcher ${provenance.launcher.version}, ${provenance.launcher.revision}. The native launcher is embedded in game/main; no standalone IZ2S.nro is required.\n` +
         "After changing the runtime revision, reinstall the Civ7 launch save using this panel: its SD manifest is embedded at installation.\n")});
