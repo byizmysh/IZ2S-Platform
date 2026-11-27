@@ -2438,8 +2438,8 @@
       "executable": false
     },
     "distribution/verify.cjs": {
-      "bytes": 5406,
-      "sha256": "b866d764ee032e11b52bef4467680fbfd61544816109501b8001b2527626970f",
+      "bytes": 5497,
+      "sha256": "c39ad919980a47c61aee8c4737a79a921b22c3a9d46a425d85a36d2fd009fd4c",
       "executable": false
     },
     "docs/APPLICATIONS.md": {
@@ -4818,8 +4818,8 @@
       "executable": false
     },
     "engines/iz2sciv-network/session.cjs": {
-      "bytes": 18129,
-      "sha256": "44987887ecae82d5bb14e8410869e51c4304e265376666679d4ca40aea08b80b",
+      "bytes": 17967,
+      "sha256": "043dc6b7ad79d9727b14042693cd3c9ccd2c9f79670c64d4dd169ea9724d5bbc",
       "executable": false
     },
     "engines/iz2sciv-network/setup.cjs": {
@@ -4830,11 +4830,6 @@
     "engines/iz2sciv-shared/LICENSE": {
       "bytes": 1063,
       "sha256": "c0675240c74693e44d256a070ddf59f3d99ce7a87c82f8dfa0dbda53f3647053",
-      "executable": false
-    },
-    "engines/iz2sciv-shared/probe.py": {
-      "bytes": 803,
-      "sha256": "6493cefefd01918a0d250bc58d5b33bc80662ed4dc7d4dc84570b1585474953b",
       "executable": false
     },
     "engines/iz2sciv-shared/runtime/discovery.cjs": {
@@ -135390,6 +135385,11 @@
     "sources/nro-runtime-stage2/README.txt": {
       "bytes": 4022,
       "sha256": "18f5e70b6aeca054a06ad7f37ff3529d2796aa5e2a0f03de7ca0adc04c778565",
+      "executable": false
+    },
+    "tests/release/loader-probe.test.cjs": {
+      "bytes": 3772,
+      "sha256": "349770cdce858b5d3e565c971bf557bb743277d62ce1c18a10493ea4a95a8c16",
       "executable": false
     }
   }

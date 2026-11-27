@@ -30,6 +30,8 @@ async function verify(){
   'engines/iz2sciv-network/bash/network-panel.sh',
   'engines/iz2sciv-network/bash/network.sh',
   'engines/iz2sciv-network/bash/setup.sh',
+  'engines/iz2sciv-network/session.cjs',
+  'engines/iz2sciv-shared/runtime/discovery.cjs',
   'engines/iz2s-core/tools/pc-link.cjs',
   'engines/iz2s-core/tools/pc-link-files.cjs',
   'engines/iz2s-core/tools/pc-link-state.cjs',

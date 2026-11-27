@@ -8,7 +8,7 @@ const PORT = 9026;
 const discovery = require('../iz2sciv-shared/runtime/discovery.cjs');
 function create({root, settings, connections, configuration, preview = false, launch = spawn,
   inspect = integration.inspect, now = Date.now, pause = ms => new Promise(resolve => setTimeout(resolve, ms)),
-  platform=process.platform, discoverNetwork=discovery.discover, protocolProbe=discovery.probe, loaderWaitMs = 120000, discoverLoader = require('./loader.js').discoverLoader}) {
+  discoverNetwork=discovery.discover, protocolProbe=discovery.probe, loaderWaitMs = 120000, discoverLoader = require('./loader.js').discoverLoader}) {
   const p = integration.paths(root), file = path.join(root, 'data/state/civswitchldn.json'), ledger = createLedger(root);
   let saved = {phase: 'idle', host: '', hostMode:'auto', phy: '', hostMac: '', chatDelay: 10, handshakeScale: 1, index: 0, total: 19};
   let task = null, child = null, interrupted = false, ready = false, verifiedHost = '', setup = null, checking = null;
@@ -120,9 +120,10 @@ function create({root, settings, connections, configuration, preview = false, la
   }
   async function verifyLoader(host) {
     saved.phase = 'checking'; saved.networkStage='checking'; ready = false; await persist();
-    const result = platform==='linux'&&setup.dependenciesReady ? await run(p.python, ['-u', path.join(root, 'engines/iz2sciv-shared/probe.py'), host, String(PORT)]) :
-      await protocolProbe(host,{signal:search?.signal,timeout:6000}) ? 'CIVSWITCH_LOADER_VERIFIED' : 'CIVSWITCH_LOADER_TIMEOUT';
-    if (!result.includes('CIVSWITCH_LOADER_VERIFIED')) throw Error('The game loader did not confirm TCP 9026');
+    // Use the same bounded protocol probe as discovery. Python is needed for
+    // LDN delivery, not for this TCP check or save-installation recovery.
+    if (!await protocolProbe(host,{signal:search?.signal,timeout:8000}))
+      throw Error('CIVSWITCH_LOADER_TIMEOUT');
     ready = true; verifiedHost = host; saved.phase = 'ready'; saved.networkStage='ready'; log('Remote JS Loader verified on TCP 9026.');
   }
   async function waitForLoader(host, {once=false,automatic=false}={}) {
