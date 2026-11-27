@@ -12,7 +12,7 @@ node --test tests/release/sd-kit.test.cjs tests/release/stability-defaults.test.
 node --test engines/IzCivSwitchFS/tools/session.test.cjs engines/IzCivSwitchFS/tools/iz2s.test.mjs engines/IzCivSwitchFS/tools/persist-verification.test.mjs
 ```
 
-The CI workflow also runs the Civ7-only navigation, save handling, UI and process/session lifecycle tests. These checks do not contact a console. The verifier checks recorded files, native build input/output bindings, descriptors, eight PC library modules, child-process resources and the five-app SD package. Tests preserve the selected IZA/companion bytes, including the recorded IZPS2 local overlay, reject malformed bundles and check every SD manifest entry and the stability default flag.
+The CI workflow also runs the Civ7-only navigation, save handling, UI and process/session lifecycle tests. These checks do not contact a console. The verifier checks recorded files, native build input/output bindings, descriptors, eight PC library modules, child-process resources and the four-app SD package. Tests preserve the selected IZA/companion bytes, including the recorded IZPS2 local overlay, reject malformed bundles and check every SD manifest entry and the stability default flag in the separate IZPS2 export.
 
 ## Build the SD archive
 
@@ -40,6 +40,6 @@ Run from the source checkout:
 python3 tools/release/package-prepared.py --workspace /absolute/path/to/release-workspace
 ```
 
-The tool checks the exact allowed inventory, creates a deterministic Linux tar.gz under `archives/`, reads every file back and writes SHA-256 plus reports. It refuses existing output archives. Hash updates are a deliberate release step after provenance and compatibility review; the tool never changes hashes to bypass failures.
+The tool checks the exact allowed inventory, builds the SD ZIP and embeds it next to `install.sh` inside the Linux tar.gz. It wraps the tar.gz in a ZIP and writes all three verified archives and their SHA-256 checksums under `archives/`. It refuses existing output archives. Hash updates are a deliberate release step after provenance and compatibility review; the tool never changes hashes to bypass failures.
 
 A source snapshot alone does not contain all inputs needed to reconstruct the complete host package or native runtime. See `distribution/application-origins.json`, native provenance and [SOURCES.md](SOURCES.md). Local packaging does not publish to GitHub or verify a console launch. ARM64 host execution must be tested separately from x64 packaging.

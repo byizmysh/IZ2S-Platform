@@ -158,7 +158,7 @@ export async function prepare(panel, output) {
       'Do not copy it into Nintendo or delete your personal game saves.\n\n' +
       'Compatible IZA applications can use Split. NRO applications remain fullscreen.\n' +
       'See README-RUN33.md for the current controls.\n' +
-      'Original app packages, licences and vu-split-persist-off.flag are retained.\n\n' +
+      'The archive contains IZ2S Cheese, IZPSX, Foldrift and NX2 BreRUN with their licences.\n\n' +
       'Local archive and save compatibility have been checked. Actual Load Game,\n' +
       'R launch and simultaneous native app execution require console testing.\n')
   };

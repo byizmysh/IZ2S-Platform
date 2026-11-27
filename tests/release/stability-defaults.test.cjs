@@ -29,12 +29,3 @@ test('IZPS2 module export and subsequent import retain the stability policy and 
   assert.equal(archive.sha(await fs.readFile(path.join(installed.folder,asset))),asset.slice(6,70));
  }finally{await fs.rm(scratch,{recursive:true,force:true});}
 });
-test('full SD kit includes the same flag in its verified inventory',async()=>{
- const {buildSdPackage}=await import('../../engines/IzCivSwitchFS/tools/sd-package.mjs');
- const output=await buildSdPackage(),files=new Map(archive.decode(output.bytes).map(f=>[f.name,f.bytes]));
- const name='iz2s/modules/izps2/'+flag,manifest=JSON.parse(files.get('iz2s/iz2sciv-sd-manifest.json'));
- assert.equal(manifest.buildId,require('../../distribution/profile.json').buildId);
- assert.equal(archive.sha(files.get(name)),flagSha);
- assert.deepEqual(manifest.files.find(f=>f.path===name),{path:name,bytes:72,sha256:flagSha});
- assert(![...files.keys()].some(n=>n.startsWith('Nintendo/')||n.startsWith('switch/')||n.toLowerCase().endsWith('/iz2s.nro')));
-});

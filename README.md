@@ -16,8 +16,8 @@ IZ2S 0.34 supports Linux x64 and ARM64. The release contains these files.
 
 | Asset | Purpose |
 | --- | --- |
-| `IZ2S-0.34-linux.tar.gz` | Full PC panel and installer |
-| `iz2sciv-core-sd.zip` | Matching console runtime, five applications and their licenses |
+| `IZ2S-0.34-linux.zip` | Contains `IZ2S-0.34-linux.tar.gz` with the PC installer and SD archive |
+| `iz2sciv-core-sd.zip` | Matching console runtime, four applications and their licenses. Also available separately. |
 
 ## Requirements
 
@@ -31,7 +31,7 @@ Firmware, game edition and version are specific requirements; this release does 
 
 ## Start the PC panel
 
-Extract the complete installation archive into a new folder.
+Open `IZ2S-0.34-linux.zip` and extract the `.tar.gz` inside it into a new folder. The extracted `IZ2S-0.34-linux` folder includes `iz2sciv-core-sd.zip` next to `install.sh`.
 
 **Linux:** open a terminal there and run:
 
@@ -45,7 +45,7 @@ The normal panel address is `http://127.0.0.1:39534/`. Use the URL opened or pri
 
 ## Install and launch
 
-1. **SD card:** download the package in the panel and extract its contents to the card root. If updating older IZ2S, replace the matching files too. Keep the `Nintendo` folder, other applications, BIOS, games and saves. Safely eject the card.
+1. **SD card:** use the bundled `iz2sciv-core-sd.zip` or download it in the panel, then extract its contents to the card root. If updating older IZ2S, replace the matching files too. Keep the `Nintendo` folder, other applications, BIOS, games and saves. Safely eject the card.
 2. **Prepare PC:** complete the dependency, key and Wi-Fi checks shown by the panel.
 3. **Connect and install save:** reboot the console, select English, clear all Civilization VII saves for the selected profile if repeating the full procedure or switching from another loader, and create a fresh wireless lobby. Confirm readiness and press **Connect and install save** once. The panel restores PC Wi-Fi, checks the console loader and installs `IZ2SCIV.Civ7Save` automatically.
 4. **Launch IZ2S:** return to HOME, close Civilization VII with **X**, reopen it and select **Load Game**. Do not reboot the console at this point. After `IZ2S CORE IS RUNNING`, close Civilization VII and hold **R** while opening a Switch 2 game. Repeat that R-held launch once if needed.
@@ -56,7 +56,7 @@ The normal panel address is `http://127.0.0.1:39534/`. Use the URL opened or pri
 | --- | --- | --- |
 | [IZ2S Cheese](https://github.com/byizmysh/iz2s-cheese) | 0.8.7 | Yes |
 | [IZPSX emulator](https://github.com/byizmysh/IZPSX-emulator) | 0.5.3 | Yes |
-| [IZPS2 emulator](https://github.com/byizmysh/IZPS2-emulator) | 0.5.0 | Yes |
+| [IZPS2 emulator](https://github.com/byizmysh/IZPS2-emulator) | 0.5.0 | Available separately in the PC library |
 | [NX2 BreRUN](https://github.com/byizmysh/nx2-brerun) | 0.6.0 | Yes, full-screen NRO |
 | [Foldrift](modules/Foldrift) | 0.3.3 | Yes |
 | [Book Reader](modules/BookReader) | 0.1.0 | Available separately in the PC library |

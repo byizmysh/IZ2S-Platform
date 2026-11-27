@@ -45,13 +45,13 @@ test('prebuilt import rejects missing, damaged and undeclared companions and mis
  const different=JSON.parse(metadata.bytes);different.assets[0].path='../escape.izdata';
  assert.throws(()=>compat.directImage(descriptor,files.map(f=>f===metadata?{...f,bytes:Buffer.from(JSON.stringify(different))}:f)),/path/);
 });
-test('Civ7 ZIP is a complete five-app SD tree with verified resources and original binaries',async()=>{
+test('Civ7 ZIP is a complete four-app SD tree with verified resources and original binaries',async()=>{
  const {buildSdPackage}=await import('../../engines/IzCivSwitchFS/tools/sd-package.mjs');
  const output=await buildSdPackage(),entries=archive.decode(output.bytes);
  const files=new Map(entries.map(f=>[f.name,f.bytes]));
  assert(entries.every(f=>f.name.startsWith('iz2s/')&&!f.name.includes('..')));
  const manifest=JSON.parse(files.get('iz2s/iz2sciv-sd-manifest.json'));
- assert.deepEqual(manifest.apps.map(a=>a.id),['iz2s-cheese','izpsx','izps2','iz-file-deck','nx2-brerun']);
+ assert.deepEqual(manifest.apps.map(a=>a.id),['iz2s-cheese','izpsx','iz-file-deck','nx2-brerun']);
  for(const row of manifest.files){const bytes=files.get(row.path);assert(bytes,row.path);assert.equal(bytes.length,row.bytes);assert.equal(archive.sha(bytes),row.sha256);}
  assert.equal(manifest.files.length+1,entries.length);
  for(const app of manifest.apps){
@@ -80,8 +80,8 @@ test('Civ7 ZIP is a complete five-app SD tree with verified resources and origin
  }
  assert(files.has('iz2s/modules/foldrift/launcher.iza'));assert(!files.has('iz2s/modules/iz-file-deck/launcher.iza'));
  assert(!entries.some(f=>/\/(?:bios|games|saves)\/|\.(?:iso|chd|pbp|key|log)$/.test(f.name)));
- assert(files.has('iz2s/licenses/applications/izps2/COPYING.GPLv3'));
- assert.equal(manifest.packageVariant,'five-apps');
+ assert(!entries.some(file=>file.name.split('/').includes('izps2')||file.name.endsWith('/vu-split-persist-off.flag')));
+ assert.equal(manifest.packageVariant,'four-apps');
  assert.equal(manifest.panelVersion,'0.34');
  assert.equal(manifest.launcherVersion,'0.34');
  assert(!entries.some(f=>/(?:^|\/)iz2s\.nro$|menu-vulkan|shader-cache/i.test(f.name)));

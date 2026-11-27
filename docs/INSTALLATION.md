@@ -6,11 +6,11 @@ This guide follows the panel's four installation steps. Use panel 0.34 and the m
 
 ## 1. SD card
 
-Download **SD package** in the panel. Back up existing files before replacing them. Extract the ZIP contents into the SD root; the result must be `SD:/iz2s/...`, not an extra folder around `iz2s`.
+Use `iz2sciv-core-sd.zip` next to `install.sh` in the extracted Linux installer or download **SD package** in the panel. Back up existing files before replacing them. Extract the ZIP contents into the SD root; the result must be `SD:/iz2s/...`, not an extra folder around `iz2s`.
 
 If an older IZ2S is installed, update the SD files as part of this procedure. Merge folders and replace matching package files. Preserve `Nintendo`, other applications, BIOS, games, saves and settings. Keep the included licenses. Safely eject the card, then insert it into the powered-off console.
 
-The package contains the matching native runtime, launcher resources, IZ2S Cheese, IZPSX, IZPS2 and Foldrift. It deliberately does not distribute a console-specific GPU cache. Do not combine the former R-Entry and Menu revisions or manually change hashes to silence a verification failure.
+The package contains the matching native runtime, launcher resources, IZ2S Cheese, IZPSX, Foldrift and NX2 BreRUN. It deliberately does not distribute a console-specific GPU cache. Do not combine the former R-Entry and Menu revisions or manually change hashes to silence a verification failure.
 
 ## 2. Prepare PC
 

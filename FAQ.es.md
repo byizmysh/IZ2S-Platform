@@ -14,7 +14,7 @@ Interfaz: `HOME → Configuración de la consola → Consola → Idioma → Engl
 
 ## 3. ¿Dónde debo extraer el archivo SD?
 
-En la raíz de la tarjeta, de modo que las rutas comiencen directamente por `SD:/iz2s/`. Al actualizar, combina las carpetas y sustituye los archivos coincidentes del paquete. Conserva `Nintendo`, las otras aplicaciones, BIOS, juegos, partidas y ajustes. Mantén las licencias incluidas y expulsa la tarjeta de forma segura.
+Usa `iz2sciv-core-sd.zip` del instalador Linux extraído o descárgalo desde el panel. En la raíz de la tarjeta, de modo que las rutas comiencen directamente por `SD:/iz2s/`. Al actualizar, combina las carpetas y sustituye los archivos coincidentes del paquete. Conserva `Nintendo`, las otras aplicaciones, BIOS, juegos, partidas y ajustes. Mantén las licencias incluidas y expulsa la tarjeta de forma segura.
 
 ## 4. ¿Cuándo repito el procedimiento completo?
 

@@ -186,8 +186,8 @@ async function createWindowServer({
         });
       if (req.method === 'GET' && url.pathname === '/api/iz2sciv/sd-package') {
         // Local download is also available in preview; it never contacts a console.
-        const {buildSdPackage} = await import('../engines/IzCivSwitchFS/tools/sd-package.mjs');
-        const archive = await buildSdPackage();
+        const {getSdPackage} = await import('../engines/IzCivSwitchFS/tools/sd-package.mjs');
+        const archive = await getSdPackage();
         return send(res,200,{'content-type':'application/zip',
           'content-disposition':'attachment; filename="'+archive.filename+'"',
           'content-length':archive.bytes.length},archive.bytes);

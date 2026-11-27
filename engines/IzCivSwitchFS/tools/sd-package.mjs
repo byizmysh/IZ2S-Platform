@@ -10,13 +10,14 @@ import policy from "../src/runtime-policy.cjs";
 const require = createRequire(import.meta.url);
 const archive = require("../../../core/archive.cjs");
 const engine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const platform = path.resolve(engine, "../..");
 const runtime = path.resolve(engine, "../iz2s-core/runtime");
 export const FILENAME = "iz2sciv-core-sd.zip";
 
 export async function buildSdPackage() {
     const {manifest} = loadIz2sRuntime();
     const provenance = JSON.parse(await fs.readFile(path.join(runtime, "provenance.json"), "utf8"));
-    const profile = JSON.parse(await fs.readFile(path.resolve(engine, "../../distribution/profile.json"), "utf8"));
+    const profile = JSON.parse(await fs.readFile(path.join(platform, "distribution/profile.json"), "utf8"));
     const entries = [];
     async function add(source, target, expected) {
         const bytes = await fs.readFile(path.join(runtime, "package", source));
@@ -49,8 +50,7 @@ export async function buildSdPackage() {
     entries.push({name: "iz2s/README-IZ2SCiv.txt", bytes: Buffer.from(
         "Extract the contents of the ZIP to the root of the SD card. If the iz2s folder already exists, merge the folders\n" +
         "and replace matching files from the archive. Keep all other applications.\n" +
-        "Included apps: IZ2S Cheese, IZPSX, IZPS2, Foldrift, and NX2 BreRUN.\n" +
-        "IZ2S includes vu-split-persist-off.flag: optional IZPS2 VU disk persistence is disabled. Keep this file installed.\n" +
+        "Included apps: IZ2S Cheese, IZPSX, Foldrift, and NX2 BreRUN.\n" +
         "Insert the SD card back into the powered-off console.\n" +
         `PC panel ${profile.version}; launcher ${provenance.launcher.version}, ${provenance.launcher.revision}. The native launcher is embedded in game/main; no standalone IZ2S.nro is required.\n` +
         "Install the SD-flex launch save once. Later compatible game/main, izlauncher.iza and izlauncher.romfs updates only need the SD files.\n" +
@@ -58,7 +58,7 @@ export async function buildSdPackage() {
         "Copy a complete verified update set; the boot header checks do not replace the package SHA-256 inventory.\n")});
     const contents = entries.map(({name, bytes}) => ({path: name, bytes: bytes.length, sha256: archive.sha(bytes)}));
     entries.push({name: "iz2s/iz2sciv-sd-manifest.json", bytes: Buffer.from(JSON.stringify({
-        name: "IZ2SCiv core", format: "iz2sciv.sd.v1", packageVariant: "five-apps",
+        name: "IZ2SCiv core", format: "iz2sciv.sd.v1", packageVariant: "four-apps",
         panelVersion: profile.version, buildId: profile.buildId, launcherVersion: provenance.launcher.version,
         bootCompatibility: policy.compatibilityContract(records),
         revision: provenance.launcher.revision, menuId: provenance.launcher.packagedMenuId,
@@ -66,6 +66,17 @@ export async function buildSdPackage() {
     }, null, 2) + "\n")});
     const bytes = archive.encode(entries);
     return {filename: FILENAME, bytes, sha256: archive.sha(bytes)};
+}
+
+export async function getSdPackage() {
+    const inventory = JSON.parse(await fs.readFile(path.join(platform, "distribution/files.json"), "utf8"));
+    const record = inventory.files[FILENAME];
+    if (!record) return buildSdPackage();
+    const bytes = await fs.readFile(path.join(platform, FILENAME));
+    const sha256 = archive.sha(bytes);
+    if (bytes.length !== record.bytes || sha256 !== record.sha256)
+        throw Error("Bundled SD archive integrity check failed: " + FILENAME);
+    return {filename: FILENAME, bytes, sha256};
 }
 
 export async function writeSdPackage() {

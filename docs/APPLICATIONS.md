@@ -1,6 +1,6 @@
 # Application storage and updates
 
-The SD kit includes IZ2S Cheese 0.8.7, IZPSX 0.5.3, IZPS2 0.5.0 Foldrift 0.3.3, and NX2 BreRUN 0.6.0. The PC library also offers Book Reader 0.1.0, BlitBun 1.15.8 and VacooTube 1.5.7 separately.
+The SD kit includes IZ2S Cheese 0.8.7, IZPSX 0.5.3, Foldrift 0.3.3, and NX2 BreRUN 0.6.0. The PC library offers IZPS2 0.5.0, Book Reader 0.1.0, BlitBun 1.15.8 and VacooTube 1.5.7 separately.
 
 Install through App library or its SD export action. A downloaded package can contain executable companions: do not rename the whole package to `launcher.iza`. Keep manifests, signatures, `.izdata` resources and licenses. The usual entry is `SD:/iz2s/modules/<id>/launcher.iza`; Foldrift uses the folder `foldrift`.
 

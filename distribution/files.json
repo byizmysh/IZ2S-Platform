@@ -23,8 +23,8 @@
       "executable": false
     },
     "BUILDING.md": {
-      "bytes": 3064,
-      "sha256": "5eda4861e1e9699af6a5b566feb774280d254ef2231454def692426996f55973",
+      "bytes": 3175,
+      "sha256": "88db9b6e78dbc642503da5c7008894cfcb5b13a9ab9be26fd874db2cd9ec6c89",
       "executable": false
     },
     "COMPATIBILITY.md": {
@@ -38,23 +38,23 @@
       "executable": false
     },
     "FAQ.es.md": {
-      "bytes": 4626,
-      "sha256": "e1b0e68a2a11b7422dcc399733239bcd963d88dbe095e786ec09bf799b99497a",
+      "bytes": 4713,
+      "sha256": "6d921a1ba739f82213e28bf7564ac8e6de8d98a85bf2bd4ebdc7032ec5dedfd7",
       "executable": false
     },
     "FAQ.md": {
-      "bytes": 4279,
-      "sha256": "8424058ca4f8dac60bb1375d0dcae40bd0aaf5275b6b390606c78c5155ed2da2",
+      "bytes": 4371,
+      "sha256": "037c781d541c6367d683b5d389b02ea83c2c30553b539458fba69c84ad13671b",
       "executable": false
     },
     "FAQ.ru.md": {
-      "bytes": 6895,
-      "sha256": "899cbb8b2224db5bce0e3bbbfbf4174e424fc75de623e121e9ec4d68f4f49417",
+      "bytes": 7041,
+      "sha256": "252e5146393e92cf3e9fc493ddbed55be6da2ffcbde2f7a8b3c6f4d942d2ff5b",
       "executable": false
     },
     "FAQ.zh.md": {
-      "bytes": 4050,
-      "sha256": "1576ba8cf8dd1240d194d9ba8e540e55644883f1cfadc04235e36c2e92cfa346",
+      "bytes": 4145,
+      "sha256": "a9961d13b2af488c59fca63621237224c85ef88b306536e70151a8eda637a12e",
       "executable": false
     },
     "Install-Linux.desktop": {
@@ -273,8 +273,8 @@
       "executable": false
     },
     "README-0.34.txt": {
-      "bytes": 253,
-      "sha256": "f4e43588119ca1fe30548f18bdbbc84fefc173afe5117e045b4b6243dadd1911",
+      "bytes": 293,
+      "sha256": "09ba320f2d15583a793ff1be79628dd0e3e5c88935463817efe6c1d2dfcf7720",
       "executable": false
     },
     "README-RUN34.md": {
@@ -283,18 +283,18 @@
       "executable": false
     },
     "README.md": {
-      "bytes": 10711,
-      "sha256": "8e92fc0ca988551fdc38533393184b7b196b0bba773296da0ac1e752b9c40f0a",
+      "bytes": 10961,
+      "sha256": "4330b8cd2d7a2778000c4db8e7fe0bbc238429dd9a56fd3750aee3c5b852303d",
       "executable": false
     },
     "README.ru.md": {
-      "bytes": 6935,
-      "sha256": "56e553f77786189c77766f3d41d8041d51dea0745b3497a0520a89bdcf9003c0",
+      "bytes": 7125,
+      "sha256": "4b9dbdf52503a30130c931129f85852ff41c5aefd3769a287d1c7d2dd0cb8716",
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "bytes": 742,
-      "sha256": "dfcfc9a06714685690773fe0cb831287d0dc50f7d38cb0083a57fdaa4c16cc47",
+      "bytes": 872,
+      "sha256": "c793f2d46252937981863e571b1d2c1dcfa37e92acc45752b705efd13bf577a7",
       "executable": false
     },
     "SOURCES.md": {
@@ -2433,18 +2433,18 @@
       "executable": false
     },
     "docs/APPLICATIONS.md": {
-      "bytes": 2174,
-      "sha256": "9aa2b6747300cf9ddc1ebb8f7892353009efd337c988eb871e73e77c5a93a01f",
+      "bytes": 2170,
+      "sha256": "aea4686a26787fc789790c04312bef65cc869bb8caa8eb9347e891f415d94527",
       "executable": false
     },
     "docs/INSTALLATION.md": {
-      "bytes": 6765,
-      "sha256": "7d8d9ac6f98592abee5095b1cdc047558f6edfb0b97a4e28e64376e809a7669f",
+      "bytes": 6853,
+      "sha256": "fa2f2330207f2326225903691b45bf90a2ad0965505008531bab684ec8e38fb3",
       "executable": false
     },
     "docs/INSTALLATION.ru.md": {
-      "bytes": 11065,
-      "sha256": "1ad2dc40120fd69b21cab1f10121f460290520223bb2f4a0665738064fbea3bb",
+      "bytes": 11198,
+      "sha256": "d69c8903aa6006ae260bf12b652b6bfe33e67e8a456b69f05354fe7e4839ba7b",
       "executable": false
     },
     "docs/VALIDATION-0.3.2.md": {
@@ -5698,13 +5698,13 @@
       "executable": false
     },
     "engines/IzCivSwitchFS/tools/sd-apps.mjs": {
-      "bytes": 3757,
-      "sha256": "e108b23c58ff2c666f06dd30d93b54f45fe3809b5ff8932bfac02c1b76fc21e7",
+      "bytes": 3575,
+      "sha256": "7740b9ac634d18db49a7f8a10d9e01c4d09b5901a01a10b2daa370ab246d9924",
       "executable": false
     },
     "engines/IzCivSwitchFS/tools/sd-package.mjs": {
-      "bytes": 5535,
-      "sha256": "05217c147b42843eb73489c87d7ecfb94c1add70b47928031c999b8537116076",
+      "bytes": 5980,
+      "sha256": "043f2873deabc21085364f9c98807e4a312d61d7bec54507acb3d391d18992e1",
       "executable": false
     },
     "engines/IzCivSwitchFS/tools/sd-verify.test.mjs": {
@@ -11938,8 +11938,8 @@
       "executable": false
     },
     "panel/http.cjs": {
-      "bytes": 29829,
-      "sha256": "b8ac2af1e9a9a4fd21076f67fb12bebe2d375879a7d3c362115a8530c91d3566",
+      "bytes": 29825,
+      "sha256": "93ef1bc9f1768e91e22000a9361c26a25ea904d96f40ecae2c303ce947df22ad",
       "executable": false
     },
     "panel/iz2s-core.cjs": {
@@ -140263,13 +140263,13 @@
       "executable": true
     },
     "tests/release/sd-kit.test.cjs": {
-      "bytes": 6804,
-      "sha256": "d0f8f0aeb51f08d62237512ed3089a2685cb7a17ab35542da9232ad4fd971e37",
+      "bytes": 6846,
+      "sha256": "b98b71b51ca25dde228458353e7bf420a39464f824558779fe46f3627fed0d82",
       "executable": false
     },
     "tests/release/stability-defaults.test.cjs": {
-      "bytes": 3036,
-      "sha256": "d3dbf440cd96a16aedc4bc4612852b4c5e35ef76749fe3de8414e30de2d74613",
+      "bytes": 2293,
+      "sha256": "0508f00dc4e9718ca8fdfa10ce2e714276a16864e2bc994490bb7d7ed6346d62",
       "executable": false
     },
     "tools/dolphin-fs-rpc/bridge.cjs": {
@@ -140393,8 +140393,8 @@
       "executable": true
     },
     "tools/prepare-install-kit.mjs": {
-      "bytes": 10416,
-      "sha256": "113fdbe24b1eddd01409a165b2897f5541939c7b87ef4d4a0cedc379eb129cf9",
+      "bytes": 10426,
+      "sha256": "71dfc94d7607df3ec38ee71353290c526175651c044606d07250202284441bc7",
       "executable": false
     },
     "tools/prepare-install-kit.test.mjs": {
@@ -140403,8 +140403,8 @@
       "executable": false
     },
     "tools/release/package-prepared.py": {
-      "bytes": 4267,
-      "sha256": "d9ea1c4eae28d5f6abf658119ea19d723c299f329821d6904b376aebeb0eb0c4",
+      "bytes": 6404,
+      "sha256": "2bae14f7a1036d9ca20fdfdc6166601bda2661bf31e0eb853eecf86b9a43bce8",
       "executable": false
     },
     "tools/resident/prepare.cjs": {
