@@ -14,7 +14,7 @@ Choose English for the interface and English (US) for USB keyboard input before 
 
 ## 3. Where should I extract the SD archive?
 
-Use `iz2sciv-core-sd.zip` from the extracted Linux installer or download it from the panel. Into the SD root, so the paths begin with `SD:/iz2s/`. Merge folders and replace matching package files when updating. Keep `Nintendo`, other apps, BIOS, games, saves and settings. Preserve the included license files and safely eject the card.
+Extract `IZ2S-0.34-linux.zip` on your PC and find `iz2sciv-core-sd.zip` next to `install.sh`. Extract the SD archive to the card root so the paths begin with `SD:/iz2s/`. You can download another copy from the panel. Merge folders and replace matching package files when updating. Keep `Nintendo`, other apps, BIOS, games, saves and settings. Preserve the included license files and safely eject the card.
 
 ## 4. When should I repeat the full procedure?
 

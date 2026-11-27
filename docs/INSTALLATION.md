@@ -6,7 +6,9 @@ This guide follows the panel's four installation steps. Use panel 0.34 and the m
 
 ## 1. SD card
 
-Use `iz2sciv-core-sd.zip` next to `install.sh` in the extracted Linux installer or download **SD package** in the panel. Back up existing files before replacing them. Extract the ZIP contents into the SD root; the result must be `SD:/iz2s/...`, not an extra folder around `iz2s`.
+Extract `IZ2S-0.34-linux.zip` on your PC. Inside the extracted `IZ2S-0.34-linux` folder, run `sh ./install.sh --launch` to install and open the panel. The same folder contains `iz2sciv-core-sd.zip` next to `install.sh`.
+
+Back up any files you will replace. Extract the contents of **`iz2sciv-core-sd.zip`** into the card root so the `iz2s` folder sits directly at `SD:/iz2s/`. If you need a fresh copy of the SD ZIP, use **Download SD archive** in step 1 of the panel.
 
 If an older IZ2S is installed, update the SD files as part of this procedure. Merge folders and replace matching package files. Preserve `Nintendo`, other applications, BIOS, games, saves and settings. Keep the included licenses. Safely eject the card, then insert it into the powered-off console.
 

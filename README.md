@@ -12,12 +12,7 @@ The panel guides SD preparation, PC preparation, connection with automatic save 
 
 ## Release 0.34
 
-IZ2S 0.34 supports Linux x64 and ARM64. The release contains these files.
-
-| Asset | Purpose |
-| --- | --- |
-| `IZ2S-0.34-linux.zip` | PC installer and SD archive |
-| `iz2sciv-core-sd.zip` | Matching console runtime, four applications and their licenses. Also available separately. |
+Download **`IZ2S-0.34-linux.zip`** for Linux x64 or ARM64. It contains both the PC installer and the matching SD archive with the console launcher, four applications and their licenses.
 
 ## Requirements
 
@@ -31,9 +26,7 @@ Firmware, game edition and version are specific requirements; this release does 
 
 ## Start the PC panel
 
-Extract `IZ2S-0.34-linux.zip` into a new folder. The extracted `IZ2S-0.34-linux` folder includes `iz2sciv-core-sd.zip` next to `install.sh`.
-
-**Linux:** open a terminal there and run:
+Extract `IZ2S-0.34-linux.zip` on your PC and open the resulting `IZ2S-0.34-linux` folder. Run this command in that folder to install and open the panel:
 
 ```sh
 sh ./install.sh --launch
@@ -45,7 +38,7 @@ The normal panel address is `http://127.0.0.1:39534/`. Use the URL opened or pri
 
 ## Install and launch
 
-1. **SD card:** use the bundled `iz2sciv-core-sd.zip` or download it in the panel, then extract its contents to the card root. If updating older IZ2S, replace the matching files too. Keep the `Nintendo` folder, other applications, BIOS, games and saves. Safely eject the card.
+1. **SD card:** find `iz2sciv-core-sd.zip` next to `install.sh` and extract its contents into the card root so you get `SD:/iz2s/`. If you need another copy, click **Download SD archive** in the panel. If updating older IZ2S, replace the matching files too. Keep the `Nintendo` folder, other applications, BIOS, games and saves. Safely eject the card.
 2. **Prepare PC:** complete the dependency, key and Wi-Fi checks shown by the panel.
 3. **Connect and install save:** reboot the console, select English, clear all Civilization VII saves for the selected profile if repeating the full procedure or switching from another loader, and create a fresh wireless lobby. Confirm readiness and press **Connect and install save** once. The panel restores PC Wi-Fi, checks the console loader and installs `IZ2SCIV.Civ7Save` automatically.
 4. **Launch IZ2S:** return to HOME, close Civilization VII with **X**, reopen it and select **Load Game**. Do not reboot the console at this point. After `IZ2S CORE IS RUNNING`, close Civilization VII and hold **R** while opening a Switch 2 game. Repeat that R-held launch once if needed.
