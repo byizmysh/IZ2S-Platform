@@ -8,8 +8,8 @@
       "executable": false
     },
     ".github/workflows/package.yml": {
-      "bytes": 1136,
-      "sha256": "0953b270935bcc9bc28dc0a43d8c912a482b186839c2ec10811ee8991864e308",
+      "bytes": 1249,
+      "sha256": "6a8b3330839208377be5538639c899f040e4a93f23daa8e9e467552ac9abeed7",
       "executable": false
     },
     ".gitignore": {
@@ -5833,8 +5833,8 @@
       "executable": false
     },
     "engines/iz2s-core/panel.cjs": {
-      "bytes": 8842,
-      "sha256": "d0291d4ae020cf646b3eae5ec50c792248c29d8775fa9db1c27c569ab8594593",
+      "bytes": 8852,
+      "sha256": "a72b97e5fb2a004744f0f797ae91f6a6982d0221349096e3bdc70bcd000c50a9",
       "executable": false
     },
     "engines/iz2s-core/runtime.cjs": {
@@ -6338,8 +6338,13 @@
       "executable": false
     },
     "engines/iz2s-core/tools/pc-link-service.cjs": {
-      "bytes": 12296,
-      "sha256": "2b38a0036bdb33503ca4447848a13e2c924a81fa27cf2d8642c0bf70c9b93b3e",
+      "bytes": 12446,
+      "sha256": "487341b7fb97b1f568cf4cdf729109405a006824d66c2bc43080b0a4ddb971ee",
+      "executable": false
+    },
+    "engines/iz2s-core/tools/pc-link-service.test.cjs": {
+      "bytes": 2038,
+      "sha256": "8ef258f9a8c2b3e6b154e2273aba14a95381bb03dfe499b3d95046636fd1d5a5",
       "executable": false
     },
     "engines/iz2s-core/tools/pc-link-state.cjs": {
@@ -6353,8 +6358,8 @@
       "executable": false
     },
     "engines/iz2s-core/tools/pc-media-control.cjs": {
-      "bytes": 7787,
-      "sha256": "0279f6edddcfa60e9becb8d3e3488584bf5a58f1c6ba9f756c9d3d239650d5c6",
+      "bytes": 7780,
+      "sha256": "d33d41ee89b874845f51945409e24a7b03adb5bd5c5d3fa5a8bb24dc65795273",
       "executable": false
     },
     "engines/iz2s-core/tools/pc-media-input.cjs": {
@@ -6363,8 +6368,8 @@
       "executable": false
     },
     "engines/iz2s-core/tools/pc-media-source.cjs": {
-      "bytes": 6494,
-      "sha256": "6707ce61bf4af95b5a9ea94b98105051c769d4e4d550a2bbca1b357910eb1391",
+      "bytes": 6487,
+      "sha256": "b98e07836322bf44949ab396cd80cc983cd560dd6e046106b69cad12c8a87651",
       "executable": false
     },
     "engines/iz2s-core/tools/pc-stream.cjs": {
@@ -6418,8 +6423,8 @@
       "executable": true
     },
     "language/en/ui.json": {
-      "bytes": 254263,
-      "sha256": "3d66ab43c11b908aae60338ad85bff7afa55dcf236555007bdb11326f74b4344",
+      "bytes": 254369,
+      "sha256": "f58f20d95d68250e13ba30a99016f7f63e05fdcb8d20e6e570718501033c775d",
       "executable": false
     },
     "language/error-text.js": {
@@ -6428,8 +6433,8 @@
       "executable": false
     },
     "language/es/ui.json": {
-      "bytes": 263447,
-      "sha256": "a0436efd5e39c8a699212cddc7dd112add3ac5225b3f230bc3a3b7657f6822f4",
+      "bytes": 263529,
+      "sha256": "d0f298fd3a1c94d10828e5f190526cdca5b4229a34a9d117c8d9c8c515c8b9d5",
       "executable": false
     },
     "language/fonts.py": {
@@ -6508,8 +6513,8 @@
       "executable": false
     },
     "language/ru/ui.json": {
-      "bytes": 395804,
-      "sha256": "19a692284123799233911f5f51d6db35985794407687b912df26b5ab9735ade5",
+      "bytes": 395866,
+      "sha256": "0e359101e069cb1c2e7c409f2a137e60906422294912432e3e27cef545564965",
       "executable": false
     },
     "language/runtime.js": {
@@ -6533,8 +6538,8 @@
       "executable": false
     },
     "language/zh/ui.json": {
-      "bytes": 240940,
-      "sha256": "f3b8f54642cb5fefe009c13dc0582441e0fa3cd20ba1ea363adfff2092122366",
+      "bytes": 241021,
+      "sha256": "23af65cf4fb9c87b575687c2d7990d849cec1f2c47d1baf18f7a9d97d457288e",
       "executable": false
     },
     "modules/BlitBun/COPYRIGHT": {
@@ -11918,8 +11923,8 @@
       "executable": false
     },
     "panel/blitbun-browser.cjs": {
-      "bytes": 4964,
-      "sha256": "0e97b277f324dc2b4481b76aa8f1300c863603e8430ddbd1361c209b66d4d02e",
+      "bytes": 4958,
+      "sha256": "a1c72d2ef1b1ba69565e8320b0337b085efc435af9efb092e2dc654d5335a7a0",
       "executable": false
     },
     "panel/controller-lifecycle.test.cjs": {
@@ -11968,13 +11973,13 @@
       "executable": false
     },
     "panel/ui/iz2sciv.js": {
-      "bytes": 33850,
-      "sha256": "c16603ba0699ae7bc919539d1e959ef89878f324001f8cdbc97192501ed025b0",
+      "bytes": 33878,
+      "sha256": "d8e478c2b73b5201a6810c1e99409091a33cf6f0e7abffe3093a3aa5eb3d8942",
       "executable": false
     },
     "panel/ui/panel.html": {
-      "bytes": 41817,
-      "sha256": "b6f122371484c42cfdfdb8c42b4bafb047ff477f229ce680a1b48ec7faed904e",
+      "bytes": 42066,
+      "sha256": "015c8a48b03315464561d850326df80495ce825fabb54d4d3cd62980d882f4ee",
       "executable": false
     },
     "panel/ui/presentation.js": {
@@ -11998,8 +12003,8 @@
       "executable": false
     },
     "panel/ui/style.css": {
-      "bytes": 207333,
-      "sha256": "ffca6ae4470b7a12c586465ff498b3751add8de58d645ef432df58391ed6a360",
+      "bytes": 207683,
+      "sha256": "636f593042510170f45788fbd979b9c08a42e2c9daaee2dfbdc3e8f92257494a",
       "executable": false
     },
     "preview.sh": {

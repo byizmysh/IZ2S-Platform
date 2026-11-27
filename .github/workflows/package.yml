@@ -22,3 +22,5 @@ jobs:
         run: node --test engines/IzCivSwitchFS/tools/session.test.cjs engines/IzCivSwitchFS/tools/iz2s.test.mjs engines/IzCivSwitchFS/tools/persist-verification.test.mjs
       - name: Verify Civ7 UI, save handling and host lifecycle
         run: node --test --test-timeout=15000 distribution/civ7-navigation.test.cjs core/platform/stop-process.test.cjs panel/controller-lifecycle.test.cjs engines/IzCivSwitchFS/session-lifecycle.test.cjs engines/IzCivSwitchFS/tools/save-install.test.cjs engines/IzCivSwitchFS/tools/ui.test.cjs
+      - name: Verify PC Link ownership
+        run: node --test engines/iz2s-core/tools/pc-link-service.test.cjs

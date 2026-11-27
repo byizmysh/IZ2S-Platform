@@ -219,7 +219,6 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   const nextLaunchContext=JSON.stringify([connected,saveUpdateRequired]);
   if(nextLaunchContext!==launchContext){
    $('launch-instructions').open=!connected;
-   $('restart-options').open=saveUpdateRequired;
    launchContext=nextLaunchContext;
   }
   $('launch-instructions').hidden=saveUpdateRequired;
@@ -272,7 +271,8 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   }
   const wifiError=wifi.error||wifi.inventoryError||'';
   text('windows-error',wifiError);$('windows-error').hidden=!wifiError;
-  $('linux-checks').hidden=$('linux-requirements').hidden=windows;
+  $('linux-checks').hidden=windows;
+  $('linux-requirements').hidden=windows||view!=='setup'||step!==2;
   $('save-update').hidden=!saveUpdateRequired;
   text('save-update','Installation of a Civilization VII save for this IZ2S build has not been confirmed yet. Start the full procedure to update the SD files and install the matching save.');
   text('link-state',state.preview?'Preview · device commands disabled':serverOffline?'Waiting for the local server…':connected?'The console is available. No need to repeat the launch steps.':'If IZ2S is already running, connect PC Link or FTP below. Otherwise, follow the launch instructions.');
@@ -284,6 +284,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   $('pc-card').dataset.online=String(online);
   text('pc-status',t(pcStatus)+(online&&link.consoleAddress?' · '+link.consoleAddress:''));
   text('pc-toggle',pcPaused?'Resume PC Link':'Pause PC Link');
+  $('pc-toggle').hidden=!link?.service;
   $('pc-toggle').disabled=linkControlsLocked||!link?.service||link.fileTransfers||!!link.queued;
   const ftpStatus=state.preview?'Preview · device commands disabled':serverOffline||ftp?.refreshError?'Status unavailable':ftpOnline?'Connected to this panel':!ftp?'Checking connection…':ftp.enabled?'Connection lost':'Not connected to this panel';
   $('ftp-card').dataset.online=String(ftpOnline);

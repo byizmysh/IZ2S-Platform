@@ -33,18 +33,21 @@ async function status(){
  try {const r=await fetch('http://127.0.0.1:39525/status',{signal:AbortSignal.timeout(700)});return r.ok?await r.json():null;}
  catch{return null;}
 }
+const ownerRoot=path.resolve(__dirname,'../../..');
+function isOwner(value){return value?.service?.root===ownerRoot;}
 function verifyOwner(value){
- if(value&&value.service?.root!==path.resolve(__dirname,'../../..'))
-  throw Error('PC Link belongs to another installation. Start the 0.3.1 PC Link service.');
+ if(value&&!isOwner(value))
+  throw Error('PC Link is running in another IZ2S installation. Stop that service, then refresh the status here.');
  return value;
 }
 async function ensure(out){
  const directory=folder(out);
  if(pending.has(directory))return pending.get(directory);
  const task=(async()=>{
-  const existing=await status();if(existing)return verifyOwner(existing);
+  const existing=await status();if(isOwner(existing))return existing;
   try {await fs.access(path.join(directory,'connection.json'));}
   catch(error){if(error.code==='ENOENT')return null;throw error;}
+  if(existing)return verifyOwner(existing);
   const log=await fs.open(path.join(directory,'service.log'),'a',0o600);
   let failed=null;
   const child=spawn(process.execPath,[path.join(__dirname,'pc-link.cjs')],{
@@ -110,11 +113,11 @@ async function setEnabled(out,enabled){
  return result;
 }
 async function consoleAddresses(out){
- const service=verifyOwner(await status());
+ const service=await status();
  const file=path.join(folder(out),'connection.json');
  const config=await fs.readFile(file,'utf8').then(JSON.parse).catch(()=>null);
  const known=Array.isArray(config?.consoleAddresses)?config.consoleAddresses:[config?.consoleIp];
- return [service?.consoleAddress,...known];
+ return [isOwner(service)?service.consoleAddress:undefined,...known];
 }
 async function install(out,req){
  const service=await ensure(out);
@@ -192,8 +195,8 @@ async function reset(out){
  // Reset must also work after console reboot or before PC Link was configured.
  // Do not start a service just to discard an old session.
  invalidateInventory();
- const service=verifyOwner(await status());
- if(!service)return {ok:true,offline:true};
+ const service=await status();
+ if(!isOwner(service))return {ok:true,offline:true};
  const response=await fetch(origin+'/reset',{method:'POST',headers:{origin,'content-type':'application/json'},body:'{}',signal:AbortSignal.timeout(125000)});
  const result=await response.json();
  if(!response.ok)throw Error(result.error||'Could not reset PC Link.');

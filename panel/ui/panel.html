@@ -37,6 +37,14 @@
  <ol id="iz2sciv-steps" class="wizard-steps" aria-label="Installation steps">
   <li><button id="iz2sciv-step-1" type="button">1. SD card</button></li><li><button id="iz2sciv-step-2" type="button">2. PC setup</button></li><li><button id="iz2sciv-step-3" type="button" translate="no">3. Connect and install save</button></li><li><button id="iz2sciv-step-5" type="button" translate="no">4. Launch IZ2S</button></li>
  </ol>
+ <section id="iz2sciv-linux-requirements" class="iz2sciv-status-card" aria-labelledby="iz2sciv-requirements-title" hidden>
+  <div class="section-heading"><h3 id="iz2sciv-requirements-title">PC requirements</h3></div>
+  <p class="hint">First setup requires native Linux, NetworkManager and a Wi-Fi adapter. Recheck after connecting an adapter or changing system settings.</p>
+  <div class="civ-requirements-status">
+   <p id="iz2sciv-system-state" class="hint" role="status" translate="no"></p>
+   <button id="iz2sciv-refresh" class="secondary" type="button">Refresh status</button>
+  </div>
+ </section>
 <section id="iz2sciv-services" class="civ-connections" aria-labelledby="iz2sciv-link-title" hidden>
   <div class="civ-connections-heading"><h3 id="iz2sciv-link-title">Console connection</h3><span id="iz2sciv-services-state" class="civ-connection-badge" translate="no"></span></div>
   <p id="iz2sciv-link-state" class="hint" role="status" translate="no"></p>
@@ -151,7 +159,6 @@
   </div>
   <p id="iz2sciv-pc-help" class="hint" translate="no"></p>
   <div class="wizard-actions iz2sciv-pc-actions"><button type="button" data-iz2sciv-next="1">Back</button><button id="iz2sciv-pc-action" class="primary" type="button" translate="no"></button></div>
-  <details id="iz2sciv-linux-requirements" class="setup-details"><summary>PC requirements and recheck</summary><div class="setup-details-body"><p>First setup requires native Linux, NetworkManager and a Wi-Fi adapter. Recheck after connecting an adapter or changing system settings.</p><p id="iz2sciv-system-state" class="hint" translate="no"></p><button id="iz2sciv-refresh" type="button">Refresh status</button></div></details>
  </div>
  <div id="iz2sciv-stage-3" class="iz2sciv-stage" hidden>
   <h3 id="iz2sciv-connect-title" tabindex="-1" translate="no">Connect the console</h3>
@@ -212,8 +219,13 @@
    </ol>
   </div>
   </details>
-  <details id="iz2sciv-restart-options" class="civ-restart-note"><summary>Set up IZ2S again</summary><p id="iz2sciv-restart-help">After an update or more than 7 unsuccessful attempts, start the full procedure. The panel will check the existing SD and PC preparation.</p><p id="iz2sciv-save-update" class="civ-notice" data-tone="attention" role="note" translate="no" hidden></p><div class="wizard-actions"><button id="iz2sciv-restart-run" type="button" class="secondary">Start the full procedure from the beginning</button></div>
-  </details></div>
+  <section id="iz2sciv-restart-options" class="civ-restart-note" aria-labelledby="iz2sciv-restart-title">
+   <h4 id="iz2sciv-restart-title">Set up IZ2S again</h4>
+   <p id="iz2sciv-restart-help">After an update or more than 7 unsuccessful attempts, start the full procedure. The panel will check the existing SD and PC preparation.</p>
+   <p id="iz2sciv-save-update" class="civ-notice" data-tone="attention" role="note" translate="no" hidden></p>
+   <div class="wizard-actions"><button id="iz2sciv-restart-run" type="button" class="secondary">Start the full procedure from the beginning</button></div>
+  </section>
+ </div>
  </section>
 
 <section id="extension-errors" class="panel-message issue-list" data-tone="warning" hidden><strong role="status">Some connection options could not be loaded.</strong><p>Open technical details to see which engines or profiles need attention.</p><details class="technical-details"><summary>Technical details</summary><pre id="extension-errors-raw" translate="no"></pre></details></section>

@@ -5903,6 +5903,11 @@ select option {
 #iz2sciv-result .hint { font-size: 12px; margin: 5px 0; }
 #iz2sciv-result[data-tone="error"] { border-color: #e7aa6860; background: #e7aa6808; }
 #iz2sciv-result .wizard-actions { margin-top: 10px; }
+#iz2sciv-flow #iz2sciv-linux-requirements { margin-bottom: 20px; }
+#iz2sciv-linux-requirements > .hint { margin: 8px 0 12px; max-width: 80ch; }
+.civ-requirements-status { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
+.civ-requirements-status > .hint { margin: 0; }
+.civ-requirements-status > button { margin-left: auto; }
 #iz2sciv-flow #iz2sciv-network { margin: 0 0 20px; border: 1px solid var(--line); border-radius: 12px; background: #ffffff02; }
 #iz2sciv-network > summary { padding: 13px 18px; color: var(--muted); font-size: 12px; cursor: pointer; }
 #iz2sciv-network .setup-details-body { padding: 4px 18px 18px; }
@@ -5919,10 +5924,11 @@ select option {
 #iz2sciv-flow .civ-black-screen > strong { color: var(--ink); font-size: 13px; font-weight: 500; }
 #iz2sciv-flow .civ-black-screen p { margin-top: 6px; }
 #iz2sciv-flow .iz2sciv-outcome { max-width: none; border-radius: 10px; font-size: 13px; }
-#iz2sciv-flow .civ-restart-note { margin: 0; padding: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
-#iz2sciv-flow .civ-restart-note > summary { padding: 17px 0 0; font-size: 13px; color: var(--muted); cursor: pointer; }
-#iz2sciv-flow .civ-restart-note[open] > summary { color: var(--ink); margin-bottom: 12px; }
-#iz2sciv-flow .civ-restart-note > p { font-size: 12px; color: var(--muted); margin: 6px 0; max-width: 80ch; }
+#iz2sciv-flow .civ-restart-note { margin: 22px 0 0; padding: 16px 18px; border: 1px solid #e7959360; border-radius: 12px; background: #df767612; }
+#iz2sciv-flow .civ-restart-note > h4 { margin: 0 0 7px; color: #ffbbb6; font-size: 14px; }
+#iz2sciv-flow .civ-restart-note > p { color: var(--muted); margin: 0; max-width: 80ch; }
+#iz2sciv-flow #iz2sciv-restart-run { border-color: #de8e8a86; background: #673938; color: #ffe9e6; font-weight: 650; text-wrap: balance; }
+#iz2sciv-flow #iz2sciv-restart-run:hover:enabled { background: #814644; border-color: #efa5a1; }
 #iz2sciv-flow .iz2sciv-link-card { max-width: none; margin: 24px 0 0; padding: 20px; border: 1px solid #9abce838; border-radius: 12px; background: #9abce805; }
 #iz2sciv-flow .iz2sciv-link-card .iz2sciv-check-heading { align-items: center; }
 #iz2sciv-link-state { font-size: 12px; }
@@ -6002,8 +6008,7 @@ select option {
 #iz2sciv-flow .civ-launch-instructions[open] > summary::after { content: '−'; }
 #iz2sciv-flow .civ-launch-instructions[open] > summary { margin-bottom: 18px; }
 #iz2sciv-flow[data-view="setup"]:not([data-step="4"]) > #console-apps { display: none; }
-#iz2sciv-flow .civ-launch-instructions[hidden] + .civ-restart-note { border-top: 0; }
-#iz2sciv-flow .civ-launch-instructions[hidden] + .civ-restart-note > summary { padding-top: 0; }
+#iz2sciv-flow .civ-launch-instructions[hidden] + .civ-restart-note { margin-top: 0; }
 @media (max-width: 600px) {
  #iz2sciv-flow .civ-connected-tools > .quiet { margin-left: 0; }
  .civ-connection-badge { max-width: 100%; overflow-wrap: anywhere; }

@@ -22,10 +22,10 @@ const pcLinkOrigin = 'http://127.0.0.1:39525';
 // bridge can serve the application queue before its Files page is registered.
 async function pcTool(view, request = fetch, options = {}) {
   if (!['apps', 'files'].includes(view)) throw Error('Unknown IZ2S PC tool');
-  if(request===fetch&&!options.preview)await require('./tools/pc-link-service.cjs').ensure(options.out).catch(()=>{});
   const url = pcLinkOrigin + (view === 'files' ? '/files' : '/');
   const unavailable = {available:false};
   try {
+    if(request===fetch&&(options.preview||!await require('./tools/pc-link-service.cjs').ensure(options.out)))return unavailable;
     const response = await request(pcLinkOrigin + (view === 'files' ? '/files' : '/status'), {
       redirect:'manual', signal:AbortSignal.timeout(1200),
     });

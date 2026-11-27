@@ -95,7 +95,7 @@ async function main(args) {
   try {
     const status=process.env.IZ2S_PC_MEDIA_EXISTING_LINK==='1'?await service.status():await service.ensure();
     const root=path.resolve(__dirname,'../../..');
-    assert(status?.service?.root===root,'Start PC Link from this 0.3.1 installation.');
+    assert(status?.service?.root===root,'Start PC Link for this installation.');
     const logs=runtime.logs();
     await fs.mkdir(logs,{recursive:true});
     const folder=await fs.mkdtemp(path.join(logs,source+'-'));
