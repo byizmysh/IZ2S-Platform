@@ -28,6 +28,18 @@ export async function buildSdPackage() {
     for (const [name, [source, target]] of Object.entries(RUNTIME_FILES))
         await add(source, target.slice(1), manifest[name]);
     const records = JSON.parse(await fs.readFile(path.join(runtime, "package-manifest.json"), "utf8"));
+    // NRO dependencies are separate SD files, loaded only when a program asks
+    // for them. Bind both the declared set and each file to the package hashes.
+    const libraries = records.filter(row => row.path.startsWith("iz2s/lib/"));
+    const declaredLibraries = provenance.launcher.sharedLibraries || [];
+    if (JSON.stringify(libraries.map(row => row.path).sort()) !==
+        JSON.stringify([...declaredLibraries].sort()))
+        throw Error("NRO shared libraries do not match runtime provenance");
+    for (const record of libraries) {
+        if (!/^iz2s\/lib\/lib[a-zA-Z0-9+.-]+\.so\.[0-9]+$/.test(record.path))
+            throw Error("Invalid NRO shared library path");
+        await add(record.path, record.path, {...record, size: record.bytes});
+    }
     const exefs = records.find(row => row.path === 'game/exefs.nsp');
     if (!exefs) throw Error('Missing game executable package');
     await add(exefs.path, 'iz2s/core/bin/' + exefs.path, {...exefs, size:exefs.bytes});
@@ -55,6 +67,8 @@ export async function buildSdPackage() {
         `PC panel ${profile.version}; launcher ${provenance.launcher.version}, ${provenance.launcher.revision}. The native launcher is embedded in game/main; no standalone IZ2S.nro is required.\n` +
         "Install the SD-flex launch save once. Later compatible game/main, izlauncher.iza and izlauncher.romfs updates only need the SD files.\n" +
         "A change to bootstrap.bin, ro/main, core/main or the boot ABI still requires a matching launch save.\n" +
+        (declaredLibraries.length ? "This candidate changes ro/main: fully restart the console and install the matching launch save with this panel before Load Game.\n" +
+        "Shared NRO libraries are in iz2s/lib and load on demand. IZA Split remains on the existing embedded runtime.\n" : "") +
         "Copy a complete verified update set; the boot header checks do not replace the package SHA-256 inventory.\n")});
     const contents = entries.map(({name, bytes}) => ({path: name, bytes: bytes.length, sha256: archive.sha(bytes)}));
     entries.push({name: "iz2s/iz2sciv-sd-manifest.json", bytes: Buffer.from(JSON.stringify({

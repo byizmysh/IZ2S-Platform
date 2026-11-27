@@ -11,18 +11,18 @@
   },
   {
     "path": "game/exefs.nsp",
-    "bytes": 19442163,
-    "sha256": "8015ec3a331861ddf5639ba1235fd7814813d25ea9b7c2ee2ae4178358223020"
+    "bytes": 19450835,
+    "sha256": "e72e0165b955568e906e7a1ad6d776cfca82e365645aa18b0fd17ca512588edf"
   },
   {
     "path": "game/main",
-    "bytes": 19440236,
-    "sha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19"
+    "bytes": 19448910,
+    "sha256": "b7695116f984649b2452f92f6800f324d8f2a0b3a446653f1dfc4a1539142b3e"
   },
   {
     "path": "iz2s/izlauncher.iza",
-    "bytes": 900504,
-    "sha256": "4e5c488865856ad2edee45a1f2e8850527b70671460fc62138c26f4b66bbe46b"
+    "bytes": 907576,
+    "sha256": "94b2c801e6d2757d463a29dfd0a311da385148de1a4dcafe8086ce87af174f50"
   },
   {
     "path": "iz2s/izlauncher.romfs",
@@ -236,12 +236,82 @@
   },
   {
     "path": "ro/main",
-    "bytes": 23854,
-    "sha256": "eed2f243fa7261607f33c19ee4fe916a7a1fe77319d38a17cca9dd759a97a2a0"
+    "bytes": 29164,
+    "sha256": "6664c889f26ecf204c2cc31cf9e6558869f9a358d47ad17835639e11f75a340c"
   },
   {
     "path": "licenses/ouncevk/IZ2S-stage1.txt",
     "bytes": 385,
     "sha256": "bacdf67f7686ecd85883010e053691eb59f904a4c00aba5ef9e81ced56bc94a7"
+  },
+  {
+    "path": "iz2s/lib/libEGL.so.1",
+    "bytes": 12288,
+    "sha256": "02df70d8d7d7a5d150de2fb72455fe04fab0bb2f7451e6606f4da2c31e1e3120"
+  },
+  {
+    "path": "iz2s/lib/libGL.so.1",
+    "bytes": 12288,
+    "sha256": "66d8131cdbea276cfd1147a6a9ee7cc6f918bda7249c2b43b5beb3f63b3856ae"
+  },
+  {
+    "path": "iz2s/lib/libGLESv2.so.2",
+    "bytes": 12288,
+    "sha256": "a55d9de52f315899143cd5d8c8ff785ac16a31aef68ccc6942c4065264d2bdc2"
+  },
+  {
+    "path": "iz2s/lib/libounce.so.1",
+    "bytes": 2355200,
+    "sha256": "8b69349df178a1861d782a47aabfc7668cbc32e2f7a0061783e1fe641b94e881"
+  },
+  {
+    "path": "iz2s/lib/libouncevk-gl.so.1",
+    "bytes": 12644352,
+    "sha256": "65b927e5f5117450690f7d7c09ceafa939486ac935a22d79e349028098168f4b"
+  },
+  {
+    "path": "iz2s/lib/libouncevk.so.1",
+    "bytes": 9277440,
+    "sha256": "9bc713564fbcf8b26cb0ff3733996d989b864d519e1c9ac05a3256fc0af664fb"
+  },
+  {
+    "path": "iz2s/lib/libstdc++.so.6",
+    "bytes": 2756608,
+    "sha256": "559276ade71fcec0a6f72304871d8774843448aec1154465132efb3318117c8c"
+  },
+  {
+    "path": "iz2s/lib/libvulkan.so.1",
+    "bytes": 12288,
+    "sha256": "93f7b556817df5f7b0aa0a32a75aabd923a907714d82b3ae85a12c4f70ca67c0"
+  },
+  {
+    "path": "licenses/libstdc++-GCC-runtime-exception.txt",
+    "bytes": 3324,
+    "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74"
+  },
+  {
+    "path": "licenses/libstdc++-GPL-3.0.txt",
+    "bytes": 35147,
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "licenses/ouncevk-shared/README.md",
+    "bytes": 5437,
+    "sha256": "e402176ce55904b11aedb2c10eac1e1955a9a8a78e5b8e12785c4b19a6b9e1ab"
+  },
+  {
+    "path": "licenses/ouncevk-shared/mesa-license.rst",
+    "bytes": 1816,
+    "sha256": "0d1a0472ecc81830e75c20d59b0ea02841e3db21255e0ebad97ab682c54d6615"
+  },
+  {
+    "path": "licenses/ouncevk-shared/zlib-license.txt",
+    "bytes": 1646,
+    "sha256": "807c3a7dd7f6203b3dae80e28c3064f231c333685488541825b040081087fc4d"
+  },
+  {
+    "path": "licenses/IZ2S-NRO-runtime-stage2.txt",
+    "bytes": 480,
+    "sha256": "2b030f0000bdd5a46123ddf3406fab15666de2dbacc6c1006e9d0904b8db3c92"
   }
 ]

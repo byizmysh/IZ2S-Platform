@@ -3,9 +3,72 @@
   "root": "/iz2s/core",
   "logRoot": "/iz2s/log/core",
   "files": [
-    {"source": "iz2s/izlauncher.romfs", "target": "/iz2s/izlauncher.romfs", "kind": "romfs"},
-    {"source": "iz2s/izlauncher.iza", "target": "/iz2s/izlauncher.iza", "kind": "iza"},
-    {"source": "game/main", "target": "/iz2s/core/bin/game/main", "kind": "nso"},
-    {"source": "core/main", "target": "/iz2s/core/bin/core/main", "kind": "nso"}
-  ]
+    {
+      "source": "ro/main",
+      "target": "/iz2s/core/bin/ro/main",
+      "kind": "nso"
+    },
+    {
+      "source": "iz2s/lib/libEGL.so.1",
+      "target": "/iz2s/lib/libEGL.so.1",
+      "kind": "nro"
+    },
+    {
+      "source": "iz2s/lib/libGL.so.1",
+      "target": "/iz2s/lib/libGL.so.1",
+      "kind": "nro"
+    },
+    {
+      "source": "iz2s/lib/libGLESv2.so.2",
+      "target": "/iz2s/lib/libGLESv2.so.2",
+      "kind": "nro"
+    },
+    {
+      "source": "iz2s/lib/libounce.so.1",
+      "target": "/iz2s/lib/libounce.so.1",
+      "kind": "nro"
+    },
+    {
+      "source": "iz2s/lib/libouncevk-gl.so.1",
+      "target": "/iz2s/lib/libouncevk-gl.so.1",
+      "kind": "nro"
+    },
+    {
+      "source": "iz2s/lib/libouncevk.so.1",
+      "target": "/iz2s/lib/libouncevk.so.1",
+      "kind": "nro"
+    },
+    {
+      "source": "iz2s/lib/libstdc++.so.6",
+      "target": "/iz2s/lib/libstdc++.so.6",
+      "kind": "nro"
+    },
+    {
+      "source": "iz2s/lib/libvulkan.so.1",
+      "target": "/iz2s/lib/libvulkan.so.1",
+      "kind": "nro"
+    },
+    {
+      "source": "iz2s/izlauncher.romfs",
+      "target": "/iz2s/izlauncher.romfs",
+      "kind": "romfs"
+    },
+    {
+      "source": "iz2s/izlauncher.iza",
+      "target": "/iz2s/izlauncher.iza",
+      "kind": "iza"
+    },
+    {
+      "source": "game/main",
+      "target": "/iz2s/core/bin/game/main",
+      "kind": "nso"
+    },
+    {
+      "source": "core/main",
+      "target": "/iz2s/core/bin/core/main",
+      "kind": "nso"
+    }
+  ],
+  "bootRevision": "iz2s-0.3.4-ro2",
+  "requiresMatchingLaunchSave": true
 }

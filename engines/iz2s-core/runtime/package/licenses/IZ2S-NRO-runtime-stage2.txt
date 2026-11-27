@@ -1,0 +1,6 @@
+IZ2S 0.34 - local NRO runtime candidate
+Upstream KaiHEN 20261127.1, ounce-hbloader e34f4afa, libounce 20261127, OunceVK 20261123.1.
+Shared libraries are published upstream binaries, loaded on demand from /iz2s/lib.
+Sources, build records, upstream licenses and local changes: sources/nro-runtime-stage2 in the PC package.
+The embedded IZA Vulkan driver remains the stage 1 cleanup backport.
+The new RO requires a full reboot and matching launch save. Hardware validation pending.

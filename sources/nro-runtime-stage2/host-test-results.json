@@ -1,0 +1,26 @@
+[
+  {
+    "name": "ro-wire",
+    "passed": true
+  },
+  {
+    "name": "ro-image",
+    "passed": true
+  },
+  {
+    "name": "ro-session",
+    "passed": true
+  },
+  {
+    "name": "ro-mapping",
+    "passed": true
+  },
+  {
+    "name": "cycle",
+    "passed": true
+  },
+  {
+    "name": "libraries",
+    "passed": true
+  }
+]

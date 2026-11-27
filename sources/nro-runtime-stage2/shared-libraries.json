@@ -1,0 +1,48 @@
+{
+  "release": "https://github.com/ouncebrew/kaihen/releases/tag/20261127.1",
+  "releaseZipSha256": "0c64111062a85fd9a796ed2e0dda0c20cf279812cd16c43d9c85535752b3a4d1",
+  "libounce": "20261127",
+  "ouncevk": "20261123.1",
+  "files": [
+    {
+      "bytes": 12288,
+      "sha256": "02df70d8d7d7a5d150de2fb72455fe04fab0bb2f7451e6606f4da2c31e1e3120",
+      "path": "iz2s/lib/libEGL.so.1"
+    },
+    {
+      "bytes": 12288,
+      "sha256": "66d8131cdbea276cfd1147a6a9ee7cc6f918bda7249c2b43b5beb3f63b3856ae",
+      "path": "iz2s/lib/libGL.so.1"
+    },
+    {
+      "bytes": 12288,
+      "sha256": "a55d9de52f315899143cd5d8c8ff785ac16a31aef68ccc6942c4065264d2bdc2",
+      "path": "iz2s/lib/libGLESv2.so.2"
+    },
+    {
+      "bytes": 2355200,
+      "sha256": "8b69349df178a1861d782a47aabfc7668cbc32e2f7a0061783e1fe641b94e881",
+      "path": "iz2s/lib/libounce.so.1"
+    },
+    {
+      "bytes": 12644352,
+      "sha256": "65b927e5f5117450690f7d7c09ceafa939486ac935a22d79e349028098168f4b",
+      "path": "iz2s/lib/libouncevk-gl.so.1"
+    },
+    {
+      "bytes": 9277440,
+      "sha256": "9bc713564fbcf8b26cb0ff3733996d989b864d519e1c9ac05a3256fc0af664fb",
+      "path": "iz2s/lib/libouncevk.so.1"
+    },
+    {
+      "bytes": 2756608,
+      "sha256": "559276ade71fcec0a6f72304871d8774843448aec1154465132efb3318117c8c",
+      "path": "iz2s/lib/libstdc++.so.6"
+    },
+    {
+      "bytes": 12288,
+      "sha256": "93f7b556817df5f7b0aa0a32a75aabd923a907714d82b3ae85a12c4f70ca67c0",
+      "path": "iz2s/lib/libvulkan.so.1"
+    }
+  ]
+}

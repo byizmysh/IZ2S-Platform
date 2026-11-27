@@ -36,7 +36,17 @@ def apply_hooks(source, hooks):
 
 def integrate(source):
     return apply_hooks(source, (
-        ('#include <time.h>\n', '#include <time.h>\n#include "menu-status.h"\n'),
+        ('#include <time.h>\n', '#include <time.h>\n#include "menu-status.h"\n#include "menu-nro-result.h"\n'),
+        ('static bool next_program_ready;\n', '''static bool next_program_ready;
+uint32_t iz2_nro_return_message(void) {
+    static bool consumed;
+    if (consumed) return 0;
+    consumed = true;
+    const uint32_t result = envGetLastLoadResult();
+    if (result) fprintf(stderr,"IZLAUNCHER_NRO_RETURN result=0x%08x\\n",result);
+    return iz2_nro_result_message(result);
+}
+'''),
         ('#include "menu-factory.h"\n', '#include "menu-factory.h"\n#include "menu-pipeline-cache.h"\n#include "menu-lifecycle.h"\n'),
         ('static u32 run_menu(bool import){\n',
          '''static bool read_menu_atlas(const char *path,void *output,size_t size){
@@ -133,6 +143,12 @@ static int add_packages(IzLocalAdd *message) {
 
 def integrate_catalog(source):
     return apply_hooks(source, (
+        (' c->state=2;u64 previous=0,first_release=0,next_scan=0,offer_frame=0;',
+         '''#ifdef IZ_OUNCE_PRESENTATION
+ extern uint32_t iz2_nro_return_message(void);
+ W((void*)(uintptr_t)c->controls,92,iz2_nro_return_message());
+#endif
+ c->state=2;u64 previous=0,first_release=0,next_scan=0,offer_frame=0;'''),
         ('u64 iz_run(IzContext*c){',
          '''#include "menu-idle.h"
 static u64 run_launcher(IzContext*c,bool snapshot_prepared);

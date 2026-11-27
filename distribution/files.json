@@ -2404,7 +2404,7 @@
     },
     "distribution/profile.json": {
       "bytes": 967,
-      "sha256": "04b964887afbf7bcc9ec3ee7ec4db9a5c24336407fab5a53a57687a3d12000c1",
+      "sha256": "422a0fba1ec14b7b80eb42ca90fe09cdda29db7b31c2bb3f784e3b85d86eed3e",
       "executable": false
     },
     "distribution/release.py": {
@@ -2608,13 +2608,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/manifest.json": {
-      "bytes": 9065,
-      "sha256": "44a536ca36a45263715901c34dea5f4e663ecbe6f434c93473c6d1d9499ee03f",
+      "bytes": 11490,
+      "sha256": "401b83539e8234f8213ef14d113ee45e8277e9029b650d8e26285fb460a19e3c",
       "executable": false
     },
     "engines/iz2s-core/runtime/menu-build.json": {
-      "bytes": 26176,
-      "sha256": "78edd86899e6c55b025a8ed3bf7d8fa9806a4c5d4def537738e7b941b9bde377",
+      "bytes": 35427,
+      "sha256": "0e0858838bafebca03b40e85b98d87c650e10159bd43e978642d572c51307d7f",
       "executable": false
     },
     "engines/iz2s-core/runtime/nro-icon-runtime-build.json": {
@@ -2623,8 +2623,8 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/package-manifest.json": {
-      "bytes": 7359,
-      "sha256": "c6c9a3dd9b329f88b3e24335c1819bb62c4192b95e86d8d8d0b6dc6c6e142d15",
+      "bytes": 9530,
+      "sha256": "002cdb06d0d5ee936bf373c73b9df7355e9ea5ec4cdb8f377b355cd19b6a5a4e",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/bootstrap.bin": {
@@ -2638,13 +2638,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/exefs.nsp": {
-      "bytes": 19442163,
-      "sha256": "8015ec3a331861ddf5639ba1235fd7814813d25ea9b7c2ee2ae4178358223020",
+      "bytes": 19450835,
+      "sha256": "e72e0165b955568e906e7a1ad6d776cfca82e365645aa18b0fd17ca512588edf",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/main": {
-      "bytes": 19440236,
-      "sha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19",
+      "bytes": 19448910,
+      "sha256": "b7695116f984649b2452f92f6800f324d8f2a0b3a446653f1dfc4a1539142b3e",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/main.npdm": {
@@ -2653,8 +2653,8 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/package/iz2s/izlauncher.iza": {
-      "bytes": 900504,
-      "sha256": "4e5c488865856ad2edee45a1f2e8850527b70671460fc62138c26f4b66bbe46b",
+      "bytes": 907576,
+      "sha256": "94b2c801e6d2757d463a29dfd0a311da385148de1a4dcafe8086ce87af174f50",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/iz2s/izlauncher.romfs": {
@@ -2868,23 +2868,23 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/package/ro/main": {
-      "bytes": 23854,
-      "sha256": "eed2f243fa7261607f33c19ee4fe916a7a1fe77319d38a17cca9dd759a97a2a0",
+      "bytes": 29164,
+      "sha256": "6664c889f26ecf204c2cc31cf9e6558869f9a358d47ad17835639e11f75a340c",
       "executable": false
     },
     "engines/iz2s-core/runtime/provenance.json": {
-      "bytes": 14777,
-      "sha256": "a97f6178a03bfe10b5349c808e363d1ce230a2e71008922a5eabeaec9349b1ed",
+      "bytes": 15421,
+      "sha256": "336e5ad59bfe47c0bf812b3cc0035258cb91120f76be96ead8de602849a81af4",
       "executable": false
     },
     "engines/iz2s-core/runtime/run32-component-validation.json": {
-      "bytes": 962,
-      "sha256": "0ff311c8d6b126a653ac016883a8189ce7c2364e65ad98ea0422a2bae6ba8786",
+      "bytes": 2471,
+      "sha256": "575a75a5faa96529d178312f04473eccc3d6340d93e0b5d1dd5e51d803bae0bc",
       "executable": false
     },
     "engines/iz2s-core/runtime/sd-layout.json": {
-      "bytes": 437,
-      "sha256": "c197a2a4b1f91ced38b42db4c2f3b8b25592cf41bef9bd23a4d7bd56cd875466",
+      "bytes": 1663,
+      "sha256": "4c5ed31d6cc69024f59bca00bf687df4140f5ed2364eb57375240913213251cd",
       "executable": false
     },
     "engines/iz2s-core/runtime/store-icons-runtime-build.json": {
@@ -3183,8 +3183,8 @@
       "executable": false
     },
     "engines/iz2sciv-core/boot-revision.json": {
-      "bytes": 42,
-      "sha256": "d26cf83dc612e33d586406f32d20abed241db37d469c20cb1aef90cc85345472",
+      "bytes": 35,
+      "sha256": "0122a058a894396291c99c44be9b0effdfa89aa8bf2469dbfa93f59e9148a793",
       "executable": false
     },
     "engines/iz2sciv-core/engine.json": {
@@ -3773,8 +3773,8 @@
       "executable": false
     },
     "engines/iz2sciv-core/tools/sd-package.mjs": {
-      "bytes": 5980,
-      "sha256": "043f2873deabc21085364f9c98807e4a312d61d7bec54507acb3d391d18992e1",
+      "bytes": 7050,
+      "sha256": "71ab4cb9cfab095cd03dbb8fc84d8be68d78bb4f1b4b452277a73ecfa8fa2737",
       "executable": false
     },
     "engines/iz2sciv-core/tools/sd-verify.test.mjs": {
@@ -134378,8 +134378,8 @@
       "executable": false
     },
     "sources/run32-launcher/shaders/menu-install.glsl": {
-      "bytes": 8391,
-      "sha256": "b1040c86b40cb50f0b3865168709d3d968874ceb8dc63d0687f27901b577bbd4",
+      "bytes": 10296,
+      "sha256": "f53a50261d22f393e3f863e6071a05dff14265e75a8a7a924ddbdd574fd18b28",
       "executable": false
     },
     "sources/run32-launcher/shaders/menu-removal-draw.glsl": {
@@ -134463,8 +134463,8 @@
       "executable": false
     },
     "sources/run32-launcher/status/build-homebrew.py": {
-      "bytes": 34725,
-      "sha256": "5b27270c858161ed7ff98a2c5b60f51bd2fe1d65b3b20cda130faf7020051f88",
+      "bytes": 35450,
+      "sha256": "df6864d6bf3b65b4a81265705596d5bf05ed2d1dd2b7ca85b1a93cf51165af29",
       "executable": false
     },
     "sources/run32-launcher/status/build-split.py": {
@@ -134950,6 +134950,446 @@
     "sources/run32-launcher/status/app-versions-0.34.json": {
       "bytes": 844,
       "sha256": "a390ce452dfd4bc17abadb5208ae1a3a00d0f3816d030fa546aec9ee6f2f1236",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/iz2s/lib/libEGL.so.1": {
+      "bytes": 12288,
+      "sha256": "02df70d8d7d7a5d150de2fb72455fe04fab0bb2f7451e6606f4da2c31e1e3120",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/iz2s/lib/libGL.so.1": {
+      "bytes": 12288,
+      "sha256": "66d8131cdbea276cfd1147a6a9ee7cc6f918bda7249c2b43b5beb3f63b3856ae",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/iz2s/lib/libGLESv2.so.2": {
+      "bytes": 12288,
+      "sha256": "a55d9de52f315899143cd5d8c8ff785ac16a31aef68ccc6942c4065264d2bdc2",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/iz2s/lib/libounce.so.1": {
+      "bytes": 2355200,
+      "sha256": "8b69349df178a1861d782a47aabfc7668cbc32e2f7a0061783e1fe641b94e881",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/iz2s/lib/libouncevk-gl.so.1": {
+      "bytes": 12644352,
+      "sha256": "65b927e5f5117450690f7d7c09ceafa939486ac935a22d79e349028098168f4b",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/iz2s/lib/libouncevk.so.1": {
+      "bytes": 9277440,
+      "sha256": "9bc713564fbcf8b26cb0ff3733996d989b864d519e1c9ac05a3256fc0af664fb",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/iz2s/lib/libstdc++.so.6": {
+      "bytes": 2756608,
+      "sha256": "559276ade71fcec0a6f72304871d8774843448aec1154465132efb3318117c8c",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/iz2s/lib/libvulkan.so.1": {
+      "bytes": 12288,
+      "sha256": "93f7b556817df5f7b0aa0a32a75aabd923a907714d82b3ae85a12c4f70ca67c0",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/licenses/IZ2S-NRO-runtime-stage2.txt": {
+      "bytes": 480,
+      "sha256": "2b030f0000bdd5a46123ddf3406fab15666de2dbacc6c1006e9d0904b8db3c92",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/licenses/libstdc++-GCC-runtime-exception.txt": {
+      "bytes": 3324,
+      "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/licenses/libstdc++-GPL-3.0.txt": {
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/licenses/ouncevk-shared/README.md": {
+      "bytes": 5437,
+      "sha256": "e402176ce55904b11aedb2c10eac1e1955a9a8a78e5b8e12785c4b19a6b9e1ab",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/licenses/ouncevk-shared/mesa-license.rst": {
+      "bytes": 1816,
+      "sha256": "0d1a0472ecc81830e75c20d59b0ea02841e3db21255e0ebad97ab682c54d6615",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/licenses/ouncevk-shared/zlib-license.txt": {
+      "bytes": 1646,
+      "sha256": "807c3a7dd7f6203b3dae80e28c3064f231c333685488541825b040081087fc4d",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/HBLOADER-LICENSE.md": {
+      "bytes": 737,
+      "sha256": "db88a9c4d4d3148cbe397ca0acb7886e7aebcc8b984d4ce3b949e9caabdc7223",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/KAIHEN-LICENSE": {
+      "bytes": 18092,
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/LIBOUNCE-LICENSE.md": {
+      "bytes": 731,
+      "sha256": "5b6675f85016009624d29c9222201d3c0fc6a2d5c59253367f27d3e15011cdb2",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/build-record.json": {
+      "bytes": 30832,
+      "sha256": "4d4cb299fb14117a29a9d8f2eea0b576cec41d1052403ed0d9acdfcc9e15b632",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/build.py": {
+      "bytes": 3518,
+      "sha256": "3b0520e3033318cb3fa3becf8ddc549a1ceff122dc1dc5bec55677aee27e8156",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/code_mount_request.hpp": {
+      "bytes": 2778,
+      "sha256": "a94170b3db6ffcad1f28c3ffdcba5622e7eeb4e44f2cc22aa1000acb971db6e6",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/control.h": {
+      "bytes": 5568,
+      "sha256": "162f27861345b3d2e47c7f58a24da0c26f658101da990a4bed71f71dd4364496",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/domain_mount.hpp": {
+      "bytes": 4862,
+      "sha256": "8c3edb5578d858e04e46e4a43534ce46acc6d40a19bab17fbe8246336a76b77e",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/game_arm.h": {
+      "bytes": 1416,
+      "sha256": "72ef68590faccf449aac15f410730ab37e69154f729ea88fd66a39104ea60957",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/loader_gate.hpp": {
+      "bytes": 29276,
+      "sha256": "1815ee26d2d0100881387652abad53cb6552cde73ee43fda0593780a475b67e4",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/package.hpp": {
+      "bytes": 2517,
+      "sha256": "7b0e68c3c22889f878f61b08d82d19c9f33fae9751d259ef24a33977d2a8a3dc",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/policy_package.cpp": {
+      "bytes": 5101,
+      "sha256": "46544232b2e6e75e7d51c15202fd09363eb487caec285f2c08c1d50b6755098d",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/policy_package.hpp": {
+      "bytes": 1074,
+      "sha256": "1ebf06532d2d6cb3515ff34b5e35a6179ae725efa67ef413c004c7fd15d3d961",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/result.hpp": {
+      "bytes": 1243,
+      "sha256": "b3e7d820a0e6edabed09811909838a6b034f628f9fea680e061f57ac7ad15cdb",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/retained_memory.hpp": {
+      "bytes": 7184,
+      "sha256": "ef3eb2917df0638e433c968e43f1227db828196ed1783562b9a8079d5f32c185",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/ro_dmnt.h": {
+      "bytes": 761,
+      "sha256": "517e5720bf7a5ff7de2434738d25f58e791f1441f897fbece42bbe0e2cc0c567",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/sd_writer.cpp": {
+      "bytes": 5100,
+      "sha256": "78f3823d539e76e7e10a781afbef99bc3f8b1fba3a84bacf8ec22fca00e18853",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/common/sd_writer.hpp": {
+      "bytes": 948,
+      "sha256": "1010502e5ce3168d64f3c829a4659699f570456adcff09e9adf267c64c02e21b",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/dynlink.c": {
+      "bytes": 34144,
+      "sha256": "1dc28153f72b3a12f7f2d8bdd47b10eb132f89cfd692308d2309ddbd57482ce3",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/Makefile.clean": {
+      "bytes": 2210,
+      "sha256": "3ad0712ac4ea1f04c941225077ade933bb42116debdf7cbc920a5f9ed3664e21",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/builtin_image.c": {
+      "bytes": 781,
+      "sha256": "7cd1f82c6da504389ef8ba1191e69d3380708c988ddc5b4be2e2bc66914df2e0",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/builtin_image.h": {
+      "bytes": 298,
+      "sha256": "320c00367329d6bf94e28d75aef252845598ccc4875ab3f033117b83c4b88c19",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/clean_main.cpp": {
+      "bytes": 45315,
+      "sha256": "092bbb975ab675c208367d9cd34b4339a886c201e419333eeffd5bae46c84647",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/config.c": {
+      "bytes": 3515,
+      "sha256": "1a0ac29703aa3ad1b0423073e43cafee9a10ffc002325b9e461a76c1836fe09a",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/config.h": {
+      "bytes": 3620,
+      "sha256": "0c7948ba9dae3f34a3642e8b866b2bd65df52f4faeb6c9209f56f73dae7a4d9a",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/cycle.c": {
+      "bytes": 4313,
+      "sha256": "a3e500851c2152c2f60e990411db86df3270d8b17212dbcdfa42452031e7eec5",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/cycle.h": {
+      "bytes": 2487,
+      "sha256": "198a3268bdd661adf98f12863085c681662fcae371713a8108937477c8985c1c",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/entry.S": {
+      "bytes": 2813,
+      "sha256": "4d58d95e815de605b1940e73bde3907e4b83f5c3c017283a5ddaed740ae653ca",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/entry.h": {
+      "bytes": 902,
+      "sha256": "b945cc7c7c4028d1247d3eb561783089e8cdea458c7b4c1f571fd8ce93efae84",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/leak_check.c": {
+      "bytes": 5217,
+      "sha256": "f857f5f24e27563fee6097c4acf02f2d436d7f1a7e515e97c680dcb26bfcd1e1",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/hbloader/leak_check.h": {
+      "bytes": 3103,
+      "sha256": "53be2cc71fb132e7eb618be9382992298ff1cbb4a5d711f8f6c78184cfcd3d45",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/host-test-results.json": {
+      "bytes": 316,
+      "sha256": "c1ecfcf9a5cd204d3dfd539be8dddf1891d4b4337d4227bbb9d9688756094850",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/include/switch2/runtime/dynlink.h": {
+      "bytes": 17867,
+      "sha256": "09db8ff8b47b61a6ef232bd4f6ce021fcd9f166685db4816ae5d8a013dc91fb9",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/JIT.md": {
+      "bytes": 2466,
+      "sha256": "5bb7d576878d3e4e78e6c12cbda3249e49e8aec4f68cd1adecb251167f4f8c54",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/LICENSE": {
+      "bytes": 737,
+      "sha256": "dd76999221b671901d57147c9b917237f63a131af5822496845f9878a3fd6b6e",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/Makefile": {
+      "bytes": 2218,
+      "sha256": "e0eea520aaccd11e57f7f839437481d7e363cfa13732589a0f586f2482c18144",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/PLUGINS.md": {
+      "bytes": 4549,
+      "sha256": "e6eb6177ead3f64c8305fc4cf77ea3d6a6778490af49abe143d076208ef7568b",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/include/kaihen.h": {
+      "bytes": 6778,
+      "sha256": "26b5758beedcb5b5e465d43a5b448285a8f04f3bcfb0f5c88739103f2af9c387",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/include/kaihen/plugin.h": {
+      "bytes": 5884,
+      "sha256": "b933c1e3d73ba0f9cf1b229541ed5d872d382b3690a12faa32b7d00c5041294a",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/include/kaihen/protocol.h": {
+      "bytes": 4508,
+      "sha256": "21a0ea54a571a9c46346edb4150bdbff416d379a1cc77d3cbf9dde980b010695",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/source/cmif_server.hpp": {
+      "bytes": 4851,
+      "sha256": "95f60d16c248fe6ada1dcd630d11d2e29b14a78cc8d9582f50bd16f22eca8b3a",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/source/jit.c": {
+      "bytes": 5793,
+      "sha256": "a10b1fe5d5ea4aef6468d371f68d5adac29c71d612b119f9da248db2c74278eb",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/source/plugin_runtime.cpp": {
+      "bytes": 8855,
+      "sha256": "882d1de66070f472f6e5466e4539a9e6105d21077504f87a842720f7abc45df1",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/source/plugin_server.cpp": {
+      "bytes": 11842,
+      "sha256": "e777e3c3908bb13ab8d8b916f7c6903588311e947250f73caf34340d0d454312",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/libkaihen/source/plugin_startup.h": {
+      "bytes": 1885,
+      "sha256": "8d42c388bdcec855c4fc6eb48e8fc6e263eed389d4abe4675175e81e6a2d79fb",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/menu-build-record.json": {
+      "bytes": 5154,
+      "sha256": "99f11fb7577422067a1d6ac64006e07da433a6c8543cd90ad21fdd3cf6c6ddc0",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/Makefile": {
+      "bytes": 1409,
+      "sha256": "ab7b241a7495fb3e9f62ec4b575172d75bd4014d78c7988163ed3feee8cf4a36",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/README.md": {
+      "bytes": 2860,
+      "sha256": "30a2962c88393f14c893e5366e2dcd467d5e49e7490fe9ac1b2a81cbfd8feaca",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/control.cpp": {
+      "bytes": 1019,
+      "sha256": "33ccdb2345ded80f40969393383b2303e52d877b87dc63fe91f3f2380312da15",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/control.h": {
+      "bytes": 328,
+      "sha256": "9d3646a5d387be899000de1126d841cd1cad1a5027fabad9d0a3b590c6de199a",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/fs_memory.cpp": {
+      "bytes": 8101,
+      "sha256": "b0e79e61964f3202652e4e5dbe9aa1242af185f8de7f645b453068aafaae1569",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/fs_memory.h": {
+      "bytes": 320,
+      "sha256": "1d0e2d8497fb82e3902392e2b9aa0b8d44f319fce71362e69b91a3837ff49697",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/handle.hpp": {
+      "bytes": 681,
+      "sha256": "a5faab55deecd91b31bf279e02deff2bb5d71e29b15fba2ad082f285cc73700e",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/image.cpp": {
+      "bytes": 2747,
+      "sha256": "a9f8718314ae9f7e572f35b45bf9616a1d814ff0f30356b6dc6b41ad432abe05",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/image.h": {
+      "bytes": 1033,
+      "sha256": "0693e759b7803f4c99d2ca2a8111161d5364da8de8fd13d0a06b0bc6a1868833",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/main.cpp": {
+      "bytes": 4828,
+      "sha256": "d8cb2c741eacfdf009706c66bc7d0ee41aeec5883fb7d841c0ce12c3af86fa2d",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/mapping.cpp": {
+      "bytes": 20287,
+      "sha256": "5cb5458cc5101707733197ea22c46d4f4aa05cd811dd738c8d9a26cab66c67db",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/results.h": {
+      "bytes": 1536,
+      "sha256": "7cf3c23aaeaff8d9277990cd8188ef5a76f967cce4b6c522e464999f3074ab9a",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/ro_diagnostics.h": {
+      "bytes": 887,
+      "sha256": "dd724a60c164f5696717faef25f72bc2f8544317d01043c18c87270634f4d022",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/session.cpp": {
+      "bytes": 18812,
+      "sha256": "7037a5061be72ed6bb3f42460e1b3b887b60705c20b9deb07fcbfb4ad48193d1",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/session.h": {
+      "bytes": 3575,
+      "sha256": "64a0f056a167c49f13ac7b277a3f4b89510a06ac3bcf0eb54d30d0065ca0a6b2",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/wire.cpp": {
+      "bytes": 6847,
+      "sha256": "3ff26275be1a090b708b9e94cb79bae69c9a3e61f48f30bc6abc915933709617",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/source/wire.h": {
+      "bytes": 2715,
+      "sha256": "19da3f493081194e9fd5d72b7bcfd845685d56a47b9ee50c5e38260c5205b553",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/test.sh": {
+      "bytes": 1246,
+      "sha256": "7ec74b379fb05bb33473a25840fb6e04101f99b7047b7d5593da4bb1d4e1299b",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/tests/image_test.cpp": {
+      "bytes": 1388,
+      "sha256": "79f1de13dae12d73add39a21ce91b591475ee1e7b56fa4c70c85524d31a72e3e",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/tests/mapping_test.cpp": {
+      "bytes": 16076,
+      "sha256": "cc1787e34e003d708b590207a0c1d7d5c040dd1c80b2e27cf1089a63910bc8bb",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/tests/session_test.cpp": {
+      "bytes": 19080,
+      "sha256": "1b8292ca17b77894bb3277399cf0a2e82ec5f5448dd628758f5888de77605b19",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/ro/tests/wire_test.cpp": {
+      "bytes": 2816,
+      "sha256": "846732467f7d7aa9ed281f870fd810ff1670cffdd422637c2b7ed20e15dfff1a",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/shared-libraries.json": {
+      "bytes": 1517,
+      "sha256": "32a5db83f5113c6f4ff777210ac6f58f4c808f1fc64b5a4503c097eeb02e39ea",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/tests/cycle.c": {
+      "bytes": 3929,
+      "sha256": "ab229513d4aad4438007ad9e3b7905797f20a9e22aa1986213626d9acbf7efbd",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/tests/libraries.c": {
+      "bytes": 3117,
+      "sha256": "4c71adad4e5924fb3018fec7bd0fcab7a53f54e9e6642195d16ede92ca6be9ef",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/upstream.json": {
+      "bytes": 181,
+      "sha256": "2f1c7a79b0999af5a4cad2a5cf717b3a7330b228cc2c4ced0bd4fea6079cad7a",
+      "executable": false
+    },
+    "sources/run32-launcher/status/menu-nro-result.h": {
+      "bytes": 542,
+      "sha256": "6d96e8fef5f269ba9ef8ec485dabbac20616caee1aca0762896c4a9ceeb389d9",
+      "executable": false
+    },
+    "sources/nro-runtime-stage2/README.txt": {
+      "bytes": 4022,
+      "sha256": "18f5e70b6aeca054a06ad7f37ff3529d2796aa5e2a0f03de7ca0adc04c778565",
       "executable": false
     }
   }

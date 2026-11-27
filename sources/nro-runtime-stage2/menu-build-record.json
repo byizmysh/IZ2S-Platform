@@ -1,0 +1,62 @@
+{
+  "sources": {
+    "status/build-homebrew.py": "df6864d6bf3b65b4a81265705596d5bf05ed2d1dd2b7ca85b1a93cf51165af29",
+    "status/build-split.py": "f04256f560b7e7a2b2c4fd9a56a90e23019d93e99364afa1376969ed2ce62250",
+    "status/run32-system-status.patch": "9130a2dc67b9677519b68033ca2b636aa18e3b2a537167602ac0a61ec6b2f765",
+    "status/package-split.py": "408eae4fc3e66666bd55762bd5fc55c15fde5fda9f176256fdfa699938fd03a3",
+    "status/app-versions-0.34.json": "a390ce452dfd4bc17abadb5208ae1a3a00d0f3816d030fa546aec9ee6f2f1236",
+    "status/menu-lifecycle.h": "8cd69a5af5fe2157c830d0b69119e18877c448156bb6a26d5f4bb1755ce25d18",
+    "status/menu-versions.h": "a98cf5df9abb142a52af8ce6398ed8f37b61713ec8f8cd7d8cfa0cc519ea51a5",
+    "status/menu-status.h": "9f44101e27b18c1deff99a5b211bc87c8a9f3483b018b73d628cd8439672c13b",
+    "status/baseline-menu-build.json": "954507528cfe158dcdc54e919b094a747ac101857eeef870df044f4f5e5fef64",
+    "status/menu-nro-result.h": "6d96e8fef5f269ba9ef8ec485dabbac20616caee1aca0762896c4a9ceeb389d9",
+    "status/menu-idle.h": "08b2a7091c1f78558c7987fffd2496ed0848fce336809c86850fe5013f97c919",
+    "status/menu-pipeline-cache.h": "8e26286d4feff84d3d553da4d3afe88dea03eaadf7084af2b349ec72fe717c65",
+    "status/tests/pipeline-cache.c": "e946bf0794d2bc7db1eac1a2b80dd0bebc3a0a5a4c95871b0f93975e802191e3",
+    "status/tests/split-audio.c": "bb8190f3d42fa86cf25cc57a7ee8d5e0b5b84c67a895d435fa4c5d842d4bf97f",
+    "status/tests/split-layout.c": "610ab0ba3b6f9e01e5bda5f24d67f83fb7ff2a9a0c109501111ec0ad8113a519",
+    "status/tests/status.c": "81108450111a7e539a6fc413e027f98f40c14eeb9744bc4fcb3f8ffbb768d0bd",
+    "status/tests/split-windows.c": "9719cebbe50043a6e03d4d6f7d139b5eadc16737cc6e4ea19118d86c0a016c3f",
+    "status/tests/split-compositor.c": "02a88e684b0be401011a59a8c9ec91e4d6ddd8b84a5ff26a929307548962f51e",
+    "status/tests/split-launcher.c": "02056bff65b31dd7f8d8274b2ad1cd20c1e51224b68b4358a8064881461b5ad0",
+    "status/tests/menu-idle.c": "527388daf308e9d988524ea5fc409b739c9268097942fdf3d35f05fe29b23015",
+    "status/tests/stub/switch.h": "62ac86431cb58d31cd549e4f112c7a30637e30636532176c9fa1f422fcdcc45f",
+    "native/split-mode.h": "93e8f29f1c0a3fb21de5c47bb97078a131cdbcbdc44d3125e6c2b264c7485877",
+    "native/apps.c": "c34508cdbb6d2de177efa83dc1175ea66c6209bdb6cc59f0dbb16e3e92d9cb15",
+    "native/split-composite.vert": "5efb3a27b3a808fb110d6774ea389a5261fc20e43ec24b24914d8543fd8e2427",
+    "native/apps.h": "d95f07bacc7af19f14161a188086bc67d772300642f5c88bb1b5cbaee925a461",
+    "native/split-audio.c": "2850c26c797df6a157ad6ff32fd3c1ec5b814f8a7855e7f6f61dbdfb693c19f3",
+    "native/split-compositor.h": "8cd2dec3386ca14f0c3ae616c5fd23a12c199631d6e0a66d199432bcc5a36611",
+    "native/split-windows.h": "1d5094c564816fd1d5cb0a1a7c72ee94c5b9e7980a9bbd3c126ed911ba8cf813",
+    "native/split-audio.h": "cb488a52659a3e3d15a0f4a705a082301dff76042b861da96ca63865c90280d7",
+    "native/split-input.h": "20b09b6fe2a0a53c4edae4ef6668a1091a6969c6487d4b067fe95eb3e40e287b",
+    "native/split-audio-switch.c": "ccb3b793e382523904b0fa6536aa3823208db00fcd25ae4509ba6be2d15ecbf0",
+    "native/split-layout.h": "beda4836e791d096abb90dc1737712f09be71d113a018977b5e13b9f15cebacc",
+    "native/split-composite.frag": "000ba13a879c1fa120252201b4322b06f6f4a1c19755ca4096b8da2d9a235b20",
+    "native/font.c": "04ccd266928df0278c806b61c7f64308523ae8567db4dfa5a9724d8eb22cb2a2",
+    "native/ftp/socket_unistd.h": "8feff40cd004e18b81d90c3a6d7467384bc98c426064a5dd5ccb5adf84791add",
+    "native/ftp/UPSTREAM": "dbc8c37714f67f2604264c9be21a506abf11b2a00ae3e5e415e51095e8045cd4",
+    "native/ftp/vfs_sd.h": "1f39e153821a3e3d420ffc63ba726c948420fcf327042bd569df680ec708d91b",
+    "native/ftp/ftpsrv_vfs.h": "e4dc5656126381dff99bbf083a3283d9e1ef999a6d0463985ef3ee98f57d1891",
+    "native/ftp/ftpsrv.h": "5f8b83e1f5e26c2a361355d78e703210e39a8db34cd70bfb0f6e0d2d0b6d8e93",
+    "native/ftp/vfs_sd.c": "d59820f5e58df885a393f1d8935a3981df0a701d2b3658cf746e793b5ca28633",
+    "native/ftp/ftpsrv_socket.h": "83d0378579b4785b8ca63310f315825442356b54e33b674ee442257b3f4601b0",
+    "native/ftp/LICENSE": "5ca618cbc3309400c5a79ef5acb2a8467a5ae599ef23965738ffaba9522812ef",
+    "native/ftp/ftpsrv.c": "a1f2d40c62e1186767c4467edb06213ab4c315d19793371b7cae14aaa25f59bd"
+  },
+  "generatedBuilder": {
+    "path": "status/build-homebrew-split.py",
+    "sha256": "79dafc25e2ea489f2980291e85606e7fdd4659954551daf7a3f641b5e88b693f"
+  },
+  "fontSha256": "b5d64817b6331723b5e59eaaa6db90057cbed58e9733f65687f110638192359f",
+  "menuSha256": "be7754c04894f89dcb080b62a7f0d371b0386a904765d210581f377404e8a4de",
+  "appVersionTableSha256": "97bf633bce8b35fc86c8216e0c3381691658675401c9c50135dd67f8bc2e692f",
+  "ouncevk": {
+    "path": "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-Kaihen-port-20261127/driver/libouncevk.a",
+    "sha256": "60e878512e57624480d2c073568d95fdec1cc60dadc48770429062b20bb60359"
+  },
+  "appVersions": {
+    "path": "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-Kaihen-runtime-20261127/panel/sources/run32-launcher/status/app-versions-0.34.json",
+    "sha256": "a390ce452dfd4bc17abadb5208ae1a3a00d0f3816d030fa546aec9ee6f2f1236"
+  }
+}

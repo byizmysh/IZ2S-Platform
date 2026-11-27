@@ -3,13 +3,13 @@
   "files": [
     {
       "path": "menu-build.json",
-      "bytes": 26176,
-      "sha256": "78edd86899e6c55b025a8ed3bf7d8fa9806a4c5d4def537738e7b941b9bde377"
+      "bytes": 35427,
+      "sha256": "0e0858838bafebca03b40e85b98d87c650e10159bd43e978642d572c51307d7f"
     },
     {
       "path": "package-manifest.json",
-      "bytes": 7359,
-      "sha256": "c6c9a3dd9b329f88b3e24335c1819bb62c4192b95e86d8d8d0b6dc6c6e142d15"
+      "bytes": 9530,
+      "sha256": "002cdb06d0d5ee936bf373c73b9df7355e9ea5ec4cdb8f377b355cd19b6a5a4e"
     },
     {
       "path": "package/bootstrap.bin",
@@ -23,23 +23,63 @@
     },
     {
       "path": "package/game/exefs.nsp",
-      "bytes": 19442163,
-      "sha256": "8015ec3a331861ddf5639ba1235fd7814813d25ea9b7c2ee2ae4178358223020"
+      "bytes": 19450835,
+      "sha256": "e72e0165b955568e906e7a1ad6d776cfca82e365645aa18b0fd17ca512588edf"
     },
     {
       "path": "package/game/main",
-      "bytes": 19440236,
-      "sha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19"
+      "bytes": 19448910,
+      "sha256": "b7695116f984649b2452f92f6800f324d8f2a0b3a446653f1dfc4a1539142b3e"
     },
     {
       "path": "package/iz2s/izlauncher.iza",
-      "bytes": 900504,
-      "sha256": "4e5c488865856ad2edee45a1f2e8850527b70671460fc62138c26f4b66bbe46b"
+      "bytes": 907576,
+      "sha256": "94b2c801e6d2757d463a29dfd0a311da385148de1a4dcafe8086ce87af174f50"
     },
     {
       "path": "package/iz2s/izlauncher.romfs",
       "bytes": 26734392,
       "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
+    },
+    {
+      "path": "package/iz2s/lib/libEGL.so.1",
+      "bytes": 12288,
+      "sha256": "02df70d8d7d7a5d150de2fb72455fe04fab0bb2f7451e6606f4da2c31e1e3120"
+    },
+    {
+      "path": "package/iz2s/lib/libGL.so.1",
+      "bytes": 12288,
+      "sha256": "66d8131cdbea276cfd1147a6a9ee7cc6f918bda7249c2b43b5beb3f63b3856ae"
+    },
+    {
+      "path": "package/iz2s/lib/libGLESv2.so.2",
+      "bytes": 12288,
+      "sha256": "a55d9de52f315899143cd5d8c8ff785ac16a31aef68ccc6942c4065264d2bdc2"
+    },
+    {
+      "path": "package/iz2s/lib/libounce.so.1",
+      "bytes": 2355200,
+      "sha256": "8b69349df178a1861d782a47aabfc7668cbc32e2f7a0061783e1fe641b94e881"
+    },
+    {
+      "path": "package/iz2s/lib/libouncevk-gl.so.1",
+      "bytes": 12644352,
+      "sha256": "65b927e5f5117450690f7d7c09ceafa939486ac935a22d79e349028098168f4b"
+    },
+    {
+      "path": "package/iz2s/lib/libouncevk.so.1",
+      "bytes": 9277440,
+      "sha256": "9bc713564fbcf8b26cb0ff3733996d989b864d519e1c9ac05a3256fc0af664fb"
+    },
+    {
+      "path": "package/iz2s/lib/libstdc++.so.6",
+      "bytes": 2756608,
+      "sha256": "559276ade71fcec0a6f72304871d8774843448aec1154465132efb3318117c8c"
+    },
+    {
+      "path": "package/iz2s/lib/libvulkan.so.1",
+      "bytes": 12288,
+      "sha256": "93f7b556817df5f7b0aa0a32a75aabd923a907714d82b3ae85a12c4f70ca67c0"
     },
     {
       "path": "package/iz2s/modules/foldrift/launcher.iza",
@@ -50,6 +90,11 @@
       "path": "package/iz2s/modules/foldrift/launcher.iza.sig",
       "bytes": 64,
       "sha256": "8362eb08a0104a44af5519555058b132cccdcbf24f8bfa30779a65f244087369"
+    },
+    {
+      "path": "package/licenses/IZ2S-NRO-runtime-stage2.txt",
+      "bytes": 480,
+      "sha256": "2b030f0000bdd5a46123ddf3406fab15666de2dbacc6c1006e9d0904b8db3c92"
     },
     {
       "path": "package/licenses/Octicons-MIT.txt",
@@ -142,6 +187,16 @@
       "sha256": "16d9daaafbf63a31a5bdc91d4600972548fef5aaa1244202393288dbd079c49a"
     },
     {
+      "path": "package/licenses/libstdc++-GCC-runtime-exception.txt",
+      "bytes": 3324,
+      "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74"
+    },
+    {
+      "path": "package/licenses/libstdc++-GPL-3.0.txt",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    {
       "path": "package/licenses/libvorbis-BSD.txt",
       "bytes": 1470,
       "sha256": "ec1815db59fcd302846df949d7424876cb2e2dc5ed1606c5fb0b36787b1cf43a"
@@ -202,6 +257,26 @@
       "sha256": "cc8d9e517e07489053ef15db5bf78652b30c0490b85fa9d670eb301fe0b10bd5"
     },
     {
+      "path": "package/licenses/ouncevk-shared/README.md",
+      "bytes": 5437,
+      "sha256": "e402176ce55904b11aedb2c10eac1e1955a9a8a78e5b8e12785c4b19a6b9e1ab"
+    },
+    {
+      "path": "package/licenses/ouncevk-shared/mesa-license.rst",
+      "bytes": 1816,
+      "sha256": "0d1a0472ecc81830e75c20d59b0ea02841e3db21255e0ebad97ab682c54d6615"
+    },
+    {
+      "path": "package/licenses/ouncevk-shared/zlib-license.txt",
+      "bytes": 1646,
+      "sha256": "807c3a7dd7f6203b3dae80e28c3064f231c333685488541825b040081087fc4d"
+    },
+    {
+      "path": "package/licenses/ouncevk/IZ2S-stage1.txt",
+      "bytes": 385,
+      "sha256": "bacdf67f7686ecd85883010e053691eb59f904a4c00aba5ef9e81ced56bc94a7"
+    },
+    {
       "path": "package/licenses/ouncevk/README.md",
       "bytes": 3546,
       "sha256": "cca7c02ca1295fdcaa031a41bc63461ed9fdbde14aedc28e9f871389e57a6e4d"
@@ -248,28 +323,23 @@
     },
     {
       "path": "package/ro/main",
-      "bytes": 23854,
-      "sha256": "eed2f243fa7261607f33c19ee4fe916a7a1fe77319d38a17cca9dd759a97a2a0"
+      "bytes": 29164,
+      "sha256": "6664c889f26ecf204c2cc31cf9e6558869f9a358d47ad17835639e11f75a340c"
     },
     {
       "path": "provenance.json",
-      "bytes": 14777,
-      "sha256": "a97f6178a03bfe10b5349c808e363d1ce230a2e71008922a5eabeaec9349b1ed"
+      "bytes": 15421,
+      "sha256": "336e5ad59bfe47c0bf812b3cc0035258cb91120f76be96ead8de602849a81af4"
     },
     {
       "path": "run32-component-validation.json",
-      "bytes": 962,
-      "sha256": "0ff311c8d6b126a653ac016883a8189ce7c2364e65ad98ea0422a2bae6ba8786"
+      "bytes": 2471,
+      "sha256": "575a75a5faa96529d178312f04473eccc3d6340d93e0b5d1dd5e51d803bae0bc"
     },
     {
       "path": "sd-layout.json",
-      "bytes": 437,
-      "sha256": "c197a2a4b1f91ced38b42db4c2f3b8b25592cf41bef9bd23a4d7bd56cd875466"
-    },
-    {
-      "path": "package/licenses/ouncevk/IZ2S-stage1.txt",
-      "bytes": 385,
-      "sha256": "bacdf67f7686ecd85883010e053691eb59f904a4c00aba5ef9e81ced56bc94a7"
+      "bytes": 1663,
+      "sha256": "4c5ed31d6cc69024f59bca00bf687df4140f5ed2364eb57375240913213251cd"
     }
   ]
 }

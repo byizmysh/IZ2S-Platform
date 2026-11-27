@@ -1,0 +1,51 @@
+# Builds the game-role loader with the Switch 2 devkit: libounce (LIBOUNCE_NX)
+# and kaiHEN's homebrew API, kaihen.h (KAIHEN_INCLUDE). The defaults
+# are an installed devkit.
+DEVKITPRO ?= /opt/devkitpro
+LIBOUNCE_NX ?= $(DEVKITPRO)/libounce
+KAIHEN_INCLUDE ?= $(DEVKITPRO)/portlibs/switch2/include
+# The Switch 2 CPU flags (SWITCH2_CPU).
+include $(LIBOUNCE_NX)/switch2_cpu.mk
+PREFIX := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-
+OUT := ../build/clean
+CXXFLAGS := $(SWITCH2_CPU) -mtp=soft -fPIE \
+    -ffixed-x18 \
+    -std=gnu++20 -O2 -Wall -Wextra -Werror -Wno-missing-field-initializers \
+    -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections \
+    -D__SWITCH__ -D__SWITCH2__ \
+    -I$(LIBOUNCE_NX)/include -I$(KAIHEN_INCLUDE)
+LDFLAGS := $(SWITCH2_CPU) -mtp=soft -fPIE \
+    -specs=$(OUT)/switch.specs -Wl,--gc-sections -Wl,-Map,$(OUT)/main.map
+
+all: $(OUT)/main
+
+$(OUT):
+	mkdir -p $@
+
+$(OUT)/switch.specs: $(LIBOUNCE_NX)/switch.specs | $(OUT)
+	sed 's|%:getenv(DEVKITPRO /libnx/switch.ld)|$(abspath $(LIBOUNCE_NX))/switch.ld|' $< > $@
+
+$(OUT)/main.o: clean_main.cpp | $(OUT)
+	$(PREFIX)g++ $(CXXFLAGS) -c $< -o $@
+
+$(OUT)/config.o: config.c config.h | $(OUT)
+	$(PREFIX)gcc $(filter-out -std=gnu++20 -fno-exceptions -fno-rtti,$(CXXFLAGS)) -std=gnu11 -c $< -o $@
+
+$(OUT)/cycle.o: cycle.c cycle.h | $(OUT)
+	$(PREFIX)gcc $(filter-out -std=gnu++20 -fno-exceptions -fno-rtti,$(CXXFLAGS)) -std=gnu11 -c $< -o $@
+
+$(OUT)/leak_check.o: leak_check.c leak_check.h | $(OUT)
+	$(PREFIX)gcc $(filter-out -std=gnu++20 -fno-exceptions -fno-rtti,$(CXXFLAGS)) -std=gnu11 -c $< -o $@
+
+$(OUT)/entry.o: entry.S | $(OUT)
+	$(PREFIX)gcc $(SWITCH2_CPU) -mtp=soft -ffixed-x18 -fPIE -c $< -o $@
+
+# hbloader links libounce without its allocator (-lounce_core) and keeps
+# newlib's malloc on its small inner heap; the NRO gets the rest of the heap.
+$(OUT)/main.elf: $(OUT)/main.o $(OUT)/config.o $(OUT)/cycle.o $(OUT)/leak_check.o $(OUT)/entry.o $(OUT)/switch.specs $(LIBOUNCE_NX)/lib/libounce_core.a
+	$(PREFIX)g++ $(LDFLAGS) $(OUT)/main.o $(OUT)/config.o $(OUT)/cycle.o $(OUT)/leak_check.o $(OUT)/entry.o -L$(LIBOUNCE_NX)/lib -lounce_core -o $@
+
+$(OUT)/main: $(OUT)/main.elf
+	$(DEVKITPRO)/tools/bin/elf2nso $< $@
+
+.PHONY: all

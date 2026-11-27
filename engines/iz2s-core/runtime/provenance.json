@@ -76,7 +76,8 @@
     "RUN34 0.34 rebuilds the v26 launcher and packages the separate NX2 BreRUN 0.6.0 release. Boot ABI and fixed components match v26.",
     "Split stops processing frames as soon as the applet reports a shutdown request.",
     "Split pauses frame processing in HOME, polls applet shutdown while in the background, and drains submitted work before stopping both panes after the loss of a presentation surface.",
-    "Stage 1: six upstream OunceVK cleanup backports. Static Vulkan driver rebuilt with the existing libounce SDK. Boot anchors unchanged; hardware validation pending."
+    "Stage 1: six upstream OunceVK cleanup backports. Static Vulkan driver rebuilt with the existing libounce SDK. Boot anchors unchanged; hardware validation pending.",
+    "Stage 2: serial NRO ReleaseNros cleanup, dynamic dependencies/dlopen from iz2s/lib, published Vulkan/GL/C++/AudioIn shared libraries, return-to-menu load errors, refuse staging reuse after failed unmap. Existing embedded IZA runtime and boot order retained. RO and save must be updated together after a full reboot. Hardware validation pending."
   ],
   "launcher": {
     "entry": "runtime/package/iz2s/izlauncher.iza",
@@ -86,7 +87,7 @@
     "route": "IZ2S R entry -> /iz2s/core/bin/game/main -> /iz2s/izlauncher.iza",
     "nativePrograms": "NRO programs in module directories and under /switch; NX2 BreRUN is a full-screen NRO.",
     "standaloneNroRequired": false,
-    "coreSha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19",
+    "coreSha256": "b7695116f984649b2452f92f6800f324d8f2a0b3a446653f1dfc4a1539142b3e",
     "resourcesSha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868",
     "labels": "Unified clock/battery capsule; matching Open/Network typography; centred A key and 0.34 badge; retained bold app title and icon background",
     "catalog": "Single paged NRO/IZA catalog; isolated folder errors; idle inventory and import refresh",
@@ -113,8 +114,8 @@
     },
     "version": "0.34",
     "panelVersion": "0.34",
-    "revision": "IZ2S-0.3.4-GPU-cleanup-stage1",
-    "packagedMenuId": "be0f0b11ffc978b6ca2b81b68dfc7611",
+    "revision": "IZ2S-0.3.4-NRO-runtime-stage2",
+    "packagedMenuId": "6ab375bcad7be4d55efc5898974c6507",
     "componentValidation": "runtime/run32-component-validation.json",
     "consoleLaunchVerified": false,
     "standaloneNroDistributed": false,
@@ -124,7 +125,17 @@
     "splitFormats": [
       "IZA"
     ],
-    "nroLaunchMode": "full-screen"
+    "nroLaunchMode": "full-screen",
+    "sharedLibraries": [
+      "iz2s/lib/libEGL.so.1",
+      "iz2s/lib/libGL.so.1",
+      "iz2s/lib/libGLESv2.so.2",
+      "iz2s/lib/libounce.so.1",
+      "iz2s/lib/libouncevk-gl.so.1",
+      "iz2s/lib/libouncevk.so.1",
+      "iz2s/lib/libstdc++.so.6",
+      "iz2s/lib/libvulkan.so.1"
+    ]
   },
   "pathBase": "engines/iz2s-core",
   "installerDirectory": "runtime/installer",
