@@ -156,7 +156,7 @@ static void sdk_input(IzContext*c''')
 
 
 def split_host(source):
-    revision = 'run34-0.34'
+    revision = 'iz2s-0.3.5'
     source = replace_once(source, 'IZLAUNCHER_RUNTIME_ENTRY\\n', f'IZLAUNCHER_RUNTIME_ENTRY build={revision}\\n')
     source = replace_once(source, 'IZLAUNCHER_MENU_READY services=', f'IZLAUNCHER_MENU_READY build={revision} services=')
     source = replace_once(source, 'void iz_ounce_activity_record(const char *name,const char *action){',

@@ -14,7 +14,7 @@ Choose English for the interface and English (US) for USB keyboard input before 
 
 ## 3. Where should I extract the SD archive?
 
-Extract `IZ2S-0.3.4-linux.zip` on your PC and find `iz2sciv-core-sd.zip` next to `install.sh`. Extract the SD archive to the card root so the paths begin with `SD:/iz2s/`. You can download another copy from the panel. Merge folders and replace matching package files when updating. Keep `Nintendo`, other apps, BIOS, games, saves and settings. Preserve the included license files and safely eject the card.
+Extract `IZ2S-0.3.5-linux.zip` on your PC and find `iz2sciv-core-sd.zip` next to `install.sh`. Extract the SD archive to the card root so the paths begin with `SD:/iz2s/`. You can download another copy from the panel. Merge folders and replace matching package files when updating. Keep `Nintendo`, other apps, BIOS, games, saves and settings. Preserve the included license files and safely eject the card.
 
 ## 4. When should I repeat the full procedure?
 
@@ -44,6 +44,8 @@ For FTP, press **L + R3** on the console, then **Connect FTP** in the panel.
 
 ## 10. Why does the launcher sometimes start slowly or show sd-verify?
 
-A new shader/driver cache can require compilation. This revision fixes a cache-replacement failure that previously repeated compilation at every launch. Preserve the local cache; do not distribute another console's cache. An sd-verify error means the expected runtime and installed files must be compared by size and SHA-256, including the launch save's manifest. Use one matching package and reinstall its save when required. An old RUN25 label alone does not identify the loaded build.
+A new shader/driver cache can require compilation. This revision fixes a cache-replacement failure that previously repeated compilation at every launch. Preserve the local cache; do not distribute another console's cache. An sd-verify error means the expected runtime and installed files must be compared by size and SHA-256, including the launch save's manifest. Use one matching package and reinstall its save when required.
 
-RUN33: install the SD-flex launch save once. Compatible launcher, menu and ROMFS updates then require only their SD files, even when sizes change. A changed bootstrap, ro, core or boot ABI still needs a matching save. Use complete verified update sets.
+SD-flex: install the SD-flex launch save once. Compatible launcher, menu and ROMFS updates then require only their SD files, even when sizes change. A changed bootstrap, ro, core or boot ABI still needs a matching save. Use complete verified update sets.
+
+In 0.3.5, other tile artwork is deferred until after the first frame and the new graphics cache is keyed by shader contents. A real shader or driver change still needs compilation once. When upgrading from the published 0.3.4 package, the changed RO component also requires a complete matching runtime set and launch save.

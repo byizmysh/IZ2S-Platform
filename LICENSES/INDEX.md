@@ -233,3 +233,13 @@ Full notices are preserved at the paths below. See [AUTHORS.md](../AUTHORS.md) f
 - [tools/fs-rpc-browser/THIRD_PARTY_NOTICES.md](../tools/fs-rpc-browser/THIRD_PARTY_NOTICES.md)
 
 Input-device notices above are retained as historical attribution; the associated firmware and SB4 installers are excluded from this edition.
+
+## Additional notices for 0.3.5
+
+- [libstdc++-GCC-runtime-exception.txt](../engines/iz2s-core/runtime/package/licenses/libstdc++-GCC-runtime-exception.txt)
+- [libstdc++-GPL-3.0.txt](../engines/iz2s-core/runtime/package/licenses/libstdc++-GPL-3.0.txt)
+- [ouncevk-shared/README.md](../engines/iz2s-core/runtime/package/licenses/ouncevk-shared/README.md)
+- [ouncevk-shared/mesa-license.rst](../engines/iz2s-core/runtime/package/licenses/ouncevk-shared/mesa-license.rst)
+- [ouncevk-shared/zlib-license.txt](../engines/iz2s-core/runtime/package/licenses/ouncevk-shared/zlib-license.txt)
+- [ouncevk/IZ2S-stage1.txt](../engines/iz2s-core/runtime/package/licenses/ouncevk/IZ2S-stage1.txt)
+- [IZ2S-NRO-runtime-stage2.txt](../engines/iz2s-core/runtime/package/licenses/IZ2S-NRO-runtime-stage2.txt)

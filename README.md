@@ -8,11 +8,13 @@ IZ2S combines a PC setup panel and a console application launcher for **Nintendo
 
 The panel guides SD preparation, PC preparation, connection with automatic save installation, and launch. Once IZ2S is running, PC Link connects the application library and FTP provides file access.
 
-![IZ2S Panel 0.3.4 setup preview](docs/images/iz2s-panel-0.3.4.png)
+![IZ2S Panel 0.3.5 setup preview](docs/images/iz2s-panel-0.3.5.png)
 
-## Release 0.3.4
+## Release 0.3.5
 
-Download **`IZ2S-0.3.4-linux.zip`** for Linux x64 or ARM64. It contains both the PC installer and the matching SD archive with the console launcher, four applications and their licenses.
+Download **`IZ2S-0.3.5-linux.zip`** for Linux x64 or ARM64. It contains both the PC installer and the matching SD archive with the console launcher, four applications and their licenses.
+
+0.3.5 adds deferred menu artwork, shader-content cache keys, safer GPU resource cleanup and on-demand NRO libraries. It also fixes the missing `send_js` dependency in the panel connection check. Both panel and launcher now display 0.3.5. See the [complete changes](RELEASE-NOTES.md).
 
 ## Requirements
 
@@ -26,15 +28,15 @@ Firmware, game edition and version are specific requirements; this release does 
 
 ## Start the PC panel
 
-Extract `IZ2S-0.3.4-linux.zip` on your PC and open the resulting `IZ2S-0.3.4-linux` folder. Run this command in that folder to install and open the panel:
+Extract `IZ2S-0.3.5-linux.zip` on your PC and open the resulting `IZ2S-0.3.5-linux` folder. Run this command in that folder to install and open the panel:
 
 ```sh
 sh ./install.sh --launch
 ```
 
-The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S 0.3.4** shortcut or run `./start.sh` in the installed folder.
+The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S 0.3.5** shortcut or run `./start.sh` in the installed folder.
 
-The normal panel address is `http://127.0.0.1:39534/`. Use the URL opened or printed by the launcher, which includes local session authorization. Preview is available with `./preview.sh` or `node start.cjs --preview --no-open`; it opens a separate temporary port and disables console actions.
+The normal panel address is `http://127.0.0.1:39535/`. Use the URL opened or printed by the launcher, which includes local session authorization. Preview is available with `./preview.sh` or `node start.cjs --preview --no-open`; it opens a separate temporary port and disables console actions.
 
 ## Install and launch
 
@@ -63,7 +65,7 @@ Application companions, manifests and license files must stay with their launche
 
 ## Checks, source and support
 
-- [Release notes](RELEASE-NOTES.md): Startup changes and NX2 BreRUN integration.
+- [Release notes](RELEASE-NOTES.md): Panel fixes, menu startup, graphics cleanup and NRO runtime changes.
 - [Compatibility](COMPATIBILITY.md) lists the supported console and host configurations.
 - [Build and verification](BUILDING.md): local checks, SD packaging and prepared installer archives.
 - [Source scope](SOURCES.md): recorded provenance and remaining native rebuild limitations.

@@ -1,8 +1,8 @@
 # Source layout and notices
 
-The root tree contains the 0.3.2 Civilization VII PC panel, runtime JavaScript, installers, descriptors, resources and retained native source files. Production JavaScript dependencies remain next to their owning components, with their licenses. Application development sources excluded from the end-user installers are under `sources/applications/`.
+The root tree contains the 0.3.5 Civilization VII PC panel, runtime JavaScript, installers, descriptors, resources and retained native source files. Production JavaScript dependencies remain next to their owning components, with their licenses. Application development sources excluded from the end-user installers are under `sources/applications/`.
 
-`sources/izpsx/`, `sources/izps2/` and `sources/applications/iz2s-cheese/` retain the published source trees for IZPSX 0.5.3, IZPS2 0.5.0 and IZ2S Cheese 0.8.7, including original authors, licenses, dependencies and build records. Exact upstream tags and downloaded archive checksums are recorded in `distribution/application-origins.json`. IZPSX and Cheese prebuilt launchers and companions retain the official IZA bytes. IZPS2 uses the explicitly recorded RUN32-Stability-1 local overlay; its hashes and retained diagnostics are recorded in distribution/application-origins.json. The module catalog's shader/native sections and icon are extracted from those same images for library metadata.
+`sources/izpsx/`, `sources/izps2/` and `sources/applications/iz2s-cheese/` retain the published source trees for IZPSX 0.5.3, IZPS2 0.5.0 and IZ2S Cheese 0.8.7, including original authors, licenses, dependencies and build records. Exact upstream tags and downloaded archive checksums are recorded in `distribution/application-origins.json`. IZPSX and Cheese prebuilt launchers and companions retain the official IZA bytes. IZPS2 uses the explicitly recorded recorded stability overlay; its hashes and retained diagnostics are recorded in distribution/application-origins.json. The module catalog's shader/native sections and icon are extracted from those same images for library metadata.
 
 The IZPS2 source release records inherited toolchain inputs and states that a complete clean native rebuild is pending. That upstream limitation is preserved. No BIOS or game images are supplied.
 
@@ -15,3 +15,9 @@ CivSwitchLDN and CivSwitchFS runtime sources, their original notices, and locall
 This release contains only a Linux installation asset; Windows installers and bundled Windows host executables are excluded.
 
 See [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [AUTHORS.md](AUTHORS.md), [THIRD_PARTY.json](THIRD_PARTY.json), and [LICENSES/INDEX.md](LICENSES/INDEX.md). Publishing this snapshot does not relicense third-party code or imply that missing permission has been granted.
+
+## New runtime components in 0.3.5
+
+`sources/nro-runtime-stage2/` contains the integrated RO, homebrew loader and dynamic-link support, upstream attribution, library identities and host tests. `sources/run32-launcher/status/menu-startup-build.json` records the final 0.3.5 menu and runtime builds. Earlier build records remain as provenance for their named revisions.
+
+`sources/ouncevk-stage1/` contains the six applied graphics cleanup patches, original commit attribution, the static archive used for IZA, input hashes and host cleanup tests. `sources/nro-runtime-stage2/shared-libraries.json` lists the eight unmodified shared libraries from KaiHEN 20261127.1. Their license texts are under `engines/iz2s-core/runtime/package/licenses/`, including the GCC Runtime Library Exception and the shared OunceVK notices. These added records do not remove the complete-runtime rebuild limitations stated above.

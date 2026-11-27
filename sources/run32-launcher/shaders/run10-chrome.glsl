@@ -67,11 +67,11 @@ void menuHeader(vec2 p,inout vec3 col){
    advance+=LOAD_ADVANCE[letter]+1.1;
   }
   col=mix(col,vec3(.94,.97,1),ink);
-  float badge=box(p,vec2(317,95),vec2(37,17),8);
+  float badge=box(p,vec2(317,95),vec2(41,17),8);
   col=mix(col,vec3(.38,.52,.23),fill(badge)*.42);
   col=mix(col,vec3(.76,1.0,.34),line(badge,.7)*.45);
-  const uint revision[12]=uint[12](48u,46u,51u,52u,0u,0u,0u,0u,0u,0u,0u,0u);
-  float version=chromeWord(p,vec2(317,95)-vec2(23.1953,17.5)*.98,revision,4u,.98);
+  const uint revision[12]=uint[12](48u,46u,51u,46u,53u,0u,0u,0u,0u,0u,0u,0u);
+  float version=chromeWord(p,vec2(317,95)-vec2(26.5312,17.5)*.98,revision,5u,.98);
   col=mix(col,vec3(.82,1.0,.58),version);
  }
  float glass=box(p,vec2(1467.0-iz2HeaderShift(),95),vec2(382,37),37.0);

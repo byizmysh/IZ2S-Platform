@@ -77,7 +77,9 @@
     "Split stops processing frames as soon as the applet reports a shutdown request.",
     "Split pauses frame processing in HOME, polls applet shutdown while in the background, and drains submitted work before stopping both panes after the loss of a presentation surface.",
     "Stage 1: six upstream OunceVK cleanup backports. Static Vulkan driver rebuilt with the existing libounce SDK. Boot anchors unchanged; hardware validation pending.",
-    "Stage 2: serial NRO ReleaseNros cleanup, dynamic dependencies/dlopen from iz2s/lib, published Vulkan/GL/C++/AudioIn shared libraries, return-to-menu load errors, refuse staging reuse after failed unmap. Existing embedded IZA runtime and boot order retained. RO and save must be updated together after a full reboot. Hardware validation pending."
+    "Stage 2: serial NRO ReleaseNros cleanup, dynamic dependencies/dlopen from iz2s/lib, published Vulkan/GL/C++/AudioIn shared libraries, return-to-menu load errors, refuse staging reuse after failed unmap. Existing embedded IZA runtime and boot order retained. RO and save must be updated together after a full reboot. Hardware validation pending.",
+    "Menu-only startup update: defer remaining tile artwork until after first presentation; retain compatible Vulkan caches with shader-content keys and verified legacy fallback. Boot components, RO, NRO loader source, IZA shaders, ROMFS, shared libraries and applications are unchanged. Console timing pending.",
+    "Release 0.3.5: synchronized public panel and launcher versions, centered five-character menu badge, retained deferred artwork/cache updates, unchanged NRO host code and GPU cleanup backports. Versioned binary awaits console validation."
   ],
   "launcher": {
     "entry": "runtime/package/iz2s/izlauncher.iza",
@@ -87,7 +89,7 @@
     "route": "IZ2S R entry -> /iz2s/core/bin/game/main -> /iz2s/izlauncher.iza",
     "nativePrograms": "NRO programs in module directories and under /switch; NX2 BreRUN is a full-screen NRO.",
     "standaloneNroRequired": false,
-    "coreSha256": "b7695116f984649b2452f92f6800f324d8f2a0b3a446653f1dfc4a1539142b3e",
+    "coreSha256": "52c685fa50a4b5abe5e403f7e4edb4dcdcf789241939e8b39c29dbdffe6417ef",
     "resourcesSha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868",
     "labels": "Unified clock/battery capsule; matching Open/Network typography; centred A key and 0.34 badge; retained bold app title and icon background",
     "catalog": "Single paged NRO/IZA catalog; isolated folder errors; idle inventory and import refresh",
@@ -112,10 +114,10 @@
       "ftp": "L + R3",
       "ftpPort": 1425
     },
-    "version": "0.34",
+    "version": "0.3.5",
     "panelVersion": "0.34",
-    "revision": "IZ2S-0.3.4-NRO-runtime-stage2",
-    "packagedMenuId": "6ab375bcad7be4d55efc5898974c6507",
+    "revision": "IZ2S-0.3.5",
+    "packagedMenuId": "c8a2b8a350412aa8275d9b88f1062060",
     "componentValidation": "runtime/run32-component-validation.json",
     "consoleLaunchVerified": false,
     "standaloneNroDistributed": false,
@@ -135,7 +137,8 @@
       "iz2s/lib/libouncevk.so.1",
       "iz2s/lib/libstdc++.so.6",
       "iz2s/lib/libvulkan.so.1"
-    ]
+    ],
+    "menuStartupOptimized": true
   },
   "pathBase": "engines/iz2s-core",
   "installerDirectory": "runtime/installer",

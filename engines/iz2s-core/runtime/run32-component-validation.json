@@ -1,35 +1,35 @@
 {
   "format": "iz2s.run32-component-validation.v1",
-  "revision": "IZ2S-0.3.4-NRO-runtime-stage2",
+  "revision": "IZ2S-0.3.5",
   "consoleLaunchVerified": false,
   "crashFixConfirmedOnConsole": false,
   "nativeReproducedTwice": false,
   "npdmUnchanged": true,
   "standaloneNroDistributed": false,
-  "menuId": "be0f0b11ffc978b6ca2b81b68dfc7611",
+  "menuId": "c8a2b8a350412aa8275d9b88f1062060",
   "components": {
     "ro/main": {
       "bytes": 29164,
       "sha256": "6664c889f26ecf204c2cc31cf9e6558869f9a358d47ad17835639e11f75a340c"
     },
     "game/main": {
-      "bytes": 19448910,
-      "sha256": "b7695116f984649b2452f92f6800f324d8f2a0b3a446653f1dfc4a1539142b3e"
+      "bytes": 19452420,
+      "sha256": "52c685fa50a4b5abe5e403f7e4edb4dcdcf789241939e8b39c29dbdffe6417ef"
     },
     "game/exefs.nsp": {
-      "bytes": 19450835,
-      "sha256": "e72e0165b955568e906e7a1ad6d776cfca82e365645aa18b0fd17ca512588edf"
+      "bytes": 19454355,
+      "sha256": "4e0909f3784a3c3ace854271cc8c529c7e0117ad12fb77787b4a469c295583b3"
     },
     "iz2s/izlauncher.iza": {
       "bytes": 907576,
-      "sha256": "94b2c801e6d2757d463a29dfd0a311da385148de1a4dcafe8086ce87af174f50"
+      "sha256": "d7d356746e1b7661e467a33719fe8e4a2707e3e06c035d58ca7f607cd63ef4a7"
     },
     "iz2s/izlauncher.romfs": {
       "bytes": 26734392,
       "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
     }
   },
-  "bootAnchorsUnchanged": false,
+  "bootAnchorsUnchanged": true,
   "gpuLifecycleHostTests": 8,
   "bootRevision": "iz2s-0.3.4-ro2",
   "requiresMatchingLaunchSave": true,
@@ -74,5 +74,7 @@
       "sha256": "93f7b556817df5f7b0aa0a32a75aabd923a907714d82b3ae85a12c4f70ca67c0",
       "path": "iz2s/lib/libvulkan.so.1"
     }
-  ]
+  ],
+  "requiresNewLaunchSaveFromStage2": false,
+  "menuStartupTimingVerified": false
 }

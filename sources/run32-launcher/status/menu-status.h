@@ -96,7 +96,7 @@ static void iz2_menu_status_report(void)
     memcpy(previous, current, sizeof current);
     FILE *log = fopen("sdmc:/iz2s/izlauncher-status.log", "w");
     if (!log) return;
-    fprintf(log, "IZ2S 0.34 status publisher\nclock=%s rc=0x%08x\nbattery=%s rc=0x%08x\n",
+    fprintf(log, "IZ2S 0.3.5 status publisher\nclock=%s rc=0x%08x\nbattery=%s rc=0x%08x\n",
             iz2_clock_source == 1 ? "system" : iz2_clock_source == 2 ? "localtime" :
             "unavailable",
             (unsigned)iz2_clock_result,

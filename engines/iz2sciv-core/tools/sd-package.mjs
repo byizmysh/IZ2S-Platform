@@ -67,7 +67,7 @@ export async function buildSdPackage() {
         `PC panel ${profile.version}; launcher ${provenance.launcher.version}, ${provenance.launcher.revision}. The native launcher is embedded in game/main; no standalone IZ2S.nro is required.\n` +
         "Install the SD-flex launch save once. Later compatible game/main, izlauncher.iza and izlauncher.romfs updates only need the SD files.\n" +
         "A change to bootstrap.bin, ro/main, core/main or the boot ABI still requires a matching launch save.\n" +
-        (declaredLibraries.length ? "This candidate changes ro/main: fully restart the console and install the matching launch save with this panel before Load Game.\n" +
+        (declaredLibraries.length ? "The launch save must match the installed RO version. Updating only the menu does not change the boot compatibility contract.\n" +
         "Shared NRO libraries are in iz2s/lib and load on demand. IZA Split remains on the existing embedded runtime.\n" : "") +
         "Copy a complete verified update set; the boot header checks do not replace the package SHA-256 inventory.\n")});
     const contents = entries.map(({name, bytes}) => ({path: name, bytes: bytes.length, sha256: archive.sha(bytes)}));

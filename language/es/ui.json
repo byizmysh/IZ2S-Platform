@@ -2406,7 +2406,7 @@
   "5. Launch IZ2S": "5. Iniciar IZ2S",
   "Prepare the IZ2S SD card": "Prepara la tarjeta SD de IZ2S",
   "Find the SD archive.": "Busca el archivo para la tarjeta SD.",
-  "After extracting IZ2S-0.3.4-linux.zip on your PC, find iz2sciv-core-sd.zip next to install.sh. Use the button below if you need another copy.": "Descomprime IZ2S-0.3.4-linux.zip en el PC. Encontrarás iz2sciv-core-sd.zip junto a install.sh. Si necesitas otra copia, usa el botón de abajo.",
+  "After extracting IZ2S-0.3.5-linux.zip on your PC, find iz2sciv-core-sd.zip next to install.sh. Use the button below if you need another copy.": "Descomprime IZ2S-0.3.5-linux.zip en el PC. Encontrarás iz2sciv-core-sd.zip junto a install.sh. Si necesitas otra copia, usa el botón de abajo.",
   "Extract to the SD card root.": "Descomprime el ZIP en la raíz de la tarjeta SD.",
   "The folder must be directly on the card:": "La carpeta debe estar en la raíz de la tarjeta:",
   ", without an extra archive folder.": ", sin una carpeta adicional.",
@@ -2734,7 +2734,7 @@
   "Which languages should I select on the console?": "¿Qué idiomas debo elegir en la consola?",
   "Choose English for both the console interface and keyboard input before opening Civilization VII. The panel itself can use any of its available languages. Console menu paths are shown in English in every language.": "Elige English para la interfaz y el teclado de la consola antes de abrir Civilization VII. El panel puede usar cualquiera de sus idiomas. Las rutas del menú de la consola siempre aparecen en inglés.",
   "Where should I extract the SD archive?": "¿Dónde extraigo el ZIP de la SD?",
-  "In the extracted IZ2S-0.3.4-linux folder, find iz2sciv-core-sd.zip next to install.sh. Extract that SD archive to the card root so SD:/iz2s/ is directly on the card. Merge folders and replace matching files. Keep Nintendo and your other files. The kit includes IZ2S Cheese, IZPSX, Foldrift and NX2 BreRUN.": "En la carpeta IZ2S-0.3.4-linux descomprimida, busca iz2sciv-core-sd.zip junto a install.sh. Extrae ese archivo en la raíz de la tarjeta para que SD:/iz2s/ quede directamente en ella. Combina las carpetas y sustituye los archivos coincidentes. Conserva Nintendo y los demás archivos. El paquete incluye IZ2S Cheese, IZPSX, Foldrift y NX2 BreRUN.",
+  "In the extracted IZ2S-0.3.5-linux folder, find iz2sciv-core-sd.zip next to install.sh. Extract that SD archive to the card root so SD:/iz2s/ is directly on the card. Merge folders and replace matching files. Keep Nintendo and your other files. The kit includes IZ2S Cheese, IZPSX, Foldrift and NX2 BreRUN.": "En la carpeta IZ2S-0.3.5-linux descomprimida, busca iz2sciv-core-sd.zip junto a install.sh. Extrae ese archivo en la raíz de la tarjeta para que SD:/iz2s/ quede directamente en ella. Combina las carpetas y sustituye los archivos coincidentes. Conserva Nintendo y los demás archivos. El paquete incluye IZ2S Cheese, IZPSX, Foldrift y NX2 BreRUN.",
   "Do I install the save manually after connecting?": "¿Debo instalar el guardado manualmente tras conectar?",
   "No. Connect and install save restores PC Wi-Fi, verifies the console loader and automatically installs IZ2SCIV.Civ7Save. Keep Awaiting payload open until completion. The installation button is available when an interrupted transfer needs to be resumed.": "No. Conectar e instalar guardado restaura el Wi-Fi del PC, verifica el cargador e instala IZ2SCIV.Civ7Save automáticamente. Mantén abierto Awaiting payload hasta terminar. El botón de instalación permite reanudar una transferencia interrumpida.",
   "What if the console IP is not found?": "¿Qué hago si no se encuentra la IP de la consola?",
@@ -2800,5 +2800,6 @@
   "Pause PC Link in the other IZ2S panel, then try again here.": "Pausa PC Link en el otro panel de IZ2S y vuelve a intentarlo aquí.",
   "The other PC Link service is still stopping. Try again.": "El otro servicio de PC Link todavía se está deteniendo. Vuelve a intentarlo.",
   "Pause PC Link before changing its settings.": "Pausa PC Link antes de cambiar sus ajustes.",
-  "PC Link setup is already running.": "Ya se está configurando PC Link."
+  "PC Link setup is already running.": "Ya se está configurando PC Link.",
+  "When upgrading from the published 0.3.4 package to 0.3.5, use the complete SD kit and install a matching launch save: the RO component has changed. Later menu-only updates can reuse a compatible save.": "Al pasar del paquete 0.3.4 publicado a 0.3.5, utiliza el paquete SD completo e instala un archivo de guardado de inicio compatible: el componente RO ha cambiado. Las actualizaciones posteriores que solo cambien el menú pueden reutilizar un archivo de guardado compatible."
 }

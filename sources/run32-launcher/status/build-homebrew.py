@@ -650,7 +650,7 @@ def build(base, record, output, r_entry, ouncevk=None, version_table=None):
         elf2nro = Path(package_step['argv'][0])
         nacp = work / 'izlauncher.nacp'
         icon = work / 'icon.jpg'
-        subprocess.run([elf2nro.with_name('nacptool'), '--create', 'IZ2S Launcher', 'IZMYSH', '0.34', nacp], check=True)
+        subprocess.run([elf2nro.with_name('nacptool'), '--create', 'IZ2S Launcher', 'IZMYSH', '0.3.5', nacp], check=True)
         subprocess.run(['magick', base / 'shells/izlauncher/app/assets/icon.png', '-background', '#10172b',
                         '-alpha', 'remove', '-resize', '256x256', '-quality', '90', icon], check=True)
         nro = work / 'IZ2S.nro'

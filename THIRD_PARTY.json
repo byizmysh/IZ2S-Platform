@@ -1,5 +1,5 @@
 {
-  "release": "0.3.4",
+  "release": "0.3.5",
   "target": "linux",
   "projectLicense": {
     "spdx": "GPL-2.0-or-later",
@@ -63,14 +63,13 @@
   "npmComponents": "LICENSES/npm-components.json",
   "engineProvenance": "engines/iz2s-core/runtime/provenance.json",
   "firmwareNotices": [
-    "hardware/devices/cardputer-adv/firmware/NOTICE.txt",
-    "hardware/devices/switch1/firmware/UPSTREAM.json"
+    "LICENSES/historical-input-devices/devices/cardputer-adv/firmware/NOTICE.txt",
+    "LICENSES/historical-input-devices/devices/switch1/firmware/UPSTREAM.json"
   ],
   "inheritedProvenance": "LICENSES/inherited-provenance.json",
   "publicReleaseReady": false,
   "outstanding": [
-    "The full native runtime and firmware still have external build inputs; see SOURCES.md.",
-    "A full Switch session from the current Windows build has not been qualified; host and real input-device checks passed."
+    "The full native runtime and firmware still have external build inputs; see SOURCES.md."
   ],
   "sourceInformation": "SOURCES.md",
   "civilization7": [
@@ -181,5 +180,15 @@
       "license": "OpenSSH/OpenBSD and Microsoft component notices",
       "distribution": "Windows fallback download only if ssh client is absent; pinned asset SHA256; no server service installed"
     }
-  ]
+  ],
+  "nroSharedLibraries": {
+    "release": "KaiHEN 20261127.1",
+    "inventory": "sources/nro-runtime-stage2/shared-libraries.json",
+    "licenses": "engines/iz2s-core/runtime/package/licenses/",
+    "dynamicNroOnly": true
+  },
+  "izaGraphicsCleanup": {
+    "patches": "sources/ouncevk-stage1/patches/",
+    "buildRecord": "sources/ouncevk-stage1/build-record.json"
+  }
 }

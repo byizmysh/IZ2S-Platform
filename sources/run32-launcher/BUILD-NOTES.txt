@@ -1,4 +1,4 @@
-RUN32 0.32 Menu-Fast — local build, 2026-11-24
+IZ2S 0.3.5 - native menu build
 
 Native menu is embedded in game/main. build-homebrew.py also emits an NRO only
 as a byte-for-byte validation reference; do not distribute or install that NRO.
@@ -28,6 +28,6 @@ The selected app has a 60px bold title raster, a centred version pill, lit icon
 and a restrained background icon. Cards retain their own two-line labels.
 No Add App tile. X opens the picker from any library card; A launches a real app.
 
-Reinstall the Civ7 launch save from this same runtime after changing SD component
-sizes. Keep the console-specific game/main.npdm when rebuilding game/exefs.nsp.
+Preserve the boot compatibility contract when packaging a menu-only update.
+A change to boot components requires matching runtime metadata. Keep the console-specific game/main.npdm when rebuilding game/exefs.nsp.
 A successful PC build and archive verification do not establish console timing.

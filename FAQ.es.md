@@ -14,7 +14,7 @@ Interfaz: `HOME → Configuración de la consola → Consola → Idioma → Engl
 
 ## 3. ¿Dónde debo extraer el archivo SD?
 
-Descomprime `IZ2S-0.3.4-linux.zip` en el PC. Encontrarás `iz2sciv-core-sd.zip` junto a `install.sh`. Extrae el archivo de la SD en la raíz de la tarjeta para que las rutas comiencen por `SD:/iz2s/`. Puedes descargar otra copia desde el panel. Al actualizar, combina las carpetas y sustituye los archivos coincidentes del paquete. Conserva `Nintendo`, las otras aplicaciones, BIOS, juegos, partidas y ajustes. Mantén las licencias incluidas y expulsa la tarjeta de forma segura.
+Descomprime `IZ2S-0.3.5-linux.zip` en el PC. Encontrarás `iz2sciv-core-sd.zip` junto a `install.sh`. Extrae el archivo de la SD en la raíz de la tarjeta para que las rutas comiencen por `SD:/iz2s/`. Puedes descargar otra copia desde el panel. Al actualizar, combina las carpetas y sustituye los archivos coincidentes del paquete. Conserva `Nintendo`, las otras aplicaciones, BIOS, juegos, partidas y ajustes. Mantén las licencias incluidas y expulsa la tarjeta de forma segura.
 
 ## 4. ¿Cuándo repito el procedimiento completo?
 
@@ -44,6 +44,8 @@ Para FTP, pulsa **L + R3** en la consola y luego **Conectar FTP** en el panel.
 
 ## 10. ¿Por qué tarda en iniciar o aparece sd-verify?
 
-Una caché nueva de shaders o del controlador puede necesitar compilación. Esta revisión corrige un fallo al sustituir la caché que antes obligaba a recompilar en cada inicio. Conserva la caché de tu consola y no distribuyas la de otra. Ante sd-verify, compara tamaños y SHA-256 con el manifiesto del entorno y el de la partida de inicio instalada. Usa un paquete coherente y vuelve a instalar su partida cuando corresponda. El texto antiguo RUN25, por sí solo, no identifica la versión ejecutada.
+Una caché nueva de shaders o del controlador puede necesitar compilación. Esta revisión corrige un fallo al sustituir la caché que antes obligaba a recompilar en cada inicio. Conserva la caché de tu consola y no distribuyas la de otra. Ante sd-verify, compara tamaños y SHA-256 con el manifiesto del entorno y el de la partida de inicio instalada. Usa un paquete coherente y vuelve a instalar su partida cuando corresponda. El texto antiguo legacy, por sí solo, no identifica la versión ejecutada.
 
-RUN33: instala una vez la partida de inicio SD-flex. Después, las actualizaciones compatibles del lanzador, menú y ROMFS solo requieren sustituir sus archivos SD, aunque cambien de tamaño. Los cambios de bootstrap, ro, core o de la ABI de arranque siguen requiriendo una partida correspondiente. Copia siempre el conjunto completo y verificado de actualización.
+SD-flex: instala una vez la partida de inicio SD-flex. Después, las actualizaciones compatibles del lanzador, menú y ROMFS solo requieren sustituir sus archivos SD, aunque cambien de tamaño. Los cambios de bootstrap, ro, core o de la ABI de arranque siguen requiriendo una partida correspondiente. Copia siempre el conjunto completo y verificado de actualización.
+
+En 0.3.5, el resto de las imágenes de las tarjetas se carga después del primer fotograma y la nueva caché gráfica se vincula al contenido de los shaders. Un cambio real de shaders o controlador sigue requiriendo una compilación inicial. Al actualizar desde la versión 0.3.4 publicada, el componente RO cambiado requiere el conjunto completo de archivos compatibles y su archivo de guardado de inicio.

@@ -1,0 +1,809 @@
+{
+  "release": "0.3.5",
+  "scope": "native menu and unchanged NRO host code",
+  "nativeMenu": {
+    "sources": {
+      "status/build-homebrew.py": "723a837d4f54e05a9ef3c8effda855e452087953dff43b3c0d2a03816c38a43b",
+      "status/build-split.py": "0e076a765f7e527351732bfdc0b626d13a0279884966557059f027eac081794e",
+      "status/run32-system-status.patch": "9130a2dc67b9677519b68033ca2b636aa18e3b2a537167602ac0a61ec6b2f765",
+      "status/package-split.py": "408eae4fc3e66666bd55762bd5fc55c15fde5fda9f176256fdfa699938fd03a3",
+      "status/app-versions-0.34.json": "a390ce452dfd4bc17abadb5208ae1a3a00d0f3816d030fa546aec9ee6f2f1236",
+      "status/menu-lifecycle.h": "8cd69a5af5fe2157c830d0b69119e18877c448156bb6a26d5f4bb1755ce25d18",
+      "status/menu-versions.h": "a98cf5df9abb142a52af8ce6398ed8f37b61713ec8f8cd7d8cfa0cc519ea51a5",
+      "status/menu-status.h": "0fe74bcffb42578ffa0b1750cbb9bdc899fa4bac38d8d0e9d9c199824fc48a79",
+      "status/baseline-menu-build.json": "954507528cfe158dcdc54e919b094a747ac101857eeef870df044f4f5e5fef64",
+      "status/menu-startup-build.json": "a577103254e143892c6b7042c440bc3417b9d6bfbf7efe1347296e3568de098e",
+      "status/menu-artwork.h": "142f145b9165b3fff4d9d1069bf049d930b6a640be044850775d6260ea4b9232",
+      "status/menu-nro-result.h": "6d96e8fef5f269ba9ef8ec485dabbac20616caee1aca0762896c4a9ceeb389d9",
+      "status/menu-idle.h": "08b2a7091c1f78558c7987fffd2496ed0848fce336809c86850fe5013f97c919",
+      "status/menu-pipeline-cache.h": "ccda8ee09bb8040974abe95b8697886fa480c8c0cf57dd89e73f1ab4fbd2f3cd",
+      "status/tests/pipeline-cache.c": "aa8da7211dbc698ceac066fe46463b8f7d55235685df6ad1c049aac36c4f30f9",
+      "status/tests/split-audio.c": "bb8190f3d42fa86cf25cc57a7ee8d5e0b5b84c67a895d435fa4c5d842d4bf97f",
+      "status/tests/split-layout.c": "610ab0ba3b6f9e01e5bda5f24d67f83fb7ff2a9a0c109501111ec0ad8113a519",
+      "status/tests/status.c": "81108450111a7e539a6fc413e027f98f40c14eeb9744bc4fcb3f8ffbb768d0bd",
+      "status/tests/menu-artwork.c": "b7f58ba748168361307e7a75f0e64909c41d3dad064c3693521107fb71513694",
+      "status/tests/split-windows.c": "9719cebbe50043a6e03d4d6f7d139b5eadc16737cc6e4ea19118d86c0a016c3f",
+      "status/tests/split-compositor.c": "02a88e684b0be401011a59a8c9ec91e4d6ddd8b84a5ff26a929307548962f51e",
+      "status/tests/split-launcher.c": "02056bff65b31dd7f8d8274b2ad1cd20c1e51224b68b4358a8064881461b5ad0",
+      "status/tests/menu-idle.c": "527388daf308e9d988524ea5fc409b739c9268097942fdf3d35f05fe29b23015",
+      "status/tests/stub/switch.h": "62ac86431cb58d31cd549e4f112c7a30637e30636532176c9fa1f422fcdcc45f",
+      "native/split-mode.h": "93e8f29f1c0a3fb21de5c47bb97078a131cdbcbdc44d3125e6c2b264c7485877",
+      "native/apps.c": "c34508cdbb6d2de177efa83dc1175ea66c6209bdb6cc59f0dbb16e3e92d9cb15",
+      "native/split-composite.vert": "5efb3a27b3a808fb110d6774ea389a5261fc20e43ec24b24914d8543fd8e2427",
+      "native/apps.h": "d95f07bacc7af19f14161a188086bc67d772300642f5c88bb1b5cbaee925a461",
+      "native/split-audio.c": "2850c26c797df6a157ad6ff32fd3c1ec5b814f8a7855e7f6f61dbdfb693c19f3",
+      "native/split-compositor.h": "8cd2dec3386ca14f0c3ae616c5fd23a12c199631d6e0a66d199432bcc5a36611",
+      "native/split-windows.h": "1d5094c564816fd1d5cb0a1a7c72ee94c5b9e7980a9bbd3c126ed911ba8cf813",
+      "native/split-audio.h": "cb488a52659a3e3d15a0f4a705a082301dff76042b861da96ca63865c90280d7",
+      "native/split-input.h": "20b09b6fe2a0a53c4edae4ef6668a1091a6969c6487d4b067fe95eb3e40e287b",
+      "native/split-audio-switch.c": "ccb3b793e382523904b0fa6536aa3823208db00fcd25ae4509ba6be2d15ecbf0",
+      "native/split-layout.h": "beda4836e791d096abb90dc1737712f09be71d113a018977b5e13b9f15cebacc",
+      "native/split-composite.frag": "000ba13a879c1fa120252201b4322b06f6f4a1c19755ca4096b8da2d9a235b20",
+      "native/font.c": "04ccd266928df0278c806b61c7f64308523ae8567db4dfa5a9724d8eb22cb2a2",
+      "native/ftp/socket_unistd.h": "8feff40cd004e18b81d90c3a6d7467384bc98c426064a5dd5ccb5adf84791add",
+      "native/ftp/UPSTREAM": "dbc8c37714f67f2604264c9be21a506abf11b2a00ae3e5e415e51095e8045cd4",
+      "native/ftp/vfs_sd.h": "1f39e153821a3e3d420ffc63ba726c948420fcf327042bd569df680ec708d91b",
+      "native/ftp/ftpsrv_vfs.h": "e4dc5656126381dff99bbf083a3283d9e1ef999a6d0463985ef3ee98f57d1891",
+      "native/ftp/ftpsrv.h": "5f8b83e1f5e26c2a361355d78e703210e39a8db34cd70bfb0f6e0d2d0b6d8e93",
+      "native/ftp/vfs_sd.c": "d59820f5e58df885a393f1d8935a3981df0a701d2b3658cf746e793b5ca28633",
+      "native/ftp/ftpsrv_socket.h": "83d0378579b4785b8ca63310f315825442356b54e33b674ee442257b3f4601b0",
+      "native/ftp/LICENSE": "5ca618cbc3309400c5a79ef5acb2a8467a5ae599ef23965738ffaba9522812ef",
+      "native/ftp/ftpsrv.c": "a1f2d40c62e1186767c4467edb06213ab4c315d19793371b7cae14aaa25f59bd"
+    },
+    "generatedBuilder": {
+      "path": "status/build-homebrew-split.py",
+      "sha256": "cece8c01c1d4304313ec4b9e9fb6a8872429d422b903d2b5082bebbd62d46489"
+    },
+    "fontSha256": "b5d64817b6331723b5e59eaaa6db90057cbed58e9733f65687f110638192359f",
+    "menuSha256": "d6e113bad1ebfd456cf76841b32fbf4ed59a5cd2200dc9ecc5c1588a494375ab",
+    "appVersionTableSha256": "97bf633bce8b35fc86c8216e0c3381691658675401c9c50135dd67f8bc2e692f",
+    "ouncevk": {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-Kaihen-port-20261127/driver/libouncevk.a",
+      "sha256": "60e878512e57624480d2c073568d95fdec1cc60dadc48770429062b20bb60359"
+    },
+    "appVersions": {
+      "path": "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/run32-launcher/status/app-versions-0.34.json",
+      "sha256": "a390ce452dfd4bc17abadb5208ae1a3a00d0f3816d030fa546aec9ee6f2f1236"
+    }
+  },
+  "runtimeBuild": {
+    "sdk": "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro",
+    "sourceFiles": {
+      "dynlink.c": {
+        "bytes": 34144,
+        "sha256": "1dc28153f72b3a12f7f2d8bdd47b10eb132f89cfd692308d2309ddbd57482ce3"
+      },
+      "KAIHEN-LICENSE": {
+        "bytes": 18092,
+        "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+      },
+      "build.py": {
+        "bytes": 3518,
+        "sha256": "3b0520e3033318cb3fa3becf8ddc549a1ceff122dc1dc5bec55677aee27e8156"
+      },
+      "host-test-results.json": {
+        "bytes": 316,
+        "sha256": "c1ecfcf9a5cd204d3dfd539be8dddf1891d4b4337d4227bbb9d9688756094850"
+      },
+      "README.txt": {
+        "bytes": 4022,
+        "sha256": "18f5e70b6aeca054a06ad7f37ff3529d2796aa5e2a0f03de7ca0adc04c778565"
+      },
+      "menu-build-record.json": {
+        "bytes": 5154,
+        "sha256": "99f11fb7577422067a1d6ac64006e07da433a6c8543cd90ad21fdd3cf6c6ddc0"
+      },
+      "build-record.json": {
+        "bytes": 30832,
+        "sha256": "4d4cb299fb14117a29a9d8f2eea0b576cec41d1052403ed0d9acdfcc9e15b632"
+      },
+      "LIBOUNCE-LICENSE.md": {
+        "bytes": 731,
+        "sha256": "5b6675f85016009624d29c9222201d3c0fc6a2d5c59253367f27d3e15011cdb2"
+      },
+      "HBLOADER-LICENSE.md": {
+        "bytes": 737,
+        "sha256": "db88a9c4d4d3148cbe397ca0acb7886e7aebcc8b984d4ce3b949e9caabdc7223"
+      },
+      "shared-libraries.json": {
+        "bytes": 1517,
+        "sha256": "32a5db83f5113c6f4ff777210ac6f58f4c808f1fc64b5a4503c097eeb02e39ea"
+      },
+      "upstream.json": {
+        "bytes": 181,
+        "sha256": "2f1c7a79b0999af5a4cad2a5cf717b3a7330b228cc2c4ced0bd4fea6079cad7a"
+      },
+      "hbloader/builtin_image.c": {
+        "bytes": 781,
+        "sha256": "7cd1f82c6da504389ef8ba1191e69d3380708c988ddc5b4be2e2bc66914df2e0"
+      },
+      "hbloader/cycle.h": {
+        "bytes": 2487,
+        "sha256": "198a3268bdd661adf98f12863085c681662fcae371713a8108937477c8985c1c"
+      },
+      "hbloader/clean_main.cpp": {
+        "bytes": 45315,
+        "sha256": "092bbb975ab675c208367d9cd34b4339a886c201e419333eeffd5bae46c84647"
+      },
+      "hbloader/entry.h": {
+        "bytes": 902,
+        "sha256": "b945cc7c7c4028d1247d3eb561783089e8cdea458c7b4c1f571fd8ce93efae84"
+      },
+      "hbloader/config.c": {
+        "bytes": 3515,
+        "sha256": "1a0ac29703aa3ad1b0423073e43cafee9a10ffc002325b9e461a76c1836fe09a"
+      },
+      "hbloader/builtin_image.h": {
+        "bytes": 298,
+        "sha256": "320c00367329d6bf94e28d75aef252845598ccc4875ab3f033117b83c4b88c19"
+      },
+      "hbloader/leak_check.h": {
+        "bytes": 3103,
+        "sha256": "53be2cc71fb132e7eb618be9382992298ff1cbb4a5d711f8f6c78184cfcd3d45"
+      },
+      "hbloader/Makefile.clean": {
+        "bytes": 2210,
+        "sha256": "3ad0712ac4ea1f04c941225077ade933bb42116debdf7cbc920a5f9ed3664e21"
+      },
+      "hbloader/leak_check.c": {
+        "bytes": 5217,
+        "sha256": "f857f5f24e27563fee6097c4acf02f2d436d7f1a7e515e97c680dcb26bfcd1e1"
+      },
+      "hbloader/cycle.c": {
+        "bytes": 4313,
+        "sha256": "a3e500851c2152c2f60e990411db86df3270d8b17212dbcdfa42452031e7eec5"
+      },
+      "hbloader/config.h": {
+        "bytes": 3620,
+        "sha256": "0c7948ba9dae3f34a3642e8b866b2bd65df52f4faeb6c9209f56f73dae7a4d9a"
+      },
+      "hbloader/entry.S": {
+        "bytes": 2813,
+        "sha256": "4d58d95e815de605b1940e73bde3907e4b83f5c3c017283a5ddaed740ae653ca"
+      },
+      "ro/Makefile": {
+        "bytes": 1409,
+        "sha256": "ab7b241a7495fb3e9f62ec4b575172d75bd4014d78c7988163ed3feee8cf4a36"
+      },
+      "ro/README.md": {
+        "bytes": 2860,
+        "sha256": "30a2962c88393f14c893e5366e2dcd467d5e49e7490fe9ac1b2a81cbfd8feaca"
+      },
+      "ro/test.sh": {
+        "bytes": 1246,
+        "sha256": "7ec74b379fb05bb33473a25840fb6e04101f99b7047b7d5593da4bb1d4e1299b"
+      },
+      "common/loader_gate.hpp": {
+        "bytes": 29276,
+        "sha256": "1815ee26d2d0100881387652abad53cb6552cde73ee43fda0593780a475b67e4"
+      },
+      "common/retained_memory.hpp": {
+        "bytes": 7184,
+        "sha256": "ef3eb2917df0638e433c968e43f1227db828196ed1783562b9a8079d5f32c185"
+      },
+      "common/ro_dmnt.h": {
+        "bytes": 761,
+        "sha256": "517e5720bf7a5ff7de2434738d25f58e791f1441f897fbece42bbe0e2cc0c567"
+      },
+      "common/code_mount_request.hpp": {
+        "bytes": 2778,
+        "sha256": "a94170b3db6ffcad1f28c3ffdcba5622e7eeb4e44f2cc22aa1000acb971db6e6"
+      },
+      "common/result.hpp": {
+        "bytes": 1243,
+        "sha256": "b3e7d820a0e6edabed09811909838a6b034f628f9fea680e061f57ac7ad15cdb"
+      },
+      "common/game_arm.h": {
+        "bytes": 1416,
+        "sha256": "72ef68590faccf449aac15f410730ab37e69154f729ea88fd66a39104ea60957"
+      },
+      "common/policy_package.hpp": {
+        "bytes": 1074,
+        "sha256": "1ebf06532d2d6cb3515ff34b5e35a6179ae725efa67ef413c004c7fd15d3d961"
+      },
+      "common/control.h": {
+        "bytes": 5568,
+        "sha256": "162f27861345b3d2e47c7f58a24da0c26f658101da990a4bed71f71dd4364496"
+      },
+      "common/domain_mount.hpp": {
+        "bytes": 4862,
+        "sha256": "8c3edb5578d858e04e46e4a43534ce46acc6d40a19bab17fbe8246336a76b77e"
+      },
+      "common/sd_writer.hpp": {
+        "bytes": 948,
+        "sha256": "1010502e5ce3168d64f3c829a4659699f570456adcff09e9adf267c64c02e21b"
+      },
+      "common/sd_writer.cpp": {
+        "bytes": 5100,
+        "sha256": "78f3823d539e76e7e10a781afbef99bc3f8b1fba3a84bacf8ec22fca00e18853"
+      },
+      "common/policy_package.cpp": {
+        "bytes": 5101,
+        "sha256": "46544232b2e6e75e7d51c15202fd09363eb487caec285f2c08c1d50b6755098d"
+      },
+      "common/package.hpp": {
+        "bytes": 2517,
+        "sha256": "7b0e68c3c22889f878f61b08d82d19c9f33fae9751d259ef24a33977d2a8a3dc"
+      },
+      "libkaihen/Makefile": {
+        "bytes": 2218,
+        "sha256": "e0eea520aaccd11e57f7f839437481d7e363cfa13732589a0f586f2482c18144"
+      },
+      "libkaihen/JIT.md": {
+        "bytes": 2466,
+        "sha256": "5bb7d576878d3e4e78e6c12cbda3249e49e8aec4f68cd1adecb251167f4f8c54"
+      },
+      "libkaihen/LICENSE": {
+        "bytes": 737,
+        "sha256": "dd76999221b671901d57147c9b917237f63a131af5822496845f9878a3fd6b6e"
+      },
+      "libkaihen/PLUGINS.md": {
+        "bytes": 4549,
+        "sha256": "e6eb6177ead3f64c8305fc4cf77ea3d6a6778490af49abe143d076208ef7568b"
+      },
+      "tests/cycle.c": {
+        "bytes": 3929,
+        "sha256": "ab229513d4aad4438007ad9e3b7905797f20a9e22aa1986213626d9acbf7efbd"
+      },
+      "tests/libraries.c": {
+        "bytes": 3117,
+        "sha256": "4c71adad4e5924fb3018fec7bd0fcab7a53f54e9e6642195d16ede92ca6be9ef"
+      },
+      "libkaihen/include/kaihen.h": {
+        "bytes": 6778,
+        "sha256": "26b5758beedcb5b5e465d43a5b448285a8f04f3bcfb0f5c88739103f2af9c387"
+      },
+      "libkaihen/source/jit.c": {
+        "bytes": 5793,
+        "sha256": "a10b1fe5d5ea4aef6468d371f68d5adac29c71d612b119f9da248db2c74278eb"
+      },
+      "libkaihen/source/cmif_server.hpp": {
+        "bytes": 4851,
+        "sha256": "95f60d16c248fe6ada1dcd630d11d2e29b14a78cc8d9582f50bd16f22eca8b3a"
+      },
+      "libkaihen/source/plugin_server.cpp": {
+        "bytes": 11842,
+        "sha256": "e777e3c3908bb13ab8d8b916f7c6903588311e947250f73caf34340d0d454312"
+      },
+      "libkaihen/source/plugin_runtime.cpp": {
+        "bytes": 8855,
+        "sha256": "882d1de66070f472f6e5466e4539a9e6105d21077504f87a842720f7abc45df1"
+      },
+      "libkaihen/source/plugin_startup.h": {
+        "bytes": 1885,
+        "sha256": "8d42c388bdcec855c4fc6eb48e8fc6e263eed389d4abe4675175e81e6a2d79fb"
+      },
+      "libkaihen/include/kaihen/plugin.h": {
+        "bytes": 5884,
+        "sha256": "b933c1e3d73ba0f9cf1b229541ed5d872d382b3690a12faa32b7d00c5041294a"
+      },
+      "libkaihen/include/kaihen/protocol.h": {
+        "bytes": 4508,
+        "sha256": "21a0ea54a571a9c46346edb4150bdbff416d379a1cc77d3cbf9dde980b010695"
+      },
+      "ro/tests/wire_test.cpp": {
+        "bytes": 2816,
+        "sha256": "846732467f7d7aa9ed281f870fd810ff1670cffdd422637c2b7ed20e15dfff1a"
+      },
+      "ro/tests/session_test.cpp": {
+        "bytes": 19080,
+        "sha256": "1b8292ca17b77894bb3277399cf0a2e82ec5f5448dd628758f5888de77605b19"
+      },
+      "ro/tests/image_test.cpp": {
+        "bytes": 1388,
+        "sha256": "79f1de13dae12d73add39a21ce91b591475ee1e7b56fa4c70c85524d31a72e3e"
+      },
+      "ro/tests/mapping_test.cpp": {
+        "bytes": 16076,
+        "sha256": "cc1787e34e003d708b590207a0c1d7d5c040dd1c80b2e27cf1089a63910bc8bb"
+      },
+      "ro/source/handle.hpp": {
+        "bytes": 681,
+        "sha256": "a5faab55deecd91b31bf279e02deff2bb5d71e29b15fba2ad082f285cc73700e"
+      },
+      "ro/source/ro_diagnostics.h": {
+        "bytes": 887,
+        "sha256": "dd724a60c164f5696717faef25f72bc2f8544317d01043c18c87270634f4d022"
+      },
+      "ro/source/wire.h": {
+        "bytes": 2715,
+        "sha256": "19da3f493081194e9fd5d72b7bcfd845685d56a47b9ee50c5e38260c5205b553"
+      },
+      "ro/source/wire.cpp": {
+        "bytes": 6847,
+        "sha256": "3ff26275be1a090b708b9e94cb79bae69c9a3e61f48f30bc6abc915933709617"
+      },
+      "ro/source/fs_memory.h": {
+        "bytes": 320,
+        "sha256": "1d0e2d8497fb82e3902392e2b9aa0b8d44f319fce71362e69b91a3837ff49697"
+      },
+      "ro/source/mapping.cpp": {
+        "bytes": 20287,
+        "sha256": "5cb5458cc5101707733197ea22c46d4f4aa05cd811dd738c8d9a26cab66c67db"
+      },
+      "ro/source/fs_memory.cpp": {
+        "bytes": 8101,
+        "sha256": "b0e79e61964f3202652e4e5dbe9aa1242af185f8de7f645b453068aafaae1569"
+      },
+      "ro/source/results.h": {
+        "bytes": 1536,
+        "sha256": "7cf3c23aaeaff8d9277990cd8188ef5a76f967cce4b6c522e464999f3074ab9a"
+      },
+      "ro/source/main.cpp": {
+        "bytes": 4828,
+        "sha256": "d8cb2c741eacfdf009706c66bc7d0ee41aeec5883fb7d841c0ce12c3af86fa2d"
+      },
+      "ro/source/control.h": {
+        "bytes": 328,
+        "sha256": "9d3646a5d387be899000de1126d841cd1cad1a5027fabad9d0a3b590c6de199a"
+      },
+      "ro/source/image.h": {
+        "bytes": 1033,
+        "sha256": "0693e759b7803f4c99d2ca2a8111161d5364da8de8fd13d0a06b0bc6a1868833"
+      },
+      "ro/source/session.cpp": {
+        "bytes": 18812,
+        "sha256": "7037a5061be72ed6bb3f42460e1b3b887b60705c20b9deb07fcbfb4ad48193d1"
+      },
+      "ro/source/session.h": {
+        "bytes": 3575,
+        "sha256": "64a0f056a167c49f13ac7b277a3f4b89510a06ac3bcf0eb54d30d0065ca0a6b2"
+      },
+      "ro/source/control.cpp": {
+        "bytes": 1019,
+        "sha256": "33ccdb2345ded80f40969393383b2303e52d877b87dc63fe91f3f2380312da15"
+      },
+      "ro/source/image.cpp": {
+        "bytes": 2747,
+        "sha256": "a9f8718314ae9f7e572f35b45bf9616a1d814ff0f30356b6dc6b41ad432abe05"
+      },
+      "include/switch2/runtime/dynlink.h": {
+        "bytes": 17867,
+        "sha256": "09db8ff8b47b61a6ef232bd4f6ce021fcd9f166685db4816ae5d8a013dc91fb9"
+      }
+    },
+    "baseLibounceCore": {
+      "bytes": 28400138,
+      "sha256": "fc5a75d3a338282b10a7b73e561f6919f6d5e14912f4ecb712a77dd43a2e7694"
+    },
+    "menu": {
+      "bytes": 37494784,
+      "sha256": "469f33729c1e663cb2e1e4abbcb932d3ae7faaf241d2288837f8c6a78067f9a4"
+    },
+    "ro": {
+      "bytes": 29164,
+      "sha256": "6664c889f26ecf204c2cc31cf9e6558869f9a358d47ad17835639e11f75a340c"
+    },
+    "main": {
+      "bytes": 19452420,
+      "sha256": "52c685fa50a4b5abe5e403f7e4edb4dcdcf789241939e8b39c29dbdffe6417ef"
+    },
+    "commands": [
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu++20",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/ro/source/control.cpp",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/control.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu++20",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/ro/source/fs_memory.cpp",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/fs_memory.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu++20",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/ro/source/image.cpp",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/image.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu++20",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/ro/source/main.cpp",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/main.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu++20",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/ro/source/mapping.cpp",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/mapping.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu++20",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/ro/source/session.cpp",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/session.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu++20",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/ro/source/wire.cpp",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/wire.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-ffixed-x18",
+        "-fPIE",
+        "-specs=/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/switch.specs",
+        "-Wl,--gc-sections,-Map,/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/main.map",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/control.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/fs_memory.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/image.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/main.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/mapping.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/session.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/wire.o",
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/lib/libounce_core.a",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/main.elf"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/tools/bin/elf2nso",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/main.elf",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/ro/main"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu++20",
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-ffixed-x18",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/hbloader/clean_main.cpp",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/clean_main.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu11",
+        "-ffixed-x18",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/hbloader/config.c",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/config.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu11",
+        "-ffixed-x18",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/hbloader/cycle.c",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/cycle.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu11",
+        "-ffixed-x18",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/hbloader/leak_check.c",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/leak_check.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu11",
+        "-ffixed-x18",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/hbloader/builtin_image.c",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/builtin_image.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-fPIE",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-D__SWITCH__",
+        "-D__SWITCH2__",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include",
+        "-I/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/include/switch",
+        "-I/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/libkaihen/include",
+        "-std=gnu11",
+        "-ffixed-x18",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/dynlink.c",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/dynlink.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-ffixed-x18",
+        "-fPIE",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/github-main/sources/nro-runtime-stage2/hbloader/entry.S",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/entry.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-ffixed-x18",
+        "-fPIE",
+        "-c",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/builtin_runtime.S",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/builtin_runtime.o"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
+        "-mcpu=cortex-a78c+crypto",
+        "-mtp=soft",
+        "-ffixed-x18",
+        "-fPIE",
+        "-specs=/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/switch.specs",
+        "-Wl,--gc-sections,-Map,/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/main.map",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/clean_main.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/config.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/cycle.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/leak_check.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/builtin_image.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/dynlink.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/entry.o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/builtin_runtime.o",
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/libounce/lib/libounce_core.a",
+        "-o",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/main.elf"
+      ],
+      [
+        "/home/k2/Antigravity/MyLoveSwitch/iz2s-panel/iz2s-platform-run23/engines/izhen/sdk/devkitpro/tools/bin/elf2nso",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/main.elf",
+        "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-0.3.5-local/runtime-build/loader/main"
+      ]
+    ]
+  },
+  "segments": [
+    {
+      "memoryOffset": 0,
+      "bytes": 88544,
+      "sha256": "52071f7177214913f743e0e1773c691b83252b05f9c85e76f3cdbf2857b4321c"
+    },
+    {
+      "memoryOffset": 90112,
+      "bytes": 37514020,
+      "sha256": "0732f156448e969f7f6cb33f5263a97f5032553ca48e9caabc3405b5e53c64f7"
+    },
+    {
+      "memoryOffset": 37605376,
+      "bytes": 16040,
+      "sha256": "fadb9a0ce3e3b5972502c2bd230d14cce6c662261ec7ad016cf313ba56a0d425"
+    }
+  ],
+  "npdmUnchanged": true,
+  "bootUnchangedFromMenuCandidate": true,
+  "consoleExecutionVerified": false
+}

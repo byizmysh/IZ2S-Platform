@@ -558,7 +558,8 @@ function updateNavigation() {
     if (current) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   }
-  document.title = (globalThis.RUN21_LANGUAGE?.t(title)||title) + ' · IZ2S Platform';
+  const panelVersion = document.querySelector('.brand-version')?.textContent.trim();
+  document.title = (globalThis.RUN21_LANGUAGE?.t(title)||title) + ' · IZ2S' + (panelVersion ? ' ' + panelVersion : '');
 }
 function storeNavigation(method) {
   const url = new URL(location.href);
