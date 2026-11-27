@@ -19,7 +19,15 @@ def replace_once(source, before, after):
 
 
 def split_catalog(source):
-    source = replace_once(source, 'static u32 present_at(', '#include <vulkan/vulkan.h>\nstatic u32 present_at(')
+    source = replace_once(source,
+        'static u32 present_at(IzContext*c,const u64*commands,u64 controls_address,u32 sdk_epoch){',
+        '''#include <vulkan/vulkan.h>
+static bool split_display_lost(u32 result);
+static u32 present_at_mode(IzContext*c,const u64*commands,u64 controls_address,u32 sdk_epoch,
+                           bool split_mode){''')
+    source = replace_once(source,
+        'Q(acquire,24,~0ull);',
+        'Q(acquire,24,split_mode ? 16666667 : UINT64_MAX);')
     source = replace_once(source,
         'u32 rc=VK(c,F_ACQUIRE,c->device,acquire,&index,0,0,0,0,0);if(rc)return rc;',
         '''u32 rc=VK(c,F_ACQUIRE,c->device,acquire,&index,0,0,0,0,0);
@@ -27,10 +35,20 @@ def split_catalog(source):
  if(rc&&rc!=VK_SUBOPTIMAL_KHR)return rc;
  ''')
     source = replace_once(source,
-        'rc=VK(c,F_PRESENT,c->queue,present_info,0,0,0,0,0,0);if(rc)return rc;',
+        '''rc=VK(c,F_PRESENT,c->queue,present_info,0,0,0,0,0,0);if(rc)return rc;return VK(c,F_QUEUE_IDLE,c->queue,0,0,0,0,0,0,0);''',
         '''rc=VK(c,F_PRESENT,c->queue,present_info,0,0,0,0,0,0);
- if(rc&&rc!=VK_SUBOPTIMAL_KHR)return rc;
- ''')
+ const bool display_lost=split_mode&&split_display_lost(rc);
+ if(rc&&rc!=VK_SUBOPTIMAL_KHR&&!display_lost)return rc;
+ // vkQueueSubmit already succeeded. Retire its work before returning a
+ // surface error that lets Split release the submitted commands.
+ u32 idle=VK(c,F_QUEUE_IDLE,c->queue,0,0,0,0,0,0,0);
+ return idle ? idle : display_lost ? rc : 0;''')
+    source = replace_once(source,
+        'static u32 present(IzContext*c,const u64*commands){',
+        '''static u32 present_at(IzContext*c,const u64*commands,u64 controls_address,u32 sdk_epoch){
+ return present_at_mode(c,commands,controls_address,sdk_epoch,false);
+}
+static u32 present(IzContext*c,const u64*commands){''')
     source = replace_once(source,
         'static u32 launch(IzFs*fs,Entry*entry,unsigned slot,Gpu*g,IzNative*n,IzCheckpointSession*checkpoint){',
         '''static u32 launch_application(IzFs*fs,Entry*entry,unsigned slot,Gpu*g,IzNative*n,
@@ -115,7 +133,7 @@ static void sdk_input(IzContext*c''')
       W((void *)(uintptr_t)c->snapshot, 1016, 0);
       iz_pc_allow_auto_fetch(false);
       rc = run_split(c, fs, pair, &gpu, split_buttons);
-      if (c->poisoned) break;
+      if (c->poisoned || stopping(c)) break;
       restore_menu(c, controls, rc);
       iz2_split_trace("split-menu-restored", "", 0, rc, 0);
       if (rc) iz_ounce_split_status("Split: could not open both apps", "R + Up to try again");
@@ -124,7 +142,7 @@ static void sdk_input(IzContext*c''')
       rc = 0;
       break;
      }
-     if (c->poisoned) break;
+     if (c->poisoned || stopping(c)) break;
    }
    if (split_enabled && request) {request = 0; W(controls,1012,0); W(controls,964,0);}
    if (split_consumed) {

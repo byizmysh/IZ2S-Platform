@@ -48,7 +48,7 @@ typedef struct {
 } IzNative;
 struct IzContext {
     struct { IzNative native; } owner;
-    u32 count, host_mode, ram_only, checkpoint_enabled, image_count, active, poisoned;
+    u32 count, host_mode, ram_only, checkpoint_enabled, image_count, active, poisoned, stop;
     u64 audio_functions[SB4_AUDIO_FUNCTIONS], controls, controls_buffer;
     u64 device, images[8], views[8], tick_hz, frames, checkpoint_time_bias;
     bool platform_map;
@@ -56,7 +56,7 @@ struct IzContext {
     u32 (*platform_restore_hid)(void);
 };
 
-enum { TEST_FRAMES = 384, TEST_START_FAILURE = 0x9999u };
+enum { TEST_FRAMES = 12000, TEST_START_FAILURE = 0x9999u };
 typedef enum { START_OK, FAIL_COMPOSITOR, FAIL_CONTROLS, FAIL_RECORDING } StartCase;
 static struct {
     int exit_slot, frame_error_slot, fail_launch_slot;
@@ -69,9 +69,12 @@ static struct {
     unsigned focus_at[TEST_FRAMES], sound_at[TEST_FRAMES];
     bool menu_at[TEST_FRAMES];
     unsigned traced_present[4], traced_closed, traced_return, cache_retirements;
+    unsigned traced_paused, traced_resumed, traced_shutdown, traced_display_lost;
     unsigned render_masks[4], presented[TEST_FRAMES], presentations, swapchain_transitions;
     bool open[2], audible[2], retain_on_stop, hold_release, hardware_focus;
     unsigned physical_mutations, system_close_poll;
+    unsigned focus_lost_at, focus_regained_at, close_in_left_frame, present_error_at;
+    u32 present_error;
     u64 pending_pcm[2];
     u64 input[TEST_FRAMES], current_buttons, forwarded[2][TEST_FRAMES];
 } test;
@@ -200,7 +203,7 @@ static void destroy(IzContext *c, Gpu *gpu)
 }
 static bool stopping(IzContext *c)
 {
-    (void)c;
+    if (c->stop) return true;
     if (test.system_close_poll && test.input_count >= test.system_close_poll) return true;
     return test.input_count >= test.input_limit;
 }
@@ -209,12 +212,15 @@ static u32 input_at(IzContext *c, u8 *controls, u64 *previous, u64 *tick, u32 ep
     (void)c; (void)previous; (void)tick; (void)epoch;
     assert(test.input_count + 1 < TEST_FRAMES);
     test.current_buttons = test.input[test.input_count++];
+    if (test.input_count == test.focus_lost_at) test.hardware_focus = false;
+    if (test.input_count == test.focus_regained_at) test.hardware_focus = true;
     Q(controls, 8, test.current_buttons);
     return 0;
 }
-static u32 present_at(IzContext *c, const u64 *commands, u64 controls, u32 epoch)
+static u32 present_at_mode(IzContext *c, const u64 *commands, u64 controls, u32 epoch, bool split_mode)
 {
-    assert(controls == c->controls && epoch == 0);
+    assert(controls == c->controls && epoch == 0 && split_mode && test.hardware_focus);
+    if (test.input_count == test.present_error_at) return test.present_error;
     assert(*commands > 0 && *commands <= 3);
     assert(!(test.retired_commands & (1u << *commands)));
     unsigned mask = test.render_masks[*commands];
@@ -371,7 +377,10 @@ static u32 iz_native_event(IzNative *native, u32 event)
     const unsigned slot = native->slot;
     assert(native->initialized && test.open[slot]);
     if (event == IZ_NATIVE_FRAME) {
-        assert(!test.stops[slot] && native->app.frames == ++test.app_frames[slot]);
+        assert(test.hardware_focus && !test.stops[slot] &&
+               native->app.frames == ++test.app_frames[slot]);
+        if (slot == 0 && test.input_count == test.close_in_left_frame)
+            native->fs->c->stop = 1;
         const u32 handheld = SB4_PAD_HANDHELD_ID;
         Sb4PadSample sampled = {0};
         IzServiceFunction pad = native->compat->resolve_service(5, SB4_HID_READ_HANDHELD);
@@ -416,6 +425,10 @@ void iz2_split_trace(const char *phase, const char *app, unsigned panes, u32 res
     }
     if (!strcmp(phase, "split-closed")) test.traced_closed |= panes;
     if (!strcmp(phase, "split-return")) test.traced_return++;
+    if (!strcmp(phase, "split-display-paused")) test.traced_paused++;
+    if (!strcmp(phase, "split-display-resumed")) test.traced_resumed++;
+    if (!strcmp(phase, "split-shutdown")) test.traced_shutdown++;
+    if (!strcmp(phase, "split-display-lost")) test.traced_display_lost++;
 }
 
 static void iz2_menu_cache_retire(void) { test.cache_retirements++; }
@@ -745,8 +758,56 @@ static void exercise_system_close_after_left_exit(void)
     free(controls);
 }
 
+static void exercise_home_close(void)
+{
+    enum { HOME_AT = 10801 };
+    const struct {
+        unsigned home_at, resume_at, close_poll, close_in_frame, error_at;
+        u32 error;
+        unsigned paused, resumed, display_lost, presentations;
+    } cases[] = {
+        { HOME_AT, 0, HOME_AT + 30, 0, 0, 0, 1, 0, 0, HOME_AT - 1 },
+        { HOME_AT, HOME_AT + 30, HOME_AT + 34, 0, 0, 0, 1, 1, 0, HOME_AT + 3 },
+        { 0, 0, HOME_AT + 1, 0, HOME_AT, VK_TIMEOUT, 0, 0, 0, HOME_AT - 1 },
+        { 0, 0, 0, 0, HOME_AT, (u32)VK_ERROR_OUT_OF_DATE_KHR, 0, 0, 1, HOME_AT - 1 },
+        { 0, 0, 0, 0, HOME_AT, (u32)VK_ERROR_SURFACE_LOST_KHR, 0, 0, 1, HOME_AT - 1 },
+        { 0, 0, 0, HOME_AT, 0, 0, 0, 0, 0, HOME_AT - 1 },
+    };
+    for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+        memset(&test, 0, sizeof test);
+        test.exit_slot = test.frame_error_slot = test.fail_launch_slot = -1;
+        test.input_limit = HOME_AT + 60;
+        test.hardware_focus = true;
+        test.focus_lost_at = cases[i].home_at;
+        test.focus_regained_at = cases[i].resume_at;
+        test.system_close_poll = cases[i].close_poll;
+        test.close_in_left_frame = cases[i].close_in_frame;
+        test.present_error_at = cases[i].error_at;
+        test.present_error = cases[i].error;
+        test.pending_polls[0] = 3;
+        test.pending_polls[1] = 2;
+        u8 *controls = calloc(1, IZ_SHARED_BYTES);
+        assert(controls);
+        IzContext context = make_context(controls);
+        IzFs fs = {&context};
+        Gpu menu = {0};
+        Entry pair[2] = {split_apps[i % 2], split_apps[1 - i % 2]};
+        assert(!run_split(&context, &fs, pair, &menu, 0));
+        assert(!context.poisoned && !context.active && !split_input);
+        assert(test.presentations == cases[i].presentations);
+        assert(test.traced_paused == cases[i].paused && test.traced_resumed == cases[i].resumed);
+        assert(test.traced_display_lost == cases[i].display_lost && test.traced_shutdown == 1);
+        assert(test.app_frames[0] == test.app_frames[1] + !!cases[i].close_in_frame);
+        assert(test.traced_closed == SPLIT_BOTH && test.unloads[0] == 1 && test.unloads[1] == 1);
+        assert(test.restores == 1 && test.destroyed == 1 && !test.open[0] && !test.open[1]);
+        free(controls);
+    }
+    puts("PASS: HOME pause/resume and system close after 10,800 frames, including WSI and native callback races");
+}
+
 int main(void)
 {
+    exercise_home_close();
     exercise_system_close_after_left_exit();
     exercise_selection();
     exercise_pad_policies();

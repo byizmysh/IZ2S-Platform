@@ -164,10 +164,19 @@ static u32 split_frame(IzNative *native)
     return iz_native_event(native, IZ_NATIVE_FRAME);
 }
 
+static bool split_display_lost(u32 result)
+{
+    return result == (u32)VK_ERROR_OUT_OF_DATE_KHR ||
+           result == (u32)VK_ERROR_SURFACE_LOST_KHR;
+}
+
 static u32 split_stop_step(IzContext *c, IzNative *native)
 {
     if (c->poisoned || native->unknown) return SPLIT_UNAVAILABLE;
     if (native->initialized) {
+        if (!native->stopping)
+            iz2_split_trace("split-stop-begin", "", native == &c->owner.native ?
+                            SPLIT_RIGHT : SPLIT_LEFT, 0, native->app.frames);
         native->stopping = 1;
         u32 result = iz_native_event(native, IZ_NATIVE_STOP);
         if (result == IZ_NATIVE_STOP_PENDING && native->app.version < 4)
@@ -321,6 +330,7 @@ static u32 run_split(IzContext *c, IzFs *fs, Entry pair[2], Gpu *normal_gpu,
     IzSplitUi ui = { .corner = 3, .size = 2 };
     bool suppress = true; /* The opening chord also contains a game button. */
     bool opening = true;
+    bool display_paused = false;
     u8 *right_controls = (void *)(uintptr_t)normal_controls;
     u8 *left_controls = (void *)(uintptr_t)split->alternate_controls.mapped;
     u8 *app_controls[] = { left_controls, right_controls };
@@ -329,6 +339,25 @@ static u32 run_split(IzContext *c, IzFs *fs, Entry pair[2], Gpu *normal_gpu,
         input_at(c, right_controls, &shortcut_history, &shortcut_tick, 0);
         if (stopping(c)) break;
         const u64 buttons = WG(right_controls, 8);
+        // Keep polling applet events in HOME without touching the display.
+        if (split->input.hardware_focus && !split->input.hardware_focus()) {
+            if (!display_paused) {
+                split_input_set_focus(&split->input, 0);
+                iz2_split_trace("split-display-paused", "", windows.visible, 0,
+                                split->presented[windows.visible]);
+                display_paused = true;
+            }
+            CALL(c, F_SLEEP, 16666667, 0, 0, 0, 0, 0, 0, 0);
+            continue;
+        }
+        if (display_paused) {
+            iz2_split_trace("split-display-resumed", "", windows.visible, 0,
+                            split->presented[windows.visible]);
+            display_paused = false;
+            last_buttons = buttons;
+            suppress = true;
+            ui.dragging = false;
+        }
         uint8_t raw_touch[SPLIT_TOUCH_BYTES];
         memcpy(raw_touch, right_controls + 128, sizeof raw_touch);
         if (!buttons) suppress = opening = false;
@@ -386,7 +415,7 @@ static u32 run_split(IzContext *c, IzFs *fs, Entry pair[2], Gpu *normal_gpu,
                                   app_controls[slot] + 128, !(input_mask & pane));
         }
 
-        for (unsigned slot = 0; slot < 2 && !c->poisoned; slot++) {
+        for (unsigned slot = 0; slot < 2 && !c->poisoned && !stopping(c); slot++) {
             const unsigned pane = 1u << slot;
             if (!(windows.visible & pane)) continue;
             u32 app_error = 0;
@@ -400,7 +429,7 @@ static u32 run_split(IzContext *c, IzFs *fs, Entry pair[2], Gpu *normal_gpu,
                         slot, app_error);
             }
         }
-        if (c->poisoned) break;
+        if (c->poisoned || stopping(c)) break;
 
         result = split_retire_windows(c, split, natives, &windows.retiring);
         if (result) {
@@ -412,12 +441,25 @@ static u32 run_split(IzContext *c, IzFs *fs, Entry pair[2], Gpu *normal_gpu,
         const IzSplitSoundSource remaining_sound = split_sound_after_exit(windows.visible, sound);
         if (remaining_sound != sound) split_select_sound(remaining_sound);
         if (!windows.visible && !windows.retiring) break;
+        if (stopping(c)) break;
         if (windows.visible) {
             if (windows.visible != routed_windows) layout = split_layout(&ui, windows.visible);
             split_status_update(&split->compositor, windows.focus, iz_split_audio_source(),
                                 &ui, windows.visible, &layout);
-            result = present_at(c, split->commands[windows.visible - 1].commands,
-                                normal_controls, 0);
+            result = present_at_mode(c, split->commands[windows.visible - 1].commands,
+                                     normal_controls, 0, true);
+            if (result == VK_TIMEOUT || result == VK_NOT_READY) {
+                if (result == VK_NOT_READY) CALL(c, F_SLEEP, 16666667, 0, 0, 0, 0, 0, 0, 0);
+                result = 0;
+                continue;
+            }
+            if (split_display_lost(result)) {
+                iz2_split_trace("split-display-lost", "", windows.visible, result,
+                                split->presented[windows.visible]);
+                __atomic_store_n(&c->stop, 1, __ATOMIC_RELEASE);
+                result = 0;
+                break;
+            }
             if (result) {
                 iz2_split_trace("split-present-failed", "", windows.visible, result,
                                 split->presented[windows.visible]);
@@ -439,6 +481,9 @@ static u32 run_split(IzContext *c, IzFs *fs, Entry pair[2], Gpu *normal_gpu,
         return result ? result : SPLIT_UNAVAILABLE;
     }
     split_input_set_focus(&split->input, 0);
+    if (stopping(c))
+        iz2_split_trace("split-shutdown", "", windows.visible | windows.retiring, 0,
+                        split->presented[SPLIT_BOTH]);
     /* Stop both while their control and GPU buffers are still live. */
     u32 stop_error = split_drain(c, split, natives, windows.visible | windows.retiring);
     if (!stop_error) stop_error = iz_split_audio_end();

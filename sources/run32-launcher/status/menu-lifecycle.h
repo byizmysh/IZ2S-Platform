@@ -19,7 +19,7 @@ void iz2_split_trace(const char *phase, const char *app, unsigned panes, u32 res
 {
     FILE *f = iz2_lifecycle_open();
     if (!f) return;
-    fprintf(f, "build=RUN33-Split tick=%llu phase=%s app=%.48s panes=%u rc=%08x frames=%llu\n",
+    fprintf(f, "build=IZ2S-Split-Close-Focus tick=%llu phase=%s app=%.48s panes=%u rc=%08x frames=%llu\n",
             (unsigned long long)armGetSystemTick(), phase, app, panes, result,
             (unsigned long long)frames);
     fclose(f);

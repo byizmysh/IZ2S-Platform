@@ -2609,12 +2609,12 @@
     },
     "engines/iz2s-core/runtime/manifest.json": {
       "bytes": 8891,
-      "sha256": "c3df35ad4cf1c91dc2b725c127b0f4818986b1cf9d955ee499d86b0d4bc26482",
+      "sha256": "bd21778727ac2a59ec0e504c0166b7aee28035fd243574a3b81345d7628cc1de",
       "executable": false
     },
     "engines/iz2s-core/runtime/menu-build.json": {
       "bytes": 23877,
-      "sha256": "ed9ca2055a3e94cbaa62a6dc44a0d5c254d79de53ac57be76a9c6db350a757a6",
+      "sha256": "130c41b63bc840cfacf0809dc23638fce23ad09b8c0c96eb59649ada3e1dbed1",
       "executable": false
     },
     "engines/iz2s-core/runtime/nro-icon-runtime-build.json": {
@@ -2624,7 +2624,7 @@
     },
     "engines/iz2s-core/runtime/package-manifest.json": {
       "bytes": 7203,
-      "sha256": "0bfa0e4ddd5318cdd643d9f9367bd1833ce143966d8c7587be6be51265ad51d9",
+      "sha256": "470b110ccaadd8a1e3462c8ae96e3b46fd2927780ee5c4913dfe13572d3ce33a",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/bootstrap.bin": {
@@ -2638,13 +2638,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/exefs.nsp": {
-      "bytes": 19451667,
-      "sha256": "69f95ac0c33538d5c7f7fb2cd8ddd9939b3b168e4a56934b8b866ea3b179ee2d",
+      "bytes": 19452819,
+      "sha256": "eee3e079f94f01801123d087dd0e16d699006bd2272b82344812bc0a3ca1b914",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/main": {
-      "bytes": 19449736,
-      "sha256": "dba6a97fba0e5d4ac84c8f75e2972d2a68edb2bc9dd247a8f1ee0b91be493d94",
+      "bytes": 19450889,
+      "sha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/main.npdm": {
@@ -2873,13 +2873,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/provenance.json": {
-      "bytes": 14400,
-      "sha256": "8fb44536383ed4c06460642a91ca58eeeaac1d6b375bb6d1c9d866c332317503",
+      "bytes": 14588,
+      "sha256": "31240e6ca5bac39f40a8e4ba5fb6d0def46a84a04bf3e260e3e6ed43435a8d63",
       "executable": false
     },
     "engines/iz2s-core/runtime/run32-component-validation.json": {
       "bytes": 881,
-      "sha256": "6b894af65dc7ab074860a6f0c219acc718a0181a6174176a8a7b1c586a673a4c",
+      "sha256": "b9976cbd97cac679c9617acd587168a9396c9f2597efa84376dd2dd626798d83",
       "executable": false
     },
     "engines/iz2s-core/runtime/sd-layout.json": {
@@ -134238,8 +134238,8 @@
       "executable": false
     },
     "sources/run32-launcher/native/split-mode.h": {
-      "bytes": 20209,
-      "sha256": "090b99b1439178d741e57a53954dee1b22a3e1d4245142197913599f1d6f945f",
+      "bytes": 22235,
+      "sha256": "93e8f29f1c0a3fb21de5c47bb97078a131cdbcbdc44d3125e6c2b264c7485877",
       "executable": false
     },
     "sources/run32-launcher/native/split-windows.h": {
@@ -134468,8 +134468,8 @@
       "executable": false
     },
     "sources/run32-launcher/status/build-split.py": {
-      "bytes": 14000,
-      "sha256": "aa6c90deb91061fd8073bd0efeb30ba9176f528e5241a6cb3c15924cddc7d570",
+      "bytes": 15092,
+      "sha256": "afd23148834b9ca6fcddf463d3835bd6b2ec241f02da19d117e0e68195a72a94",
       "executable": false
     },
     "sources/run32-launcher/status/menu-idle.h": {
@@ -134478,8 +134478,8 @@
       "executable": false
     },
     "sources/run32-launcher/status/menu-lifecycle.h": {
-      "bytes": 2559,
-      "sha256": "d164b25810056348e74998ab6fb16a96cf1ad41b644b1d6ba856b3822b72e73e",
+      "bytes": 2570,
+      "sha256": "8cd69a5af5fe2157c830d0b69119e18877c448156bb6a26d5f4bb1755ce25d18",
       "executable": false
     },
     "sources/run32-launcher/status/menu-pipeline-cache.h": {
@@ -134528,8 +134528,8 @@
       "executable": false
     },
     "sources/run32-launcher/status/tests/split-launcher.c": {
-      "bytes": 32965,
-      "sha256": "1839760aac10cc4397a51728ee3219629b72783f5ede58d519d54f1671cf860d",
+      "bytes": 36360,
+      "sha256": "02056bff65b31dd7f8d8274b2ad1cd20c1e51224b68b4358a8064881461b5ad0",
       "executable": false
     },
     "sources/run32-launcher/status/tests/split-layout.c": {

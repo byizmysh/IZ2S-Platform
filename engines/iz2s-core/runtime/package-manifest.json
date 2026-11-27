@@ -11,13 +11,13 @@
   },
   {
     "path": "game/exefs.nsp",
-    "bytes": 19451667,
-    "sha256": "69f95ac0c33538d5c7f7fb2cd8ddd9939b3b168e4a56934b8b866ea3b179ee2d"
+    "bytes": 19452819,
+    "sha256": "eee3e079f94f01801123d087dd0e16d699006bd2272b82344812bc0a3ca1b914"
   },
   {
     "path": "game/main",
-    "bytes": 19449736,
-    "sha256": "dba6a97fba0e5d4ac84c8f75e2972d2a68edb2bc9dd247a8f1ee0b91be493d94"
+    "bytes": 19450889,
+    "sha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f"
   },
   {
     "path": "iz2s/izlauncher.iza",

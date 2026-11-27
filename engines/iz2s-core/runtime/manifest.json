@@ -4,12 +4,12 @@
     {
       "path": "menu-build.json",
       "bytes": 23877,
-      "sha256": "ed9ca2055a3e94cbaa62a6dc44a0d5c254d79de53ac57be76a9c6db350a757a6"
+      "sha256": "130c41b63bc840cfacf0809dc23638fce23ad09b8c0c96eb59649ada3e1dbed1"
     },
     {
       "path": "package-manifest.json",
       "bytes": 7203,
-      "sha256": "0bfa0e4ddd5318cdd643d9f9367bd1833ce143966d8c7587be6be51265ad51d9"
+      "sha256": "470b110ccaadd8a1e3462c8ae96e3b46fd2927780ee5c4913dfe13572d3ce33a"
     },
     {
       "path": "package/bootstrap.bin",
@@ -23,13 +23,13 @@
     },
     {
       "path": "package/game/exefs.nsp",
-      "bytes": 19451667,
-      "sha256": "69f95ac0c33538d5c7f7fb2cd8ddd9939b3b168e4a56934b8b866ea3b179ee2d"
+      "bytes": 19452819,
+      "sha256": "eee3e079f94f01801123d087dd0e16d699006bd2272b82344812bc0a3ca1b914"
     },
     {
       "path": "package/game/main",
-      "bytes": 19449736,
-      "sha256": "dba6a97fba0e5d4ac84c8f75e2972d2a68edb2bc9dd247a8f1ee0b91be493d94"
+      "bytes": 19450889,
+      "sha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f"
     },
     {
       "path": "package/iz2s/izlauncher.iza",
@@ -253,13 +253,13 @@
     },
     {
       "path": "provenance.json",
-      "bytes": 14400,
-      "sha256": "8fb44536383ed4c06460642a91ca58eeeaac1d6b375bb6d1c9d866c332317503"
+      "bytes": 14588,
+      "sha256": "31240e6ca5bac39f40a8e4ba5fb6d0def46a84a04bf3e260e3e6ed43435a8d63"
     },
     {
       "path": "run32-component-validation.json",
       "bytes": 881,
-      "sha256": "6b894af65dc7ab074860a6f0c219acc718a0181a6174176a8a7b1c586a673a4c"
+      "sha256": "b9976cbd97cac679c9617acd587168a9396c9f2597efa84376dd2dd626798d83"
     },
     {
       "path": "sd-layout.json",
