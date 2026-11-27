@@ -71,7 +71,7 @@ static struct {
     unsigned traced_present[4], traced_closed, traced_return, cache_retirements;
     unsigned render_masks[4], presented[TEST_FRAMES], presentations, swapchain_transitions;
     bool open[2], audible[2], retain_on_stop, hold_release, hardware_focus;
-    unsigned physical_mutations;
+    unsigned physical_mutations, system_close_poll;
     u64 pending_pcm[2];
     u64 input[TEST_FRAMES], current_buttons, forwarded[2][TEST_FRAMES];
 } test;
@@ -201,6 +201,7 @@ static void destroy(IzContext *c, Gpu *gpu)
 static bool stopping(IzContext *c)
 {
     (void)c;
+    if (test.system_close_poll && test.input_count >= test.system_close_poll) return true;
     return test.input_count >= test.input_limit;
 }
 static u32 input_at(IzContext *c, u8 *controls, u64 *previous, u64 *tick, u32 epoch)
@@ -219,6 +220,8 @@ static u32 present_at(IzContext *c, const u64 *commands, u64 controls, u32 epoch
     unsigned mask = test.render_masks[*commands];
     assert(mask && !(mask & 1 && test.stops[0]) && !(mask & 2 && test.stops[1]));
     test.presented[test.presentations++] = mask;
+    if (test.system_close_poll && test.input_count >= test.system_close_poll)
+        return (u32)VK_ERROR_SURFACE_LOST_KHR;
     return 0;
 }
 
@@ -493,7 +496,7 @@ static void exercise(int exit_slot, int frame_error_slot, int fail_launch_slot,
         assert(test.swapchain_transitions == 3);
         const unsigned left_only = SPLIT_LEFT, right_only = SPLIT_RIGHT;
         const unsigned survivor = exit_slot == 1 || frame_error_slot == 1 ? left_only : right_only;
-        assert(test.unloads[1] == 1 && test.presentations == test.input_limit);
+        assert(test.unloads[1] == 1 && test.presentations + 1 == test.input_limit);
         for (unsigned i = 0; i < 6; i++) assert(test.presented[i] == SPLIT_BOTH);
         for (unsigned i = 6; i < test.presentations; i++) assert(test.presented[i] == survivor);
         assert(test.forwarded[0][2] == 0 && test.forwarded[1][2] == 0x1000);
@@ -718,8 +721,33 @@ static void exercise_stop_with_retained_output(void)
     free(samples);
 }
 
+static void exercise_system_close_after_left_exit(void)
+{
+    memset(&test, 0, sizeof test);
+    test.exit_slot = 0;
+    test.frame_error_slot = test.fail_launch_slot = -1;
+    test.exit_on_input = 3;
+    test.input_limit = 10;
+    test.system_close_poll = 5;
+    test.hardware_focus = true;
+    u8 *controls = calloc(1, IZ_SHARED_BYTES);
+    assert(controls);
+    IzContext context = make_context(controls);
+    IzFs fs = {&context};
+    Gpu menu = {0};
+    Entry pair[2] = {split_apps[0], split_apps[1]};
+
+    assert(run_split(&context, &fs, pair, &menu, 0) == 0);
+    assert(!context.poisoned && !split_input);
+    assert(test.presentations == 4);
+    assert(test.presented[2] == SPLIT_RIGHT && test.presented[3] == SPLIT_RIGHT);
+    assert(test.unloads[0] == 1 && test.unloads[1] == 1 && test.restores == 1);
+    free(controls);
+}
+
 int main(void)
 {
+    exercise_system_close_after_left_exit();
     exercise_selection();
     exercise_pad_policies();
     exercise(0, -1, -1, false, CLOSE_FAST);

@@ -9,12 +9,12 @@
   "menuId": "be0f0b11ffc978b6ca2b81b68dfc7611",
   "components": {
     "game/main": {
-      "bytes": 19450185,
-      "sha256": "8dccf9098249f4db6db8137ce703db4081bddcc9f8534fd7cfea79b901e6ec7a"
+      "bytes": 19449736,
+      "sha256": "dba6a97fba0e5d4ac84c8f75e2972d2a68edb2bc9dd247a8f1ee0b91be493d94"
     },
     "game/exefs.nsp": {
-      "bytes": 19452115,
-      "sha256": "a7975a0b99499e8d6f53fcad9d3979c7bd923526f6a0c7662ca7ee3727a02cbb"
+      "bytes": 19451667,
+      "sha256": "69f95ac0c33538d5c7f7fb2cd8ddd9939b3b168e4a56934b8b866ea3b179ee2d"
     },
     "iz2s/izlauncher.iza": {
       "bytes": 900504,

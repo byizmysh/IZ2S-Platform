@@ -168,13 +168,13 @@
     "sources/run32-launcher/status/tests/menu-idle.c": "527388daf308e9d988524ea5fc409b739c9268097942fdf3d35f05fe29b23015",
     "sources/run32-launcher/status/menu-status.h": "9f44101e27b18c1deff99a5b211bc87c8a9f3483b018b73d628cd8439672c13b",
     "sources/run32-launcher/status/build-split.py": "aa6c90deb91061fd8073bd0efeb30ba9176f528e5241a6cb3c15924cddc7d570",
-    "sources/run32-launcher/status/tests/split-launcher.c": "6f162ba292c1b04d5330278fed68acf7dd66113964f78c43b4489e888d1710ca",
+    "sources/run32-launcher/status/tests/split-launcher.c": "1839760aac10cc4397a51728ee3219629b72783f5ede58d519d54f1671cf860d",
     "sources/run32-launcher/native/split-audio.c": "2850c26c797df6a157ad6ff32fd3c1ec5b814f8a7855e7f6f61dbdfb693c19f3",
     "sources/run32-launcher/status/tests/split-compositor.c": "02a88e684b0be401011a59a8c9ec91e4d6ddd8b84a5ff26a929307548962f51e",
     "sources/run32-launcher/status/menu-idle.h": "08b2a7091c1f78558c7987fffd2496ed0848fce336809c86850fe5013f97c919",
     "sources/run32-launcher/native/split-audio.h": "cb488a52659a3e3d15a0f4a705a082301dff76042b861da96ca63865c90280d7",
     "sources/run32-launcher/status/build-homebrew.py": "2944146faf982c160d85999addf74cb8a01069db0ee48fe8c0becf12c0cad82a",
-    "sources/run32-launcher/native/split-mode.h": "507a909caa141fd59aa5ad2e3efe61593cb402c89025bf9fe538c75b8333a03e",
+    "sources/run32-launcher/native/split-mode.h": "090b99b1439178d741e57a53954dee1b22a3e1d4245142197913599f1d6f945f",
     "sources/run32-launcher/status/tests/pipeline-cache.c": "e946bf0794d2bc7db1eac1a2b80dd0bebc3a0a5a4c95871b0f93975e802191e3",
     "sources/run32-launcher/status/tests/status.c": "81108450111a7e539a6fc413e027f98f40c14eeb9744bc4fcb3f8ffbb768d0bd",
     "sources/run32-launcher/status/menu-pipeline-cache.h": "8e26286d4feff84d3d553da4d3afe88dea03eaadf7084af2b349ec72fe717c65",
@@ -190,10 +190,10 @@
     "sources/run32-launcher/native/ftp/vfs_sd.h": "1f39e153821a3e3d420ffc63ba726c948420fcf327042bd569df680ec708d91b"
   },
   "outputs": {
-    "engines/iz2s-core/runtime/package/game/main": "8dccf9098249f4db6db8137ce703db4081bddcc9f8534fd7cfea79b901e6ec7a",
+    "engines/iz2s-core/runtime/package/game/main": "dba6a97fba0e5d4ac84c8f75e2972d2a68edb2bc9dd247a8f1ee0b91be493d94",
     "engines/iz2s-core/runtime/package/iz2s/izlauncher.iza": "4e5c488865856ad2edee45a1f2e8850527b70671460fc62138c26f4b66bbe46b",
     "engines/iz2s-core/runtime/package/iz2s/izlauncher.romfs": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868",
-    "engines/iz2s-core/runtime/package/game/exefs.nsp": "a7975a0b99499e8d6f53fcad9d3979c7bd923526f6a0c7662ca7ee3727a02cbb"
+    "engines/iz2s-core/runtime/package/game/exefs.nsp": "69f95ac0c33538d5c7f7fb2cd8ddd9939b3b168e4a56934b8b866ea3b179ee2d"
   },
   "componentRevision": "RUN34-0.34",
   "baseMenuId": "d93be0d07903c6806d8d8a73a0601f96",

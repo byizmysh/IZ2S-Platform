@@ -327,6 +327,7 @@ static u32 run_split(IzContext *c, IzFs *fs, Entry pair[2], Gpu *normal_gpu,
     u64 last_buttons = held, shortcut_history = 0, shortcut_tick = 0;
     while (!result && !stopping(c)) {
         input_at(c, right_controls, &shortcut_history, &shortcut_tick, 0);
+        if (stopping(c)) break;
         const u64 buttons = WG(right_controls, 8);
         uint8_t raw_touch[SPLIT_TOUCH_BYTES];
         memcpy(raw_touch, right_controls + 128, sizeof raw_touch);

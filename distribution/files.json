@@ -2609,12 +2609,12 @@
     },
     "engines/iz2s-core/runtime/manifest.json": {
       "bytes": 8891,
-      "sha256": "c116731a75caa12da8cfb88321b52b4a17d61889531b04b5c8096c55b76f0d3b",
+      "sha256": "c3df35ad4cf1c91dc2b725c127b0f4818986b1cf9d955ee499d86b0d4bc26482",
       "executable": false
     },
     "engines/iz2s-core/runtime/menu-build.json": {
       "bytes": 23877,
-      "sha256": "7b1ba5674e6093842670f9c8a2ae1c5344b192f195d258c4bcce47e9bc5826d4",
+      "sha256": "ed9ca2055a3e94cbaa62a6dc44a0d5c254d79de53ac57be76a9c6db350a757a6",
       "executable": false
     },
     "engines/iz2s-core/runtime/nro-icon-runtime-build.json": {
@@ -2624,7 +2624,7 @@
     },
     "engines/iz2s-core/runtime/package-manifest.json": {
       "bytes": 7203,
-      "sha256": "3c17f7033b6873645ebfc96fa1d7e977a3a3633d6a4f0338331367a7dfa79a00",
+      "sha256": "0bfa0e4ddd5318cdd643d9f9367bd1833ce143966d8c7587be6be51265ad51d9",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/bootstrap.bin": {
@@ -2638,13 +2638,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/exefs.nsp": {
-      "bytes": 19452115,
-      "sha256": "a7975a0b99499e8d6f53fcad9d3979c7bd923526f6a0c7662ca7ee3727a02cbb",
+      "bytes": 19451667,
+      "sha256": "69f95ac0c33538d5c7f7fb2cd8ddd9939b3b168e4a56934b8b866ea3b179ee2d",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/main": {
-      "bytes": 19450185,
-      "sha256": "8dccf9098249f4db6db8137ce703db4081bddcc9f8534fd7cfea79b901e6ec7a",
+      "bytes": 19449736,
+      "sha256": "dba6a97fba0e5d4ac84c8f75e2972d2a68edb2bc9dd247a8f1ee0b91be493d94",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/main.npdm": {
@@ -2873,13 +2873,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/provenance.json": {
-      "bytes": 14313,
-      "sha256": "b8dcf1ac1368d4f600fbc23837d2c1a248a2336da5512b0e475b775561aaee69",
+      "bytes": 14400,
+      "sha256": "8fb44536383ed4c06460642a91ca58eeeaac1d6b375bb6d1c9d866c332317503",
       "executable": false
     },
     "engines/iz2s-core/runtime/run32-component-validation.json": {
       "bytes": 881,
-      "sha256": "0fa5c22d031770fb276cf1d44953492340ff7545a4f1f23e726af44ea1e04685",
+      "sha256": "6b894af65dc7ab074860a6f0c219acc718a0181a6174176a8a7b1c586a673a4c",
       "executable": false
     },
     "engines/iz2s-core/runtime/sd-layout.json": {
@@ -134238,8 +134238,8 @@
       "executable": false
     },
     "sources/run32-launcher/native/split-mode.h": {
-      "bytes": 20177,
-      "sha256": "507a909caa141fd59aa5ad2e3efe61593cb402c89025bf9fe538c75b8333a03e",
+      "bytes": 20209,
+      "sha256": "090b99b1439178d741e57a53954dee1b22a3e1d4245142197913599f1d6f945f",
       "executable": false
     },
     "sources/run32-launcher/native/split-windows.h": {
@@ -134528,8 +134528,8 @@
       "executable": false
     },
     "sources/run32-launcher/status/tests/split-launcher.c": {
-      "bytes": 31845,
-      "sha256": "6f162ba292c1b04d5330278fed68acf7dd66113964f78c43b4489e888d1710ca",
+      "bytes": 32965,
+      "sha256": "1839760aac10cc4397a51728ee3219629b72783f5ede58d519d54f1671cf860d",
       "executable": false
     },
     "sources/run32-launcher/status/tests/split-layout.c": {

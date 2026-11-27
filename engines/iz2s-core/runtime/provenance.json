@@ -73,7 +73,8 @@
     "Lifecycle-Audit-1: status publication respects host hold and active module ownership; battery sessions close after sampling including failed queries; remove SD clock fallback; retire optional driver pipeline cache before app/host entry; add bounded transition-only memory/worker/presentation diagnostics. IZA, ROMFS, modules and lifecycle safety checks unchanged. Console crash cause and fix remain unconfirmed.",
     "RUN33 split-screen candidate with separate app resources, selectable audio and independent pane retirement. Switch hardware validation is pending.",
     "NRO Split and its offscreen compatibility runtime have been removed. IZA Split and full-screen NRO handoff are preserved. Load Game crash cause is unconfirmed; Switch validation is pending.",
-    "RUN34 0.34 rebuilds the v26 launcher and packages the separate NX2 BreRUN 0.6.0 release. Boot ABI and fixed components match v26."
+    "RUN34 0.34 rebuilds the v26 launcher and packages the separate NX2 BreRUN 0.6.0 release. Boot ABI and fixed components match v26.",
+    "Split stops processing frames as soon as the applet reports a shutdown request."
   ],
   "launcher": {
     "entry": "runtime/package/iz2s/izlauncher.iza",
@@ -83,7 +84,7 @@
     "route": "IZ2S R entry -> /iz2s/core/bin/game/main -> /iz2s/izlauncher.iza",
     "nativePrograms": "NRO programs in module directories and under /switch; NX2 BreRUN is a full-screen NRO.",
     "standaloneNroRequired": false,
-    "coreSha256": "8dccf9098249f4db6db8137ce703db4081bddcc9f8534fd7cfea79b901e6ec7a",
+    "coreSha256": "dba6a97fba0e5d4ac84c8f75e2972d2a68edb2bc9dd247a8f1ee0b91be493d94",
     "resourcesSha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868",
     "labels": "Unified clock/battery capsule; matching Open/Network typography; centred A key and 0.34 badge; retained bold app title and icon background",
     "catalog": "Single paged NRO/IZA catalog; isolated folder errors; idle inventory and import refresh",
