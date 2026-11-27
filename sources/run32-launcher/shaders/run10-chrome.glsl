@@ -70,7 +70,7 @@ void menuHeader(vec2 p,inout vec3 col){
   float badge=box(p,vec2(317,95),vec2(37,17),8);
   col=mix(col,vec3(.38,.52,.23),fill(badge)*.42);
   col=mix(col,vec3(.76,1.0,.34),line(badge,.7)*.45);
-  const uint revision[12]=uint[12](48u,46u,51u,50u,0u,0u,0u,0u,0u,0u,0u,0u);
+  const uint revision[12]=uint[12](48u,46u,51u,52u,0u,0u,0u,0u,0u,0u,0u,0u);
   float version=chromeWord(p,vec2(317,95)-vec2(23.1953,17.5)*.98,revision,4u,.98);
   col=mix(col,vec3(.82,1.0,.58),version);
  }

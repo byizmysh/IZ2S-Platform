@@ -153,12 +153,12 @@ export function workerFinished(prepared) {
         value !== runtime.FRAME_SENTINEL);
 }
 
-export function joinGatedWorker(prepared, timeoutMs = 60000) {
+export async function joinGatedWorker(prepared, timeoutMs = 60000) {
     const until = Date.now() + timeoutMs;
     while (!workerFinished(prepared)) {
         check(Date.now() < until, prepared.label +
             " did not finish; retaining its frame and handles");
-        runtime.waitMs(10);
+        await runtime.waitMs(10);
     }
     const waitRc = waitRawThread(prepared.worker.handle, 1000000000n);
     check(waitRc === 0, prepared.label + " wait after completion failed: " + hex(waitRc));

@@ -3,6 +3,9 @@
 
 typedef struct {char path[512],arguments[516];u8 header[4096];size_t header_bytes;} IzOunceLaunch;
 void iz_ounce_apps_init(const char *self);
+void iz_ounce_apps_invalidate(void);
+bool iz_ounce_apps_refresh_pending(void);
+void iz_ounce_apps_sd_changed(const char *path,bool may_move_directory);
 u32 iz_ounce_apps_scan(IzPlatformApp *apps,u32 capacity,u32 *count);
 u32 iz_ounce_apps_prepare(u32 token,IzOunceLaunch *launch);
 u32 iz_ounce_apps_remove(u32 token);

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import path from "node:path";
+import {readFile} from "node:fs/promises";
 import {inflateRawSync} from "node:zlib";
 import esbuild from "esbuild";
 import {buildPayload, ROOT, MAX_PAYLOAD_BYTES} from "./bundle.mjs";
@@ -95,6 +96,10 @@ test("readable persistent image fits save and loader limits and round-trips", as
     assert(result.image.bytes < 200000);
     assert(Buffer.byteLength(result.bootstrap) < MAX_PAYLOAD_BYTES);
     assert.equal(result.image.minifyPayload, false);
+    const revision = JSON.parse(await readFile(path.join(ROOT, "boot-revision.json"), "utf8")).revision;
+    assert.equal(result.image.bootRevision, revision);
+    assert.equal(result.manifest.bootRevision, revision);
+    assert(result.image.stage.startsWith('/*civswitchfs profile=' + result.image.profile + ' boot=' + revision + '*/'));
     const encoded = result.image.stage.match(/B64\("([A-Za-z0-9+/=]+)"\)/)[1];
     assert.equal(inflateRawSync(Buffer.from(encoded, "base64")).toString("ascii"), result.standalone);
     assert.doesNotMatch(result.standalone, /\/kaihen\/|\/hbmenu\.nro|HEN IS RUNNING/);

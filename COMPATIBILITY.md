@@ -1,4 +1,4 @@
-# Compatibility - Linux / Civilization VII edition 0.3.2
+# Compatibility - Linux / Civilization VII edition 0.34
 
 ## Target versions
 
@@ -8,9 +8,10 @@
 | System firmware | 23.0.1 |
 | Game | Nintendo Switch 1 cartridge of Civilization VII 1.0.0 |
 | Console interface / USB keyboard | English / English (US) |
-| PC panel | 0.3.2 |
-| Console launcher | 0.32 |
-| Native revision | RUN32-0.32-Civ7-Lifecycle-Audit-1 |
+| PC panel | 0.34 |
+| Console launcher | 0.34 |
+| Native revision | RUN34-0.34 (local prototype) |
+| Launch save policy | iz2s.sd-flex.v1 |
 | PC host | Native Linux x64 / ARM64 |
 
 **This release is Linux only.** Windows installers and Windows host executables are excluded. Windows, WSL and macOS are not supported installation targets. Other firmware/game combinations are not claimed compatible. Civilization VII is the sole entry point; historical names in source, license notices and ABI symbols do not enable an SB4 route.
@@ -21,7 +22,9 @@ Initial wireless-lobby delivery requires a compatible Wi-Fi radio, NetworkManage
 
 `distribution/files.json` binds the PC package. Native resources are checked against `engines/iz2s-core/runtime/package-manifest.json`; `menu-build.json` binds the recorded native inputs and outputs. The SD builder verifies runtime files, application companions and licenses, then emits `iz2s/iz2sciv-sd-manifest.json` with file sizes and SHA-256.
 
-The game launch save embeds its selected runtime compatibility manifest. Update SD and install the matching save when those resources change. R-Entry, Menu and Civ7-UI-Cache-Fix can share the visible 0.32 number while requiring different files. Never disable checks or change expected hashes merely to hide a mismatch.
+The RUN33 SD-flex launch save pins `bootstrap.bin`, `ro/main` and `core/main` by size and SHA-256. Install this save once to replace the earlier exact-size policy. Later compatible changes to `game/main`, `izlauncher.iza` and `izlauncher.romfs` can be installed on SD without replacing the save. The panel tracks boot compatibility separately from the full build fingerprint. A changed boot core or boot ABI still requires a matching save.
+
+At Load Game, the three mutable files are checked by bounded headers and file extents (848 bytes in total), rather than old embedded sizes. Full SHA-256 verification remains mandatory when building and deploying a package. Native IZA section CRC validation is unchanged. Header validation cannot establish the semantic compatibility of arbitrary files or detect every possible ROMFS data corruption; use a coherent verified update set. Never change expected hashes merely to hide a mismatch. Bump `BOOT_POLICY` in `engines/IzCivSwitchFS/src/runtime-policy.cjs` when the boot ABI or save requirements change.
 
 ## Verification boundaries
 

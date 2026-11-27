@@ -34,10 +34,10 @@
   if(/fs rpc memory acquisition failed|fs acquisition stopped|overwrite missed.*canary/.test(s)){title='Filesystem access was not acquired in this attempt.';action='Fully close and reopen the game, open a fresh Direct, then start a new session.';}
   else if(/resources retained|uncertain|did not (?:finish|terminate)|restart required|native execution/.test(s)){title='Native execution could not be confirmed.';action='Restart the game before starting a new session.';}
   else if(/9026|loader.*not (?:respond|found)|awaiting payload/.test(s)){title='The game loader is not responding.';action='Open Load Game on Switch, wait for Awaiting payload, then check the connection.';}
-  else if(/reopen.*(?:application|launch link)|this window link is no longer valid/.test(s)){title='This window link is no longer valid.';action='Open 0.3.2 from its shortcut.';}
+  else if(/reopen.*(?:application|launch link)|this window link is no longer valid/.test(s)){title='This window link is no longer valid.';action='Open 0.34 from its shortcut.';}
   else if(s.includes('iz2s file manager is unavailable')){title='IZ2S file manager is unavailable.';action='Open IZ2S on Switch and connect its PC link, then try again.';}
   else if(s.includes('iz2s pc link is unavailable')){title='IZ2S PC link is unavailable.';action='Start the PC link, then try again.';}
-  else if(s.includes('browser blocked the new tab')){title='The browser blocked the new tab.';action='Allow pop-ups for 0.3.2, then try again.';}
+  else if(s.includes('browser blocked the new tab')){title='The browser blocked the new tab.';action='Allow pop-ups for 0.34, then try again.';}
   else if(/package changed|selected package|version.*(?:differ|mismatch)/.test(s)){title='The selected package has changed.';action='Refresh App library and select the current version.';}
   else if(/failed to fetch|socket hang up|disconnected|connection.*(?:lost|refused|ended)|server.*unavailable/.test(s)){title='Connection was interrupted.';action='Check the network and restore the connection when the console is ready.';}
   else if(/timeout|timed out|aborted due/.test(s)){title='The operation timed out.';action='Check the device and connection before trying again.';}
@@ -1326,8 +1326,10 @@ function renderLibrary() {
         card.append(details);
       }
       const actions = element('div', 'module-actions');
-      if (!pkg.sdOnly && pkg.coreSd?.compatible) {
-        const download = element('button','secondary app-download','Download .iza');
+      if (!pkg.sdOnly && (pkg.coreSd?.compatible || format === '.nro')) {
+        const extension = format === '.nro' ? '.nro' : '.iza';
+        const caption = 'Download ' + extension;
+        const download = element('button','secondary app-download',caption);
         download.type = 'button';
         download.disabled = serverUnavailable;
         download.onclick = async () => {
@@ -1337,15 +1339,15 @@ function renderLibrary() {
           try {
             const response = await api('/api/apps/download?'+new URLSearchParams({id:pkg.id}),undefined,
               {responseType:'response',timeoutMs:180000});
-            const filename = /^attachment; filename="([a-z0-9-]+\.iza)"$/.exec(
+            const filename = /^attachment; filename="([a-z0-9-]+\.(?:iza|nro))"$/.exec(
               response.headers.get('content-disposition') || '')?.[1];
-            if (!filename) throw Error('The application download is invalid.');
+            if (!filename?.endsWith(extension)) throw Error('The application download is invalid.');
             saveDownload(await response.blob(),filename);
           } catch(error) { notice(error.message); }
           finally {
             delete download.dataset.pending;
             download.disabled = serverUnavailable;
-            setText(download,'Download .iza');
+            setText(download,caption);
           }
         };
         actions.append(download);
@@ -2110,12 +2112,12 @@ function poll(fresh = false) {
       }
       serverUnavailable = true;
       if (!initialRenderComplete) {
-        showStartupMessage(invalidLink ? 'This window link is no longer valid. Open 0.3.2 from its shortcut.' :
+        showStartupMessage(invalidLink ? 'This window link is no longer valid. Open 0.34 from its shortcut.' :
           'The local server is unavailable. Try again or reopen IZ2S.', {tone:'error', retry:!invalidLink});
         return;
       }
       renderServerAvailability();
-      if (invalidLink) showPanelStatus('This window link is no longer valid.', 'Open 0.3.2 from its shortcut.', 'error', false);
+      if (invalidLink) showPanelStatus('This window link is no longer valid.', 'Open 0.34 from its shortcut.', 'error', false);
       else showPanelStatus(delayed ? 'Status update delayed' : 'Local server unavailable',
         delayed ? 'Showing the last known state. The panel will retry automatically.' :
           'Reopen IZ2S Platform from its shortcut to start the local server. This page will reconnect automatically.', delayed ? 'warning' : 'error');

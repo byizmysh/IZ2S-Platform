@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
 #include "apps.h"
 #ifdef __SWITCH2__
 #include <switch.h>
@@ -11,6 +12,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -19,34 +21,57 @@ enum { MAX_PROGRAMS=IZ_MAX_PROGRAMS, MAX_DEPTH=8 };
 static Program *programs;
 static u32 allocated;
 static u32 program_count;
+static u32 catalog_error;
+/* The menu owns Programs. FTP can only mark the catalog dirty. */
+static atomic_bool catalog_dirty = true;
 static char self_path[512];
+
+void iz_ounce_apps_invalidate(void){
+    atomic_store_explicit(&catalog_dirty,true,memory_order_release);
+}
+
+bool iz_ounce_apps_refresh_pending(void){
+    return atomic_load_explicit(&catalog_dirty,memory_order_acquire);
+}
+
+void iz_ounce_apps_sd_changed(const char *path,bool may_move_directory){
+    static const char *const roots[]={"sdmc:/switch","sdmc:/iz2s/modules"};
+    for(size_t i=0;i<sizeof roots/sizeof roots[0];++i){
+        const size_t n=strlen(roots[i]);
+        if(strncasecmp(path,roots[i],n)||(path[n]&&path[n]!='/'))continue;
+        const char *leaf=strrchr(path,'/');
+        const char *suffix=leaf?strrchr(leaf,'.'):NULL;
+        if(may_move_directory||iz_nro_suffix(path)||(suffix&&!strcasecmp(suffix,".iza"))||
+           (leaf&&!strcasecmp(leaf,"/.izstore-icon.rgba")))
+            iz_ounce_apps_invalidate();
+        return;
+    }
+}
 
 void iz_ounce_apps_init(const char *self){
     free(programs);programs=NULL;allocated=program_count=0;self_path[0]=0;
+    catalog_error=0;
+    iz_ounce_apps_invalidate();
     if(self&&strlen(self)<sizeof(self_path))strcpy(self_path,self);
 }
 static int program_order(const void *a,const void *b){
     return strcmp(((const Program*)a)->path,((const Program*)b)->path);
 }
-static bool read_header(const char *path,u8 *header,size_t capacity,size_t *read,u64 *bytes){
-    FILE *f=fopen(path,"rb");if(!f)return false;
-    struct stat st;bool ok=!fstat(fileno(f),&st)&&S_ISREG(st.st_mode)&&st.st_size>=128;
-    *read=ok?fread(header,1,capacity,f):0;
-    if(ok)*bytes=(u64)st.st_size;
-    ok=ok&&!ferror(f)&&iz_nro_header(header,*read,*bytes);
-    if(fclose(f))ok=false;
-    return ok;
+static bool read_header(FILE *file,u8 *header,size_t capacity,size_t *read,u64 *bytes){
+    struct stat st;
+    if(fstat(fileno(file),&st)||!S_ISREG(st.st_mode)||st.st_size<128)return false;
+    *read=fread(header,1,capacity,file);
+    *bytes=(u64)st.st_size;
+    return !ferror(file)&&iz_nro_header(header,*read,*bytes);
 }
 static u64 read_le(const u8 *bytes, unsigned length){
     u64 value=0;
     for(unsigned i=0;i<length;i++)value|=(u64)bytes[i]<<(i*8);
     return value;
 }
-static void read_nacp_title(Program *program){
+static void read_nacp(Program *program,FILE *file){
     u64 image=read_le(program->header+24,4);
     if(image>program->bytes||program->bytes-image<56||image>LONG_MAX)return;
-    FILE *file=fopen(program->path,"rb");
-    if(!file)return;
     u8 aset[56];
     if(!fseek(file,(long)image,SEEK_SET)&&fread(aset,1,sizeof aset,file)==sizeof aset&&!memcmp(aset,"ASET",4)){
         u64 offset=read_le(aset+24,8),size=read_le(aset+32,8);
@@ -77,12 +102,11 @@ static void read_nacp_title(Program *program){
             }
         }
     }
-    fclose(file);
 }
 static u32 add_program(const char *path,const char *name){
     if(!strcasecmp(path,self_path))return 0;
     Program p={0};size_t read=0;
-    if(!iz_nro_arguments(path,(char[516]){0},516)||!read_header(path,p.header,sizeof(p.header),&read ,&p.bytes))return 0;
+    if(!iz_nro_arguments(path,(char[516]){0},516))return 0;
     strcpy(p.path,path);
     u64 hash=14695981039346656037ull;
     for(const unsigned char *s=(const void*)path;*s;s++){hash^=*s;hash*=1099511628211ull;}
@@ -96,7 +120,11 @@ static u32 add_program(const char *path,const char *name){
     }
     if(base>=sizeof(p.app.name))base=sizeof(p.app.name)-1;
     memcpy(p.app.name,name,base);
-    read_nacp_title(&p);
+    FILE *file=fopen(path,"rb");
+    if(!file)return 0;
+    const bool valid=read_header(file,p.header,sizeof p.header,&read,&p.bytes);
+    if(valid)read_nacp(&p,file);
+    if(fclose(file)||!valid)return 0;
     for(u32 i=0;i<program_count;i++)if(!strcmp(programs[i].app.id,p.app.id))return 0;
     if(program_count==MAX_PROGRAMS)return 0xe860;
     if(program_count==allocated){
@@ -115,15 +143,16 @@ static u32 scan_directory(const char *path,unsigned depth){
         errno=0;entry=readdir(directory);
         if(!entry){if(errno)rc=0xe862;break;}
         if(entry->d_name[0]=='.')continue;
+        const bool nro=iz_nro_suffix(entry->d_name);
+#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_REG)
+        if(entry->d_type==DT_REG&&!nro)continue;
+#endif
         char child[512];int length=snprintf(child,sizeof child,"%s/%s",path,entry->d_name);
         if(length<0||(size_t)length>=sizeof child)continue;
         struct stat st;if(lstat(child,&st)){rc=0xe862;continue;}
         if(S_ISDIR(st.st_mode)){
             if(depth<MAX_DEPTH){u32 child_rc=scan_directory(child,depth+1);if(child_rc)rc=child_rc;}
-        }else if(S_ISREG(st.st_mode)){
-            const char *extension=strrchr(entry->d_name,'.');
-            if(extension&&!strcasecmp(extension,".nro")){u32 child_rc=add_program(child,entry->d_name);if(child_rc)rc=child_rc;}
-        }
+        }else if(nro&&S_ISREG(st.st_mode)){u32 child_rc=add_program(child,entry->d_name);if(child_rc)rc=child_rc;}
         if(rc==0xe860||rc==0xe861)break;
     }
     if(closedir(directory)&&!rc)rc=0xe862;
@@ -137,31 +166,46 @@ static u32 scan_modules(void){
     struct dirent *row;
     while((row=readdir(dir))!=NULL){
         if(row->d_name[0]=='.')continue;
+#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_REG)
+        if(row->d_type==DT_REG)continue;
+#endif
         char folder[512],path[512];
         struct stat info;
         int n=snprintf(folder,sizeof folder,"%s/%s",root,row->d_name);
         if(n<0||(size_t)n>=sizeof folder||lstat(folder,&info)||!S_ISDIR(info.st_mode))continue;
-        n=snprintf(path,sizeof path,"%s/launcher.nro",folder);
-        if(n<0||(size_t)n>=sizeof path||lstat(path,&info)||!S_ISREG(info.st_mode))continue;
-        result=add_program(path,"launcher.nro");
+        const char *program="launcher.nro";
+        n=snprintf(path,sizeof path,"%s/%s",folder,program);
+        if(n<0||(size_t)n>=sizeof path)continue;
+        if(lstat(path,&info)||!S_ISREG(info.st_mode)){
+            if(strcmp(row->d_name,"nx2-brerun"))continue;
+            program="nx2-brerun.nro";
+            n=snprintf(path,sizeof path,"%s/%s",folder,program);
+            if(n<0||(size_t)n>=sizeof path||lstat(path,&info)||!S_ISREG(info.st_mode))continue;
+        }
+        result=add_program(path,program);
         if(result)break;
     }
     if(closedir(dir)&&!result)result=0xe862;
     return result;
 }
+static void refresh_catalog(void){
+    program_count=0;
+    catalog_error=scan_modules();
+    if(!catalog_error)catalog_error=scan_directory("sdmc:/switch",0);
+    if(program_count>1)qsort(programs,program_count,sizeof(*programs),program_order);
+    for(u32 i=0;i<program_count;++i)programs[i].app.token=i+1;
+}
+
 u32 iz_ounce_apps_page(IzPlatformApp *apps,u32 capacity,u32 offset,u32 *count,u32 *total){
     if(!apps||!count||!total||!capacity||capacity>IZ_MAX_APPS)return 0xe85b;
-    *count=*total=program_count=0;
-    u32 rc=scan_modules();
-    if(!rc)rc=scan_directory("sdmc:/switch",0);
-    if(program_count>1)qsort(programs,program_count,sizeof(*programs),program_order);
+    if(atomic_exchange_explicit(&catalog_dirty,false,memory_order_acq_rel))refresh_catalog();
+    *count=0;
     *total=program_count;
-    for(u32 i=offset;i<program_count&&*count<capacity;i++){
-        programs[i].app.token=i+1;apps[(*count)++]=programs[i].app;
-    }
-    return rc;
+    for(u32 i=offset;i<program_count&&*count<capacity;i++)apps[(*count)++]=programs[i].app;
+    return catalog_error;
 }
 u32 iz_ounce_apps_scan(IzPlatformApp *apps,u32 capacity,u32 *count){
+    iz_ounce_apps_invalidate();
     u32 total;return iz_ounce_apps_page(apps,capacity,0,count,&total);
 }
 bool iz_ounce_apps_version(u32 token,char version[16]){
@@ -172,7 +216,10 @@ bool iz_ounce_apps_version(u32 token,char version[16]){
 u32 iz_ounce_apps_prepare(u32 token,IzOunceLaunch *launch){
     if(!launch||!token||token>program_count)return 0xe85b;
     memset(launch,0,sizeof(*launch));Program *p=&programs[token-1];u64 bytes=0;
-    if(!read_header(p->path,launch->header,sizeof(launch->header),&launch->header_bytes,&bytes))return 0xe85c;
+    FILE *file=fopen(p->path,"rb");
+    if(!file)return 0xe85c;
+    const bool valid=read_header(file,launch->header,sizeof launch->header,&launch->header_bytes,&bytes);
+    if(fclose(file)||!valid)return 0xe85c;
     if(bytes!=p->bytes||memcmp(launch->header,p->header,sizeof(p->header)))return 0xe85c;
     if(!iz_nro_arguments(p->path,launch->arguments,sizeof(launch->arguments)))return 0xe85b;
     strcpy(launch->path,p->path);return 0;

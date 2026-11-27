@@ -1,6 +1,6 @@
 # IZ2SCiv core - Civilization VII entry for IZ2S
 
-This is the panel's sole entry engine in **IZ2S 0.3.2**, paired with launcher **0.32**, revision `RUN32-0.32-Civ7-UI-Cache-Fix`. Target: Switch 2 firmware **23.0.1**, **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
+This is the panel's sole entry engine in **IZ2S 0.34**, paired with launcher **0.32**, local prototype revision `RUN34-0.34`. Target: Switch 2 firmware **23.0.1**, **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
 
 Use the current [English installation guide](../../docs/INSTALLATION.md) or [русскую инструкцию](../../docs/INSTALLATION.ru.md). The panel has four steps: SD card, PC preparation, connection with automatic save installation, and launch. Initial LDN delivery requires native Linux and a compatible Wi-Fi radio.
 
@@ -22,7 +22,9 @@ The SD kit puts the following under `SD:/iz2s/`:
 
 Bootstrap-generated ExeFS packages are not prerequisites in this SD ZIP. There is no separate Homebrew Menu package in this edition. All files live under `iz2s/`; preserve Nintendo and the user's other files when merging an update.
 
-The builder validates runtime sizes and SHA-256 using `../iz2s-core/runtime/package-manifest.json`. Native input/output bindings are in `menu-build.json`. The launch save embeds the selected compatibility manifest. Do not mix R-Entry, Menu and Civ7-UI-Cache-Fix resources even when they share version 0.32. Integrity failures stop launch; there is no supported skip-check mode.
+The builder validates full runtime sizes and SHA-256 using `../iz2s-core/runtime/package-manifest.json`. Native input/output bindings remain in `menu-build.json`. The RUN33 `iz2s.sd-flex.v1` save strictly pins only `bootstrap.bin`, `ro/main` and `core/main`. Compatible launcher, menu and ROMFS updates no longer require reinstalling the save. Existing exact-size saves require one policy upgrade. Boot core or ABI changes still require a matching save.
+
+Console preflight checks mutable NSO/IZA/ROMFS headers and file extents, reading 848 bytes total. This is structural validation, not a full content hash or proof that arbitrary builds can be mixed. Complete file hashes remain checked on the PC, and native IZA CRC checks are retained. There is no skip-check flag. The session retains a full build fingerprint to reject changes during installation, but uses the boot core and policy fingerprint to decide whether an installed save needs updating.
 
 ## Save installation and connection
 

@@ -194,8 +194,13 @@ async function packageModule(module,out=runtime.output()) {
   await fs.mkdir(temporary,{recursive:true});
   const scratch = await fs.mkdtemp(path.join(temporary,'portable-app-'));
   try {
-    const app=await portableApp(await prepareModule(module,scratch));
+    const prepared=await prepareModule(module,scratch);
     const {descriptor}=module;
+    if(prepared.format==='.nro'){
+      const bytes=await fs.readFile(path.join(prepared.folder,'launcher.nro'));
+      return {id:prepared.id,name:prepared.id+'.nro',bytes,version:descriptor.version,sourceSha256:module.sha256};
+    }
+    const app=await portableApp(prepared);
     return {...app,name:descriptor.switch?.downloadName??app.name,
       version:descriptor.version,sourceSha256:module.sha256};
   }

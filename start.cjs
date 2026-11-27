@@ -45,7 +45,7 @@ async function main() {
         health = await fetch(url.origin + '/health', { signal: AbortSignal.timeout(1500) }).then(
           (r) => r.json(),
         );
-      if (health.version !== 22 || !['0.3.2', '0.3.1'].includes(health.edition) || health.pid !== previous.pid || health.preview !== preview)
+      if (health.version !== 22 || health.edition !== settings.release || health.pid !== previous.pid || health.preview !== preview)
         throw Error('Stale IZ2S Platform window');
       running = true;
     } catch {}

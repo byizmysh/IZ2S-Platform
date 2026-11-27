@@ -66,6 +66,7 @@ async function create(root, options = {}) {
           .filter((d) => d.kind === 'external-download')
           .map((d) => d.id),
       },
+      format: manifest.format === 'izlauncher.nro-app' ? '.nro' : undefined,
       metadata: {
         id: m.id,
         name: m.descriptor.name,
@@ -204,6 +205,7 @@ function publicPackage(p) {
     expandedBytes: p.expandedBytes,
     contents: p.contents,
     kind: p.metadata.kind,
+    format: p.format,
     icon: p.icon,
     module: p.module,
     supported: p.supported,

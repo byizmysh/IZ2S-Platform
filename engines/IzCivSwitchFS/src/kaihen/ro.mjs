@@ -207,7 +207,7 @@ export async function runNroOnRawThread(context, imageBytes, argsAddress,
         check(state === 0 || state === 1, "unexpected SDK thread state: " + state);
         if (state === 1) break;
         check(Date.now() < deadline, "bootstrap thread did not exit in time");
-        runtime.waitMs(10);
+        await runtime.waitMs(10);
     }
     const returnSlot = slots + 8n;
     const joinRc = call_rop(sdk_base + BigInt(PTHREAD_CODE.join.offset),

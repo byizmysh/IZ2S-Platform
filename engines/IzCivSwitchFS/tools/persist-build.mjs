@@ -24,14 +24,18 @@ export async function buildPersistentImage(options = {}) {
     const decoderPath = options.decoderPath || path.join(PERSIST_DIR, "compress_stage.js");
     const outputDir = path.join(ROOT, "dist/persist");
 
-    const [core, template, decoderSource, upstreamLicense, localLicense, packageJson] = await Promise.all([
+    const [core, template, decoderSource, upstreamLicense, localLicense, packageJson, bootJson] = await Promise.all([
         readFile(corePath, "utf8"),
         readFile(templatePath),
         readFile(decoderPath, "utf8"),
         readFile(path.join(PERSIST_DIR, "LICENSE"), "utf8"),
         readFile(path.join(ROOT, "LICENSE"), "utf8"),
-        readFile(path.join(ROOT, "package.json"), "utf8")
+        readFile(path.join(ROOT, "package.json"), "utf8"),
+        readFile(path.join(ROOT, "boot-revision.json"), "utf8")
     ]);
+    const bootRevision = JSON.parse(bootJson).revision;
+    if (!/^[a-z0-9][a-z0-9.-]{0,63}$/.test(bootRevision || ""))
+        throw new Error("Invalid launch save revision");
     if (!upstreamLicense.includes("Copyright (c) 2026 Gezine") ||
         !upstreamLicense.includes("Permission is hereby granted"))
         throw new Error("CivSwitch bootstrap license not recognized");
@@ -68,7 +72,7 @@ export async function buildPersistentImage(options = {}) {
     const encoded = compressed.toString("base64");
     const decodeExpression = "str(inflate(B64(" + JSON.stringify(encoded) + ")))";
     const stage =
-        "/*civswitchfs profile=" + PROFILE + "*/\n" +
+        "/*civswitchfs profile=" + PROFILE + " boot=" + bootRevision + "*/\n" +
         licenseBlock("CivSwitchFS", localLicense) +
         licenseBlock("CivSwitch", upstreamLicense) +
         decoder + "\neval(" + decodeExpression + ");\n";
@@ -79,6 +83,7 @@ export async function buildPersistentImage(options = {}) {
 
     const image = {
         profile: PROFILE,
+        bootRevision,
         version: "iz2sciv-" + JSON.parse(packageJson).version +
             "+iz2s",
         stage,
@@ -140,6 +145,7 @@ export async function buildPersistentImage(options = {}) {
         " ? 'OK' : 'FAILED'));\n";
     const manifest = {
         profile: PROFILE,
+        bootRevision,
         version: image.version,
         bytes: image.bytes,
         hideTriggerText: image.hideTriggerText,

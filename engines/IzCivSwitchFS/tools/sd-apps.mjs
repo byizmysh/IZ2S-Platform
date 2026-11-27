@@ -8,8 +8,9 @@ const archive = require('../../../core/archive.cjs');
 const {directImage} = require('../../iz2s-core/sd-compat.cjs');
 const storage = require('../../../core/module-storage.cjs');
 const defaults = require('../../iz2s-core/tools/sd-defaults.cjs');
+const {moduleProgram} = require('../../iz2s-core/tools/nro-package.cjs');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-export const APP_IDS = Object.freeze(['iz2s-cheese', 'izpsx', 'izps2', 'iz-file-deck']);
+export const APP_IDS = Object.freeze(['iz2s-cheese', 'izpsx', 'izps2', 'iz-file-deck', 'nx2-brerun']);
 
 export async function buildSdApplications(base = root) {
     const profile = JSON.parse(await fs.readFile(path.join(base, 'distribution/profile.json'), 'utf8'));
@@ -29,9 +30,21 @@ export async function buildSdApplications(base = root) {
     for (const id of APP_IDS) {
         const checked = selected.get(id);
         if (!checked) throw Error('Bundled SD application is missing: ' + id);
-        const image = directImage(checked.descriptor, checked.files);
-        if (!image) throw Error('Bundled SD application has no prebuilt IZA: ' + id);
         const prefix = storage.paths(id).path.slice(1) + '/';
+        const version = checked.descriptor.version;
+        for (const file of checked.files) {
+            if (file.name.startsWith('licenses/') || /^(?:LICENSE|COPYING|COPYRIGHT|NOTICE|THIRD_PARTY|FONT-LICENSE)(?:[.-]|$)/i.test(file.name))
+                entries.push({name:'iz2s/licenses/applications/' + id + '/' + file.name, bytes:file.bytes});
+        }
+        const image = directImage(checked.descriptor, checked.files);
+        if (!image) {
+            const program = await moduleProgram(checked, archive.switchApp(checked));
+            if (!program) throw Error('Bundled SD application has no prebuilt launcher: ' + id);
+            entries.push({name:prefix + 'launcher.nro', bytes:program});
+            apps.push({id, version, path:prefix, format:'.nro',
+                launcher:{bytes:program.length, sha256:archive.sha(program)}, assets:[]});
+            continue;
+        }
         const launcher = {bytes: image.bytes.length, sha256: archive.sha(image.bytes)};
         const assets = image.companions.map(({path, bytes, sha256}) => ({file:path, path, bytes, sha256}));
         entries.push({name:prefix + 'launcher.iza', bytes:image.bytes});
@@ -40,10 +53,6 @@ export async function buildSdApplications(base = root) {
         entries.push({name:prefix + 'sd-bundle.json', bytes:Buffer.from(JSON.stringify({
             format:'iz2s.sd-bundle', version:1, id, launcher, assets
         }, null, 2) + '\n')});
-        for (const file of checked.files) {
-            if (file.name.startsWith('licenses/') || /^(?:LICENSE|COPYING|COPYRIGHT|NOTICE|THIRD_PARTY|FONT-LICENSE)(?:[.-]|$)/i.test(file.name))
-                entries.push({name:'iz2s/licenses/applications/' + id + '/' + file.name, bytes:file.bytes});
-        }
         apps.push({id, version:checked.descriptor.version, path:prefix, launcher, assets});
     }
     return {entries, apps};

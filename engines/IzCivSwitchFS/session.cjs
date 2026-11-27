@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const {spawn} = require('node:child_process');
 const {readJson, saveJson, redact, createLedger} = require('../../core/session/ledger.cjs');
 const {randomUUID,createHash} = require('node:crypto');
+const {compatibilityContract} = require('./src/runtime-policy.cjs');
 const integration = require('../CivSwitchLDN/integration.cjs');
 const discovery = require('../CivSwitch/runtime/discovery.cjs');
 const SAVE_NAME='IZ2SCIV.Civ7Save';
@@ -56,7 +57,15 @@ function create(options) {
     }
   });
   const persist = () => saveJson(file, saved);
-  const runtimeFingerprint = async () => createHash('sha256').update(await fs.readFile(path.join(root,'engines/iz2s-core/runtime/package-manifest.json'))).digest('hex');
+  const runtimeIdentity = async () => {
+    const bytes=await fs.readFile(path.join(root,'engines/iz2s-core/runtime/package-manifest.json'));
+    const boot=JSON.parse(await fs.readFile(path.join(folder,'boot-revision.json'),'utf8'));
+    if(!/^[a-z0-9][a-z0-9.-]{0,63}$/.test(boot.revision||''))throw Error('Invalid launch save revision');
+    const hash=value=>createHash('sha256').update(value).digest('hex');
+    return {runtimeFingerprint:hash(bytes),
+      saveBootRevision:boot.revision,
+      saveCompatibilityFingerprint:hash(JSON.stringify(compatibilityContract(JSON.parse(bytes))))};
+  };
   async function refreshAddresses(){
     const known=discovery.knownHosts(options.connections?.snapshot?.(),saved.host);
     addressOptions=await (options.addressOptions||require('./tools/address-options.cjs').list)({known,found:foundHosts});
@@ -114,15 +123,17 @@ function create(options) {
     // Recheck the protocol after Wi-Fi recovery; a remembered address is not
     // proof that this console is still accepting a payload.
     const host=await loader();assertRunning();
-    const fingerprint=await runtimeFingerprint();assertRunning();
+    const identity=await runtimeIdentity();assertRunning();
     saved.phase='install';saved.installed=false;
     operationProgress={stage:'preparing',percent:0};
     await persist();assertRunning();
     await run(process.execPath,[path.join(folder,'tools/persist-install.mjs'),'--chain',host],
       'Installed. Restart the game, then open Load Game menu.');
     assertRunning();
-    if(await runtimeFingerprint()!==fingerprint)throw Error('The runtime changed during installation. Retry with the current SD package.');
-    assertRunning();saved.installed=true;saved.saveName=SAVE_NAME;saved.runtimeFingerprint=fingerprint;
+    const currentIdentity=await runtimeIdentity();
+    if(currentIdentity.runtimeFingerprint!==identity.runtimeFingerprint)throw Error('The runtime changed during installation. Retry with the current SD package.');
+    if(currentIdentity.saveBootRevision!==identity.saveBootRevision)throw Error('The launch save revision changed during installation. Retry with the current panel.');
+    assertRunning();saved.installed=true;saved.saveName=SAVE_NAME;Object.assign(saved,identity);
   }
   async function ftpHost() {
     if(options.findFtp)return options.findFtp({signal:signal.signal});
@@ -232,12 +243,13 @@ function create(options) {
     await loaded;
     await refreshWifi();
     const state=await ldn.snapshot(), transport=state.civswitchLdn;
-    const matchingSave=saved.saveName===SAVE_NAME&&saved.runtimeFingerprint===await runtimeFingerprint();
+    const identity=await runtimeIdentity();
+    const matchingSave=saved.saveName===SAVE_NAME&&saved.saveCompatibilityFingerprint===identity.saveCompatibilityFingerprint&&saved.saveBootRevision===identity.saveBootRevision;
     return {...state,civswitchLdn:undefined,connected:false,hardStopAvailable:false,
       active:busy()?{id:saved.id,kind:'iz2sciv',status:'starting'}:null,lastAttempt:lastAttempt||state.lastAttempt,
       log:[...state.log,...events].sort((a,b)=>a.at.localeCompare(b.at)),
       iz2sciv:{...saved,hostPlatform:platform,windowsWifi,installed:!!saved.installed&&matchingSave,needsSaveUpdate:!!saved.installed&&!matchingSave,
-        saveName:SAVE_NAME,operationProgress,networkRecoveryAvailable:await fs.access(path.join(root,'data/state/civ7-network.json')).then(()=>true,()=>false),addressOptions,busy:busy(),setup:transport.setup,prepared:transport.prepared,phy:transport.phy,
+        saveName:SAVE_NAME,expectedSaveBootRevision:identity.saveBootRevision,operationProgress,networkRecoveryAvailable:await fs.access(path.join(root,'data/state/civ7-network.json')).then(()=>true,()=>false),addressOptions,busy:busy(),setup:transport.setup,prepared:transport.prepared,phy:transport.phy,
         loaderReady:transport.loaderReady,networkStage:transport.networkStage,networkRestored:transport.networkRestored,transportPhase:transport.phase,progress:{line:transport.index,total:transport.total}},
       connections:{...state.connections,locked:busy()},
     };

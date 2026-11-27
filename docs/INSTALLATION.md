@@ -2,7 +2,7 @@
 
 [Русский](INSTALLATION.ru.md) · [Requirements and PC installation](../README.md#requirements)
 
-This guide follows the panel's four installation steps. Use panel 0.3.2 and the matching launcher 0.32 `RUN32-0.32-Civ7-Lifecycle-Audit-1` package. Initial LDN delivery requires native Linux, a compatible Wi-Fi radio and your own Switch 1 keys. The target is Switch 2 firmware **23.0.1** and the **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
+This guide follows the panel's four installation steps. Use panel 0.34 and the matching launcher 0.34 `RUN34-0.34` package. Initial LDN delivery requires native Linux, a compatible Wi-Fi radio and your own Switch 1 keys. The target is Switch 2 firmware **23.0.1** and the **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
 
 ## 1. SD card
 
@@ -54,6 +54,6 @@ For FTP, click **Connect FTP** in the panel after enabling the console's FTP ser
 
 Install the new PC archive into a new folder. Back up replaced SD files on the PC, copy only the prepared SD package and verify the copy before safe removal. Use a card reader or an independent FTP app if IZ2S has a runtime resource open; its own FTP server cannot replace a locked ROMFS safely.
 
-Update SD files and repeat the complete panel procedure when the runtime/save compatibility changes. The generated launch save embeds the selected runtime's compatibility manifest. PC-only documentation or layout changes do not by themselves require a new console save.
+Install the RUN33 SD-flex launch save once to replace the older exact-size policy. Subsequent compatible launcher (`game/main`), menu (`izlauncher.iza`) and ROMFS updates only require copying the complete verified update set to SD. A change to `bootstrap.bin`, `ro/main`, `core/main` or the boot ABI requires a matching launch save. PC-only documentation or layout changes do not require a new console save. See [compatibility](../COMPATIBILITY.md) for the distinction between package integrity and boot header checks.
 
 Keep the console's working shader cache. Cache replacement is fixed in this revision, and validation remains tied to the shader and driver. A first launch that legitimately needs a new cache can still take longer than a warm launch. PC verification does not measure the complete R-to-menu startup time.

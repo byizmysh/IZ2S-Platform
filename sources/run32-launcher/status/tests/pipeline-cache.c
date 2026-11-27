@@ -17,7 +17,12 @@ typedef struct{u64 device,graphics_physical,functions[2];}IzContext;
 #define FN(c,n) ((IzFunction)(uintptr_t)(c)->functions[n])
 static u64 armNsToTicks(u64 ns){return ns;}
 static u64 armGetSystemTick(void){struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return (u64)t.tv_sec*1000000000+t.tv_nsec;}
-static void sha256CalculateHash(void *out,const void *data,size_t bytes){SHA256(data,bytes,out);}
+static unsigned cache_hashes;
+static size_t cache_read_bytes;
+static void sha256CalculateHash(void *out,const void *data,size_t bytes){cache_hashes++;SHA256(data,bytes,out);}
+static size_t cache_fread(void *out,size_t size,size_t count,FILE *file){
+ cache_read_bytes+=size*count;return fread(out,size,count,file);
+}
 /* Model the console filesystem: rename cannot replace an existing file. */
 static int rename_fault;
 static unsigned rename_existing;
@@ -28,8 +33,13 @@ static int console_rename(const char *src,const char *dst){
  return rename(src,dst);
 }
 #define rename console_rename
+#define fread cache_fread
 #include "menu-pipeline-cache.h"
+#undef fread
 #undef rename
+static VKAPI_ATTR VkResult VKAPI_CALL oversized_cache_data(VkDevice device,VkPipelineCache cache,size_t *size,void *out){
+ (void)device;(void)cache;*size=out?64:32;return VK_SUCCESS;
+}
 static void *read_file(const char *name,size_t *bytes){FILE*f=fopen(name,"rb");assert(f);assert(!fseek(f,0,SEEK_END));*bytes=(size_t)ftell(f);rewind(f);void*p=malloc(*bytes);assert(p&&fread(p,1,*bytes,f)==*bytes);assert(!fclose(f));return p;}
 static u64 compute(u64 a,u64 b,u64 d,u64 e,u64 f,u64 g,u64 h,u64 i){(void)h;(void)i;return (u64)vkCreateComputePipelines((VkDevice)(uintptr_t)a,(VkPipelineCache)(uintptr_t)b,d,(void*)(uintptr_t)e,(void*)(uintptr_t)f,(void*)(uintptr_t)g);}
 static u64 graphics(u64 a,u64 b,u64 d,u64 e,u64 f,u64 g,u64 h,u64 i){(void)h;(void)i;return (u64)vkCreateGraphicsPipelines((VkDevice)(uintptr_t)a,(VkPipelineCache)(uintptr_t)b,d,(void*)(uintptr_t)e,(void*)(uintptr_t)f,(void*)(uintptr_t)g);}
@@ -77,7 +87,8 @@ int main(int argc,char **argv){
   VkPipeline pipeline;u64 start=armGetSystemTick();assert(!FN(&c,F_CREATE_COMPUTE)(c.device,0,1,(u64)(uintptr_t)&pi,0,(u64)(uintptr_t)&pipeline,0,0));ms[pass]=(armGetSystemTick()-start)/1e6;if(argc==4){VkPipeline gp;u64 t=armGetSystemTick();assert(!FN(&c,F_CREATE_GRAPHICS)(c.device,0,1,(u64)(uintptr_t)&gi,0,(u64)(uintptr_t)&gp,0,0));gms[pass]=(armGetSystemTick()-t)/1e6;vkDestroyPipeline(device,gp,NULL);}
   hits[pass]=iz2_pipeline_hits;
   iz2_cache_unhook(&c);assert(c.functions[F_CREATE_COMPUTE]==(u64)(uintptr_t)compute);
-  if(!pass){assert(access(IZ2_CACHE_PATH,F_OK));iz2_cache_save();assert(!access(IZ2_CACHE_PATH,F_OK));}
+  if(!pass){assert(access(IZ2_CACHE_PATH,F_OK));const unsigned hashes=cache_hashes;
+   iz2_cache_save();assert(!access(IZ2_CACHE_PATH,F_OK)&&cache_hashes==hashes+1);}
   iz2_menu_cache_retire();assert(!iz2_pipeline_cache&&!iz2_cache_device);
   // This pipeline is still alive when the optional cache is released.
   VkCommandPoolCreateInfo cp={.sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};VkCommandPool pool;
@@ -95,6 +106,19 @@ int main(int argc,char **argv){
  }
  size_t file_bytes;uint8_t *saved=read_file(IZ2_CACHE_PATH,&file_bytes);Iz2CacheHeader *h=(void*)saved;uint8_t *payload=saved+sizeof *h;
  assert(iz2_cache_valid(h,payload,file_bytes-sizeof *h,&iz2_cache_identity));
+ Iz2CacheHeader stale=*h;stale.bytes=IZ2_CACHE_LIMIT;stale.shader[0]^=1;
+ FILE *stale_file=fopen(IZ2_CACHE_PATH,"wb");
+ assert(stale_file&&fwrite(&stale,1,sizeof stale,stale_file)==sizeof stale&&!fflush(stale_file)&&
+        !ftruncate(fileno(stale_file),sizeof stale+IZ2_CACHE_LIMIT)&&!fclose(stale_file));
+ cache_read_bytes=0;
+ iz2_cache_open(&c,code,bytes);
+ assert(iz2_pipeline_cache&&!iz2_cache_hit&&cache_read_bytes==sizeof stale);
+ iz2_cache_data=oversized_cache_data;
+ const unsigned hashes=cache_hashes;
+ iz2_cache_save();
+ assert(cache_hashes==hashes&&access(IZ2_CACHE_PATH ".tmp",F_OK));
+ iz2_cache_close();
+ write_file(IZ2_CACHE_PATH,saved,file_bytes);
  /* A new interface must replace the old cache on a non-overwriting FS. */
  iz2_cache_open(&c,"changed-interface",17);assert(!iz2_cache_hit);
  iz2_cache_save();iz2_cache_close();
@@ -135,6 +159,7 @@ int main(int argc,char **argv){
  assert(!iz2_cache_valid(h,payload,h->bytes-1,&iz2_cache_identity));assert(!iz2_cache_valid(h,payload,IZ2_CACHE_LIMIT+1,&iz2_cache_identity));
  FILE*f=fopen(IZ2_CACHE_PATH,"wb");assert(f&&fwrite(saved,1,17,f)==17&&!fclose(f));iz2_cache_open(&c,code,bytes);assert(iz2_pipeline_cache&&!iz2_cache_hit);iz2_cache_close();
  printf("{\"passed\":true,\"filesystem\":\"non-overwriting rename\",\"replacementAndRecoveryTested\":true,\"backend\":\"host Vulkan\",\"coldMs\":%.3f,\"warmMs\":%.3f,\"graphicsMs\":[%.3f,%.3f],\"reportedHits\":[%u,%u],\"cacheBytes\":%zu,\"rejected\":[\"corrupt digest\",\"different GPU UUID\",\"different driver\",\"different shader\",\"truncated\",\"oversized\"]}\n",ms[0],ms[1],gms[0],gms[1],hits[0],hits[1],file_bytes);
+ puts("PASS: stale 16 MiB cache rejected after 104 header bytes; save hashes once and rejects an oversized driver reply");
  if(renderpass)vkDestroyRenderPass(device,renderpass,NULL);if(vs)vkDestroyShaderModule(device,vs,NULL);if(frag)vkDestroyShaderModule(device,frag,NULL);
  free(saved);free(code);vkDestroyShaderModule(device,shader,NULL);vkDestroyPipelineLayout(device,layout,NULL);vkDestroyDescriptorSetLayout(device,set,NULL);vkDestroyDevice(device,NULL);vkDestroyInstance(instance,NULL);
 }

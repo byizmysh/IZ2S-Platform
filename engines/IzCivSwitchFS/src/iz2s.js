@@ -21,35 +21,13 @@ import {launchRoFrontend} from "./kaihen/launch.mjs";
 import {activateRoProcess, verifyHandoff} from "./kaihen/activate.mjs";
 import {connectRoFrontend} from "./kaihen/ro.mjs";
 import {runBootstrap} from "./kaihen/bootstrap.mjs";
-import {openSdCard, sdGetEntryType, sdReadFile, sdOpenFile, sdFileSize}
+import {openSdCard, sdReadFile}
     from "./kaihen/sdcard.mjs";
 import {cmifSend} from "./kaihen/wire.mjs";
-import {sha256} from "./kaihen/sha256.mjs";
 import {SD_MANIFEST} from "./iz2s-runtime.mjs";
+import {verifySdRuntime} from "./sd-verify.mjs";
 
 const {closeHandle, log} = coreRuntime;
-
-async function sdFileStatus(context) {
-    const sd = openSdCard(context);
-    const out = {};
-    for (const [name, item] of Object.entries(SD_MANIFEST)) {
-        const entry = sdGetEntryType(context, sd, item.path);
-        if (!(entry.transport === 0 && entry.result === 0)) {
-            out[name] = {present: false};
-            continue;
-        }
-        const handle = sdOpenFile(context, sd, item.path, 1);
-        try {
-            const size = sdFileSize(context, handle);
-            out[name] = {present: true, size: size.toString(),
-                ok: size === BigInt(item.size)};
-        } finally {
-            closeHandle(handle);
-        }
-    }
-    return out;
-}
-
 
 export async function run() {
     await khLog("Starting IZ2s from /iz2s");
@@ -73,21 +51,11 @@ export async function run() {
         return result;
     };
     try {
-        // Refuse missing or mismatched IZ2S files before consuming the RO launch.
-        // No kaiHEN manifest, skipcheck flag or SD relocation is consulted.
+        // Pin the boot core, but accept compatible launcher rebuilds of any
+        // supported size. No skipcheck flag or SD relocation is consulted.
         await stage("sd-verify", async () => {
-            const status = await sdFileStatus(context);
-            const bad = Object.entries(status).filter(([, item]) => !item.present || !item.ok);
-            check(!bad.length, "Install the matching IZ2S SD package: " +
-                bad.map(([name, item]) => SD_MANIFEST[name].path +
-                    " (expected " + SD_MANIFEST[name].size + " bytes; " +
-                    (item.present ? "found " + item.size : "missing") + ")").join(", "));
-            for (const name of ["bootstrap", "ro", "core"]) {
-                const file = sdReadFile(context, openSdCard(context), SD_MANIFEST[name].path, 0x100000);
-                check(sha256(file.bytes) === SD_MANIFEST[name].sha256,
-                    SD_MANIFEST[name].path + " differs from the packaged runtime SHA-256; launch cancelled");
-            }
-            await khLog("Existing IZ2S SD files verified; launcher and library retained");
+            verifySdRuntime(context, SD_MANIFEST);
+            await khLog("IZ2S boot core SHA-256 verified; launcher headers valid (SD update policy v1)");
         });
         await stage("endpoint", () => armEndpoint(context));
         await stage("layout", async () => {

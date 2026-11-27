@@ -1,6 +1,6 @@
 # Application storage and updates
 
-The SD kit includes IZ2S Cheese 0.8.7, IZPSX 0.5.3, IZPS2 0.5.0 and Foldrift 0.3.3. The PC library also offers Book Reader 0.1.0, BlitBun 1.15.8 and VacooTube 1.5.7 separately.
+The SD kit includes IZ2S Cheese 0.8.7, IZPSX 0.5.3, IZPS2 0.5.0 Foldrift 0.3.3, and NX2 BreRUN 0.6.0. The PC library also offers Book Reader 0.1.0, BlitBun 1.15.8 and VacooTube 1.5.7 separately.
 
 Install through App library or its SD export action. A downloaded package can contain executable companions: do not rename the whole package to `launcher.iza`. Keep manifests, signatures, `.izdata` resources and licenses. The usual entry is `SD:/iz2s/modules/<id>/launcher.iza`; Foldrift uses the folder `foldrift`.
 
@@ -37,3 +37,7 @@ IZPSX 0.5.3 uses these paths.
 ## IZPS2 BIOS and games
 
 BIOS and game images are not included. Put your own **4 MiB** PS2 BIOS dump in `SD:/iz2s/modules/izps2/bios/` and ISO/CHD game images in `SD:/iz2s/modules/izps2/games/`. Create these folders if needed. Preserve BIOS, games, saves and settings when updating.
+
+## NX2 BreRUN
+
+The SD archive installs NX2 BreRUN at `SD:/iz2s/modules/nx2-brerun/launcher.nro`. The launcher also recognizes `nx2-brerun.nro` in that folder from the standalone release. Keep existing data folders when updating. Select NX2 BreRUN in the launcher to open it full screen. [NX2 BreRUN source and documentation](https://github.com/byizmysh/nx2-brerun)

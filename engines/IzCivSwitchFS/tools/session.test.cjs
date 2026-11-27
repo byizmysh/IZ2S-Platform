@@ -5,7 +5,13 @@ const {EventEmitter}=require('node:events'),{PassThrough}=require('node:stream')
 const {create}=require('../session.cjs');
 async function fixture(t,{badConnection=false,badRecheck=false,badMarker=false,hold='',delayInstall=false}={}){
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'iz2sciv-flow-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
- const runtimeDir=path.join(root,'engines/iz2s-core/runtime');await fs.mkdir(runtimeDir,{recursive:true});await fs.writeFile(path.join(runtimeDir,'package-manifest.json'),'[]');
+ const runtimeDir=path.join(root,'engines/iz2s-core/runtime');await fs.mkdir(runtimeDir,{recursive:true});
+ const records=['bootstrap.bin','ro/main','core/main','game/main','iz2s/izlauncher.iza','iz2s/izlauncher.romfs'].map((path,i)=>({path,bytes:100+i,sha256:String(i).repeat(64)}));
+ const writeRecords=()=>fs.writeFile(path.join(runtimeDir,'package-manifest.json'),JSON.stringify(records));
+ await writeRecords();
+ const engineDir=path.join(root,'engines/IzCivSwitchFS');await fs.mkdir(engineDir,{recursive:true});
+ const writeBootRevision=revision=>fs.writeFile(path.join(engineDir,'boot-revision.json'),JSON.stringify({revision}));
+ await writeBootRevision('run33-awaited-boot-v1');
  const calls=[],spawns=[];let stopped=false,release,installRelease;
  let state={loaderReady:false,suggestedHost:'10.42.0.20',setup:{},prepared:true};
  const gate=new Promise(r=>release=r);
@@ -21,7 +27,7 @@ async function fixture(t,{badConnection=false,badRecheck=false,badMarker=false,h
  };
  const session=create({root,ldn,launch,addressOptions:async()=>[]});
  await session.action({action:'confirm-sd',copied:true});
- return {session,calls,spawns,release,finishInstall:()=>installRelease?.(),start:()=>session.action({action:'start',confirm:true,installAfterSuccess:true}),result:async()=>{await session.waitForOperation();return (await session.snapshot()).iz2sciv;}};
+ return {session,calls,spawns,release,root,records,writeRecords,writeBootRevision,finishInstall:()=>installRelease?.(),start:()=>session.action({action:'start',confirm:true,installAfterSuccess:true}),result:async()=>{await session.waitForOperation();return (await session.snapshot()).iz2sciv;}};
 }
 test('one connect action rechecks the loader and installs exactly once',async t=>{
  const f=await fixture(t);await f.start();const s=await f.result();
@@ -50,9 +56,61 @@ test('old two-step start request is rejected before transport',async t=>{
  const f=await fixture(t);await assert.rejects(f.session.action({action:'start',confirm:true}),/Connect and install/);assert.equal(f.calls.length,0);
 });
 
-test('a changed runtime invalidates the remembered installed save',async t=>{
+test('a changed boot core invalidates the remembered installed save',async t=>{
  const f=await fixture(t);await f.start();assert.equal((await f.result()).installed,true);
- const installer=f.spawns[0].args[0],root=path.resolve(path.dirname(installer),'../../..');
- await fs.writeFile(path.join(root,'engines/iz2s-core/runtime/package-manifest.json'),'[1]');
+ f.records[0].sha256='f'.repeat(64);await f.writeRecords();
  const s=(await f.session.snapshot()).iz2sciv;assert.equal(s.installed,false);assert.equal(s.needsSaveUpdate,true);
+});
+
+test('launcher, menu and ROMFS updates do not invalidate a flexible save',async t=>{
+ const f=await fixture(t);await f.start();const installed=await f.result();
+ for(const record of f.records.slice(3)){record.bytes+=77;record.sha256='a'.repeat(64);}
+ f.records.reverse();await f.writeRecords();
+ const s=(await f.session.snapshot()).iz2sciv;
+ assert.equal(s.installed,true);assert.equal(s.needsSaveUpdate,false);
+ assert.equal(s.saveCompatibilityFingerprint,installed.saveCompatibilityFingerprint);
+ assert.equal(s.runtimeFingerprint,installed.runtimeFingerprint,'keep the original installation receipt');
+});
+
+test('legacy exact-size save needs a one-time policy upgrade even with identical runtime',async t=>{
+ const f=await fixture(t);await f.start();await f.result();
+ const file=path.join(f.root,'data/state/iz2sciv.json'),saved=JSON.parse(await fs.readFile(file));
+ delete saved.saveCompatibilityFingerprint;await fs.writeFile(file,JSON.stringify(saved));
+ const reopened=create({root:f.root,ldn:{snapshot:async()=>({civswitchLdn:{},log:[],connections:{}})}});
+ const s=(await reopened.snapshot()).iz2sciv;assert.equal(s.installed,false);assert.equal(s.needsSaveUpdate,true);
+});
+
+test('even a mutable runtime change during installation fails the full race check',async t=>{
+ const f=await fixture(t,{delayInstall:true});await f.start();while(!f.spawns.length)await new Promise(r=>setImmediate(r));
+ f.records[3].bytes++;await f.writeRecords();f.finishInstall();
+ const s=await f.result();assert.equal(s.installed,false);assert.equal(s.phase,'failed');
+ assert.match(s.error,/runtime changed during installation/);
+});
+
+test('a saved boot revision change requires installation even with the same SD runtime',async t=>{
+ const f=await fixture(t);await f.start();const installed=await f.result();
+ assert.equal(installed.saveBootRevision,'run33-awaited-boot-v1');
+ await f.writeBootRevision('next-boot-test');
+ const s=(await f.session.snapshot()).iz2sciv;
+ assert.equal(s.installed,false);assert.equal(s.needsSaveUpdate,true);
+ assert.equal(s.saveBootRevision,installed.saveBootRevision,'preserve the actual installation receipt');
+ assert.equal(s.expectedSaveBootRevision,'next-boot-test');
+ await f.session.action({action:'install',replaceTrigger:true});
+ const updated=await f.result();assert.equal(updated.installed,true);assert.equal(updated.needsSaveUpdate,false);
+ assert.equal(updated.saveBootRevision,'next-boot-test');
+});
+
+test('a legacy receipt without a boot revision cannot claim that the corrected save is installed',async t=>{
+ const f=await fixture(t);await f.start();await f.result();
+ const file=path.join(f.root,'data/state/iz2sciv.json'),saved=JSON.parse(await fs.readFile(file));
+ delete saved.saveBootRevision;await fs.writeFile(file,JSON.stringify(saved));
+ const reopened=create({root:f.root,ldn:{snapshot:async()=>({civswitchLdn:{},log:[],connections:{}})}});
+ const s=(await reopened.snapshot()).iz2sciv;assert.equal(s.installed,false);assert.equal(s.needsSaveUpdate,true);
+});
+
+test('a boot revision changed during transfer cannot be recorded as installed',async t=>{
+ const f=await fixture(t,{delayInstall:true});await f.start();while(!f.spawns.length)await new Promise(r=>setImmediate(r));
+ await f.writeBootRevision('next-boot-test');f.finishInstall();
+ const s=await f.result();assert.equal(s.installed,false);assert.equal(s.phase,'failed');
+ assert.match(s.error,/save revision changed during installation/);
 });

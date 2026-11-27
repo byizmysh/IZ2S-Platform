@@ -1,0 +1,9 @@
+{
+  "id": "nx2-brerun",
+  "format": "izlauncher.nro-app",
+  "abi": 1,
+  "target": "switch2",
+  "program": "launcher.nro",
+  "icon": "icon.png",
+  "description": "Standalone Switch 2 game loader."
+}

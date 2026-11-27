@@ -9,7 +9,11 @@ async function fixture(t,{output='Installed. Restart the game, then open Load Ga
  t.after(()=>fs.rm(root,{recursive:true,force:true}));
  await fs.mkdir(path.join(root,'data/state'),{recursive:true});
  await fs.mkdir(path.join(root,'engines/iz2s-core/runtime'),{recursive:true});
- await fs.writeFile(path.join(root,'engines/iz2s-core/runtime/package-manifest.json'),'[]');
+ const records=['bootstrap.bin','ro/main','core/main','game/main','iz2s/izlauncher.iza','iz2s/izlauncher.romfs']
+  .map((path,index)=>({path,bytes:100+index,sha256:String(index).repeat(64)}));
+ await fs.writeFile(path.join(root,'engines/iz2s-core/runtime/package-manifest.json'),JSON.stringify(records));
+ await fs.mkdir(path.join(root,'engines/IzCivSwitchFS'),{recursive:true});
+ await fs.writeFile(path.join(root,'engines/IzCivSwitchFS/boot-revision.json'),JSON.stringify({revision:'test-save-boot-v1'}));
  await fs.writeFile(path.join(root,'data/state/iz2sciv.json'),JSON.stringify({phase:'idle',sdReady:true}));
  let launches=0,handle;
  const release=deferred();

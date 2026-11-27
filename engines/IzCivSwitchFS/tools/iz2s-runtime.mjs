@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {createHash} from "node:crypto";
+import policy from "../src/runtime-policy.cjs";
 
 const runtime = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
     "../../iz2s-core/runtime");
@@ -29,13 +30,15 @@ export function loadIz2sRuntime() {
     const manifest = {};
     for (const [name, [source, target]] of Object.entries(RUNTIME_FILES)) {
         const file = read(source);
+        if (policy.HEADER_BYTES[name])
+            policy.validateMutable(name, file.bytes.subarray(0, policy.HEADER_BYTES[name]), file.bytes.length);
         manifest[name] = {path: target, size: file.bytes.length, sha256: file.sha256};
     }
     const bootstrap = read("bootstrap.bin");
     if (!bootstrap.bytes.includes(Buffer.from("/iz2s/")) ||
         bootstrap.bytes.includes(Buffer.from("/kaihen/")))
         throw Error("Expected the IZ2S bootstrap, not kaiHEN");
-    return {manifest, packagePath: CORE_PACKAGE_PATH};
+    return {manifest, packagePath: CORE_PACKAGE_PATH, bootPolicy: policy.BOOT_POLICY};
 }
 
 export const iz2sRuntimePlugin = {

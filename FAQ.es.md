@@ -43,3 +43,5 @@ Son los estados independientes del servidor y del cliente. Activa FTP con L + R3
 ## 10. ¿Por qué tarda en iniciar o aparece sd-verify?
 
 Una caché nueva de shaders o del controlador puede necesitar compilación. Esta revisión corrige un fallo al sustituir la caché que antes obligaba a recompilar en cada inicio. Conserva la caché de tu consola y no distribuyas la de otra. Ante sd-verify, compara tamaños y SHA-256 con el manifiesto del entorno y el de la partida de inicio instalada. Usa un paquete coherente y vuelve a instalar su partida cuando corresponda. El texto antiguo RUN25, por sí solo, no identifica la versión ejecutada.
+
+RUN33: instala una vez la partida de inicio SD-flex. Después, las actualizaciones compatibles del lanzador, menú y ROMFS solo requieren sustituir sus archivos SD, aunque cambien de tamaño. Los cambios de bootstrap, ro, core o de la ABI de arranque siguen requiriendo una partida correspondiente. Copia siempre el conjunto completo y verificado de actualización.

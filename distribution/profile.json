@@ -1,7 +1,7 @@
 {
   "id": "iz2s-platform",
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
-  "version": "0.3.2",
+  "version": "0.34",
   "shells": [
     "izlauncher"
   ],
@@ -16,7 +16,8 @@
     "iz-file-deck",
     "iz2s-cheese",
     "izpsx",
-    "izps2"
+    "izps2",
+    "nx2-brerun"
   ],
   "moduleDirectories": [
     "BookReader",
@@ -25,7 +26,8 @@
     "Foldrift",
     "iz2s-cheese",
     "IZPSX",
-    "IZPS2"
+    "IZPS2",
+    "NX2BreRUN"
   ],
   "hostPlatforms": [
     "linux-x64",
@@ -37,11 +39,11 @@
     "linux-arm64"
   ],
   "experimentalInstallerPlatforms": [],
-  "publicationStatus": "release",
+  "publicationStatus": "local-release",
   "directComponents": [
     "iz2sciv-core"
   ],
-  "edition": "0.3.2",
+  "edition": "0.34",
   "gameSupport": {
     "civilization7": [
       "linux-x64",
@@ -49,5 +51,5 @@
     ]
   },
   "releaseTarget": "source",
-  "buildId": "civ7-stability-1"
+  "buildId": "run34-0.34"
 }

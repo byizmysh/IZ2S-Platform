@@ -150,8 +150,8 @@ async function createWindowServer({
       if (req.method === 'GET' && url.pathname === '/health')
         return reply(res, 200, {
           version: 22,
-          edition: '0.3.2',
-          release: '0.3.2',
+          edition: require('./profile.json').release,
+          release: require('./profile.json').release,
           coreApi: '/api/iz2s-core',
           pid: process.pid,
           preview: manager.preview === true,

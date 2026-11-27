@@ -4,6 +4,27 @@
 /* Transition-only diagnostics. No background thread and no per-frame file I/O. */
 #include <malloc.h>
 #define IZ2_LIFECYCLE_LOG "sdmc:/iz2s/launcher-lifecycle.log"
+
+static FILE *iz2_lifecycle_open(void)
+{
+    struct stat st;
+    if (!stat(IZ2_LIFECYCLE_LOG, &st) && st.st_size > 65536) {
+        if (unlink(IZ2_LIFECYCLE_LOG ".previous") && errno != ENOENT) return NULL;
+        if (rename(IZ2_LIFECYCLE_LOG, IZ2_LIFECYCLE_LOG ".previous")) return NULL;
+    }
+    return fopen(IZ2_LIFECYCLE_LOG, "a");
+}
+
+void iz2_split_trace(const char *phase, const char *app, unsigned panes, u32 result, u64 frames)
+{
+    FILE *f = iz2_lifecycle_open();
+    if (!f) return;
+    fprintf(f, "build=RUN33-Split tick=%llu phase=%s app=%.48s panes=%u rc=%08x frames=%llu\n",
+            (unsigned long long)armGetSystemTick(), phase, app, panes, result,
+            (unsigned long long)frames);
+    fclose(f);
+}
+
 void iz2_lifecycle_trace(const IzContext *c,const char *phase,u32 result)
 {
     static const char *names[]={"menu-enter","launch-begin","stop-request",
@@ -16,13 +37,7 @@ void iz2_lifecycle_trace(const IzContext *c,const char *phase,u32 result)
     if((seen&(1u<<index))&&previous[index]==result)return;
     seen|=1u<<index;previous[index]=result;
     if(!c)return;
-    struct stat st;
-    if(!stat(IZ2_LIFECYCLE_LOG,&st)&&st.st_size>65536){
-        /* Keep the immediately preceding session as well as the bounded log. */
-        if(unlink(IZ2_LIFECYCLE_LOG ".previous")&&errno!=ENOENT)return;
-        if(rename(IZ2_LIFECYCLE_LOG,IZ2_LIFECYCLE_LOG ".previous"))return;
-    }
-    FILE *f=fopen(IZ2_LIFECYCLE_LOG,"a");if(!f)return;
+    FILE *f=iz2_lifecycle_open();if(!f)return;
     u64 used=0,limit=0;
     Result ur=svcGetInfo(&used,InfoType_UsedMemorySize,CUR_PROCESS_HANDLE,0);
     Result lr=svcGetInfo(&limit,InfoType_TotalMemorySize,CUR_PROCESS_HANDLE,0);

@@ -33,13 +33,18 @@ static void iz2_start_begin(void){
     iz2_start_tick=armGetSystemTick();iz2_phase_count=0;iz2_first_frame_tick=0;iz2_start_reported=false;
 }
 static uint32_t iz2_cache_le32(const uint8_t *p){return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
+static bool iz2_cache_header_matches(const Iz2CacheHeader *h,size_t bytes,const Iz2CacheHeader *expected){
+    return bytes>=32&&bytes<=IZ2_CACHE_LIMIT&&h->bytes==bytes&&!memcmp(h->magic,"IZVK0002",8)&&
+           !memcmp(h->shader,expected->shader,32)&&!memcmp(h->uuid,expected->uuid,16)&&
+           h->vendor==expected->vendor&&h->device==expected->device&&h->driver==expected->driver;
+}
+static bool iz2_cache_vulkan_matches(const uint8_t *data,const Iz2CacheHeader *expected){
+    return iz2_cache_le32(data)==32&&iz2_cache_le32(data+4)==VK_PIPELINE_CACHE_HEADER_VERSION_ONE&&
+           iz2_cache_le32(data+8)==expected->vendor&&iz2_cache_le32(data+12)==expected->device&&
+           !memcmp(data+16,expected->uuid,16);
+}
 static bool iz2_cache_valid(const Iz2CacheHeader *h,const uint8_t *data,size_t bytes,const Iz2CacheHeader *expected){
-    if(bytes<32||bytes>IZ2_CACHE_LIMIT||h->bytes!=bytes||memcmp(h->magic,"IZVK0002",8)||
-       memcmp(h->shader,expected->shader,32)||memcmp(h->uuid,expected->uuid,16)||
-       h->vendor!=expected->vendor||h->device!=expected->device||h->driver!=expected->driver||
-       iz2_cache_le32(data)!=32||iz2_cache_le32(data+4)!=VK_PIPELINE_CACHE_HEADER_VERSION_ONE||
-       iz2_cache_le32(data+8)!=expected->vendor||iz2_cache_le32(data+12)!=expected->device||
-       memcmp(data+16,expected->uuid,16))return false;
+    if(!iz2_cache_header_matches(h,bytes,expected)||!iz2_cache_vulkan_matches(data,expected))return false;
     uint8_t digest[32];sha256CalculateHash(digest,data,bytes);
     return !memcmp(digest,h->digest,32);
 }
@@ -65,7 +70,7 @@ static void iz2_cache_open(IzContext *c,const void *shader,size_t size){
         Iz2CacheHeader h;struct stat st;
         if(!fstat(fileno(f),&st)&&S_ISREG(st.st_mode)&&st.st_size>=(off_t)(sizeof h+32)&&
            st.st_size<=(off_t)(sizeof h+IZ2_CACHE_LIMIT)&&fread(&h,1,sizeof h,f)==sizeof h&&
-           h.bytes==(size_t)st.st_size-sizeof h){
+           iz2_cache_header_matches(&h,(size_t)st.st_size-sizeof h,&iz2_cache_identity)){
             data=malloc(h.bytes);
             if(data&&fread(data,1,h.bytes,f)==h.bytes&&fgetc(f)==EOF&&!ferror(f)&&
                iz2_cache_valid(&h,data,h.bytes,&iz2_cache_identity))bytes=h.bytes;
@@ -136,10 +141,12 @@ static void iz2_cache_save(void){
         return;
     }
     size_t bytes=0;if(iz2_cache_data(iz2_cache_device,iz2_pipeline_cache,&bytes,NULL)!=VK_SUCCESS||bytes<32||bytes>IZ2_CACHE_LIMIT)return;
-    void *data=malloc(bytes);if(!data)return;
-    if(iz2_cache_data(iz2_cache_device,iz2_pipeline_cache,&bytes,data)==VK_SUCCESS&&bytes>=32&&bytes<=IZ2_CACHE_LIMIT){
+    const size_t capacity=bytes;
+    void *data=malloc(capacity);if(!data)return;
+    if(iz2_cache_data(iz2_cache_device,iz2_pipeline_cache,&bytes,data)==VK_SUCCESS&&
+       bytes>=32&&bytes<=capacity&&iz2_cache_vulkan_matches(data,&iz2_cache_identity)){
         Iz2CacheHeader header=iz2_cache_identity;header.bytes=(uint32_t)bytes;sha256CalculateHash(header.digest,data,bytes);
-        if(iz2_cache_valid(&header,data,bytes,&iz2_cache_identity)&&(!mkdir("sdmc:/iz2s/cache",0777)||errno==EEXIST)){
+        if(!mkdir("sdmc:/iz2s/cache",0777)||errno==EEXIST){
             FILE *f=fopen(IZ2_CACHE_PATH ".tmp","wb");
             if(f){bool ok=fwrite(&header,1,sizeof header,f)==sizeof header&&fwrite(data,1,bytes,f)==bytes;
                 if(ok&&(fflush(f)||fsync(fileno(f))))ok=false;
@@ -160,7 +167,11 @@ void iz2_menu_cache_retire(void){
 void iz2_startup_catalog_ready(void){iz2_start_mark("catalog");}
 void iz2_startup_frame(u64 frames){
     if(!frames)return;
-    if(!iz2_first_frame_tick){iz2_first_frame_tick=armGetSystemTick();iz2_start_mark("first_present");}
+    if(!iz2_first_frame_tick){
+        iz2_first_frame_tick=armGetSystemTick();
+        iz2_start_mark("first_present");
+        fputs("IZLAUNCHER_FIRST_PRESENT\n",stderr);
+    }
     if(iz2_start_reported||armGetSystemTick()-iz2_first_frame_tick<armNsToTicks(UINT64_C(2000000000)))return;
     iz2_start_reported=true;
     /* One delayed report/cache save, never on the first-frame critical path. */

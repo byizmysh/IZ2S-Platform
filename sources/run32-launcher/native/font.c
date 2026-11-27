@@ -53,13 +53,23 @@ static void render(uint8_t*tile,unsigned stride,unsigned rows,const char*name,fl
  dims[0]=(uint32_t)(width>0?width:1);dims[1]=(uint32_t)(max_y-min_y>0?max_y-min_y:1);
  if(dims[0]>stride)dims[0]=stride;if(dims[1]>rows)dims[1]=rows;
 }
-static float title_width(const unsigned *text,unsigned count,float scale){
+static float title_measure(const unsigned *text,unsigned count,float scale,float limit,unsigned *fitted){
  float width=0;
- for(unsigned i=0;i<count;i++){int advance,lsb;stbtt_GetCodepointHMetrics(&face,text[i],&advance,&lsb);width+=advance*scale;if(i+1<count)width+=stbtt_GetCodepointKernAdvance(&face,text[i],text[i+1])*scale;}
+ unsigned i=0;
+ for(;i<count;i++){
+  int advance,lsb;
+  stbtt_GetCodepointHMetrics(&face,text[i],&advance,&lsb);
+  float next=width;
+  if(i)next+=stbtt_GetCodepointKernAdvance(&face,text[i-1],text[i])*scale;
+  next+=advance*scale;
+  if(next>limit)break;
+  width=next;
+ }
+ if(fitted)*fitted=i;
  return width;
 }
 static void title_line(uint8_t *tile,const unsigned *text,unsigned count,float scale,float baseline){
- float pen=(216.0f-title_width(text,count,scale))*.5f;
+ float pen=(216.0f-title_measure(text,count,scale,INFINITY,NULL))*.5f;
  unsigned char glyph[4096];
  for(unsigned i=0;i<count;i++){
   int advance,lsb,x0,y0,x1,y1;float shift=pen-floorf(pen);
@@ -80,7 +90,7 @@ static void title_line(uint8_t *tile,const unsigned *text,unsigned count,float s
 static void hero_title(uint8_t *tile,const char *name,const unsigned *text,unsigned count){
  static uint8_t pixels[512*72];
  float size=60.0f;
- float width=title_width(text,count,stbtt_ScaleForMappingEmToPixels(&face,size));
+ float width=title_measure(text,count,stbtt_ScaleForMappingEmToPixels(&face,size),INFINITY,NULL);
  if(width>500.0f)size*=500.0f/width;
  uint32_t dims[2];render(pixels,512,72,name,size,dims);
  uint32_t *packed=(uint32_t*)(tile+26624*4);
@@ -98,16 +108,17 @@ void iz_ounce_title(void*output,const char*name){
  memset(tile,0,65536);
  const float scale=stbtt_ScaleForMappingEmToPixels(&face,24.0f);
  unsigned first=0,space=0;
- while(first<count&&title_width(text,first+1,scale)<=212.0f){if(text[first]==' ')space=first;first++;}
+ title_measure(text,count,scale,212.0f,&first);
+ for(unsigned i=0;i<first;i++)if(text[i]==' ')space=i;
  if(first<count&&space)first=space;
  if(!first&&count)first=1;
  unsigned second=first;while(second<count&&text[second]==' ')second++;
  unsigned tail[64],tail_count=0;
  if(second<count){
-  while(second+tail_count<count&&title_width(text+second,tail_count+1,scale)<=212.0f)tail_count++;
+  title_measure(text+second,count-second,scale,212.0f,&tail_count);
   memcpy(tail,text+second,tail_count*sizeof *tail);
   if(second+tail_count<count){
-   while(tail_count){tail[tail_count]=0x2026;if(title_width(tail,tail_count+1,scale)<=212.0f)break;tail_count--;}
+   while(tail_count){tail[tail_count]=0x2026;if(title_measure(tail,tail_count+1,scale,INFINITY,NULL)<=212.0f)break;tail_count--;}
    tail[tail_count++]=0x2026;
   }
  }

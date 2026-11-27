@@ -79,7 +79,7 @@ if [ -n "$IZ2S_MISSING" ]; then
   IZ2S_MISSING=$(iz2s_missing)
   [ -z "$IZ2S_MISSING" ] || { printf 'Dependencies are still missing:\n%s\n' "$IZ2S_MISSING" >&2; exit 1; }
 fi
-IZ2S_VERSION=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "$IZ2S_SOURCE/package.json")
+IZ2S_VERSION=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "$IZ2S_SOURCE/distribution/profile.json")
 IZ2S_DEST=${IZ2S_DEST:-${XDG_DATA_HOME:-$HOME/.local/share}/iz2s-platform/releases/$IZ2S_VERSION-$(date -u +%Y%m%d%H%M%S)}
 case "$IZ2S_DEST" in /*) ;; *) echo '--prefix must be an absolute path' >&2; exit 1;; esac
 if [ -e "$IZ2S_DEST" ] || [ -L "$IZ2S_DEST" ]; then echo 'Destination exists. Choose a new folder; existing settings are never overwritten.' >&2; exit 1; fi

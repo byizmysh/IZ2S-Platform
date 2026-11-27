@@ -3,13 +3,13 @@
   "files": [
     {
       "path": "menu-build.json",
-      "bytes": 18576,
-      "sha256": "076e21acfa1379b42e0f6f4f3fced15713fc82487c8bdecae9f748f93b6fa086"
+      "bytes": 23877,
+      "sha256": "7b1ba5674e6093842670f9c8a2ae1c5344b192f195d258c4bcce47e9bc5826d4"
     },
     {
       "path": "package-manifest.json",
       "bytes": 7203,
-      "sha256": "8aa56233de7b076c90af7ea1fcc08f7ec9d8efebf8ab2f3d8aaa7c92e2b087bb"
+      "sha256": "3c17f7033b6873645ebfc96fa1d7e977a3a3633d6a4f0338331367a7dfa79a00"
     },
     {
       "path": "package/bootstrap.bin",
@@ -23,18 +23,18 @@
     },
     {
       "path": "package/game/exefs.nsp",
-      "bytes": 19401267,
-      "sha256": "93ba2af29912764b0bf4e559c5f1578c5b72a0d350468b36f0f13bf22591c344"
+      "bytes": 19452115,
+      "sha256": "a7975a0b99499e8d6f53fcad9d3979c7bd923526f6a0c7662ca7ee3727a02cbb"
     },
     {
       "path": "package/game/main",
-      "bytes": 19399360,
-      "sha256": "473a95e63638c787129c8c03649770291b8880b87a247af214a586a27d6edd92"
+      "bytes": 19450185,
+      "sha256": "8dccf9098249f4db6db8137ce703db4081bddcc9f8534fd7cfea79b901e6ec7a"
     },
     {
       "path": "package/iz2s/izlauncher.iza",
       "bytes": 900504,
-      "sha256": "b6a35e9a1a353cd915a458a78ad0dfe3a4c425c3a140f43ed4bc902b1eb387aa"
+      "sha256": "4e5c488865856ad2edee45a1f2e8850527b70671460fc62138c26f4b66bbe46b"
     },
     {
       "path": "package/iz2s/izlauncher.romfs",
@@ -253,13 +253,13 @@
     },
     {
       "path": "provenance.json",
-      "bytes": 14433,
-      "sha256": "3c2c300b5377a3ee7dbe73bf848bdc5f8f1151a47c89ffaf7e7d1ab70034402e"
+      "bytes": 14313,
+      "sha256": "b8dcf1ac1368d4f600fbc23837d2c1a248a2336da5512b0e475b775561aaee69"
     },
     {
       "path": "run32-component-validation.json",
-      "bytes": 1556,
-      "sha256": "18dd5d127a19aeb82e864c6ebf1ae282764fb8a25e4727001bfe43501d159a1f"
+      "bytes": 881,
+      "sha256": "0fa5c22d031770fb276cf1d44953492340ff7545a4f1f23e726af44ea1e04685"
     },
     {
       "path": "sd-layout.json",

@@ -8,16 +8,16 @@ IZ2S combines a PC setup panel and a console application launcher for **Nintendo
 
 The panel guides SD preparation, PC preparation, connection with automatic save installation, and launch. Once IZ2S is running, PC Link connects the application library and FTP provides file access.
 
-![IZ2S Panel 0.3.2 setup preview](docs/images/iz2s-panel-0.3.2.png)
+![IZ2S Panel 0.34 setup preview](docs/images/iz2s-panel-0.34.png)
 
-## Release 0.3.2
+## Release 0.34
 
-Download [IZ2S 0.3.2](https://github.com/byizmysh/IZ2S-Platform/releases/tag/v0.3.2). This edition is **Linux only** and includes the matching Civilization VII SD kit:
+IZ2S 0.34 supports Linux x64 and ARM64. The release contains these files.
 
 | Asset | Purpose |
 | --- | --- |
-| [IZ2S-0.3.2-linux.tar.gz](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.2/IZ2S-0.3.2-linux.tar.gz) | Linux x64 / ARM64; full initial installation and PC tools |
-| [iz2sciv-core-sd.zip](https://github.com/byizmysh/IZ2S-Platform/releases/download/v0.3.2/iz2sciv-core-sd.zip) | Matching runtime, four SD applications, resources and licenses |
+| `IZ2S-0.34-linux.tar.gz` | Full PC panel and installer |
+| `iz2sciv-core-sd.zip` | Matching console runtime, five applications and their licenses |
 
 ## Requirements
 
@@ -39,9 +39,9 @@ Extract the complete installation archive into a new folder.
 sh ./install.sh --launch
 ```
 
-The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S 0.3.2** shortcut or run `./start.sh` in the installed folder.
+The installer verifies the files, prepares dependencies, creates an application-menu shortcut and launches the panel. It prints the installed directory, normally under `~/.local/share/iz2s-platform/releases/`. Package installation may require your password. Later, use the **IZ2S 0.34** shortcut or run `./start.sh` in the installed folder.
 
-The normal panel address is `http://127.0.0.1:39532/`. Use the URL opened or printed by the launcher, which includes local session authorization. Preview is available with `./preview.sh` or `node start.cjs --preview --no-open`; it opens a separate temporary port and disables console actions.
+The normal panel address is `http://127.0.0.1:39534/`. Use the URL opened or printed by the launcher, which includes local session authorization. Preview is available with `./preview.sh` or `node start.cjs --preview --no-open`; it opens a separate temporary port and disables console actions.
 
 ## Install and launch
 
@@ -57,6 +57,7 @@ The normal panel address is `http://127.0.0.1:39532/`. Use the URL opened or pri
 | [IZ2S Cheese](https://github.com/byizmysh/iz2s-cheese) | 0.8.7 | Yes |
 | [IZPSX emulator](https://github.com/byizmysh/IZPSX-emulator) | 0.5.3 | Yes |
 | [IZPS2 emulator](https://github.com/byizmysh/IZPS2-emulator) | 0.5.0 | Yes |
+| [NX2 BreRUN](https://github.com/byizmysh/nx2-brerun) | 0.6.0 | Yes, full-screen NRO |
 | [Foldrift](modules/Foldrift) | 0.3.3 | Yes |
 | [Book Reader](modules/BookReader) | 0.1.0 | Available separately in the PC library |
 | [BlitBun](https://github.com/byizmysh/BlitBun) | 1.15.8 | Available separately; PC media host requires Linux |
@@ -64,12 +65,14 @@ The normal panel address is `http://127.0.0.1:39532/`. Use the URL opened or pri
 
 In the launcher, **A** opens the selected application and **X** opens Add app. **R + L3** toggles PC Link; **L + R3** toggles FTP. L3/R3 mean clicking the left/right stick. Enabling FTP on the console and connecting the panel's FTP client are separate states.
 
+Use **R + Up** to select two Split-compatible IZA applications. Press **+ and -** together to open window controls. NX2 BreRUN and other NRO applications open full screen.
+
 Application companions, manifests and license files must stay with their launchers. See [application storage and updates](docs/APPLICATIONS.md). The SD package contains only `iz2s/` and does not supply Nintendo keys, BIOS or games.
 
 ## Checks, source and support
 
-- [Release notes](RELEASE-NOTES.md): Civ7-only UI, automatic save installation and shader-cache replacement fix.
-- [Validation results](docs/VALIDATION-0.3.2.md): first-install tests, confirmed console observations and remaining checks.
+- [Release notes](RELEASE-NOTES.md): Startup changes and NX2 BreRUN integration.
+- [Compatibility](COMPATIBILITY.md) lists the supported console and host configurations.
 - [Build and verification](BUILDING.md): local checks, SD packaging and prepared installer archives.
 - [Source scope](SOURCES.md): recorded provenance and remaining native rebuild limitations.
 - [Support](SUPPORT.md): useful diagnostics without sharing private keys or session tokens.

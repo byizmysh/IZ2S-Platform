@@ -18,7 +18,7 @@ Into the SD root, so the paths begin with `SD:/iz2s/`. Merge folders and replace
 
 ## 4. I have an old IZ2S version or another loader. What changes?
 
-Update the SD files and follow the full procedure. The conditional cleanup step uses `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`. This deletes that profile's game save data; read the step before confirming. A launch save from another runtime revision is not interchangeable with this package.
+Update the SD files and follow the full procedure. The conditional cleanup step uses `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`. This deletes that profile's game save data; read the step before confirming. The visible launcher version alone does not establish boot-core compatibility.
 
 ## 5. Do I install the save manually after reconnecting?
 
@@ -43,3 +43,5 @@ These are separate server/client states. Enable FTP with L + R3, then select **C
 ## 10. Why does the launcher sometimes start slowly or show sd-verify?
 
 A new shader/driver cache can require compilation. This revision fixes a cache-replacement failure that previously repeated compilation at every launch. Preserve the local cache; do not distribute another console's cache. An sd-verify error means the expected runtime and installed files must be compared by size and SHA-256, including the launch save's manifest. Use one matching package and reinstall its save when required. An old RUN25 label alone does not identify the loaded build.
+
+RUN33: install the SD-flex launch save once. Compatible launcher, menu and ROMFS updates then require only their SD files, even when sizes change. A changed bootstrap, ro, core or boot ABI still needs a matching save. Use complete verified update sets.

@@ -6,6 +6,7 @@ import {createRequire} from "node:module";
 import {randomUUID} from "node:crypto";
 import {loadIz2sRuntime, RUNTIME_FILES} from "./iz2s-runtime.mjs";
 import {buildSdApplications} from "./sd-apps.mjs";
+import policy from "../src/runtime-policy.cjs";
 const require = createRequire(import.meta.url);
 const archive = require("../../../core/archive.cjs");
 const engine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -15,6 +16,7 @@ export const FILENAME = "iz2sciv-core-sd.zip";
 export async function buildSdPackage() {
     const {manifest} = loadIz2sRuntime();
     const provenance = JSON.parse(await fs.readFile(path.join(runtime, "provenance.json"), "utf8"));
+    const profile = JSON.parse(await fs.readFile(path.resolve(engine, "../../distribution/profile.json"), "utf8"));
     const entries = [];
     async function add(source, target, expected) {
         const bytes = await fs.readFile(path.join(runtime, "package", source));
@@ -25,23 +27,40 @@ export async function buildSdPackage() {
     for (const [name, [source, target]] of Object.entries(RUNTIME_FILES))
         await add(source, target.slice(1), manifest[name]);
     const records = JSON.parse(await fs.readFile(path.join(runtime, "package-manifest.json"), "utf8"));
-    // The native menu is embedded in game/main. No standalone NRO is needed.
+    const exefs = records.find(row => row.path === 'game/exefs.nsp');
+    if (!exefs) throw Error('Missing game executable package');
+    await add(exefs.path, 'iz2s/core/bin/' + exefs.path, {...exefs, size:exefs.bytes});
+    // The native menu is embedded in game/main.
     for (const record of records.filter(row => row.path.startsWith("licenses/")))
         await add(record.path, "iz2s/" + record.path, {...record, size: record.bytes});
+    if (provenance.launcher.splitRuntime) {
+        const expected = provenance.launcher.splitRuntime;
+        const record = records.find(row => row.path === "iz2s/modules/split-runtime.izdata");
+        if (!record || expected.path !== record.path || expected.bytes !== record.bytes ||
+            expected.sha256 !== record.sha256)
+            throw Error("IZ2S split runtime does not match its package manifest");
+        await add(record.path, record.path, {...record, size: record.bytes});
+    }
+    if (provenance.launcher.splitUiFont === "DejaVu Sans Bold")
+        entries.push({name: "iz2s/licenses/DejaVu-Split-UI.txt",
+            bytes: await fs.readFile(path.resolve(engine, "../../language/fonts/LICENSE.txt"))});
     const applications = await buildSdApplications();
     entries.push(...applications.entries);
     entries.push({name: "iz2s/README-IZ2SCiv.txt", bytes: Buffer.from(
         "Extract the contents of the ZIP to the root of the SD card. If the iz2s folder already exists, merge the folders\n" +
         "and replace matching files from the archive. Keep all other applications.\n" +
-        "Included apps: IZ2S Cheese, IZPSX, IZPS2, and IZ File Deck (Foldrift).\n" +
-        "IZ2S 0.3.2 includes vu-split-persist-off.flag: optional IZPS2 VU disk persistence is disabled. Keep this file installed.\n" +
+        "Included apps: IZ2S Cheese, IZPSX, IZPS2, Foldrift, and NX2 BreRUN.\n" +
+        "IZ2S includes vu-split-persist-off.flag: optional IZPS2 VU disk persistence is disabled. Keep this file installed.\n" +
         "Insert the SD card back into the powered-off console.\n" +
-        `RUN32: PC panel 0.3.2; launcher ${provenance.launcher.version}, ${provenance.launcher.revision}. The native launcher is embedded in game/main; no standalone IZ2S.nro is required.\n` +
-        "After changing the runtime revision, reinstall the Civ7 launch save using this panel: its SD manifest is embedded at installation.\n")});
+        `PC panel ${profile.version}; launcher ${provenance.launcher.version}, ${provenance.launcher.revision}. The native launcher is embedded in game/main; no standalone IZ2S.nro is required.\n` +
+        "Install the SD-flex launch save once. Later compatible game/main, izlauncher.iza and izlauncher.romfs updates only need the SD files.\n" +
+        "A change to bootstrap.bin, ro/main, core/main or the boot ABI still requires a matching launch save.\n" +
+        "Copy a complete verified update set; the boot header checks do not replace the package SHA-256 inventory.\n")});
     const contents = entries.map(({name, bytes}) => ({path: name, bytes: bytes.length, sha256: archive.sha(bytes)}));
     entries.push({name: "iz2s/iz2sciv-sd-manifest.json", bytes: Buffer.from(JSON.stringify({
-        name: "IZ2SCiv core", format: "iz2sciv.sd.v1", packageVariant: "four-apps",
-        panelVersion: "0.3.2", buildId: "civ7-stability-1", launcherVersion: provenance.launcher.version,
+        name: "IZ2SCiv core", format: "iz2sciv.sd.v1", packageVariant: "five-apps",
+        panelVersion: profile.version, buildId: profile.buildId, launcherVersion: provenance.launcher.version,
+        bootCompatibility: policy.compatibilityContract(records),
         revision: provenance.launcher.revision, menuId: provenance.launcher.packagedMenuId,
         apps: applications.apps, files: contents
     }, null, 2) + "\n")});

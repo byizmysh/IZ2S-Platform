@@ -37,5 +37,14 @@
       "diagnosticInstrumentationRetained": true,
       "source": "sources/izps2/source/overlays/RUN32-Stability-1"
     }
+  },
+  {
+    "id": "nx2-brerun",
+    "version": "0.6.0",
+    "source": "https://github.com/byizmysh/nx2-brerun/tree/5351f81db438b6dfebb71c319bbd65b067f29b6c",
+    "assetName": "nx2-brerun-v0.6.0.nro",
+    "bytes": 31907756,
+    "sha256": "7160371ad062c126631c84b3161661e170d6690c00dd24397996b9559b3f47a9",
+    "sdPath": "iz2s/modules/nx2-brerun/launcher.nro"
   }
 ]

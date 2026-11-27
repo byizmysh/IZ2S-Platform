@@ -106,7 +106,7 @@ export async function launchRoFrontend(context, options = {}) {
             while (!(await gate.pending())) {
                 if (workerFinished(worker)) break;
                 check(Date.now() < deadline, "PM launch did not reach the parked FS session");
-                runtime.waitMs(25);
+                await runtime.waitMs(25);
             }
             if (workerFinished(worker)) break;
             const before = await domainEntries(context, loaderDomain);
@@ -222,9 +222,9 @@ export async function launchRoFrontend(context, options = {}) {
     const until = Date.now() + 20000;
     while (!workerFinished(worker)) {
         check(Date.now() < until, "PM did not complete after the gate was restored");
-        runtime.waitMs(50);
+        await runtime.waitMs(50);
     }
-    const results = joinGatedWorker(worker);
+    const results = await joinGatedWorker(worker);
     check(Number(results[0]) === 0,
         "pm-launch send failed: " + hex(Number(results[0])));
 

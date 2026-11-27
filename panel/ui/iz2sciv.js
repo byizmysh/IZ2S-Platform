@@ -280,7 +280,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   text('services-state',online&&ftpOnline?'PC Link + FTP connected':online?'PC Link connected':ftpOnline?'FTP connected':'No active connection');
   const linkControlsLocked=state.preview||serverOffline||resettingSession;
   const pcPaused=link?.enabled===false;
-  const pcStatus=state.preview?'Preview · device commands disabled':serverOffline||link?.error?'Status unavailable':pcPaused?'Paused on this PC':online?'Connected to this panel':!link?'Checking connection…':'Waiting for console';
+  const pcStatus=state.preview?'Preview · device commands disabled':serverOffline||link?.error?'Status unavailable':pcPaused?'Paused on this PC':online?'Connected to this panel':link===undefined?'Checking connection…':link===null?'Not configured':'Waiting for console';
   $('pc-card').dataset.online=String(online);
   text('pc-status',t(pcStatus)+(online&&link.consoleAddress?' · '+link.consoleAddress:''));
   text('pc-toggle',pcPaused?'Resume PC Link':'Pause PC Link');
