@@ -57,6 +57,14 @@ int main(int argc,char **argv){
  VkDescriptorSetLayoutBinding binding={.binding=0,.descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,.descriptorCount=1,.stageFlags=VK_SHADER_STAGE_ALL};VkDescriptorSetLayoutCreateInfo li={.sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,.bindingCount=1,.pBindings=&binding};VkDescriptorSetLayout set;assert(!vkCreateDescriptorSetLayout(device,&li,NULL,&set));
  VkPipelineLayoutCreateInfo pli={.sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,.setLayoutCount=1,.pSetLayouts=&set};VkPipelineLayout layout;assert(!vkCreatePipelineLayout(device,&pli,NULL,&layout));
  VkShaderModuleCreateInfo si={.sType=VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,.codeSize=bytes,.pCode=code};VkShaderModule shader;assert(!vkCreateShaderModule(device,&si,NULL,&shader));
+ uint8_t key[32],changed_key[32];
+ const Iz2CacheShader shaders[IZ2_CACHE_SHADER_COUNT]={[2]={code,bytes}};
+ iz2_cache_shader_key(key,shaders);
+ Iz2CacheShader changed[IZ2_CACHE_SHADER_COUNT];
+ memcpy(changed,shaders,sizeof changed);
+ changed[1]=(Iz2CacheShader){"different fragment",18};
+ iz2_cache_shader_key(changed_key,changed);
+ assert(memcmp(key,changed_key,sizeof key));
  VkComputePipelineCreateInfo pi={.sType=VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,.stage={.sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,.stage=VK_SHADER_STAGE_COMPUTE_BIT,.module=shader,.pName="main"},.layout=layout};
  VkShaderModule vs=VK_NULL_HANDLE,frag=VK_NULL_HANDLE;VkRenderPass renderpass=VK_NULL_HANDLE;
  VkGraphicsPipelineCreateInfo gi={.sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -83,7 +91,7 @@ int main(int argc,char **argv){
  double ms[2],gms[2]={0};unsigned hits[2];
 
  for(unsigned pass=0;pass<2;pass++){
-  iz2_start_begin();iz2_cache_install(&c,code,bytes);assert(iz2_pipeline_cache);assert(iz2_cache_hit==(pass!=0));
+  iz2_start_begin();iz2_cache_install(&c,key,code,bytes);assert(iz2_pipeline_cache);assert(iz2_cache_hit==(pass!=0));
   VkPipeline pipeline;u64 start=armGetSystemTick();assert(!FN(&c,F_CREATE_COMPUTE)(c.device,0,1,(u64)(uintptr_t)&pi,0,(u64)(uintptr_t)&pipeline,0,0));ms[pass]=(armGetSystemTick()-start)/1e6;if(argc==4){VkPipeline gp;u64 t=armGetSystemTick();assert(!FN(&c,F_CREATE_GRAPHICS)(c.device,0,1,(u64)(uintptr_t)&gi,0,(u64)(uintptr_t)&gp,0,0));gms[pass]=(armGetSystemTick()-t)/1e6;vkDestroyPipeline(device,gp,NULL);}
   hits[pass]=iz2_pipeline_hits;
   iz2_cache_unhook(&c);assert(c.functions[F_CREATE_COMPUTE]==(u64)(uintptr_t)compute);
@@ -111,7 +119,7 @@ int main(int argc,char **argv){
  assert(stale_file&&fwrite(&stale,1,sizeof stale,stale_file)==sizeof stale&&!fflush(stale_file)&&
         !ftruncate(fileno(stale_file),sizeof stale+IZ2_CACHE_LIMIT)&&!fclose(stale_file));
  cache_read_bytes=0;
- iz2_cache_open(&c,code,bytes);
+ iz2_cache_open(&c,key,code,bytes);
  assert(iz2_pipeline_cache&&!iz2_cache_hit&&cache_read_bytes==sizeof stale);
  iz2_cache_data=oversized_cache_data;
  const unsigned hashes=cache_hashes;
@@ -120,36 +128,36 @@ int main(int argc,char **argv){
  iz2_cache_close();
  write_file(IZ2_CACHE_PATH,saved,file_bytes);
  /* A new interface must replace the old cache on a non-overwriting FS. */
- iz2_cache_open(&c,"changed-interface",17);assert(!iz2_cache_hit);
+ iz2_cache_open(&c,changed_key,code,bytes);assert(!iz2_cache_hit);
  iz2_cache_save();iz2_cache_close();
- iz2_cache_open(&c,"changed-interface",17);assert(iz2_cache_hit);iz2_cache_close();
+ iz2_cache_open(&c,changed_key,code,bytes);assert(iz2_cache_hit);iz2_cache_close();
  assert(rename_existing>0);
 #ifndef IZ2_CACHE_REPRO_ONLY
  /* A complete temporary cache survives publication failure or power loss. */
  h->shader[0]^=1;write_file(IZ2_CACHE_PATH,saved,file_bytes);h->shader[0]^=1;
  write_file(IZ2_CACHE_PATH ".tmp",saved,file_bytes);
- iz2_cache_open(&c,code,bytes);assert(iz2_cache_hit&&iz2_cache_from_tmp);
+ iz2_cache_open(&c,key,code,bytes);assert(iz2_cache_hit&&iz2_cache_from_tmp);
  iz2_pipeline_requests=iz2_pipeline_hits=1;iz2_cache_save();assert(!strcmp(iz2_cache_write,"recovered"));iz2_cache_close();
  assert(access(IZ2_CACHE_PATH ".tmp",F_OK));
- iz2_cache_open(&c,code,bytes);assert(iz2_cache_hit&&!iz2_cache_from_tmp);iz2_cache_close();
+ iz2_cache_open(&c,key,code,bytes);assert(iz2_cache_hit&&!iz2_cache_from_tmp);iz2_cache_close();
  /* Permission failure must preserve both caches and report the errno. */
  h->shader[0]^=1;write_file(IZ2_CACHE_PATH,saved,file_bytes);h->shader[0]^=1;
  write_file(IZ2_CACHE_PATH ".tmp",saved,file_bytes);
- iz2_cache_open(&c,code,bytes);assert(iz2_cache_hit&&iz2_cache_from_tmp);
+ iz2_cache_open(&c,key,code,bytes);assert(iz2_cache_hit&&iz2_cache_from_tmp);
  iz2_pipeline_requests=iz2_pipeline_hits=1;rename_fault=EACCES;iz2_cache_save();
  assert(iz2_cache_errno==EACCES&&!strcmp(iz2_cache_write,"failed"));iz2_cache_close();
  assert(!access(IZ2_CACHE_PATH,F_OK)&&!access(IZ2_CACHE_PATH ".tmp",F_OK));
  /* Failure between unlink and rename: next startup accepts only valid tmp. */
- rename_fault=EIO;iz2_cache_open(&c,code,bytes);assert(iz2_cache_hit&&iz2_cache_from_tmp);
+ rename_fault=EIO;iz2_cache_open(&c,key,code,bytes);assert(iz2_cache_hit&&iz2_cache_from_tmp);
  iz2_pipeline_requests=iz2_pipeline_hits=1;iz2_cache_save();assert(iz2_cache_errno==EIO);iz2_cache_close();
  assert(access(IZ2_CACHE_PATH,F_OK)&&!access(IZ2_CACHE_PATH ".tmp",F_OK));
- rename_fault=0;iz2_cache_open(&c,code,bytes);assert(iz2_cache_hit&&iz2_cache_from_tmp);
+ rename_fault=0;iz2_cache_open(&c,key,code,bytes);assert(iz2_cache_hit&&iz2_cache_from_tmp);
  iz2_pipeline_requests=iz2_pipeline_hits=1;iz2_cache_save();assert(!strcmp(iz2_cache_write,"recovered"));iz2_cache_close();
  /* A corrupt temporary file must not bypass any compatibility checks. */
  assert(!unlink(IZ2_CACHE_PATH));payload[h->bytes-1]^=1;write_file(IZ2_CACHE_PATH ".tmp",saved,file_bytes);payload[h->bytes-1]^=1;
- iz2_cache_open(&c,code,bytes);assert(!iz2_cache_hit);iz2_cache_close();assert(!unlink(IZ2_CACHE_PATH ".tmp"));
+ iz2_cache_open(&c,key,code,bytes);assert(!iz2_cache_hit);iz2_cache_close();assert(!unlink(IZ2_CACHE_PATH ".tmp"));
  write_file(IZ2_CACHE_PATH,saved,file_bytes);
- iz2_cache_open(&c,code,bytes);assert(iz2_cache_hit);iz2_cache_close();
+ iz2_cache_open(&c,key,code,bytes);assert(iz2_cache_hit);iz2_cache_close();
 #endif
 
  payload[file_bytes-sizeof *h-1]^=1;assert(!iz2_cache_valid(h,payload,file_bytes-sizeof *h,&iz2_cache_identity));payload[file_bytes-sizeof *h-1]^=1;
@@ -157,7 +165,38 @@ int main(int argc,char **argv){
  h->driver^=1;assert(!iz2_cache_valid(h,payload,h->bytes,&iz2_cache_identity));h->driver^=1;
  h->shader[0]^=1;assert(!iz2_cache_valid(h,payload,h->bytes,&iz2_cache_identity));h->shader[0]^=1;
  assert(!iz2_cache_valid(h,payload,h->bytes-1,&iz2_cache_identity));assert(!iz2_cache_valid(h,payload,IZ2_CACHE_LIMIT+1,&iz2_cache_identity));
- FILE*f=fopen(IZ2_CACHE_PATH,"wb");assert(f&&fwrite(saved,1,17,f)==17&&!fclose(f));iz2_cache_open(&c,code,bytes);assert(iz2_pipeline_cache&&!iz2_cache_hit);iz2_cache_close();
+ FILE*f=fopen(IZ2_CACHE_PATH,"wb");assert(f&&fwrite(saved,1,17,f)==17&&!fclose(f));iz2_cache_open(&c,key,code,bytes);assert(iz2_pipeline_cache&&!iz2_cache_hit);iz2_cache_close();
+
+ /* Use a v2 cache only for its original image and save the v3 copy in idle. */
+ memcpy(h->magic,IZ2_CACHE_LEGACY_MAGIC,8);
+ sha256CalculateHash(h->shader,code,bytes);
+ write_file(IZ2_CACHE_LEGACY_PATH,saved,file_bytes);
+ assert(!unlink(IZ2_CACHE_PATH));
+ static const char changed_metadata[]="same shaders, different menu metadata";
+ iz2_cache_open(&c,key,changed_metadata,sizeof changed_metadata);
+ assert(!iz2_cache_hit);iz2_cache_close();
+ iz2_start_begin();
+ iz2_cache_open(&c,key,code,bytes);
+ assert(iz2_cache_hit&&iz2_cache_legacy_hit);
+ iz2_pipeline_requests=iz2_pipeline_hits=1;
+ iz2_menu_cache_retire();
+ assert(access(IZ2_CACHE_PATH,F_OK)&&!strcmp(iz2_cache_write,"reused"));
+ iz2_cache_open(&c,key,code,bytes);
+ assert(iz2_cache_hit&&iz2_cache_legacy_hit);
+ iz2_start_reported=true;
+ iz2_pipeline_requests=iz2_pipeline_hits=1;
+ iz2_menu_cache_retire();
+ assert(!access(IZ2_CACHE_PATH,F_OK)&&!strcmp(iz2_cache_write,"migrated"));
+ size_t legacy_bytes;
+ void *legacy=read_file(IZ2_CACHE_LEGACY_PATH,&legacy_bytes);
+ assert(legacy_bytes==file_bytes&&!memcmp(legacy,saved,file_bytes));
+ free(legacy);
+ iz2_cache_open(&c,key,changed_metadata,sizeof changed_metadata);
+ assert(iz2_cache_hit&&!iz2_cache_legacy_hit);
+ iz2_cache_close();
+ iz2_cache_open(&c,changed_key,changed_metadata,sizeof changed_metadata);
+ assert(!iz2_cache_hit);iz2_cache_close();
+ puts("PASS: warm legacy cache preserved and migrated in idle; metadata changes keep v3; changed shaders miss");
  printf("{\"passed\":true,\"filesystem\":\"non-overwriting rename\",\"replacementAndRecoveryTested\":true,\"backend\":\"host Vulkan\",\"coldMs\":%.3f,\"warmMs\":%.3f,\"graphicsMs\":[%.3f,%.3f],\"reportedHits\":[%u,%u],\"cacheBytes\":%zu,\"rejected\":[\"corrupt digest\",\"different GPU UUID\",\"different driver\",\"different shader\",\"truncated\",\"oversized\"]}\n",ms[0],ms[1],gms[0],gms[1],hits[0],hits[1],file_bytes);
  puts("PASS: stale 16 MiB cache rejected after 104 header bytes; save hashes once and rejects an oversized driver reply");
  if(renderpass)vkDestroyRenderPass(device,renderpass,NULL);if(vs)vkDestroyShaderModule(device,vs,NULL);if(frag)vkDestroyShaderModule(device,frag,NULL);

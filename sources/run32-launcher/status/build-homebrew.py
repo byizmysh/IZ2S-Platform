@@ -131,7 +131,19 @@ static int add_packages(IzLocalAdd *message) {
 '''),
         ('    free(legacy_atlas);free(atlas);free(image);free(c);\n', '    free(image);free(c);\n'),
         ('    result=iz_native_menu_build(c,header,image,&menu);if(result)goto cleanup;\n',
-         '    iz2_cache_install(c,image,image_bytes);\n    result=iz_native_menu_build(c,header,image,&menu);\n'
+         '''    const unsigned shader_sections[IZ2_CACHE_SHADER_COUNT]={
+        SEC_VERTEX,SEC_FRAGMENT,SEC_COMPUTE,SEC_BEGIN,SEC_AFTER,SEC_PAD
+    };
+    Iz2CacheShader shaders[IZ2_CACHE_SHADER_COUNT];
+    for(unsigned i=0;i<IZ2_CACHE_SHADER_COUNT;++i){
+        const IzSection *section=&header->section[shader_sections[i]];
+        shaders[i]=(Iz2CacheShader){(const u8*)image+section->offset,section->bytes};
+    }
+    u8 key[32];
+    iz2_cache_shader_key(key,shaders);
+    iz2_cache_install(c,key,image,image_bytes);
+    result=iz_native_menu_build(c,header,image,&menu);
+'''
          '    iz2_cache_unhook(c);if(result)goto cleanup;\n    free(image);image=NULL;\n'
          '    iz2_start_mark("menu_ready");\n'),
         ('        if(!close)close=iz_ounce_platform_close(c);\n', '        if(!close)iz2_cache_close();\n        if(!close)close=iz_ounce_platform_close(c);\n'),
@@ -143,6 +155,25 @@ static int add_packages(IzLocalAdd *message) {
 
 def integrate_catalog(source):
     return apply_hooks(source, (
+        ('static void fallback_tile(IzContext*c,u8*tile,const u8*snapshot,const IzAppHeader*h){\n',
+         'static void plain_tile(u8*tile,const u8*snapshot,const IzAppHeader*h){\n'),
+        (' if(c->platform_title)c->platform_title(tile,h->name);\n', ''),
+        ('static MenuSelection menu_selection(IzContext*c,const u8*menu){\n',
+         '''static void fallback_tile(IzContext*c,u8*tile,const u8*snapshot,const IzAppHeader*h){
+ plain_tile(tile,snapshot,h);
+ if(c->platform_title)c->platform_title(tile,h->name);
+}
+#include "menu-artwork.h"
+static MenuSelection menu_selection(IzContext*c,const u8*menu){
+'''),
+        ('int reuse_full_host,const MenuSelection*remembered){\n',
+         'int reuse_full_host,const MenuSelection*remembered,Iz2MenuArtwork*artwork){\n'),
+        ('publish_catalog(fs,apps,sd_page,dirs,0,0,1,&remembered[sd_page])',
+         'publish_catalog(fs,apps,sd_page,dirs,0,0,1,&remembered[sd_page],NULL)'),
+        ('publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,changing_page?&remembered[sd_page]:0)',
+         'publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,changing_page?&remembered[sd_page]:0,NULL)'),
+        ('publish_catalog(fs,apps,0,dirs,dir_count,0,0,&remembered[0])',
+         'publish_catalog(fs,apps,0,dirs,dir_count,0,0,&remembered[0],NULL)'),
         (' c->state=2;u64 previous=0,first_release=0,next_scan=0,offer_frame=0;',
          '''#ifdef IZ_OUNCE_PRESENTATION
  extern uint32_t iz2_nro_return_message(void);
@@ -194,13 +225,24 @@ static u64 run_launcher(IzContext*c,bool snapshot_prepared){
          'extern void iz2_lifecycle_trace(const IzContext *c,const char *phase,u32 result);\n'
          'extern void iz2_menu_cache_retire(void);\n'
          'extern void iz2_startup_catalog_ready(void);\nextern void iz2_startup_frame(u64 frames);\n'
+         'extern void iz2_startup_artwork_ready(void);\n'
          'extern bool iz2_startup_import_if_idle(void);\n'
          'extern void iz_ounce_apps_invalidate(void);\n'
          'extern bool iz_ounce_apps_refresh_pending(void);\n'
          'extern void iz2_menu_versions_clear(u8 *snapshot);\n'
          'extern void iz2_menu_version_write(u8 *snapshot,u32 slot,const IzAppHeader *header,u32 program);\n'),
         (' u32 rc=publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,0);\n',
-         ' u32 rc=publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,0);\n#ifdef IZ_OUNCE_PRESENTATION\n iz2_startup_catalog_ready();\n#endif\n'),
+         ''' Iz2MenuArtwork artwork={0};
+ Iz2MenuArtwork *deferred=NULL;
+#ifdef IZ_OUNCE_PRESENTATION
+ if(snapshot_prepared&&c->platform_apps&&!c->host_mode&&!c->ram_only)deferred=&artwork;
+#endif
+ u32 rc=publish_catalog(fs,apps,sd_page,dirs,listing?0:dir_count,listing,0,0,deferred);
+#ifdef IZ_OUNCE_PRESENTATION
+ artwork.catalog_revision=__atomic_load_n(&c->catalog_revision,__ATOMIC_ACQUIRE);
+ iz2_startup_catalog_ready();
+#endif
+'''),
         ('   if(store_changed||ftp_changed||pc_changed)\n',
          '   menu_redraw = store_changed||ftp_changed||pc_changed;\n'
          '   if(menu_redraw)\n'),
@@ -233,6 +275,16 @@ static u64 run_launcher(IzContext*c,bool snapshot_prepared){
       !GET(controls,884) && !GET(controls,940) && !GET(controls,944) &&
       !GET(controls,964) && !GET(controls,1012) && !menu_animating &&
       menu_epoch==GET(controls,108);
+#ifdef IZ_OUNCE_PRESENTATION
+  if(artwork.pending&&quiet_menu&&!menu_input&&!stopping(c)&&!GET(controls,92)&&
+     !__atomic_load_n(&c->rescan,__ATOMIC_ACQUIRE)&&!iz_ounce_apps_refresh_pending()){
+   if(iz2_menu_artwork_step(fs,apps,&artwork,controls)){
+    menu_redraw=true;
+    if(!artwork.pending)iz2_startup_artwork_ready();
+   }
+   if(c->poisoned){rc=0xe001;break;}
+  }
+#endif
   const bool draw = iz2_menu_draw(&menu_idle, menu_tick, c->tick_hz, quiet_menu,
                                  menu_input, menu_redraw);
   if(presentation_paused||!draw)CALL(c,F_SLEEP,IZ2_MENU_IDLE_POLL_NS,0,0,0,0,0,0,0);
@@ -241,6 +293,7 @@ static u64 run_launcher(IzContext*c,bool snapshot_prepared){
 #ifdef IZ_OUNCE_PRESENTATION
   if(draw&&!presentation_paused&&!c->active&&!held){
    iz2_startup_frame(c->frames);
+   artwork.presented=true;
    if(quiet_menu&&!menu_input&&iz2_startup_import_if_idle())
     __atomic_store_n(&c->rescan,1,__ATOMIC_RELEASE);
   }
@@ -251,16 +304,35 @@ static u64 run_launcher(IzContext*c,bool snapshot_prepared){
         (' memset(snapshot+MENU_TILES_AT,0,MENU_TILES_BYTES);\n',
          ' memset(snapshot+MENU_TILES_AT,0,MENU_TILES_BYTES);\n#ifdef IZ_OUNCE_PRESENTATION\n'
          ' iz2_menu_versions_clear(snapshot);\n#endif\n'),
-        ('   iz_ounce_apps_icon(programs[i].token,snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES+65536,96*96*4);\n',
-         '   iz_ounce_apps_icon(programs[i].token,snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES+65536,96*96*4);\n'
-         '   iz2_menu_version_write(snapshot,c->count,NULL,programs[i].token);\n'),
+        ('''   fallback_tile(c,snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES,snapshot,&entry->h);
+#ifdef IZ_OUNCE_PRESENTATION
+   iz_ounce_apps_icon(programs[i].token,snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES+65536,96*96*4);
+#endif
+''', '''   u8 *tile=snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES;
+   if(iz2_defer_artwork(artwork,c->count))plain_tile(tile,snapshot,&entry->h);
+   else{
+    fallback_tile(c,tile,snapshot,&entry->h);
+#ifdef IZ_OUNCE_PRESENTATION
+    iz_ounce_apps_icon(programs[i].token,tile+65536,96*96*4);
+#endif
+   }
+#ifdef IZ_OUNCE_PRESENTATION
+   iz2_menu_version_write(snapshot,c->count,NULL,programs[i].token);
+#endif
+'''),
+        ('u8*tile=snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES;rc=read_section(fs,file,&h.section[SEC_TILE],tile);\n',
+         '''u8*tile=snapshot+MENU_TILES_AT+c->count*IZ_TILE_BYTES;
+   const bool deferred_tile=!(h.flags&IZ_APP_MANAGED)&&iz2_defer_artwork(artwork,c->count);
+   if(deferred_tile)plain_tile(tile,snapshot,&h);
+   else rc=read_section(fs,file,&h.section[SEC_TILE],tile);
+'''),
         ('   if((rc||!GET(tile,102400)||GET(tile,102400)>512||!GET(tile,102404)||GET(tile,102404)>128)&&!c->poisoned&&!(h.flags&IZ_APP_MANAGED)){\n',
          '   const bool fallback=(rc||!GET(tile,102400)||GET(tile,102400)>512||!GET(tile,102404)||GET(tile,102404)>128)&&!c->poisoned&&!(h.flags&IZ_APP_MANAGED);\n'
          '   if(fallback){\n'),
         ('  if(!rc){if(c->platform_title)c->platform_title(tile,h.name);',
          '  if(!rc){\n#ifdef IZ_OUNCE_PRESENTATION\n'
          '   iz2_menu_version_write(snapshot,c->count,&h,0);\n#endif\n'
-         '   if(!fallback&&c->platform_title)c->platform_title(tile,h.name);'),
+         '   if(!deferred_tile&&!fallback&&c->platform_title)c->platform_title(tile,h.name);'),
         ('  if(!c->active&&!held)iz_ounce_activity_publish(controls,(void*)(uintptr_t)c->snapshot);\n',
          '''  const u32 activity_revision = 1024u + 0xf0000u + 8u;
   const u32 previous_revision = GET(controls,activity_revision);
@@ -599,6 +671,7 @@ def write_patch(base, output):
     for name, source in ((STATUS_HEADER.name,STATUS_HEADER.read_text()),
                          (VERSION_HEADER.name,VERSION_HEADER.read_text()),
                          ('menu-lifecycle.h',STATUS_HEADER.with_name('menu-lifecycle.h').read_text()),
+                         ('menu-artwork.h',STATUS_HEADER.with_name('menu-artwork.h').read_text()),
                          ('menu-pipeline-cache.h',STATUS_HEADER.with_name('menu-pipeline-cache.h').read_text()),
                          (str(OFFICIAL_HEADER),shipped_versions(base))):
         lines.extend(difflib.unified_diff([],source.splitlines(True),'/dev/null',
