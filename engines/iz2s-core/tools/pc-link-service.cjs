@@ -6,6 +6,7 @@ const {spawn,execFile}=require('node:child_process');
 const {promisify}=require('node:util');
 const runtime=require('../runtime.cjs');
 const pending=new Map();
+const configuring=new Map();
 let inventoryCache=null,inventoryPending=null,inventoryFailure=null,inventoryRevision=0;
 function folder(out){return path.join(runtime.logs(out),'pc-link');}
 async function prepare(out,pcIp,consoleIp='10.42.0.20',consoleWifiAddress,selectedHosts){
@@ -39,6 +40,53 @@ function verifyOwner(value){
  if(value&&!isOwner(value))
   throw Error('PC Link is running in another IZ2S installation. Stop that service, then refresh the status here.');
  return value;
+}
+function canRelease(service){
+ return service?.enabled===false&&!service.online&&!service.queued&&!service.fileTransfers&&
+  !['transferring','staged','applying','verifying'].includes(service.menu?.state)&&
+  !Object.values(service.media||{}).some(source=>['starting','running','retrying'].includes(source?.phase));
+}
+async function releaseForeign(service){
+ const {pid,root,name}=service.service||{};
+ if(process.platform!=='linux'||name!=='iz2s-pc-link'||!Number.isSafeInteger(pid)||pid<=1||
+    typeof root!=='string'||!path.isAbsolute(root))return verifyOwner(service);
+ if(!canRelease(service))throw Error('Pause PC Link in the other IZ2S panel, then try again here.');
+ const {processIdentity,processAlive}=require('../../../core/session/panel-handover.cjs');
+ const proc='/proc/'+pid;
+ const [identity,args,info,manifest]=await Promise.all([processIdentity(pid),fs.readFile(proc+'/cmdline','utf8'),
+  fs.stat(proc),fs.readFile(path.join(root,'package.json'),'utf8').then(JSON.parse)]).catch(()=>[]);
+ if(!identity||info.uid!==process.getuid()||manifest.name!=='iz2s-platform'||
+    args.split('\0')[1]!==path.join(root,'engines/iz2s-core/tools/pc-link.cjs'))return verifyOwner(service);
+ const latest=await status();
+ if(!latest)return;
+ if(latest.service?.pid!==pid||latest.service?.root!==root||!canRelease(latest)||
+    (await processIdentity(pid))?.start!==identity.start)return verifyOwner(latest);
+ try{process.kill(pid,'SIGTERM');}catch(error){if(error.code!=='ESRCH')throw error;}
+ for(let elapsed=0;elapsed<3000;elapsed+=100){
+  if(!await processAlive(pid))return;
+  await new Promise(resolve=>setTimeout(resolve,100));
+ }
+ throw Error('The other PC Link service is still stopping. Try again.');
+}
+async function configure(out,consoleIp,{routeTo=require('../../../core/platform/network.cjs').routeTo}={}){
+ const directory=folder(out);
+ if(configuring.has(directory))throw Error('PC Link setup is already running.');
+ configuring.set(directory,true);
+ try{
+  const {privateIP,sameSubnet}=require('../../../core/session/network-discovery.cjs');
+  if(!privateIP(consoleIp))throw Error('Enter the local IPv4 address shown on the console.');
+  const route=await routeTo(consoleIp);
+  if(!privateIP(route.address)||route.address===consoleIp||!sameSubnet(route.address,consoleIp,route.netmask))
+   throw Error('Connect the PC and console to the same local network.');
+  const existing=await status();
+  if(existing&&!isOwner(existing))await releaseForeign(existing);
+  if(isOwner(existing)&&(existing.online||existing.queued||existing.fileTransfers))
+   throw Error('Pause PC Link before changing its settings.');
+  const {config}=await prepare(out,route.address,consoleIp,undefined,[]);
+  const active=await ensure(out);
+  if(active?.enabled===false)await setEnabled(out,true);
+  return {pcAddress:route.address,config:await fs.readFile(config,'utf8')};
+ }finally{configuring.delete(directory);}
 }
 async function ensure(out){
  const directory=folder(out);
@@ -245,4 +293,4 @@ async function remove(out,id,format='.iza'){
  invalidateInventory();
  return result;
 }
-module.exports={setEnabled,consoleAddresses,prepare,ensure,folder,status,snapshot,install,installNro,invalidateInventory,remove,reset,menuUpdate};
+module.exports={setEnabled,consoleAddresses,prepare,configure,ensure,folder,status,snapshot,install,installNro,invalidateInventory,remove,reset,menuUpdate};

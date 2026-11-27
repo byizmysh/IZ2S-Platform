@@ -16,9 +16,9 @@ Choose English for the interface and English (US) for USB keyboard input before 
 
 Into the SD root, so the paths begin with `SD:/iz2s/`. Merge folders and replace matching package files when updating. Keep `Nintendo`, other apps, BIOS, games, saves and settings. Preserve the included license files and safely eject the card.
 
-## 4. I have an old IZ2S version or another loader. What changes?
+## 4. When should I repeat the full procedure?
 
-Update the SD files and follow the full procedure. The conditional cleanup step uses `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`. This deletes that profile's game save data; read the step before confirming. The visible launcher version alone does not establish boot-core compatibility.
+Reuse a compatible save after updating. Repeat the full procedure when the save needs replacing, when switching from another loader, or after more than seven unsuccessful launches. In step 3, clear all Civilization VII save data for the selected profile in `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`.
 
 ## 5. Do I install the save manually after reconnecting?
 
@@ -26,7 +26,7 @@ No. **Connect and install save** restores PC Wi-Fi, verifies the loader and auto
 
 ## 6. Will the automatic installer remove my other game saves?
 
-The current installer replaces only its own trigger save and confirms the filesystem commit. Deleting the profile's saves in System Settings when migrating from an older loader is a separate action that does remove that profile's progress.
+Automatic installation replaces only `IZ2SCIV.Civ7Save`. When repeating the full procedure, clear all Civilization VII save data for the selected profile in System Settings at step 3.
 
 ## 7. The console IP was not found. What should I do?
 
@@ -36,9 +36,11 @@ Expand the IP settings directly under **Session status**. Search and check a pro
 
 Return to HOME, close Civilization VII with X, reopen it and choose Load Game without rebooting the console. Follow the panel until IZ2S CORE IS RUNNING, close Civilization VII, then hold R while opening a Switch 2 game. Repeat the R-held launch once if required. Full failure/retry instructions are in the [guide](docs/INSTALLATION.md#4-launch-iz2s).
 
-## 9. Why is FTP enabled on the console but disconnected in the panel?
+## 9. How do I configure PC Link or FTP?
 
-These are separate server/client states. Enable FTP with L + R3, then select **Connect FTP** in the panel. PC Link uses R + L3 and has its own status. The actual address and port are shown on the console.
+For PC Link, open **Launch → Configure PC Link**, enter the console’s local IPv4 address and click **Start PC Link**. Download `pc-link.cfg` and save it at `SD:/iz2s/pc-link.cfg`. Reopen IZ2S, then press **R + L3**. The PC and console must be on the same local network. If another IZ2S panel is using PC Link, pause it first.
+
+For FTP, press **L + R3** on the console, then **Connect FTP** in the panel.
 
 ## 10. Why does the launcher sometimes start slowly or show sd-verify?
 

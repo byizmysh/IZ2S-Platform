@@ -2,14 +2,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.resolve(__dirname,'../../..');
 const html=fs.readFileSync(path.join(root,'panel/ui/panel.html'),'utf8');
-function fixture({keysReady=false,importError='',preview=false,link=null,ftp=null,isUnavailable=()=>false,isPanelBusy=()=>false,resetSession,initial={}}={}){
+function fixture({keysReady=false,importError='',preview=false,link=null,ftp=null,isUnavailable=()=>false,isPanelBusy=()=>false,resetSession,initial={},navigation=new Map()}={}){
  const elements=new Map();
  const element=()=>({hidden:false,disabled:false,checked:false,value:'',files:[],textContent:'',dataset:{},children:[],attributes:{},
   classList:{toggle(){}},parentElement:{classList:{toggle(){}}},
   setAttribute(k,v){this.attributes[k]=v;},removeAttribute(k){delete this.attributes[k];},replaceChildren(){this.children=[];},append(x){this.children.push(x);},
   querySelector(){return {focus(){}};},focus(){this.focused=true;},click(){return this.onclick?.();}});
  for(const match of html.matchAll(/\bid="([^"]+)"/g))elements.set(match[1],element());
- const document={getElementById(id){assert(elements.has(id),'Missing UI element '+id);return elements.get(id);},createElement:element,querySelectorAll:()=>[]};
+ const document={defaultView:{sessionStorage:{getItem:key=>navigation.get(key),setItem:(key,value)=>navigation.set(key,value)}},getElementById(id){assert(elements.has(id),'Missing UI element '+id);return elements.get(id);},createElement:element,querySelectorAll:()=>[]};
  const context={};vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(root,'panel/ui/iz2sciv.js'),'utf8'),context);
  const state={preview,platform:{loaderId:'iz2sciv-core'},log:[],iz2sciv:{phase:'idle',busy:false,sdReady:true,phy:'phy0',setup:{supported:true,keysReady,dependenciesReady:true,capabilitiesReady:true,networkManager:true,radios:['phy0']},...initial}};
  const calls=[];let ui;
@@ -307,7 +307,7 @@ test('PC Link and FTP each prioritize active connection tools and hide their own
   const link={online:transport==='pc',files:true,service:true,enabled:true},ftp={online:transport==='ftp',enabled:transport==='ftp'};
   const f=fixture({link,ftp});assert.equal(f.$('flow').dataset.view,'run');assert.equal(f.$('services').hidden,false);assert.equal(f.$('launch-instructions').open,false);
   assert.equal(f.$(transport==='pc'?'pc-link-guide':'ftp-guide').hidden,true);
-  assert.equal(f.$('library').disabled,transport!=='pc');assert.equal(f.$('files').hidden,false);
+  assert.equal(f.$('library').disabled,false);assert.equal(f.$('files').hidden,false);
   link.online=false;ftp.online=false;f.ui.render(f.state);assert.equal(f.$('launch-instructions').open,true);
  }
 });
@@ -317,7 +317,7 @@ test('manual setup navigation is preserved across a PC Link reconnect',()=>{
 });
 test('unavailable local server cannot expose stale connection tools',()=>{
  const f=fixture({link:{online:true,files:true,service:true},ftp:{online:true,enabled:true},isUnavailable:()=>true});
- f.$('view-run').click();assert.equal(f.$('services').dataset.connected,'false');assert.equal(f.$('library').disabled,true);assert.equal(f.$('files').disabled,true);
+ f.$('view-run').click();assert.equal(f.$('services').dataset.connected,'false');assert.equal(f.$('library').disabled,false);assert.equal(f.$('files').disabled,true);
  assert.equal(f.$('pc-status').textContent,'Status unavailable');assert.equal(f.$('ftp-status').textContent,'Status unavailable');
 });
 test('connection errors remain visible and clear on recovery',()=>{
@@ -328,4 +328,16 @@ test('connection errors remain visible and clear on recovery',()=>{
 test('busy operations prevent mode changes or restarting the setup',()=>{
  const f=fixture({initial:{phase:'install',busy:true,loaderReady:true}});const view=f.$('flow').dataset.view;
  f.$('view-run').click();assert.equal(f.$('flow').dataset.view,view);assert.equal(f.$('view-run').disabled,true);assert.equal(f.$('restart-run').disabled,true);assert.equal(f.calls.length,0);
+});
+
+
+test('a manually selected setup step survives reload while active work leads the view',()=>{
+ const navigation=new Map();
+ const first=fixture({initial:{phase:'confirm-sd-done'},navigation});
+ first.$('step-3').click();
+ const reopened=fixture({initial:{phase:'confirm-sd-done'},navigation});
+ assert.equal(reopened.$('flow').dataset.step,'3');
+ assert.equal(reopened.$('stage-3').hidden,false);
+ const active=fixture({initial:{phase:'prepare',busy:true},navigation});
+ assert.equal(active.$('flow').dataset.step,'2');
 });

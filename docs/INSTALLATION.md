@@ -24,7 +24,7 @@ Choose the Wi-Fi radio used for LDN delivery. Ethernet alone cannot perform this
 2. Select **English** for the interface and **English (US)** for USB keyboard input, before launching Civilization VII:
    - Interface: `HOME → System Settings → System → Language → English`.
    - Input: `HOME → System Settings → Controllers & Accessories → USB Keyboard → English (US)`.
-3. **If you have an older IZ2S version or previously used another loader:** follow the panel's conditional cleanup instructions. The menu path is `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`. This removes that profile's Civilization VII save data and game progress; it is separate from the normal trigger-save installation.
+3. **If you are repeating the full procedure or switching from another loader:** clear all Civilization VII save data for the selected profile. Open `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`.
 4. Create a fresh lobby: `Civilization VII 1.0.0 → Multiplayer → Wireless → Create Game → Host Lobby`.
 5. Confirm **I rebooted the console and opened a new wireless lobby**, then press **Connect and install save**.
 
@@ -46,7 +46,7 @@ For later launches, use the panel's **Launch** view. It offers the launch instru
 
 ## PC Link and FTP
 
-In IZ2S, **R + L3** toggles PC Link. **L + R3** toggles FTP. L3/R3 are stick clicks. Open the panel's connection card to see each connection independently.
+For PC Link, open **Launch → Configure PC Link**, enter the console’s local IPv4 address and click **Start PC Link**. Download `pc-link.cfg` and save it at `SD:/iz2s/pc-link.cfg`. Reopen IZ2S, then press **R + L3**. The PC and console must be on the same local network. If another IZ2S panel is using PC Link, pause it first.
 
 For FTP, click **Connect FTP** in the panel after enabling the console's FTP server. Open **Super File Bros** for files or **App library** for applications. The normal console FTP port is 1425; use the actual address and port displayed on the console. After removing the console from its dock, connect it to Wi-Fi that can reach the PC.
 

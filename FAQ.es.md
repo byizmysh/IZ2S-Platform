@@ -16,9 +16,9 @@ Interfaz: `HOME → Configuración de la consola → Consola → Idioma → Engl
 
 En la raíz de la tarjeta, de modo que las rutas comiencen directamente por `SD:/iz2s/`. Al actualizar, combina las carpetas y sustituye los archivos coincidentes del paquete. Conserva `Nintendo`, las otras aplicaciones, BIOS, juegos, partidas y ajustes. Mantén las licencias incluidas y expulsa la tarjeta de forma segura.
 
-## 4. ¿Qué hago si tengo una versión antigua de IZ2S u otro cargador?
+## 4. ¿Cuándo repito el procedimiento completo?
 
-Actualiza los archivos SD y sigue el procedimiento completo. El paso condicional de limpieza utiliza `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`. Esto elimina los datos de guardado del perfil elegido; lee el aviso antes de confirmar. Una partida de inicio de otra revisión del entorno no es compatible solo por compartir el número de versión del lanzador.
+Reutiliza una partida compatible tras actualizar. Repite el procedimiento completo si hay que sustituirla, al cambiar desde otro cargador o tras más de siete intentos fallidos. En el paso 3, borra todos los datos de guardado de Civilization VII del perfil seleccionado en `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`.
 
 ## 5. ¿Debo instalar la partida manualmente después de conectar?
 
@@ -26,7 +26,7 @@ No. **Conectar e instalar la partida** restaura el Wi-Fi del PC, verifica el car
 
 ## 6. ¿La instalación automática elimina mis otras partidas?
 
-El instalador actual solo sustituye su propia partida de inicio y confirma la escritura del sistema de archivos. Eliminar las partidas del perfil desde la configuración de la consola al migrar desde otro cargador es una acción distinta que sí borra el progreso de ese perfil.
+La instalación automática solo sustituye `IZ2SCIV.Civ7Save`. Si repites el procedimiento completo, en el paso 3 borra todos los datos de guardado de Civilization VII del perfil seleccionado en la configuración de la consola.
 
 ## 7. No se encuentra la IP de la consola. ¿Qué hago?
 
@@ -36,9 +36,11 @@ Abre los ajustes de IP justo debajo de **Estado de la sesión**. Busca y verific
 
 Vuelve a HOME, cierra Civilization VII con X, abre el juego de nuevo y elige Load Game sin reiniciar la consola. Sigue las indicaciones hasta IZ2S CORE IS RUNNING, cierra Civilization VII y mantén R al abrir un juego de Switch 2. Repite una vez el inicio con R si hace falta. Los pasos completos de recuperación están en la [guía](docs/INSTALLATION.md#4-launch-iz2s).
 
-## 9. ¿Por qué FTP está activado en la consola pero desconectado en el panel?
+## 9. ¿Cómo configuro PC Link o FTP?
 
-Son los estados independientes del servidor y del cliente. Activa FTP con L + R3 y pulsa **Conectar FTP** en el panel. PC Link usa R + L3 y tiene su propio estado. L3/R3 significa pulsar el stick izquierdo/derecho. Usa la dirección y el puerto que muestra la consola.
+Para PC Link, abre **Inicio → Configurar PC Link**, introduce la dirección IPv4 local de la consola y pulsa **Iniciar PC Link**. Descarga `pc-link.cfg` y guárdalo en `SD:/iz2s/pc-link.cfg`. Vuelve a abrir IZ2S y pulsa **R + L3**. Conecta el PC y la consola a la misma red local. Si otro panel de IZ2S usa PC Link, páusalo allí primero.
+
+Para FTP, pulsa **L + R3** en la consola y luego **Conectar FTP** en el panel.
 
 ## 10. ¿Por qué tarda en iniciar o aparece sd-verify?
 

@@ -24,8 +24,8 @@ async function serve(req, res) {
   if (url.pathname === '/language/style.css' || url.pathname === '/language/theme.css') {
     file = path.join(__dirname, path.basename(url.pathname));
     type = 'text/css; charset=utf-8';
-  } else if (url.pathname === '/language/runtime.js') {
-    file = path.join(__dirname, 'runtime.js');
+  } else if (['/language/error-text.js', '/language/runtime.js'].includes(url.pathname)) {
+    file = path.join(__dirname, path.basename(url.pathname));
     type = 'text/javascript; charset=utf-8';
   } else {
     const match = /^\/language\/(en|ru|es|zh)\/ui\.json$/.exec(url.pathname);

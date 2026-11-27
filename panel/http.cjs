@@ -315,6 +315,11 @@ async function createWindowServer({
         return reply(res,200,await blitBrowser.relay(req,browserMedia));
       }
       const body = await readBody(req, ['/api/civswitch-ldn','/api/iz2sciv'].includes(url.pathname) ? 131072 : 16384);
+      if(url.pathname==='/api/iz2s-core/pc/configure'){
+        if(manager.preview)return reply(res,403,{error:'Preview cannot connect to the console.'});
+        const link=require('../engines/iz2s-core/tools/pc-link-service.cjs');
+        return reply(res,200,await link.configure(coreOut,body.host));
+      }
       if(url.pathname==='/api/iz2s-core/pc/connection'){
         if(manager.preview)return reply(res,403,{error:'Preview cannot connect to the console.'});
         const link=require('../engines/iz2s-core/tools/pc-link-service.cjs');

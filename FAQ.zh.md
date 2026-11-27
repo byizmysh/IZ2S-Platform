@@ -16,9 +16,9 @@
 
 解压到 SD 卡根目录，使路径直接以 `SD:/iz2s/` 开头。更新时合并文件夹并替换压缩包中同名文件。保留 `Nintendo`、其他应用、BIOS、游戏、存档和设置；保留随附许可证，写入完成后安全弹出。
 
-## 4. 已安装旧版 IZ2S 或使用过其他加载器怎么办？
+## 4. 什么时候要完整重做安装流程？
 
-先更新 SD 文件，再执行完整安装流程。有条件的清理步骤位于 `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile`。这会删除所选用户的游戏存档数据，请在确认前阅读提示。不能仅凭相同的启动器版本号，就把其他运行时修订版的启动存档视为兼容。
+更新后可继续使用兼容的存档。如果需要更换存档、从其他加载器迁移，或启动失败超过七次，请完整重做安装流程。在第 3 步通过 `HOME → System Settings → Data Management → Delete Save Data → Civilization VII → Your profile` 清除所选用户的所有《文明 VII》存档。
 
 ## 5. 连接后还需要手动安装存档吗？
 
@@ -26,7 +26,7 @@
 
 ## 6. 自动安装会删除其他游戏存档吗？
 
-当前安装器只替换自己的启动存档，并确认文件系统提交成功。迁移旧加载器时，在系统设置中删除用户的游戏存档是独立操作，会删除该用户的游戏进度。
+自动安装只替换 `IZ2SCIV.Civ7Save`。如果完整重做安装流程，请在第 3 步通过系统设置清除所选用户的所有《文明 VII》存档。
 
 ## 7. 找不到主机 IP 怎么办？
 
@@ -36,9 +36,11 @@
 
 返回 HOME，按 X 关闭 Civilization VII，重新打开游戏并选择 Load Game，此时不要重启主机。按照面板提示等待 IZ2S CORE IS RUNNING，关闭 Civilization VII，然后按住 R 打开一款 Switch 2 游戏。必要时再重复一次按住 R 的启动操作。完整的错误处理与重试步骤见[安装指南](docs/INSTALLATION.md#4-launch-iz2s)。
 
-## 9. 为什么主机已开启 FTP，而面板显示未连接？
+## 9. 如何配置 PC Link 或 FTP？
 
-这是服务器与客户端的不同状态。用 L + R3 开启主机 FTP，然后在面板点击“连接 FTP”。PC Link 使用 R + L3，并有独立状态。L3/R3 是按下左/右摇杆。以主机显示的地址和端口为准。
+要使用 PC Link，请打开**启动 → 配置 PC Link**，输入主机的本地 IPv4 地址，然后点击**启动 PC Link**。下载 `pc-link.cfg` 并保存到 `SD:/iz2s/pc-link.cfg`。重新打开 IZ2S，然后按 **R + L3**。电脑和主机须在同一本地网络。如果另一 IZ2S 面板正在使用 PC Link，请先在该面板暂停它。
+
+使用 FTP 时，请在主机上按 **L + R3**，再在面板中点击**连接 FTP**。
 
 ## 10. 为什么启动慢，或者出现 sd-verify？
 

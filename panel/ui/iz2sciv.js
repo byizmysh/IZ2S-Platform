@@ -27,11 +27,15 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
  if(!setup.networkManager||!setup.radios?.length)return 'refresh';
  if(!setup.radios.includes(current.phy))return 'radio';
  return 'continue';
-},create({document,act,downloadSd,downloadWifiReport=()=>{},isUnavailable=()=>false,isPanelBusy=()=>false,showLog=()=>{},getLink=()=>null,openLibrary=()=>{},openFiles=()=>{},openFtp=()=>{},refreshLink=()=>{},resetSession=()=>{},getFtp=()=>null,setPcLink=()=>{},closeFtp=()=>{}}){
+},create({document,act,downloadSd,downloadWifiReport=()=>{},isUnavailable=()=>false,isPanelBusy=()=>false,showLog=()=>{},getLink=()=>null,openLibrary=()=>{},openFiles=()=>{},openFtp=()=>{},refreshLink=()=>{},resetSession=()=>{},getFtp=()=>null,setPcLink=()=>{},configureLink=()=>{},downloadLinkConfig=()=>{},closeFtp=()=>{}}){
  const $=id=>document.getElementById('iz2sciv-'+id),t=value=>globalThis.RUN21_LANGUAGE?.t(value)||value;
  let snapshot=null,current=null,step=1,view='setup',posting=false,stamp='',radioStamp='',initialized=false;
  let actionError='',wasOnline=false,setupChosen=false,launchContext='';
  let resettingSession=false, freshRun=false;
+ let pcConfig=null,pcConfiguring=false,pcConfigError='',repeatSetup=false;
+ const navigationKey='iz2s.setup-navigation';
+ let navigation;
+ try{navigation=JSON.parse(document.defaultView.sessionStorage.getItem(navigationKey));}catch{}
  let downloading=false,addressStamp='',wifiStamp='',keyLoading=false,keyName='',keyError='',keyImported=false;
  const phases={idle:'Ready for setup.',prepare:'Preparing PC dependencies…',permissions:'Waiting for network permissions…',
   start:'Connecting to the console…','restore-network':'Restoring PC Wi-Fi…','restore-network-done':'PC Wi-Fi restored.',
@@ -53,6 +57,8 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   if(view==='setup')setupChosen=true;
   if(next===3&&step!==3)$('lobby').checked=false;
   step=next;
+  if(step===3&&repeatSetup)$('previous-launcher').querySelector('details').open=true;
+  try{document.defaultView.sessionStorage.setItem(navigationKey,JSON.stringify({view,step,repeatSetup}));}catch{}
   render(snapshot);
   focusStep();
  }
@@ -67,9 +73,9 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
  }
  // Launch is a read-only guide. A fresh installation always starts at step 1.
  for(const i of [1,2,3,5])$('step-'+i).onclick=()=>{if(view==='setup'&&!$('step-'+i).disabled)go(i);};
- $('restart-run').onclick=()=>mode('setup');
+ $('restart-run').onclick=()=>{repeatSetup=true;freshRun=true;mode('setup');};
  for(const button of document.querySelectorAll('[data-iz2sciv-next]'))button.onclick=()=>go(Number(button.dataset.iz2scivNext));
- $('view-setup').onclick=()=>mode('setup');$('view-run').onclick=()=>mode('run');
+ $('view-setup').onclick=()=>{repeatSetup=false;mode('setup');};$('view-run').onclick=()=>{repeatSetup=false;mode('run');};
  async function execute(action,extra={},options={}){
   if(posting||resettingSession||current?.busy||isPanelBusy()||isUnavailable()||snapshot?.preview)return;
   posting=true;actionError='';render(snapshot);
@@ -127,6 +133,21 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
  $('files').onclick=()=>{const link=getLink();return link?.online&&link.files?openFiles():openFtp({reuse:true});};
  $('link-refresh').onclick=()=>refreshLink();
  $('pc-toggle').onclick=()=>setPcLink(getLink()?.enabled===false);
+ $('pc-configure').onclick=()=>{
+  const form=$('pc-config-form');form.hidden=!form.hidden;
+  $('pc-configure').setAttribute('aria-expanded',String(!form.hidden));
+  if(!form.hidden){$('pc-config-host').value||=getFtp()?.host||current?.host||'';render(snapshot);$('pc-config-host').focus();}
+ };
+ $('pc-config-form').onsubmit=async event=>{
+  event.preventDefault();
+  if($('pc-config-start').disabled)return;
+  pcConfiguring=true;pcConfigError='';pcConfig=null;render(snapshot);
+  try{pcConfig=await configureLink($('pc-config-host').value.trim());}
+  catch(error){pcConfigError=error.message;}
+  finally{pcConfiguring=false;render(snapshot);}
+ };
+ $('pc-config-host').oninput=()=>{pcConfig=null;pcConfigError='';render(snapshot);};
+ $('pc-config-download').onclick=()=>{if(pcConfig)downloadLinkConfig(pcConfig.config);};
  $('ftp-open').onclick=()=>openFtp();
  $('ftp-close').onclick=()=>closeFtp();
  $('reset-session').onclick=async()=>{
@@ -136,7 +157,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   try{
    if(!(await resetSession())?.ok)return;
    for(const id of ['lobby','sd-copied'])$(id).checked=false;
-   actionError='';
+   actionError='';repeatSetup=false;
    mode('setup');
   }finally{
    resettingSession=false;
@@ -159,6 +180,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
  for(const id of ['lobby','sd-copied'])$(id).onchange=()=>render(snapshot);
  function render(state){
   const previousStep=step,wasInitialized=initialized;
+  let restored=false;
   snapshot=state;
   const shown=state?.platform?.loaderId==='iz2sciv-core';$('flow').hidden=!shown;$('result').hidden=!shown;if(!shown)return;
   current=state.iz2sciv;if(!current)return;
@@ -166,6 +188,11 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   if(state.preview)current={...current,phase:'preview',id:'preview',busy:false,installed:false,needsSaveUpdate:false,loaderReady:false,error:null,networkRecoveryAvailable:false,host:'',selectedHost:'',addressOptions:[]};
   if(!initialized){
    initialized=true;step=state.preview?1:globalThis.IZ2S_IZ2SCIV.setupStep(current);
+   if(!current.busy&&navigation?.view==='setup'&&[1,2,3].includes(navigation.step)){
+    step=navigation.step;setupChosen=true;repeatSetup=navigation.repeatSetup===true;freshRun=repeatSetup;restored=true;
+    if(step===3&&repeatSetup)$('previous-launcher').querySelector('details').open=true;
+   }
+   if(!current.busy&&navigation?.view==='run'){step=5;restored=true;}
    if(step===5){
     view='run';document.getElementById('session-activity').open=false;
     if(!current.busy&&!getLink()?.online){freshRun=true;}
@@ -180,7 +207,7 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
    if(wasInitialized&&(current.busy||['start-done','check-loader-done','find-addresses-done','select-host-done'].includes(current.phase)))freshRun=false;
    const next=current.busy?globalThis.IZ2S_IZ2SCIV.setupStep(current):
     {'confirm-sd-done':2,'start-done':current.loaderReady?4:3,'check-loader-done':current.loaderReady?4:3,'find-addresses-done':current.loaderReady?4:3,'select-host-done':current.loaderReady?4:3,'install-done':current.installed?5:4}[current.phase];
-   if(next&&!freshRun){step=next;if([3,4].includes(next))view='setup';}
+   if(next&&!freshRun&&!restored){step=next;if([3,4].includes(next))view='setup';}
    if(current.error&&step>=3&&current.networkRestored)$('network').open=true;
   }
   $('preview').hidden=!state.preview;
@@ -286,6 +313,20 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   text('pc-toggle',pcPaused?'Resume PC Link':'Pause PC Link');
   $('pc-toggle').hidden=!link?.service;
   $('pc-toggle').disabled=linkControlsLocked||!link?.service||link.fileTransfers||!!link.queued;
+  $('pc-configure').hidden=online;
+  if(online&&!$('pc-config-form').hidden){
+   $('pc-config-form').hidden=true;
+   $('pc-configure').setAttribute('aria-expanded','false');
+  }
+  $('pc-configure').disabled=linkControlsLocked||pcConfiguring;
+  $('pc-config-start').disabled=linkControlsLocked||pcConfiguring||online||!$('pc-config-host').value.trim();
+  $('pc-config-host').disabled=pcConfiguring;
+  $('pc-config-result').hidden=!pcConfig&&!pcConfigError&&!pcConfiguring;
+  $('pc-config-result').dataset.tone=pcConfigError?'error':'info';
+  text('pc-config-result',pcConfigError||(pcConfiguring?'Starting PC Link…':pcConfig?
+   t('PC Link is ready on {address}.').replace('{address}',pcConfig.pcAddress):''));
+  $('pc-config-download').hidden=!pcConfig;
+  $('pc-config-next').hidden=!pcConfig;
   const ftpStatus=state.preview?'Preview · device commands disabled':serverOffline||ftp?.refreshError?'Status unavailable':ftpOnline?'Connected to this panel':!ftp?'Checking connection…':ftp.enabled?'Connection lost':'Not connected to this panel';
   $('ftp-card').dataset.online=String(ftpOnline);
   text('ftp-status',t(ftpStatus)+(ftpOnline&&ftp.host?' · '+ftp.host:''));
@@ -294,14 +335,14 @@ globalThis.IZ2S_IZ2SCIV={setupStep(current){
   $('ftp-open').hidden=ftpOnline;
   $('ftp-close').hidden=!ftp?.enabled;
   $('ftp-open').disabled=$('ftp-close').disabled=linkControlsLocked||!!ftp?.busy;
-  $('pc-link-guide').hidden=online||serverOffline||pcPaused;
+  $('pc-link-guide').hidden=online||serverOffline||pcPaused||!link?.service;
   $('ftp-guide').hidden=ftpOnline||serverOffline;
   $('link-error').hidden=!link?.error;text('link-error',link?.error||'');
   text('files',filesOnline?'Super File Bros':'Super File Bros. · FTP');
   $('files').hidden=!filesOnline&&!ftpOnline;
-  $('library').disabled=!online;
+  $('library').disabled=false;
   $('files').disabled=$('link-refresh').disabled=state.preview||serverOffline||resettingSession;
-  $('reset-session').disabled=locked||!!link?.fileTransfers;
+  $('reset-session').disabled=locked||pcConfiguring||!!link?.fileTransfers;
   text('reset-session',resettingSession?'Resetting session…':'Reset session');
 
   $('flow').dataset.view=view;

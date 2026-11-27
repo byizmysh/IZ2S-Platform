@@ -47,7 +47,7 @@ The normal panel address is `http://127.0.0.1:39534/`. Use the URL opened or pri
 
 1. **SD card:** download the package in the panel and extract its contents to the card root. If updating older IZ2S, replace the matching files too. Keep the `Nintendo` folder, other applications, BIOS, games and saves. Safely eject the card.
 2. **Prepare PC:** complete the dependency, key and Wi-Fi checks shown by the panel.
-3. **Connect and install save:** reboot the console, select English, perform the conditional old-installation cleanup when applicable, and create a fresh wireless lobby. Confirm readiness and press **Connect and install save** once. The panel restores PC Wi-Fi, checks the console loader and installs `IZ2SCIV.Civ7Save` automatically.
+3. **Connect and install save:** reboot the console, select English, clear all Civilization VII saves for the selected profile if repeating the full procedure or switching from another loader, and create a fresh wireless lobby. Confirm readiness and press **Connect and install save** once. The panel restores PC Wi-Fi, checks the console loader and installs `IZ2SCIV.Civ7Save` automatically.
 4. **Launch IZ2S:** return to HOME, close Civilization VII with **X**, reopen it and select **Load Game**. Do not reboot the console at this point. After `IZ2S CORE IS RUNNING`, close Civilization VII and hold **R** while opening a Switch 2 game. Repeat that R-held launch once if needed.
 
 ## Applications and controls
