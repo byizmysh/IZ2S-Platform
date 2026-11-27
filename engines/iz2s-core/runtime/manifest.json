@@ -3,13 +3,13 @@
   "files": [
     {
       "path": "menu-build.json",
-      "bytes": 23877,
-      "sha256": "130c41b63bc840cfacf0809dc23638fce23ad09b8c0c96eb59649ada3e1dbed1"
+      "bytes": 26176,
+      "sha256": "78edd86899e6c55b025a8ed3bf7d8fa9806a4c5d4def537738e7b941b9bde377"
     },
     {
       "path": "package-manifest.json",
-      "bytes": 7203,
-      "sha256": "470b110ccaadd8a1e3462c8ae96e3b46fd2927780ee5c4913dfe13572d3ce33a"
+      "bytes": 7359,
+      "sha256": "c6c9a3dd9b329f88b3e24335c1819bb62c4192b95e86d8d8d0b6dc6c6e142d15"
     },
     {
       "path": "package/bootstrap.bin",
@@ -23,13 +23,13 @@
     },
     {
       "path": "package/game/exefs.nsp",
-      "bytes": 19452819,
-      "sha256": "eee3e079f94f01801123d087dd0e16d699006bd2272b82344812bc0a3ca1b914"
+      "bytes": 19442163,
+      "sha256": "8015ec3a331861ddf5639ba1235fd7814813d25ea9b7c2ee2ae4178358223020"
     },
     {
       "path": "package/game/main",
-      "bytes": 19450889,
-      "sha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f"
+      "bytes": 19440236,
+      "sha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19"
     },
     {
       "path": "package/iz2s/izlauncher.iza",
@@ -253,18 +253,23 @@
     },
     {
       "path": "provenance.json",
-      "bytes": 14588,
-      "sha256": "31240e6ca5bac39f40a8e4ba5fb6d0def46a84a04bf3e260e3e6ed43435a8d63"
+      "bytes": 14777,
+      "sha256": "a97f6178a03bfe10b5349c808e363d1ce230a2e71008922a5eabeaec9349b1ed"
     },
     {
       "path": "run32-component-validation.json",
-      "bytes": 881,
-      "sha256": "b9976cbd97cac679c9617acd587168a9396c9f2597efa84376dd2dd626798d83"
+      "bytes": 962,
+      "sha256": "0ff311c8d6b126a653ac016883a8189ce7c2364e65ad98ea0422a2bae6ba8786"
     },
     {
       "path": "sd-layout.json",
       "bytes": 437,
       "sha256": "c197a2a4b1f91ced38b42db4c2f3b8b25592cf41bef9bd23a4d7bd56cd875466"
+    },
+    {
+      "path": "package/licenses/ouncevk/IZ2S-stage1.txt",
+      "bytes": 385,
+      "sha256": "bacdf67f7686ecd85883010e053691eb59f904a4c00aba5ef9e81ced56bc94a7"
     }
   ]
 }

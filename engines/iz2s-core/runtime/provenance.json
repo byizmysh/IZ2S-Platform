@@ -75,7 +75,8 @@
     "NRO Split and its offscreen compatibility runtime have been removed. IZA Split and full-screen NRO handoff are preserved. Load Game crash cause is unconfirmed; Switch validation is pending.",
     "RUN34 0.34 rebuilds the v26 launcher and packages the separate NX2 BreRUN 0.6.0 release. Boot ABI and fixed components match v26.",
     "Split stops processing frames as soon as the applet reports a shutdown request.",
-    "Split pauses frame processing in HOME, polls applet shutdown while in the background, and drains submitted work before stopping both panes after the loss of a presentation surface."
+    "Split pauses frame processing in HOME, polls applet shutdown while in the background, and drains submitted work before stopping both panes after the loss of a presentation surface.",
+    "Stage 1: six upstream OunceVK cleanup backports. Static Vulkan driver rebuilt with the existing libounce SDK. Boot anchors unchanged; hardware validation pending."
   ],
   "launcher": {
     "entry": "runtime/package/iz2s/izlauncher.iza",
@@ -85,7 +86,7 @@
     "route": "IZ2S R entry -> /iz2s/core/bin/game/main -> /iz2s/izlauncher.iza",
     "nativePrograms": "NRO programs in module directories and under /switch; NX2 BreRUN is a full-screen NRO.",
     "standaloneNroRequired": false,
-    "coreSha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f",
+    "coreSha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19",
     "resourcesSha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868",
     "labels": "Unified clock/battery capsule; matching Open/Network typography; centred A key and 0.34 badge; retained bold app title and icon background",
     "catalog": "Single paged NRO/IZA catalog; isolated folder errors; idle inventory and import refresh",
@@ -112,7 +113,7 @@
     },
     "version": "0.34",
     "panelVersion": "0.34",
-    "revision": "RUN34-0.34",
+    "revision": "IZ2S-0.3.4-GPU-cleanup-stage1",
     "packagedMenuId": "be0f0b11ffc978b6ca2b81b68dfc7611",
     "componentValidation": "runtime/run32-component-validation.json",
     "consoleLaunchVerified": false,

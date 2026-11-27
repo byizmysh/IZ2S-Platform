@@ -37,7 +37,7 @@
     "linux-arm64"
   ],
   "experimentalInstallerPlatforms": [],
-  "publicationStatus": "github-release",
+  "publicationStatus": "local-candidate",
   "directComponents": [
     "iz2sciv-core"
   ],
@@ -49,5 +49,5 @@
     ]
   },
   "releaseTarget": "source",
-  "buildId": "run34-0.3.4"
+  "buildId": "iz2s-0.3.4-gpu-cleanup-stage1"
 }

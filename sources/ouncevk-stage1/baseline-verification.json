@@ -1,0 +1,8 @@
+{
+  "result": "exact-byte-match",
+  "main_sha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f",
+  "source_commit": "0ea706ca7fe257b44e08c005c9b4987dac034b3e",
+  "native_source": "/home/k2/Antigravity/MyLoveSwitch/outputs/IZ2S-Kaihen-port-20261127/panel/sources/run32-launcher",
+  "historical_metadata_base": "/home/k2/Antigravity/MyLoveSwitch/outputs/RUN33-v26-MenuStartup-20261127/work",
+  "note": "Historical app version recognition table includes VacooTube. No app is restored to distribution."
+}

@@ -1,0 +1,8 @@
+PASS completed map and unmap release exactly once
+PASS slow request waits through timeouts without resubmission
+PASS refused request leaves no mapping
+PASS unknown transport result preserves ownership and blocks slot reuse
+PASS delayed unmap completion does not double-unmap
+PASS failed view is retired whole without remapping its fragments
+PASS partial unbind keeps chunks until surviving ranges are remapped
+PASS failed destruction retains VA until a successful retry

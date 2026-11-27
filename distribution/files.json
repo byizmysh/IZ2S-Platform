@@ -2403,8 +2403,8 @@
       "executable": false
     },
     "distribution/profile.json": {
-      "bytes": 948,
-      "sha256": "91e11291d051fe712fb624d1f00fe6fd7059b46c0b85c74be4d3ca93a7abf71d",
+      "bytes": 967,
+      "sha256": "04b964887afbf7bcc9ec3ee7ec4db9a5c24336407fab5a53a57687a3d12000c1",
       "executable": false
     },
     "distribution/release.py": {
@@ -2608,13 +2608,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/manifest.json": {
-      "bytes": 8891,
-      "sha256": "bd21778727ac2a59ec0e504c0166b7aee28035fd243574a3b81345d7628cc1de",
+      "bytes": 9065,
+      "sha256": "44a536ca36a45263715901c34dea5f4e663ecbe6f434c93473c6d1d9499ee03f",
       "executable": false
     },
     "engines/iz2s-core/runtime/menu-build.json": {
-      "bytes": 23877,
-      "sha256": "130c41b63bc840cfacf0809dc23638fce23ad09b8c0c96eb59649ada3e1dbed1",
+      "bytes": 26176,
+      "sha256": "78edd86899e6c55b025a8ed3bf7d8fa9806a4c5d4def537738e7b941b9bde377",
       "executable": false
     },
     "engines/iz2s-core/runtime/nro-icon-runtime-build.json": {
@@ -2623,8 +2623,8 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/package-manifest.json": {
-      "bytes": 7203,
-      "sha256": "470b110ccaadd8a1e3462c8ae96e3b46fd2927780ee5c4913dfe13572d3ce33a",
+      "bytes": 7359,
+      "sha256": "c6c9a3dd9b329f88b3e24335c1819bb62c4192b95e86d8d8d0b6dc6c6e142d15",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/bootstrap.bin": {
@@ -2638,13 +2638,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/exefs.nsp": {
-      "bytes": 19452819,
-      "sha256": "eee3e079f94f01801123d087dd0e16d699006bd2272b82344812bc0a3ca1b914",
+      "bytes": 19442163,
+      "sha256": "8015ec3a331861ddf5639ba1235fd7814813d25ea9b7c2ee2ae4178358223020",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/main": {
-      "bytes": 19450889,
-      "sha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f",
+      "bytes": 19440236,
+      "sha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19",
       "executable": false
     },
     "engines/iz2s-core/runtime/package/game/main.npdm": {
@@ -2873,13 +2873,13 @@
       "executable": false
     },
     "engines/iz2s-core/runtime/provenance.json": {
-      "bytes": 14588,
-      "sha256": "31240e6ca5bac39f40a8e4ba5fb6d0def46a84a04bf3e260e3e6ed43435a8d63",
+      "bytes": 14777,
+      "sha256": "a97f6178a03bfe10b5349c808e363d1ce230a2e71008922a5eabeaec9349b1ed",
       "executable": false
     },
     "engines/iz2s-core/runtime/run32-component-validation.json": {
-      "bytes": 881,
-      "sha256": "b9976cbd97cac679c9617acd587168a9396c9f2597efa84376dd2dd626798d83",
+      "bytes": 962,
+      "sha256": "0ff311c8d6b126a653ac016883a8189ce7c2364e65ad98ea0422a2bae6ba8786",
       "executable": false
     },
     "engines/iz2s-core/runtime/sd-layout.json": {
@@ -134463,13 +134463,13 @@
       "executable": false
     },
     "sources/run32-launcher/status/build-homebrew.py": {
-      "bytes": 33187,
-      "sha256": "2944146faf982c160d85999addf74cb8a01069db0ee48fe8c0becf12c0cad82a",
+      "bytes": 34725,
+      "sha256": "5b27270c858161ed7ff98a2c5b60f51bd2fe1d65b3b20cda130faf7020051f88",
       "executable": false
     },
     "sources/run32-launcher/status/build-split.py": {
-      "bytes": 15092,
-      "sha256": "afd23148834b9ca6fcddf463d3835bd6b2ec241f02da19d117e0e68195a72a94",
+      "bytes": 15858,
+      "sha256": "f04256f560b7e7a2b2c4fd9a56a90e23019d93e99364afa1376969ed2ce62250",
       "executable": false
     },
     "sources/run32-launcher/status/menu-idle.h": {
@@ -134850,6 +134850,106 @@
     "tools/resident/prepare.cjs": {
       "bytes": 5935,
       "sha256": "00ff3cc615c4cfaee4a1cebae4b9e56f3ed5b4e87ff93a859286af3bfd9b68ae",
+      "executable": false
+    },
+    "engines/iz2s-core/runtime/package/licenses/ouncevk/IZ2S-stage1.txt": {
+      "bytes": 385,
+      "sha256": "bacdf67f7686ecd85883010e053691eb59f904a4c00aba5ef9e81ced56bc94a7",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/baseline-verification.json": {
+      "bytes": 523,
+      "sha256": "8a34bda522084a998bf87992f945c74dbbe0992b26a5924333358185550d9a0d",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/build-record.json": {
+      "bytes": 37522,
+      "sha256": "417447e377f1dafcc0b2f02d951abf65b899e070f3a17293d3ffcb42c893e21e",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/configure-local-tools.py": {
+      "bytes": 4101,
+      "sha256": "f4c25bd33333ba22a70b1831d98d3aee7f9792168505144805bcf987da8844ee",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/host-tests.txt": {
+      "bytes": 470,
+      "sha256": "3a8758d65ee73fe213d673f42d62cca6279f67ff0ea0419e72901e5db7027154",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/launcher-build.json": {
+      "bytes": 5135,
+      "sha256": "d02b054c5a61b275c01beaff664042827235e4794567b99a4fa3e7219266d882",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/libouncevk.a": {
+      "bytes": 23209902,
+      "sha256": "60e878512e57624480d2c073568d95fdec1cc60dadc48770429062b20bb60359",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/package-driver.py": {
+      "bytes": 2173,
+      "sha256": "23fb2fe4ec302feaafa5ae69504810257734239065703a9fb30c81c75e848894",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/patches/114e9298fc.patch": {
+      "bytes": 11194,
+      "sha256": "0da47c508053dea7986eb134e673107d29552329c7fc0f9991864765331a00f8",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/patches/435dc71f79.patch": {
+      "bytes": 58644,
+      "sha256": "de9b3a6463a356002ee3cb75c8c4f70ec679809db4c912b6ac4c902f3c2c06fc",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/patches/70deb568cf.patch": {
+      "bytes": 1109,
+      "sha256": "1324c9e9fcc058b6fe3ace0e16e540abc0449900dd7888b7929368476c66fce4",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/patches/93abc8b0d8.patch": {
+      "bytes": 71421,
+      "sha256": "e4a744a4669ed2ea067e8045ca0a7a249d1d343495c64caa809c28d6ceae567c",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/patches/ba252786f1.patch": {
+      "bytes": 37982,
+      "sha256": "3a85a543f2f6be57ee8df38be570abea46b619e598bbf3c379f8002e227f1e3b",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/patches/bc75621ed1.patch": {
+      "bytes": 17687,
+      "sha256": "f946f437b5758c6418f61c3b44dd128c6d98f88248e11d049667b8bdf03c3022",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/source-download.json": {
+      "bytes": 267,
+      "sha256": "6b9cad37fcc180f8b02713b10914db19c7e4580ea3f8e2a2eba86527028b5b30",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/tests/gpu-lifecycle.c": {
+      "bytes": 6949,
+      "sha256": "72029ff38a309cd4b35d82c956d03aa748ea544b07f52d0d41828db5a0fa34c7",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/tests/host-services.h": {
+      "bytes": 2232,
+      "sha256": "6de4f85ab5543f50dba2cd84300b6c0fbcda9c22a63e1b592027d3a896a2c76a",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/tests/util/log.h": {
+      "bytes": 79,
+      "sha256": "f6119b0d035eeaf666f0c5604ac73f311dc93baea6225f783c1f9fc1ebd50f35",
+      "executable": false
+    },
+    "sources/ouncevk-stage1/tests/util/macros.h": {
+      "bytes": 56,
+      "sha256": "01fef7679d4e8fc94b9b5fa1338cb4d5dae0f63661353e135fb1ec1a916d8d96",
+      "executable": false
+    },
+    "sources/run32-launcher/status/app-versions-0.34.json": {
+      "bytes": 844,
+      "sha256": "a390ce452dfd4bc17abadb5208ae1a3a00d0f3816d030fa546aec9ee6f2f1236",
       "executable": false
     }
   }

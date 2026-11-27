@@ -1,0 +1,23 @@
+From 70deb568cfffd5927874bc0244f1b43d947e5da8 Mon Sep 17 00:00:00 2001
+From: Craig Carnell <1188869+cscd98@users.noreply.github.com>
+Date: Sun, 22 Nov 2026 14:02:24 +0000
+Subject: [PATCH] Fix swapchain cleanup of unpresented image acquisitions
+
+---
+ src/vulkan/wsi/wsi_switch_native.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/vulkan/wsi/wsi_switch_native.c b/src/vulkan/wsi/wsi_switch_native.c
+index a11bba59..1133f090 100644
+--- a/src/vulkan/wsi/wsi_switch_native.c
++++ b/src/vulkan/wsi/wsi_switch_native.c
+@@ -785,6 +785,9 @@ native_destroy(struct wsi_swapchain *base, const VkAllocationCallbacks *alloc)
+    struct native_chain *chain = (struct native_chain *)base;
+    struct wsi_native_vi_window *window = chain->window;
+    native_mailbox_stop(chain);
++   for (unsigned i = 0; i < NATIVE_IMAGE_COUNT; i++)
++      chain->images[i].acquired = false;
++   chain->reserved = 0;
+    /* A swapchain that an oldSwapchain handover retired gave the window to
+     * the new swapchain. If its images are still on the layer, it stays in
+     * the handover list and is freed when it leaves it. */

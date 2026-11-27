@@ -11,13 +11,13 @@
   },
   {
     "path": "game/exefs.nsp",
-    "bytes": 19452819,
-    "sha256": "eee3e079f94f01801123d087dd0e16d699006bd2272b82344812bc0a3ca1b914"
+    "bytes": 19442163,
+    "sha256": "8015ec3a331861ddf5639ba1235fd7814813d25ea9b7c2ee2ae4178358223020"
   },
   {
     "path": "game/main",
-    "bytes": 19450889,
-    "sha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f"
+    "bytes": 19440236,
+    "sha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19"
   },
   {
     "path": "iz2s/izlauncher.iza",
@@ -238,5 +238,10 @@
     "path": "ro/main",
     "bytes": 23854,
     "sha256": "eed2f243fa7261607f33c19ee4fe916a7a1fe77319d38a17cca9dd759a97a2a0"
+  },
+  {
+    "path": "licenses/ouncevk/IZ2S-stage1.txt",
+    "bytes": 385,
+    "sha256": "bacdf67f7686ecd85883010e053691eb59f904a4c00aba5ef9e81ced56bc94a7"
   }
 ]

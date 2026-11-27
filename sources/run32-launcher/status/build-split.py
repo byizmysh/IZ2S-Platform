@@ -224,7 +224,7 @@ def compile_split_font(base, native):
     return hashlib.sha256(source.read_bytes()).hexdigest()
 
 
-def build(base, record, output, menu_only=False):
+def build(base, record, output, menu_only=False, ouncevk=None, version_table=None):
     overlay = Path(__file__).resolve().parent.parent
     output.mkdir(parents=True, exist_ok=False)
     status = output / 'status'
@@ -269,14 +269,19 @@ def build(base, record, output, menu_only=False):
     builder.integrate_catalog = lambda source: split_catalog(integrate_catalog(source))
     nro = output / 'embedded-menu-reference.nro'
     main = None if menu_only else output / 'main'
-    builder.build(base, record, nro, main)
+    builder.build(base, record, nro, main, ouncevk, version_table)
     report = {
         'sources': source_hashes,
         'generatedBuilder': {'path': staged_builder.relative_to(output).as_posix(),
                              'sha256': builder.digest(staged_builder)},
         'fontSha256': font_hash,
         'menuSha256': builder.digest(nro),
+        'appVersionTableSha256': hashlib.sha256(builder.shipped_versions(base, version_table).encode()).hexdigest(),
     }
+    if ouncevk is not None:
+        report['ouncevk'] = {'path': str(ouncevk), 'sha256': builder.digest(ouncevk)}
+    if version_table is not None:
+        report['appVersions'] = {'path': str(version_table), 'sha256': builder.digest(version_table)}
     if main is not None:
         report['mainSha256'] = builder.digest(main)
     (output / 'build-inputs.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -288,5 +293,9 @@ if __name__ == '__main__':
     parser.add_argument('record', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('--menu-only', action='store_true', help='build the native menu reference')
+    parser.add_argument('--ouncevk', type=Path, help='link a separately built OunceVK archive')
+    parser.add_argument('--app-versions', type=Path, help='pin version recognition independently of bundled apps')
     args = parser.parse_args()
-    build(args.base.resolve(), args.record.resolve(), args.output.resolve(), args.menu_only)
+    build(args.base.resolve(), args.record.resolve(), args.output.resolve(), args.menu_only,
+          args.ouncevk.resolve() if args.ouncevk else None,
+          args.app_versions.resolve() if args.app_versions else None)

@@ -1,0 +1,6 @@
+OunceVK cleanup backport for IZ2S 0.3.4 - local test candidate.
+Source: https://github.com/ouncebrew/ouncevk
+Base: f5afcd27a98d47a35b7091b097ffd7f46b0be3e4
+Upstream patches: bc75621ed1, 435dc71f79, 93abc8b0d8, ba252786f1, 114e9298fc, 70deb568cf.
+Static Vulkan build; existing Mesa and zlib license notices apply.
+Boot anchors and libounce are unchanged. Console validation is pending.

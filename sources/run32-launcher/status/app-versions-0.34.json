@@ -1,0 +1,30 @@
+[
+  {
+    "headerSha256": "c8c847de6e2ea13f70c15e5917242f96c7ac2bbb47e1025ec52f36c22519433a",
+    "version": "0.1.0"
+  },
+  {
+    "headerSha256": "555972fb75b72c0e07ea1df1fdbbd474ded441da6eaf5a337d53b9e4014975d0",
+    "version": "1.15.8"
+  },
+  {
+    "headerSha256": "d1428b04168e50caa5fd25f1e1fcc8c5720a867e71a4bdebde3e9b298426581b",
+    "version": "1.5.7"
+  },
+  {
+    "headerSha256": "a2cece5146df7b53b99889ed77a0f3d0c38cfcd0f2a7993f5b41e23daa1d9caa",
+    "version": "0.3.3"
+  },
+  {
+    "headerSha256": "725d377d9f1a4b2be13a9a3d317023aa0445514e2df32d6f947240fd84e8777c",
+    "version": "0.8.7"
+  },
+  {
+    "headerSha256": "d8641b734ea3f5febfc28f71ca8a16b6e1a5058f804ec77268151ed995788f9a",
+    "version": "0.5.3"
+  },
+  {
+    "headerSha256": "d6a03e36abf0be00bc3619ffb82931d2882dbbd10a6c6e75097ebaa8922c4255",
+    "version": "0.5.0"
+  }
+]

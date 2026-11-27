@@ -1,0 +1,872 @@
+From ba252786f1576ea5603c9bd89e838c0598c866d6 Mon Sep 17 00:00:00 2001
+From: kurumuz <kurumuz1@gmail.com>
+Date: Sun, 15 Nov 2026 12:45:38 +0300
+Subject: [PATCH] Keep sparse-mapped chunks out of the pool during a partial
+ unbind
+
+---
+ .../nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.c  | 115 ++++++-----
+ .../nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.h  |   3 +-
+ .../nvgpu/nvkmd_nvgpu_native_device_owner.c   |  14 +-
+ .../nvgpu/nvkmd_nvgpu_native_device_owner.h   |  14 +-
+ .../nvkmd/nvgpu/nvkmd_nvgpu_native_map.c      |  41 +++-
+ .../nvkmd/nvgpu/nvkmd_nvgpu_native_map.h      |  12 +-
+ .../nvkmd/nvgpu/nvkmd_nvgpu_native_pdev.c     |  36 ++--
+ .../nvkmd/nvgpu/nvkmd_nvgpu_native_views.c    | 183 +++++++-----------
+ .../nvkmd/nvgpu/nvkmd_nvgpu_native_views.h    |  42 ++--
+ 9 files changed, 229 insertions(+), 231 deletions(-)
+
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.c b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.c
+index 2bfc4cd..6e94096 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.c
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.c
+@@ -4,7 +4,6 @@
+  */
+ #include "nvkmd_nvgpu_native_chunked.h"
+ #include "nvkmd_nvgpu_native_map.h"
+-#include "nvkmd_nvgpu_native_views.h"
+ 
+ #include "util/log.h"
+ #include "util/macros.h"
+@@ -20,9 +19,20 @@
+ #define NATIVE_CHUNK_ALIGN_B (UINT64_C(64) * 1024)
+ #define NATIVE_CHUNK_KIND 6
+ 
++/* The VA of one chunked allocation. It is made with the allocation, so
++ * that a free needs no memory to keep the VA of a chunk that may still be
++ * mapped. The allocation has one reference, and so has each of its chunks
++ * whose own mapping may remain after the free; the VA returns to the heap
++ * with the last. */
++struct nvkmd_nvgpu_native_va_hold {
++   uint64_t addr, size_B;
++   uint32_t references;
++};
++
+ struct nvkmd_nvgpu_native_chunked_mem {
+    struct nvkmd_mem base;
+    struct nvkmd_va va;
++   struct nvkmd_nvgpu_native_va_hold *va_hold;
+    struct nvkmd_nvgpu_native_device_owner *owner;
+    struct list_head link; /* in owner->chunked_mems */
+    uint32_t chunk_count;
+@@ -146,42 +156,44 @@ native_chunk_give_back(struct nvkmd_nvgpu_native_device_owner *owner,
+    owner->free_chunk_count++;
+ }
+ 
+-/* The VA of one chunked allocation while its chunks are unmapped. */
+-struct native_chunk_va {
+-   uint64_t addr, size_B;
+-   /* Made for the first chunk whose own mapping may remain. */
+-   struct nvkmd_nvgpu_native_va_hold *hold;
+-   /* There was no memory for the hold: the VA stays reserved. */
+-   bool lost;
+-};
++/* A hold with one reference, the allocation's. NULL when there is no
++ * memory. */
++static struct nvkmd_nvgpu_native_va_hold *
++native_va_hold_create(uint64_t addr, uint64_t size_B)
++{
++   struct nvkmd_nvgpu_native_va_hold *hold = calloc(1, sizeof(*hold));
++   if (!hold)
++      return NULL;
++   hold->addr = addr;
++   hold->size_B = size_B;
++   hold->references = 1;
++   return hold;
++}
+ 
+-/* Strands a chunk whose own mapping at chunk_va may remain. The VA of its
+- * allocation is held until device close has unmapped every such chunk. */
++/* Drops one reference; the last returns the VA to the heap. */
+ static void
+-native_chunk_strand_mapped(struct nvkmd_nvgpu_native_device_owner *owner,
+-                           struct nvkmd_nvgpu_native_chunk *chunk,
+-                           uint64_t chunk_va, struct native_chunk_va *va,
+-                           const char *what, Result rc)
++native_va_hold_drop(struct nvkmd_nvgpu_native_device_owner *owner,
++                    struct nvkmd_nvgpu_native_va_hold *hold)
+ {
+-   if (!va->hold && !va->lost) {
+-      va->hold = nvkmd_nvgpu_native_va_hold_create(va->addr, va->size_B);
+-      va->lost = !va->hold;
+-   }
+-   if (va->hold)
+-      va->hold->references++;
+-   chunk->va_hold = va->hold;
+-   native_chunk_strand(owner, chunk, chunk_va, what, rc);
++   if (--hold->references)
++      return;
++   nvkmd_nvgpu_native_owner_release_va(owner, hold->addr, hold->size_B);
++   free(hold);
+ }
+ 
+-/* Returns the VA to the heap, unless a chunk may still be mapped in it. */
++/* Strands a chunk whose own mapping at chunk_va may remain. It takes a
++ * reference to the VA of its allocation, until device close has unmapped
++ * it. */
+ static void
+-native_chunk_va_finish(struct nvkmd_nvgpu_native_device_owner *owner,
+-                       struct native_chunk_va *va)
++native_chunk_strand_mapped(struct nvkmd_nvgpu_native_device_owner *owner,
++                           struct nvkmd_nvgpu_native_chunk *chunk,
++                           uint64_t chunk_va,
++                           struct nvkmd_nvgpu_native_va_hold *hold,
++                           const char *what, Result rc)
+ {
+-   if (va->hold)
+-      nvkmd_nvgpu_native_va_hold_drop(owner, va->hold);
+-   else if (!va->lost)
+-      nvkmd_nvgpu_native_owner_release_va(owner, va->addr, va->size_B);
++   hold->references++;
++   chunk->va_hold = hold;
++   native_chunk_strand(owner, chunk, chunk_va, what, rc);
+ }
+ 
+ /* Unmaps the chunk mapped at chunk_va and returns it to the pool. A chunk
+@@ -194,15 +206,16 @@ native_chunk_va_finish(struct nvkmd_nvgpu_native_device_owner *owner,
+ static void
+ native_chunk_unmap_give_back(struct nvkmd_nvgpu_native_device_owner *owner,
+                              struct nvkmd_nvgpu_native_chunk *chunk,
+-                             uint64_t chunk_va, struct native_chunk_va *va)
++                             uint64_t chunk_va,
++                             struct nvkmd_nvgpu_native_va_hold *hold)
+ {
+    Result rc = 0;
+    if (nvkmd_nvgpu_native_unmap_range(owner->runtime, &chunk->backing,
+                                       chunk_va, NVKMD_NVGPU_NATIVE_CHUNK_B,
+                                       &owner->slot, &rc) !=
+        NVKMD_NVGPU_NATIVE_MAP_OK)
+-      native_chunk_strand_mapped(owner, chunk, chunk_va, va, "unmap failed",
+-                                 rc);
++      native_chunk_strand_mapped(owner, chunk, chunk_va, hold,
++                                 "unmap failed", rc);
+    else if (chunk->backing.maps)
+       native_chunk_set_aside(owner, chunk, 0);
+    else
+@@ -210,18 +223,19 @@ native_chunk_unmap_give_back(struct nvkmd_nvgpu_native_device_owner *owner,
+ }
+ 
+ /* Unmaps the first chunk_count chunks of the memory and returns them to
+- * the pool, and the VA to the heap. */
++ * the pool, and drops the allocation's reference to its VA: the VA returns
++ * to the heap unless a chunk may still be mapped in it. */
+ static void
+ native_chunks_unmap_release_va(struct nvkmd_nvgpu_native_device_owner *owner,
+                                struct nvkmd_nvgpu_native_chunk **chunks,
+                                uint32_t chunk_count,
+-                               struct native_chunk_va *va)
++                               struct nvkmd_nvgpu_native_va_hold *hold)
+ {
+    for (uint32_t i = 0; i < chunk_count; i++)
+       native_chunk_unmap_give_back(
+          owner, chunks[i],
+-         va->addr + (uint64_t)i * NVKMD_NVGPU_NATIVE_CHUNK_B, va);
+-   native_chunk_va_finish(owner, va);
++         hold->addr + (uint64_t)i * NVKMD_NVGPU_NATIVE_CHUNK_B, hold);
++   native_va_hold_drop(owner, hold);
+ }
+ 
+ /* Unmaps every chunk, returns them to the pool and the VA to the heap.
+@@ -229,12 +243,9 @@ native_chunks_unmap_release_va(struct nvkmd_nvgpu_native_device_owner *owner,
+ static void
+ native_chunked_mem_retire(struct nvkmd_nvgpu_native_chunked_mem *mem)
+ {
+-   struct native_chunk_va va = {
+-      .addr = mem->va.addr,
+-      .size_B = mem->va.size_B,
+-   };
+    native_chunks_unmap_release_va(mem->owner, mem->chunks, mem->chunk_count,
+-                                  &va);
++                                  mem->va_hold);
++   mem->va_hold = NULL;
+    list_del(&mem->link);
+ }
+ 
+@@ -331,8 +342,13 @@ nvkmd_nvgpu_native_chunked_mem_create(
+    const uint64_t va = nvkmd_nvgpu_native_owner_reserve_va(
+       owner, length_B, MAX2(align_B, NATIVE_CHUNK_ALIGN_B));
+    VkResult result = va ? VK_SUCCESS : VK_ERROR_OUT_OF_DEVICE_MEMORY;
++   struct nvkmd_nvgpu_native_va_hold *hold =
++      va ? native_va_hold_create(va, length_B) : NULL;
++   if (va && !hold) {
++      nvkmd_nvgpu_native_owner_release_va(owner, va, length_B);
++      result = VK_ERROR_OUT_OF_HOST_MEMORY;
++   }
+    uint32_t mapped = 0;
+-   struct native_chunk_va chunks_va = {.addr = va, .size_B = length_B};
+    for (uint32_t i = 0; result == VK_SUCCESS && i < count; i++) {
+       struct nvkmd_nvgpu_native_chunk *chunk = native_chunk_take(owner);
+       if (!chunk) {
+@@ -353,10 +369,10 @@ nvkmd_nvgpu_native_chunked_mem_create(
+             va + (uint64_t)i * NVKMD_NVGPU_NATIVE_CHUNK_B;
+          if (status == NVKMD_NVGPU_NATIVE_MAP_KIND) {
+             /* Mapped with another kind. */
+-            native_chunk_unmap_give_back(owner, chunk, chunk_va, &chunks_va);
++            native_chunk_unmap_give_back(owner, chunk, chunk_va, hold);
+          } else if (status == NVKMD_NVGPU_NATIVE_MAP_WAIT) {
+             /* Accepted, and the wait failed: it may be mapped. */
+-            native_chunk_strand_mapped(owner, chunk, chunk_va, &chunks_va,
++            native_chunk_strand_mapped(owner, chunk, chunk_va, hold,
+                                        "map wait failed", rc);
+          } else {
+             /* Refused: nothing was mapped. */
+@@ -369,14 +385,14 @@ nvkmd_nvgpu_native_chunked_mem_create(
+       mapped++;
+    }
+    if (result != VK_SUCCESS) {
+-      if (va)
+-         native_chunks_unmap_release_va(owner, mem->chunks, mapped,
+-                                        &chunks_va);
++      if (hold)
++         native_chunks_unmap_release_va(owner, mem->chunks, mapped, hold);
+       nvkmd_nvgpu_native_owner_unlock(owner);
+       free(mem);
+       return result;
+    }
+    mem->chunk_count = count;
++   mem->va_hold = hold;
+    list_addtail(&mem->link, &owner->chunked_mems);
+    owner->stats.chunked_mems++;
+    nvkmd_nvgpu_native_owner_unlock(owner);
+@@ -468,8 +484,7 @@ native_chunks_release_stranded(struct nvkmd_nvgpu_native_device_owner *owner)
+              NVKMD_NVGPU_NATIVE_MAP_OK) {
+          chunk->stranded_va = 0;
+          /* Its allocation's VA returns to the heap with the last of them. */
+-         if (chunk->va_hold)
+-            nvkmd_nvgpu_native_va_hold_drop(owner, chunk->va_hold);
++         native_va_hold_drop(owner, chunk->va_hold);
+          chunk->va_hold = NULL;
+       }
+       /* native_chunk_release strands the chunk again when it fails. */
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.h b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.h
+index e49c871..f123d20 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.h
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_chunked.h
+@@ -26,8 +26,7 @@ struct nvkmd_nvgpu_native_chunk {
+    /* For a chunk that is out of the pool: the GPU VA where its own
+     * mapping may remain, or 0 when that mapping is gone. */
+    uint64_t stranded_va;
+-   /* With stranded_va: the hold of the VA of the chunk's allocation, or
+-    * NULL when there was no memory for one. */
++   /* With stranded_va: the hold of the VA of the chunk's allocation. */
+    struct nvkmd_nvgpu_native_va_hold *va_hold;
+ };
+ 
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_device_owner.c b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_device_owner.c
+index 31b06f6..6f5ad35 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_device_owner.c
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_device_owner.c
+@@ -350,14 +350,18 @@ native_owner_release_segment(struct nvkmd_nvgpu_native_device_owner *owner,
+    segment->failed = true;
+    /* Each step is skipped once it is done, so a call after a failed step
+     * continues with that step. */
+-   if (segment->alias_map.mapped) {
+-      if (nvkmd_nvgpu_native_map_unmap(&segment->alias_map, owner->runtime,
+-                                       &segment->backing, &owner->slot) !=
++   if (segment->alias_map.mapped &&
++       nvkmd_nvgpu_native_map_unmap(&segment->alias_map, owner->runtime,
++                                    &segment->backing, &owner->slot) !=
+           NVKMD_NVGPU_NATIVE_MAP_OK)
+-         return false;
+-      segment->alias_ready = false;
++      return false;
++   segment->alias_ready = false;
++   /* The alias VA is the segment's from its reservation: also when the
++    * alias map was refused, or when its unmap completed before this call. */
++   if (segment->alias_lease.start) {
+       util_vma_heap_free(&owner->va_heap, segment->alias_lease.start,
+                          segment->length_B);
++      segment->alias_lease.start = 0;
+    }
+    if (segment->map.mapped &&
+        nvkmd_nvgpu_native_map_unmap(&segment->map, owner->runtime,
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_device_owner.h b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_device_owner.h
+index b9d9975..ab2db2a 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_device_owner.h
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_device_owner.h
+@@ -211,9 +211,10 @@ struct nvkmd_nvgpu_native_device_owner {
+     * first kind returns to the pool with its last view's unmap; device
+     * close tries the others again. */
+    struct nvkmd_nvgpu_native_chunk *stranded_chunks;
+-   /* Views whose VA object was destroyed while they may still be mapped
+-    * (nvkmd_nvgpu_native_views.c). Device close unmaps them. */
+-   struct nvkmd_nvgpu_native_retired_view *retired_views;
++   /* The view lists of VA objects that were destroyed while a view may
++    * still be mapped (nvkmd_nvgpu_native_views.c). Device close unmaps
++    * those views. */
++   struct nvkmd_nvgpu_native_view_list *retired_view_lists;
+    /* The registered imports of host pointers
+     * (nvkmd_nvgpu_native_host_mem.c). Used under the owner lock. */
+    struct list_head host_mems;
+@@ -514,13 +515,6 @@ VkResult nvkmd_nvgpu_native_owner_map_backing(
+    const struct nvkmd_nvgpu_native_view_source *source,
+    uint64_t size_B, uint64_t view_addr, uint8_t kind, bool *left_mapped_out);
+ 
+-/* Removes a view's mapping. Returns false when it may remain: the caller
+- * keeps the view and does not reuse its VA. */
+-bool nvkmd_nvgpu_native_owner_unmap_view(
+-   struct nvkmd_nvgpu_native_device_owner *owner,
+-   struct nvkmd_nvgpu_native_backing *backing,
+-   uint64_t view_addr, uint64_t size_B);
+-
+ /* Opens the copy channel once. Returns true when it is ready.
+  * The steps and results stay in owner->copy for diagnostics. A failure
+  * does not change the primary channel. */
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_map.c b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_map.c
+index 81e1b53..56fc8fa 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_map.c
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_map.c
+@@ -7,6 +7,8 @@
+ 
+ #include "util/log.h"
+ 
++#include <assert.h>
++#include <stdlib.h>
+ #include <string.h>
+ 
+ #define MAP_PAGE_B UINT64_C(0x1000)
+@@ -45,6 +47,13 @@ nvkmd_nvgpu_native_slot_close(struct nvkmd_nvgpu_native_slot *slot)
+    Result rc = 0;
+    if (!nvkmd_nvgpu_native_slot_settle(slot, &rc))
+       return false;
++   /* Every mapping's record was retired before the slot is closed, so a
++    * record that is left here belongs to an object that was never
++    * destroyed. */
++   if (slot->unmapped_count)
++      mesa_logw("native slot: %u late unmaps were not asked for again",
++                slot->unmapped_count);
++   free(slot->unmapped);
+    eventClose(&slot->event);
+    memset(slot, 0, sizeof(*slot));
+    return true;
+@@ -87,19 +96,15 @@ slot_apply_pending(struct nvkmd_nvgpu_native_slot *slot)
+       pending.backing->maps--;
+       if (pending.map) {
+          pending.map->mapped = false;
+-      } else if (slot->unmapped_count < NVKMD_NVGPU_NATIVE_SLOT_UNMAPPED_MAX) {
++      } else {
++         /* The room was made before the unmap was sent. */
++         assert(slot->unmapped_count < slot->unmapped_capacity);
+          slot->unmapped[slot->unmapped_count++] =
+             (struct nvkmd_nvgpu_native_slot_unmapped) {
+                .backing = pending.backing,
+                .gpu_va = pending.gpu_va,
+                .size_B = pending.size_B,
+             };
+-      } else {
+-         /* Its caller will send the unmap again, for an interval that
+-          * has no mapping, and keep its record when that is refused. */
+-         mesa_logw("native slot: no room to record the unmap of 0x%llx "
+-                   "bytes that completed late",
+-                   (unsigned long long)pending.size_B);
+       }
+       break;
+    case NVKMD_NVGPU_NATIVE_SLOT_UNREGISTER:
+@@ -152,6 +157,22 @@ nvkmd_nvgpu_native_slot_finish(
+    return NVKMD_NVGPU_NATIVE_SLOT_UNRESOLVED;
+ }
+ 
++/* Makes room for the record of one more range unmap that completes late. */
++static bool
++slot_reserve_unmapped(struct nvkmd_nvgpu_native_slot *slot)
++{
++   if (slot->unmapped_count < slot->unmapped_capacity)
++      return true;
++   const uint32_t capacity = slot->unmapped_capacity + 8;
++   struct nvkmd_nvgpu_native_slot_unmapped *unmapped =
++      realloc(slot->unmapped, capacity * sizeof(*unmapped));
++   if (!unmapped)
++      return false;
++   slot->unmapped = unmapped;
++   slot->unmapped_capacity = capacity;
++   return true;
++}
++
+ /* Takes the record of a range unmap that completed late. */
+ static bool
+ slot_claim_unmapped(struct nvkmd_nvgpu_native_slot *slot,
+@@ -411,6 +432,12 @@ nvkmd_nvgpu_native_unmap_range(struct nvkmd_nvgpu_native_runtime *runtime,
+       return NVKMD_NVGPU_NATIVE_MAP_OK;
+    if (!backing->maps)
+       return NVKMD_NVGPU_NATIVE_MAP_ARGUMENT;
++   /* Without room for its record, the unmap is not sent: its completion
++    * could not be handed to this caller if it came late. */
++   if (!slot_reserve_unmapped(slot)) {
++      *result_out = MAKERESULT(Module_Libnx, LibnxError_OutOfMemory);
++      return NVKMD_NVGPU_NATIVE_MAP_SLOT;
++   }
+    const Result rc = gsvGpuUnmap(&runtime->gpu, runtime->vm.id, gpu_va,
+                                  size_B, slot->index);
+    const struct nvkmd_nvgpu_native_slot_pending request = {
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_map.h b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_map.h
+index eb96312..678dca9 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_map.h
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_map.h
+@@ -18,7 +18,8 @@ enum nvkmd_nvgpu_native_map_status {
+    NVKMD_NVGPU_NATIVE_MAP_WAIT,
+    NVKMD_NVGPU_NATIVE_MAP_KIND,
+    NVKMD_NVGPU_NATIVE_MAP_FAILED, /* an earlier kind change failed */
+-   /* An earlier request on the slot is unresolved: nothing was sent. */
++   /* Nothing was sent: an earlier request on the slot is unresolved, or
++    * there is no memory for the slot's record of this one. */
+    NVKMD_NVGPU_NATIVE_MAP_SLOT,
+ };
+ 
+@@ -64,16 +65,15 @@ struct nvkmd_nvgpu_native_slot_unmapped {
+    uint64_t gpu_va, size_B;
+ };
+ 
+-#define NVKMD_NVGPU_NATIVE_SLOT_UNMAPPED_MAX 8
+-
+ struct nvkmd_nvgpu_native_slot {
+    uint32_t index;
+    Event event;
+    bool ready;
+    struct nvkmd_nvgpu_native_slot_pending pending;
+-   struct nvkmd_nvgpu_native_slot_unmapped
+-      unmapped[NVKMD_NVGPU_NATIVE_SLOT_UNMAPPED_MAX];
+-   uint32_t unmapped_count;
++   /* Room for one more record is made before each range unmap is sent, so
++    * a late completion always has its record. */
++   struct nvkmd_nvgpu_native_slot_unmapped *unmapped;
++   uint32_t unmapped_count, unmapped_capacity;
+ };
+ 
+ /* What became of a request that was sent on the slot. */
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_pdev.c b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_pdev.c
+index 29aa549..cfff2c5 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_pdev.c
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_pdev.c
+@@ -49,8 +49,9 @@ struct nvkmd_nvgpu_native_dev {
+ struct nvkmd_nvgpu_native_va {
+    struct nvkmd_va base;
+    struct nvkmd_nvgpu_native_dev *dev;
+-   /* The memory that is bound in the VA. */
+-   struct nvkmd_nvgpu_native_view_list views;
++   /* The memory that is bound in the VA. It outlives this object when a
++    * view may still be mapped. */
++   struct nvkmd_nvgpu_native_view_list *views;
+ };
+ 
+ enum {
+@@ -359,7 +360,7 @@ native_va_free_locked(struct nvkmd_va *base)
+       container_of(base, struct nvkmd_nvgpu_native_va, base);
+    /* Unmaps the views and returns the VA to the heap. Views that may still
+     * be mapped go to the owner, with the VA. */
+-   nvkmd_nvgpu_native_view_list_finish(va->dev->owner, &va->views);
++   nvkmd_nvgpu_native_view_list_finish(va->dev->owner, va->views);
+    assert(va->dev->va_count && va->dev->owner->active_vas);
+    va->dev->va_count--;
+    va->dev->owner->active_vas--;
+@@ -399,7 +400,7 @@ native_va_bind_chunked_locked(struct nvkmd_nvgpu_native_va *va,
+          .size_B = parts[i].size_B,
+          .source = parts[i].source,
+       };
+-      result = nvkmd_nvgpu_native_view_list_map(va->dev->owner, &va->views,
++      result = nvkmd_nvgpu_native_view_list_map(va->dev->owner, va->views,
+                                                 &view);
+    }
+    free(parts);
+@@ -420,12 +421,12 @@ native_va_bind_view_locked(struct nvkmd_nvgpu_native_va *va,
+       return VK_ERROR_FEATURE_NOT_PRESENT;
+    /* A bind replaces what is bound in its range (Vulkan sparse binding):
+     * unbind the range first. */
+-   for (uint32_t i = 0; i < va->views.count; i++) {
+-      const struct nvkmd_nvgpu_native_view *view = &va->views.views[i];
++   for (uint32_t i = 0; i < va->views->count; i++) {
++      const struct nvkmd_nvgpu_native_view *view = &va->views->views[i];
+       if (va_offset_B < view->offset_B + view->size_B &&
+           view->offset_B < va_offset_B + range_B) {
+          const VkResult unbound = nvkmd_nvgpu_native_view_list_unbind(
+-            va->dev->owner, &va->views, va_offset_B, range_B);
++            va->dev->owner, va->views, va_offset_B, range_B);
+          if (unbound != VK_SUCCESS)
+             return unbound;
+          break;
+@@ -434,7 +435,7 @@ native_va_bind_view_locked(struct nvkmd_nvgpu_native_va *va,
+    if (nvkmd_nvgpu_native_mem_is_chunked(mem))
+       return native_va_bind_chunked_locked(va, va_offset_B, mem,
+                                            mem_offset_B, range_B);
+-   if (!nvkmd_nvgpu_native_view_list_reserve(&va->views))
++   if (!nvkmd_nvgpu_native_view_list_reserve(va->views))
+       return VK_ERROR_OUT_OF_HOST_MEMORY;
+    struct nvkmd_nvgpu_native_view view = {
+       .offset_B = va_offset_B,
+@@ -443,10 +444,10 @@ native_va_bind_view_locked(struct nvkmd_nvgpu_native_va *va,
+    bool left_mapped = false;
+    const VkResult result = nvkmd_nvgpu_native_mem_map_view(
+       mem, mem_offset_B, range_B, va->base.addr + va_offset_B,
+-      va->views.pte_kind,
++      va->views->pte_kind,
+       &view.source, &left_mapped);
+    if (result == VK_SUCCESS || left_mapped)
+-      va->views.views[va->views.count++] = view;
++      va->views->views[va->views->count++] = view;
+    return result;
+ }
+ 
+@@ -492,7 +493,7 @@ native_va_unbind_locked(struct nvkmd_va *base,
+    (void)log_obj;
+    struct nvkmd_nvgpu_native_va *va =
+       container_of(base, struct nvkmd_nvgpu_native_va, base);
+-   return nvkmd_nvgpu_native_view_list_unbind(va->dev->owner, &va->views,
++   return nvkmd_nvgpu_native_view_list_unbind(va->dev->owner, va->views,
+                                               va_offset_B, range_B);
+ }
+ 
+@@ -547,11 +548,14 @@ native_dev_reserve_va_locked(struct nvkmd_nvgpu_native_dev *dev,
+    va->base.addr = addr;
+    va->base.size_B = reserved_B;
+    va->dev = dev;
+-   va->views = (struct nvkmd_nvgpu_native_view_list) {
+-      .va_addr = addr,
+-      .va_size_B = reserved_B,
+-      .pte_kind = pte_kind,
+-   };
++   va->views = nvkmd_nvgpu_native_view_list_create(addr, reserved_B,
++                                                   pte_kind);
++   if (!va->views) {
++      nvkmd_nvgpu_native_owner_release_va(dev->owner, addr, reserved_B);
++      free(va);
++      dev->owner->last_va_result = VK_ERROR_OUT_OF_HOST_MEMORY;
++      return VK_ERROR_OUT_OF_HOST_MEMORY;
++   }
+    dev->va_count++;
+    dev->owner->active_vas++;
+    *va_out = &va->base;
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_views.c b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_views.c
+index 57b0c03..5f2f82f 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_views.c
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_views.c
+@@ -1,6 +1,5 @@
+ /* SPDX-License-Identifier: MIT
+- * Views of backing bytes at reserved GPU VAs, and what keeps a view's
+- * record and VA when it may still be mapped. Original OunceVK code.
++ * Views of backing bytes at reserved GPU VAs. Original OunceVK code.
+  */
+ #include "nvkmd_nvgpu_native_views.h"
+ #include "nvkmd_nvgpu_native_chunked.h"
+@@ -11,36 +10,6 @@
+ 
+ #include <stdlib.h>
+ 
+-struct nvkmd_nvgpu_native_va_hold *
+-nvkmd_nvgpu_native_va_hold_create(uint64_t addr, uint64_t size_B)
+-{
+-   struct nvkmd_nvgpu_native_va_hold *hold = calloc(1, sizeof(*hold));
+-   if (!hold)
+-      return NULL;
+-   hold->addr = addr;
+-   hold->size_B = size_B;
+-   hold->references = 1;
+-   return hold;
+-}
+-
+-void
+-nvkmd_nvgpu_native_va_hold_drop(struct nvkmd_nvgpu_native_device_owner *owner,
+-                                struct nvkmd_nvgpu_native_va_hold *hold)
+-{
+-   if (--hold->references)
+-      return;
+-   nvkmd_nvgpu_native_owner_release_va(owner, hold->addr, hold->size_B);
+-   free(hold);
+-}
+-
+-/* A view that outlived its VA object: its mapping may remain. */
+-struct nvkmd_nvgpu_native_retired_view {
+-   struct nvkmd_nvgpu_native_retired_view *next;
+-   struct nvkmd_nvgpu_native_backing *backing;
+-   uint64_t addr, size_B;
+-   struct nvkmd_nvgpu_native_va_hold *hold;
+-};
+-
+ bool
+ nvkmd_nvgpu_native_owner_map_view_range(
+    struct nvkmd_nvgpu_native_device_owner *owner,
+@@ -91,11 +60,17 @@ nvkmd_nvgpu_native_owner_map_backing(
+    return mapped ? VK_SUCCESS : VK_ERROR_DEVICE_LOST;
+ }
+ 
+-bool
+-nvkmd_nvgpu_native_owner_unmap_view(
+-   struct nvkmd_nvgpu_native_device_owner *owner,
+-   struct nvkmd_nvgpu_native_backing *backing,
+-   uint64_t view_addr, uint64_t size_B)
++/* Removes a view's mapping. Returns false when it may remain: the caller
++ * keeps the view and does not reuse its VA.
++ *
++ * This does not return a set-aside chunk to the pool: the caller does that
++ * (nvkmd_nvgpu_native_owner_reclaim_chunks) when its whole operation is
++ * done. A partial unbind removes a view and maps parts of it again; in
++ * between, nothing maps the chunk, and it is still not free. */
++static bool
++native_view_unmap(struct nvkmd_nvgpu_native_device_owner *owner,
++                  struct nvkmd_nvgpu_native_backing *backing,
++                  uint64_t view_addr, uint64_t size_B)
+ {
+    if (!owner || !backing || !nvkmd_nvgpu_native_owner_lock(owner))
+       return false;
+@@ -108,15 +83,24 @@ nvkmd_nvgpu_native_owner_unmap_view(
+       owner->stats.view_map_failures++;
+       mesa_loge("native view: unmap of 0x%llx bytes failed: result 0x%x",
+                 (unsigned long long)size_B, rc);
+-   } else if (owner->stranded_chunks) {
+-      /* This may have been the last view of a chunk whose memory the
+-       * program freed first. */
+-      nvkmd_nvgpu_native_owner_reclaim_chunks(owner);
+    }
+    nvkmd_nvgpu_native_owner_unlock(owner);
+    return unmapped;
+ }
+ 
++struct nvkmd_nvgpu_native_view_list *
++nvkmd_nvgpu_native_view_list_create(uint64_t va_addr, uint64_t va_size_B,
++                                    uint8_t pte_kind)
++{
++   struct nvkmd_nvgpu_native_view_list *list = calloc(1, sizeof(*list));
++   if (!list)
++      return NULL;
++   list->va_addr = va_addr;
++   list->va_size_B = va_size_B;
++   list->pte_kind = pte_kind;
++   return list;
++}
++
+ bool
+ nvkmd_nvgpu_native_view_list_reserve(struct nvkmd_nvgpu_native_view_list *list)
+ {
+@@ -206,10 +190,8 @@ nvkmd_nvgpu_native_view_list_unbind(
+       const bool touched = view.offset_B + view.size_B > offset_B &&
+                            view.offset_B < end_B;
+       if (touched &&
+-          nvkmd_nvgpu_native_owner_unmap_view(owner,
+-                                              view.source.backing,
+-                                              list->va_addr + view.offset_B,
+-                                              view.size_B)) {
++          native_view_unmap(owner, view.source.backing,
++                            list->va_addr + view.offset_B, view.size_B)) {
+          removed[i] = true;
+          continue;
+       }
+@@ -231,34 +213,37 @@ nvkmd_nvgpu_native_view_list_unbind(
+    free(keep);
+    free(keep_from);
+    free(removed);
++   /* Only now: a chunk whose memory was freed, and whose last view this
++    * removed without mapping a part of it again, returns to the pool. */
++   if (owner->stranded_chunks)
++      nvkmd_nvgpu_native_owner_reclaim_chunks(owner);
+    return result;
+ }
+ 
+-/* Gives a view that may still be mapped to the owner, with a reference to
+- * the hold of its VA. */
+-static void
+-native_view_retire(struct nvkmd_nvgpu_native_device_owner *owner,
+-                   const struct nvkmd_nvgpu_native_view_list *list,
+-                   const struct nvkmd_nvgpu_native_view *view,
+-                   struct nvkmd_nvgpu_native_va_hold *hold)
++/* Unmaps every view of the list that it can, and keeps the others.
++ * Returns true when none is left. */
++static bool
++native_view_list_unmap_all(struct nvkmd_nvgpu_native_device_owner *owner,
++                           struct nvkmd_nvgpu_native_view_list *list)
+ {
+-   /* The reference stays also without a record: the VA is then never
+-    * returned, because nothing can unmap the view any more. */
+-   hold->references++;
+-   struct nvkmd_nvgpu_native_retired_view *retired =
+-      calloc(1, sizeof(*retired));
+-   if (!retired) {
+-      mesa_loge("native view: no memory for the record of a view of 0x%llx "
+-                "bytes that may still be mapped",
+-                (unsigned long long)view->size_B);
+-      return;
++   uint32_t kept = 0;
++   for (uint32_t i = 0; i < list->count; i++) {
++      const struct nvkmd_nvgpu_native_view view = list->views[i];
++      if (!native_view_unmap(owner, view.source.backing,
++                             list->va_addr + view.offset_B, view.size_B))
++         list->views[kept++] = view;
+    }
+-   retired->backing = view->source.backing;
+-   retired->addr = list->va_addr + view->offset_B;
+-   retired->size_B = view->size_B;
+-   retired->hold = hold;
+-   retired->next = owner->retired_views;
+-   owner->retired_views = retired;
++   list->count = kept;
++   return !kept;
++}
++
++static void
++native_view_list_free(struct nvkmd_nvgpu_native_device_owner *owner,
++                      struct nvkmd_nvgpu_native_view_list *list)
++{
++   nvkmd_nvgpu_native_owner_release_va(owner, list->va_addr, list->va_size_B);
++   free(list->views);
++   free(list);
+ }
+ 
+ void
+@@ -266,61 +251,39 @@ nvkmd_nvgpu_native_view_list_finish(
+    struct nvkmd_nvgpu_native_device_owner *owner,
+    struct nvkmd_nvgpu_native_view_list *list)
+ {
+-   uint32_t kept = 0;
+-   for (uint32_t i = 0; i < list->count; i++) {
+-      const struct nvkmd_nvgpu_native_view view = list->views[i];
+-      if (!nvkmd_nvgpu_native_owner_unmap_view(owner, view.source.backing,
+-                                               list->va_addr + view.offset_B,
+-                                               view.size_B))
+-         list->views[kept++] = view;
+-   }
+-   if (!kept) {
+-      nvkmd_nvgpu_native_owner_release_va(owner, list->va_addr,
+-                                          list->va_size_B);
++   if (native_view_list_unmap_all(owner, list)) {
++      native_view_list_free(owner, list);
+    } else {
++      /* The list is its own retirement record: nothing is allocated here,
++       * so no view is lost. */
+       mesa_loge("native view: %u views of a VA of 0x%llx bytes may still be "
+-                "mapped; device close unmaps them", kept,
++                "mapped; device close unmaps them", list->count,
+                 (unsigned long long)list->va_size_B);
+-      struct nvkmd_nvgpu_native_va_hold *hold =
+-         nvkmd_nvgpu_native_va_hold_create(list->va_addr, list->va_size_B);
+-      /* Without a hold, the VA stays reserved and the views are lost. */
+-      if (hold) {
+-         for (uint32_t i = 0; i < kept; i++)
+-            native_view_retire(owner, list, &list->views[i], hold);
+-         nvkmd_nvgpu_native_va_hold_drop(owner, hold);
+-      }
++      list->next = owner->retired_view_lists;
++      owner->retired_view_lists = list;
+    }
+-   free(list->views);
+-   list->views = NULL;
+-   list->count = 0;
+-   list->capacity = 0;
++   /* A chunk whose memory was freed may have waited for these views. */
++   if (owner->stranded_chunks)
++      nvkmd_nvgpu_native_owner_reclaim_chunks(owner);
+ }
+ 
+ bool
+ nvkmd_nvgpu_native_owner_release_retired_views(
+    struct nvkmd_nvgpu_native_device_owner *owner)
+ {
+-   struct nvkmd_nvgpu_native_retired_view *view = owner->retired_views;
+-   owner->retired_views = NULL;
+-   while (view) {
+-      struct nvkmd_nvgpu_native_retired_view *next = view->next;
+-      Result rc = 0;
+-      if (nvkmd_nvgpu_native_unmap_range(owner->runtime, view->backing,
+-                                         view->addr, view->size_B,
+-                                         &owner->slot, &rc) ==
+-          NVKMD_NVGPU_NATIVE_MAP_OK) {
+-         nvkmd_nvgpu_native_va_hold_drop(owner, view->hold);
+-         free(view);
++   struct nvkmd_nvgpu_native_view_list *list = owner->retired_view_lists;
++   owner->retired_view_lists = NULL;
++   while (list) {
++      struct nvkmd_nvgpu_native_view_list *next = list->next;
++      if (native_view_list_unmap_all(owner, list)) {
++         native_view_list_free(owner, list);
+       } else {
+-         mesa_loge("native view: unmap of 0x%llx bytes failed again: "
+-                   "result 0x%x", (unsigned long long)view->size_B, rc);
+-         view->next = owner->retired_views;
+-         owner->retired_views = view;
++         list->next = owner->retired_view_lists;
++         owner->retired_view_lists = list;
+       }
+-      view = next;
++      list = next;
+    }
+-   /* A chunk whose memory was freed may have waited for one of them. */
+    if (owner->stranded_chunks)
+       nvkmd_nvgpu_native_owner_reclaim_chunks(owner);
+-   return !owner->retired_views;
++   return !owner->retired_view_lists;
+ }
+diff --git a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_views.h b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_views.h
+index ad60714..d36bcca 100644
+--- a/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_views.h
++++ b/src/nouveau/vulkan/nvkmd/nvgpu/nvkmd_nvgpu_native_views.h
+@@ -3,47 +3,38 @@
+  * own (an image plane, a sparse buffer).
+  *
+  * A mapping whose unmap failed may still exist. Its record and its VA are
+- * kept: in the VA's view list while the VA object lives, and with the owner
+- * afterwards, until device close unmaps it.
++ * kept in the VA's view list, which goes to the owner when the VA object
++ * is destroyed, until device close unmaps the mapping.
+  */
+ #ifndef NVKMD_NVGPU_NATIVE_VIEWS_H
+ #define NVKMD_NVGPU_NATIVE_VIEWS_H
+ 
+ #include "nvkmd_nvgpu_native_device_owner.h"
+ 
+-/* A GPU VA range that stays out of the VA heap after its object was
+- * destroyed, because mappings in it may remain. Each such mapping has one
+- * reference; the range returns to the heap with the last. */
+-struct nvkmd_nvgpu_native_va_hold {
+-   uint64_t addr, size_B;
+-   uint32_t references;
+-};
+-
+-/* A hold with one reference, the caller's. NULL when there is no memory;
+- * the caller then leaves the VA reserved. */
+-struct nvkmd_nvgpu_native_va_hold *
+-nvkmd_nvgpu_native_va_hold_create(uint64_t addr, uint64_t size_B);
+-
+-/* Drops one reference. Call with the owner lock held. */
+-void nvkmd_nvgpu_native_va_hold_drop(
+-   struct nvkmd_nvgpu_native_device_owner *owner,
+-   struct nvkmd_nvgpu_native_va_hold *hold);
+-
+ /* One bound range of a reserved VA: memory mapped again at the VA. */
+ struct nvkmd_nvgpu_native_view {
+    uint64_t offset_B, size_B;
+    struct nvkmd_nvgpu_native_view_source source;
+ };
+ 
+-/* The views of one reserved VA. They do not overlap. Every function takes
+- * the owner lock itself or is called with it held. */
++/* The views of one reserved VA, and the VA. They do not overlap. Every
++ * function takes the owner lock itself or is called with it held. */
+ struct nvkmd_nvgpu_native_view_list {
++   /* In owner->retired_view_lists, after the VA object is destroyed. */
++   struct nvkmd_nvgpu_native_view_list *next;
+    uint64_t va_addr, va_size_B;
+    uint8_t pte_kind;
+    struct nvkmd_nvgpu_native_view *views;
+    uint32_t count, capacity;
+ };
+ 
++/* A list for a VA that the caller reserved. NULL when there is no memory.
++ * The list is allocated here, with the VA object, so that the destruction
++ * of the VA object needs no memory to keep a view that may still be
++ * mapped. */
++struct nvkmd_nvgpu_native_view_list *nvkmd_nvgpu_native_view_list_create(
++   uint64_t va_addr, uint64_t va_size_B, uint8_t pte_kind);
++
+ /* Makes room for one more view. A mapping must not exist without its view,
+  * so this comes before the map request. */
+ bool nvkmd_nvgpu_native_view_list_reserve(
+@@ -66,9 +57,10 @@ VkResult nvkmd_nvgpu_native_view_list_unbind(
+    struct nvkmd_nvgpu_native_view_list *list,
+    uint64_t offset_B, uint64_t size_B);
+ 
+-/* For the destruction of the VA object: unmaps every view and returns the
+- * VA to the heap. Views that may still be mapped go to the owner, which
+- * keeps the VA until device close has unmapped them. */
++/* For the destruction of the VA object: unmaps every view, returns the VA
++ * to the heap and frees the list. When a view may still be mapped, the
++ * list goes to the owner instead, with those views and the VA, until
++ * device close has unmapped them. */
+ void nvkmd_nvgpu_native_view_list_finish(
+    struct nvkmd_nvgpu_native_device_owner *owner,
+    struct nvkmd_nvgpu_native_view_list *list);

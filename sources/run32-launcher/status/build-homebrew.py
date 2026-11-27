@@ -256,7 +256,17 @@ static u64 run_launcher(IzContext*c,bool snapshot_prepared){
     ))
 
 
-def shipped_versions(base):
+def shipped_versions(base, version_table=None):
+    if version_table is not None:
+        entries = []
+        for row in json.loads(version_table.read_text()):
+            if not re.fullmatch(r'[a-f0-9]{64}', row['headerSha256']) or not re.fullmatch(r'[A-Za-z0-9._+-]{1,15}', row['version']):
+                raise ValueError('Invalid pinned app version table')
+            hash_bytes = ','.join(f'0x{x:02x}' for x in bytes.fromhex(row['headerSha256']))
+            entries.append(f'    {{{{{hash_bytes}}},"{row["version"]}"}},\n')
+        if not entries:
+            raise ValueError('Empty pinned app version table')
+        return 'static const struct { uint8_t header[32]; char version[16]; } iz2_shipped_versions[] = {\n' + ''.join(entries) + '};\n'
     profile = json.loads((base / 'distribution/profile.json').read_text())
     entries = []
     for name in profile['moduleDirectories']:
@@ -458,7 +468,7 @@ def build_r_entry(elf, work, steps, env, output):
         file.write(result)
 
 
-def build(base, record, output, r_entry):
+def build(base, record, output, r_entry, ouncevk=None, version_table=None):
     runtime = base / 'engines/iz2s-core/runtime'
     # Keep the validated native link baseline separate from current release metadata.
     manifest = json.loads(STATUS_HEADER.with_name('baseline-menu-build.json').read_text())
@@ -472,6 +482,12 @@ def build(base, record, output, r_entry):
     steps = {step['name']: step for step in json.loads(record.read_text())}
     compile_step = steps['compile-ounce-main.o']
     link_step = steps['application-link']
+    linked_ouncevk, = (Path(arg) for arg in link_step['argv']
+                      if arg.endswith('/libouncevk.a'))
+    if ouncevk is not None:
+        with ouncevk.open('rb') as library:
+            if library.read(8) != b'!<arch>\n':
+                raise ValueError('OunceVK override must be a static archive')
     package_step = steps['embedded-image']
     compiler_args = list(compile_step['argv'])
     compiler = Path(compiler_args[0])
@@ -496,7 +512,7 @@ def build(base, record, output, r_entry):
         work = Path(tmp)
         patched = work / 'main.c'
         patched.write_text(integrate(source.read_text()))
-        (work / OFFICIAL_HEADER).write_text(shipped_versions(base))
+        (work / OFFICIAL_HEADER).write_text(shipped_versions(base, version_table))
         compiled = work / 'ounce-main.o'
         compiler_args[-1] = str(patched)
         compiler_args.extend(['-iquote', str(archived_main.parent), '-I', str(STATUS_HEADER.parent),
@@ -529,7 +545,9 @@ def build(base, record, output, r_entry):
         elf = work / 'izlauncher.elf'
         link_args = []
         for arg in link_step['argv']:
-            if arg.endswith('/ounce-main.o'):
+            if ouncevk is not None and arg == str(linked_ouncevk):
+                arg = str(ouncevk)
+            elif arg.endswith('/ounce-main.o'):
                 arg = str(compiled)
             elif arg.endswith('/legacy-launcher.o'):
                 arg = str(compiled_catalog)
@@ -578,7 +596,11 @@ if __name__ == '__main__':
     parser.add_argument('recorded_commands', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('--r-entry', type=Path)
+    parser.add_argument('--ouncevk', type=Path, help='link a separately built OunceVK archive')
+    parser.add_argument('--app-versions', type=Path, help='pin version recognition independently of bundled apps')
     args = parser.parse_args()
     build(args.run32.resolve(), args.recorded_commands.resolve(), args.output.resolve(),
-          args.r_entry.resolve() if args.r_entry else None)
+          args.r_entry.resolve() if args.r_entry else None,
+          args.ouncevk.resolve() if args.ouncevk else None,
+          args.app_versions.resolve() if args.app_versions else None)
     write_patch(args.run32.resolve(), STATUS_HEADER.with_name('run32-system-status.patch'))

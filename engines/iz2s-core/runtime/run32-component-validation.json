@@ -1,6 +1,6 @@
 {
   "format": "iz2s.run32-component-validation.v1",
-  "revision": "RUN34-0.34",
+  "revision": "IZ2S-0.3.4-GPU-cleanup-stage1",
   "consoleLaunchVerified": false,
   "crashFixConfirmedOnConsole": false,
   "nativeReproducedTwice": false,
@@ -9,12 +9,12 @@
   "menuId": "be0f0b11ffc978b6ca2b81b68dfc7611",
   "components": {
     "game/main": {
-      "bytes": 19450889,
-      "sha256": "aa75841be546a88b50a8bbc3bed029d06826a6806da54facf0f23fb370e6cb1f"
+      "bytes": 19440236,
+      "sha256": "0e0fc2fc35425df2b331fa63d15b2285880b4295d1ce053cbf3c27b12f61fc19"
     },
     "game/exefs.nsp": {
-      "bytes": 19452819,
-      "sha256": "eee3e079f94f01801123d087dd0e16d699006bd2272b82344812bc0a3ca1b914"
+      "bytes": 19442163,
+      "sha256": "8015ec3a331861ddf5639ba1235fd7814813d25ea9b7c2ee2ae4178358223020"
     },
     "iz2s/izlauncher.iza": {
       "bytes": 900504,
@@ -24,5 +24,7 @@
       "bytes": 26734392,
       "sha256": "a62414cd775f524e1032e1a7899eb81ddc169f225dd4ce2ba50933a6ec393868"
     }
-  }
+  },
+  "bootAnchorsUnchanged": true,
+  "gpuLifecycleHostTests": 8
 }
