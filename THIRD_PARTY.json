@@ -53,7 +53,7 @@
     {
       "id": "nx2-brerun",
       "name": "NX2 BreRUN",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "author": "IZMYSH and nx2-relink contributors",
       "license": "See modules/NX2BreRUN/LICENSE"
     }

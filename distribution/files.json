@@ -274,17 +274,17 @@
     },
     "README.md": {
       "bytes": 10862,
-      "sha256": "af94f2863dada6d6808e943fa4ca019259eb299cb23c9fbf83f4b51a52a5ebbd",
+      "sha256": "8d5fed96aaab23d50d1024e64b1ed1c60af4215f7291fa431618789d8184554e",
       "executable": false
     },
     "README.ru.md": {
       "bytes": 7844,
-      "sha256": "480e73aa256d9157d030f713e430ea2726d814872c9a419ea595735fe7f24aef",
+      "sha256": "0bd46d56b4a427c9f5bf2d7c8bf9def457ee5832bcc23d1e8d954b965a59024f",
       "executable": false
     },
     "RELEASE-NOTES.md": {
-      "bytes": 7878,
-      "sha256": "17a0f1ade8a3f23156b268e945ef442c82a6e851173262e204f5803038771d67",
+      "bytes": 8640,
+      "sha256": "e08014ea9bd142c9692828ce379e7789e21e5ff28455c2431e4fc716fe650c60",
       "executable": false
     },
     "SOURCES.md": {
@@ -299,7 +299,7 @@
     },
     "THIRD_PARTY.json": {
       "bytes": 5921,
-      "sha256": "686ba8b5fc75fc3b4f7c0fe6ac12e4b130bc52188fb101c73802fcb6319faacf",
+      "sha256": "2805757774ca1536d1930abc3ebcec8497f9250598495eeeb628b54fe676a26d",
       "executable": false
     },
     "core/archive.cjs": {
@@ -2378,8 +2378,8 @@
       "executable": false
     },
     "distribution/application-origins.json": {
-      "bytes": 2363,
-      "sha256": "a7af6b948956e3890e7bf8bd1015c13f7c27909bf5f3b2e5833130b991a9ba14",
+      "bytes": 2542,
+      "sha256": "5d1a559ba18f391c21eacec22f1fc078040937ff5db6e9579afd0f412160ef2e",
       "executable": false
     },
     "distribution/civ7-navigation.test.cjs": {
@@ -2424,7 +2424,7 @@
     },
     "distribution/store-releases.json": {
       "bytes": 1134,
-      "sha256": "27cdb46a27305170bea9e8bbb77550c385f5ba8fd35ef075e98b6b8fdbfe7ccb",
+      "sha256": "e75e065ec4b2e62d9a0e4f80b53a1e73d4ed70db370cf8568fce56cc94d7a734",
       "executable": false
     },
     "distribution/verify.cjs": {
@@ -2434,7 +2434,7 @@
     },
     "docs/APPLICATIONS.md": {
       "bytes": 2483,
-      "sha256": "46de227c72af4d425fd536709237711b34d6c680aa00e7c8c9b0386ae76bd4d8",
+      "sha256": "1c42c65196dec1562dbb91eee087c90b7cef6002c5f9057dda3a2e2872bda98a",
       "executable": false
     },
     "docs/INSTALLATION.md": {
@@ -6548,18 +6548,18 @@
       "executable": false
     },
     "modules/NX2BreRUN/README.md": {
-      "bytes": 149,
-      "sha256": "25e1f3e559d44ff7138d36556e0240d1c8d8c902224838ef07bc634168e5f437",
+      "bytes": 381,
+      "sha256": "4b923c863af890e55f784c84e8588edfe32e0e4475b371cde1b4a2915e2def83",
       "executable": false
     },
     "modules/NX2BreRUN/module.json": {
       "bytes": 612,
-      "sha256": "986fe95e4a8ea07fb5e034411a03632d894a8ea7cbd6a4b111e10a711251ad4a",
+      "sha256": "4514f320af05a95ecb156234cccabe5381296dc8e8cb01971573b85845b0884e",
       "executable": false
     },
     "modules/NX2BreRUN/nx2-brerun.module.zip": {
-      "bytes": 13297931,
-      "sha256": "78d326ffdaaa181248a350ef0d3d152ea2e79300d56e712d1f1039d77f974072",
+      "bytes": 13332428,
+      "sha256": "c915c15f6b07df20f6bf23344214ae50b8fcc3e4c81ac5e77a2a7691b2c9bbab",
       "executable": false
     },
     "modules/NX2BreRUN/switch/app.json": {
@@ -6573,8 +6573,8 @@
       "executable": false
     },
     "modules/NX2BreRUN/switch/launcher.nro": {
-      "bytes": 31907756,
-      "sha256": "7160371ad062c126631c84b3161661e170d6690c00dd24397996b9559b3f47a9",
+      "bytes": 31969196,
+      "sha256": "e5321a71532e705bcb8aab2da8792a8bca625335ba320fea90e5a2ddbea67f58",
       "executable": false
     },
     "modules/iz2s-cheese/LICENSE": {
@@ -134688,8 +134688,8 @@
       "executable": true
     },
     "tests/release/sd-kit.test.cjs": {
-      "bytes": 6847,
-      "sha256": "4a3bb80237527d0cb36f894bf1161099f04581d41fdcd529a04b386e097df27d",
+      "bytes": 7037,
+      "sha256": "4392ce077efbddc566584a9f9d379ff5325f00dc0bb011b34ca3d62c3be45974",
       "executable": false
     },
     "tests/release/stability-defaults.test.cjs": {

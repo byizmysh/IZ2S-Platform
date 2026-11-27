@@ -20,8 +20,8 @@
     "sha256": "d9457fe53d4b32456a20d6d418c9bf5300acaa3418e860175cc8f9db7199cbb3"
   },
   "nx2-brerun": {
-    "asset": "https://github.com/byizmysh/nx2-brerun/releases/download/v0.6.0/nx2-brerun-v0.6.0.nro",
-    "bytes": 31907756,
-    "sha256": "7160371ad062c126631c84b3161661e170d6690c00dd24397996b9559b3f47a9"
+    "asset": "https://github.com/byizmysh/nx2-brerun/releases/download/v0.7.0/nx2-brerun-v0.7.0.nro",
+    "bytes": 31969196,
+    "sha256": "e5321a71532e705bcb8aab2da8792a8bca625335ba320fea90e5a2ddbea67f58"
   }
 }

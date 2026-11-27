@@ -57,8 +57,10 @@ test('Civ7 ZIP is a complete four-app SD tree with verified resources and origin
  for(const app of manifest.apps){
   if(app.id==='nx2-brerun'){
    assert.equal(app.format,'.nro');
-   assert.equal(app.version,'0.6.0');
+   assert.equal(app.version,'0.7.0');
    const bytes=files.get(app.path+'launcher.nro');
+   const metadata=await require('../../engines/iz2s-core/tools/nro-package.cjs').metadata(bytes.length,(at,size)=>bytes.subarray(at,at+size));
+   assert.equal(metadata.version,app.version);
    const release=JSON.parse(await fs.readFile(path.join(root,'distribution/application-origins.json'))).find(row=>row.id===app.id);
    assert.equal(bytes.length,release.bytes);
    assert.equal(archive.sha(bytes),release.sha256);

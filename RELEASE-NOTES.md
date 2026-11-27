@@ -50,10 +50,17 @@ These changes address resource-lifetime hazards. They are not a claim that every
 - Added readable menu messages for NRO ABI errors 2346-0200 through 2346-0206 and cleanup diagnostics in `/iz2s/log/hen/nro-cleanup.txt`.
 - NRO applications still run full screen. This release does not restore NRO Split or add the new shared-library interfaces to the IZA ABI. IZA Split retains its established embedded runtime.
 
+## NX2 BreRUN 0.7.0
+
+- Updated the bundled NRO, PC library package and verified App Store download to [NX2 BreRUN 0.7.0](https://github.com/byizmysh/nx2-brerun/releases/tag/v0.7.0). The original release binary and license are preserved.
+- Includes resumable browser transfers, a scrolling game library, per-game settings, save backups and expanded diagnostics.
+- Keeps the existing `iz2s/modules/nx2-brerun/launcher.nro` installation path, so this module update replaces the installed program without renaming its data directory. Keep existing game data folders beside it.
+- This is an in-place package update within IZ2S 0.3.5. The launcher, runtime libraries and boot compatibility are unchanged by the NX2 update.
+
 ## Package and upgrade
 
 - Both the panel and launcher use version **0.3.5**. `IZ2S-0.3.5-linux.zip` contains the Linux installer and the matching `iz2sciv-core-sd.zip` next to `install.sh`.
-- The SD kit still includes IZ2S Cheese 0.8.7, IZPSX 0.5.3, Foldrift 0.3.3 and NX2 BreRUN 0.6.0. These application binaries are unchanged. IZPS2 remains a separate library download; its local export retains `vu-split-persist-off.flag`.
+- The SD kit still includes IZ2S Cheese 0.8.7, IZPSX 0.5.3, Foldrift 0.3.3 and NX2 BreRUN 0.7.0. NX2 BreRUN is updated from 0.6.0; the other three application binaries are unchanged. IZPS2 remains a separate library download; its local export retains `vu-split-persist-off.flag`.
 - Runtime libraries, licenses, native build inputs and outputs, package inventories and SD hashes are shipped as a consistent set. No console-specific GPU cache, keys, BIOS, games or user state is included.
 - Compared with the published 0.3.4 package, the RO component has changed. Use the complete SD package and a launch save compatible with that runtime. Updating only the menu is insufficient for that migration.
 - The menu-only update from the most recent compatible local runtime retains its boot compatibility. Do not infer compatibility from the displayed version number alone.

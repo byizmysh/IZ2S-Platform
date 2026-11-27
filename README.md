@@ -52,7 +52,7 @@ The normal panel address is `http://127.0.0.1:39535/`. Use the URL opened or pri
 | [IZ2S Cheese](https://github.com/byizmysh/iz2s-cheese) | 0.8.7 | Yes |
 | [IZPSX emulator](https://github.com/byizmysh/IZPSX-emulator) | 0.5.3 | Yes |
 | [IZPS2 emulator](https://github.com/byizmysh/IZPS2-emulator) | 0.5.0 | Available separately in the PC library |
-| [NX2 BreRUN](https://github.com/byizmysh/nx2-brerun) | 0.6.0 | Yes, full-screen NRO |
+| [NX2 BreRUN](https://github.com/byizmysh/nx2-brerun) | 0.7.0 | Yes, full-screen NRO |
 | [Foldrift](modules/Foldrift) | 0.3.3 | Yes |
 | [Book Reader](modules/BookReader) | 0.1.0 | Available separately in the PC library |
 | [BlitBun](https://github.com/byizmysh/BlitBun) | 1.15.8 | Available separately; PC media host requires Linux |
