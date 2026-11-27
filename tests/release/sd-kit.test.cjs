@@ -82,7 +82,7 @@ test('Civ7 ZIP is a complete four-app SD tree with verified resources and origin
  assert(!entries.some(f=>/\/(?:bios|games|saves)\/|\.(?:iso|chd|pbp|key|log)$/.test(f.name)));
  assert(!entries.some(file=>file.name.split('/').includes('izps2')||file.name.endsWith('/vu-split-persist-off.flag')));
  assert.equal(manifest.packageVariant,'four-apps');
- assert.equal(manifest.panelVersion,'0.34');
+ assert.equal(manifest.panelVersion,'0.3.4');
  assert.equal(manifest.launcherVersion,'0.34');
  assert(!entries.some(f=>/(?:^|\/)iz2s\.nro$|menu-vulkan|shader-cache/i.test(f.name)));
  assert(files.has('iz2s/README-IZ2SCiv.txt'));

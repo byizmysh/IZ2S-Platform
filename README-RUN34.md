@@ -1,4 +1,4 @@
-# IZ2S RUN34 0.34
+# IZ2S RUN34 0.3.4
 
 Use the original IZtwiNS2 and IZPSX application files. Both can occupy either pane. Compatible Vulkan-only apps with private control buffers are also selectable.
 

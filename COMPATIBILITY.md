@@ -1,4 +1,4 @@
-# Compatibility - Linux / Civilization VII edition 0.34
+# Compatibility - Linux / Civilization VII edition 0.3.4
 
 ## Target versions
 
@@ -8,7 +8,7 @@
 | System firmware | 23.0.1 |
 | Game | Nintendo Switch 1 cartridge of Civilization VII 1.0.0 |
 | Console interface / USB keyboard | English / English (US) |
-| PC panel | 0.34 |
+| PC panel | 0.3.4 |
 | Console launcher | 0.34 |
 | Native revision | RUN34-0.34 (local prototype) |
 | Launch save policy | iz2s.sd-flex.v1 |

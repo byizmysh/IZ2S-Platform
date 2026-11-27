@@ -275,9 +275,9 @@ restart = false, idle = waitForIdle, ...options }) {
   const owner = stored?.owner ?? await inspect(pid);
   if (!owner || (health && (owner.version !== health.version || health.preview)))
     throw Error('The panel port '+port+' is occupied by an unverified process'+
-      (Number.isSafeInteger(pid)?' (PID '+pid+')':'')+'. Close it before starting 0.3.1.');
+      (Number.isSafeInteger(pid)?' (PID '+pid+')':'')+'. Close it before starting this panel.');
   if(path.resolve(owner.root)!==path.resolve(root)&&!['RUN24','0.3.0','0.3.1'].includes(owner.edition))
-    throw Error('Port '+port+' belongs to '+(owner.edition||'another panel')+' (PID '+pid+'). Close it before starting 0.3.1.');
+    throw Error('Port '+port+' belongs to '+(owner.edition||'another panel')+' (PID '+pid+'). Close it before starting this panel.');
   if (path.resolve(owner.root) === path.resolve(root) && !restart) return false;
   if(path.resolve(owner.root)!==path.resolve(root))await idle({root:owner.root,port,pid,timeout:options.timeout});
   console.log('Stopping the preceding IZ2S Platform panel before starting this release.');

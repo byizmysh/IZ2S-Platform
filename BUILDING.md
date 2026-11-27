@@ -1,4 +1,4 @@
-# Build and verify IZ2S for Civilization VII 0.34
+# Build and verify IZ2S for Civilization VII 0.3.4
 
 This release targets **native Linux x64 / ARM64 only**. Use Node.js 24 and Python 3 for development checks. Component-local production JavaScript dependencies are included. The Git checkout retains application development sources and omits the large runtime binaries included in the Linux installation archive.
 
@@ -29,7 +29,7 @@ This writes `engines/iz2sciv-core/dist/iz2sciv-core-sd.zip` and prints its SHA-2
 Prepare a separate workspace containing only:
 
 ```text
-staging/IZ2S-0.34-linux/
+staging/IZ2S-0.3.4-linux/
 ```
 
 Use a verified complete release tree, not an installed user's folder. Root `data/` and `dist/` must be empty. No keys, pairing, console caches, logs or old sessions belong in staging. The profile's `releaseTarget` is `linux`; Windows installation files and executables must be absent.

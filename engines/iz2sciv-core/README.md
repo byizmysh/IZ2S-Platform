@@ -1,6 +1,6 @@
 # IZ2SCiv core - Civilization VII entry for IZ2S
 
-This is the panel's sole entry engine in **IZ2S 0.34**, paired with launcher **0.32**, local prototype revision `RUN34-0.34`. Target: Switch 2 firmware **23.0.1**, **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
+This is the panel's sole entry engine in **IZ2S 0.3.4**, paired with launcher **0.34**, local prototype revision `RUN34-0.34`. Target: Switch 2 firmware **23.0.1**, **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
 
 Use the current [English installation guide](../../docs/INSTALLATION.md) or [русскую инструкцию](../../docs/INSTALLATION.ru.md). The panel has four steps: SD card, PC preparation, connection with automatic save installation, and launch. Initial LDN delivery requires native Linux and a compatible Wi-Fi radio.
 

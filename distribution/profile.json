@@ -1,7 +1,7 @@
 {
   "id": "iz2s-platform",
   "repository": "https://github.com/byizmysh/IZ2S-Platform",
-  "version": "0.34",
+  "version": "0.3.4",
   "shells": [
     "izlauncher"
   ],
@@ -41,7 +41,7 @@
   "directComponents": [
     "iz2sciv-core"
   ],
-  "edition": "0.34",
+  "edition": "0.3.4",
   "gameSupport": {
     "civilization7": [
       "linux-x64",
@@ -49,5 +49,5 @@
     ]
   },
   "releaseTarget": "source",
-  "buildId": "run34-0.34"
+  "buildId": "run34-0.3.4"
 }

@@ -14,7 +14,7 @@ Interfaz: `HOME → Configuración de la consola → Consola → Idioma → Engl
 
 ## 3. ¿Dónde debo extraer el archivo SD?
 
-Descomprime `IZ2S-0.34-linux.zip` en el PC. Encontrarás `iz2sciv-core-sd.zip` junto a `install.sh`. Extrae el archivo de la SD en la raíz de la tarjeta para que las rutas comiencen por `SD:/iz2s/`. Puedes descargar otra copia desde el panel. Al actualizar, combina las carpetas y sustituye los archivos coincidentes del paquete. Conserva `Nintendo`, las otras aplicaciones, BIOS, juegos, partidas y ajustes. Mantén las licencias incluidas y expulsa la tarjeta de forma segura.
+Descomprime `IZ2S-0.3.4-linux.zip` en el PC. Encontrarás `iz2sciv-core-sd.zip` junto a `install.sh`. Extrae el archivo de la SD en la raíz de la tarjeta para que las rutas comiencen por `SD:/iz2s/`. Puedes descargar otra copia desde el panel. Al actualizar, combina las carpetas y sustituye los archivos coincidentes del paquete. Conserva `Nintendo`, las otras aplicaciones, BIOS, juegos, partidas y ajustes. Mantén las licencias incluidas y expulsa la tarjeta de forma segura.
 
 ## 4. ¿Cuándo repito el procedimiento completo?
 

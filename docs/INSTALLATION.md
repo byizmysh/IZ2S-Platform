@@ -2,11 +2,11 @@
 
 [Русский](INSTALLATION.ru.md) · [Requirements and PC installation](../README.md#requirements)
 
-This guide follows the panel's four installation steps. Use panel 0.34 and the matching launcher 0.34 `RUN34-0.34` package. Initial LDN delivery requires native Linux, a compatible Wi-Fi radio and your own Switch 1 keys. The target is Switch 2 firmware **23.0.1** and the **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
+This guide follows the panel's four installation steps. Use panel 0.3.4 and the matching launcher 0.34 `RUN34-0.34` package. Initial LDN delivery requires native Linux, a compatible Wi-Fi radio and your own Switch 1 keys. The target is Switch 2 firmware **23.0.1** and the **Nintendo Switch 1 cartridge of Civilization VII 1.0.0**.
 
 ## 1. SD card
 
-Extract `IZ2S-0.34-linux.zip` on your PC. Inside the extracted `IZ2S-0.34-linux` folder, run `sh ./install.sh --launch` to install and open the panel. The same folder contains `iz2sciv-core-sd.zip` next to `install.sh`.
+Extract `IZ2S-0.3.4-linux.zip` on your PC. Inside the extracted `IZ2S-0.3.4-linux` folder, run `sh ./install.sh --launch` to install and open the panel. The same folder contains `iz2sciv-core-sd.zip` next to `install.sh`.
 
 Back up any files you will replace. Extract the contents of **`iz2sciv-core-sd.zip`** into the card root so the `iz2s` folder sits directly at `SD:/iz2s/`. If you need a fresh copy of the SD ZIP, use **Download SD archive** in step 1 of the panel.
 
