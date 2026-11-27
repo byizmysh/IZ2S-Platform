@@ -343,7 +343,7 @@
     "core/session/wait-for-close.cjs",
     "core/source-layout.cjs",
     "core/workspace.cjs",
-    "engines/CivSwitch/save-installation.cjs",
+    "engines/iz2sciv-shared/save-installation.cjs",
     "engines/common.cjs",
     "engines/index.cjs",
     "language/en/ui.json",

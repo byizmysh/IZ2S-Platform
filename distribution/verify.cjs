@@ -27,9 +27,9 @@ async function verify(){
  // These entry points are loaded through child processes or a separate local
  // service. Descriptor discovery and ordinary require() scans do not reach them.
  const launchResources=[
-  'engines/CivSwitchLDN/bash/network-panel.sh',
-  'engines/CivSwitchLDN/bash/network.sh',
-  'engines/CivSwitchLDN/bash/setup.sh',
+  'engines/iz2sciv-network/bash/network-panel.sh',
+  'engines/iz2sciv-network/bash/network.sh',
+  'engines/iz2sciv-network/bash/setup.sh',
   'engines/iz2s-core/tools/pc-link.cjs',
   'engines/iz2s-core/tools/pc-link-files.cjs',
   'engines/iz2s-core/tools/pc-link-state.cjs',
@@ -51,7 +51,8 @@ async function verify(){
   'engines/iz2s-core/tools/install-launcher-menu.py',
  ];
  for(const file of launchResources){const stat=await fs.stat(path.join(root,file));assert(stat.isFile()&&stat.size>0,'Launch resource absent: '+file);}
- for(const owner of ['engines/CivSwitch/installer-creator','engines/CivSwitchLDN']){
+ {
+  const owner='engines/iz2sciv-network';
   const folder=path.join(root,owner),entry=require.resolve('terser',{paths:[folder]});
   assert(entry.startsWith(path.join(folder,'node_modules')+path.sep),'Runtime minifier must be bundled with '+owner);
   assert.equal(typeof require(entry).minify,'function');
@@ -66,7 +67,7 @@ async function verify(){
   for(const dep of descriptor.dependencies||[])if(dep.kind==='module')assert(profile.modules.includes(dep.id),'Module dependency absent');
   modules.push(descriptor.id);
  }
- const {buildSdApplications,APP_IDS}=await import('../engines/IzCivSwitchFS/tools/sd-apps.mjs');
+ const {buildSdApplications,APP_IDS}=await import('../engines/iz2sciv-core/tools/sd-apps.mjs');
  const sdKit=await buildSdApplications(root);
  assert.deepEqual(sdKit.apps.map(app=>app.id),APP_IDS);
  const fontHome=path.join(root,'language/fonts'),fonts=JSON.parse(await fs.readFile(path.join(fontHome,'manifest.json')));

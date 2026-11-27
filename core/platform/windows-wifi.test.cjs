@@ -20,7 +20,7 @@ test('invalid GUIDs and shell arguments are refused',async()=>{
  assert.throws(()=>wifi.args('/tmp',';invalid'),/adapter/);
 });
 test('Windows discovery uses native type even for renamed Wi-Fi and excludes virtual networks',async()=>{
- const {candidates}=require('../../engines/CivSwitch/runtime/discovery.cjs');
+ const {candidates}=require('../../engines/iz2sciv-shared/runtime/discovery.cjs');
  const row=address=>[{address,netmask:'255.255.255.252',family:'IPv4',internal:false}];
  const result=await candidates({platform:'win32',mode:'wifi',interfaces:()=>({'My adapter':row('192.168.3.1'),Ethernet:row('192.168.4.1'),VPN:row('10.0.0.1')}),wireless:async()=>false,tunnel:async()=>false,
  adapterModes:async()=>new Map([['192.168.3.1','wifi'],['192.168.4.1','lan'],['10.0.0.1','excluded']])});

@@ -3,6 +3,7 @@ const http = require('node:http'),
   path = require('node:path'),
   crypto = require('node:crypto');
 const { redact } = require('../core/session/ledger.cjs');
+const repositoryApps = require('../core/packages/repository-apps.cjs');
 async function createWindowServer({
   root,
   manager,
@@ -41,7 +42,7 @@ async function createWindowServer({
       const value=await manager.snapshot(),coreRows=await coreController.history.list();
       const rows=new Map((value.history||[]).map(row=>[row.id,row]));
       for(const row of coreRows)rows.set(row.id,row);
-      return {...value,history:[...rows.values()].sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')))};
+      return {...value,repositoryDownloads:repositoryApps.ids,history:[...rows.values()].sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')))};
     });
     stateJobs.add(job);
     const release = () => { stateJobs.delete(job); };
@@ -186,7 +187,7 @@ async function createWindowServer({
         });
       if (req.method === 'GET' && url.pathname === '/api/iz2sciv/sd-package') {
         // Local download is also available in preview; it never contacts a console.
-        const {getSdPackage} = await import('../engines/IzCivSwitchFS/tools/sd-package.mjs');
+        const {getSdPackage} = await import('../engines/iz2sciv-core/tools/sd-package.mjs');
         const archive = await getSdPackage();
         return send(res,200,{'content-type':'application/zip',
           'content-disposition':'attachment; filename="'+archive.filename+'"',
@@ -203,6 +204,15 @@ async function createWindowServer({
           const module = await require('../core/modules.cjs').read(root,id,{pinned:false});
           if (!module.descriptor.switch || !require('../core/packages/store-catalog.cjs').visible(module.descriptor))
             return reply(res,400,{error:'That application is unavailable for download.'});
+          if (url.searchParams.get('source') === 'repository') {
+            const app = await repositoryApps.download(id);
+            if (!app) return reply(res,404,{error:'No verified repository release is available for this application.'});
+            return send(res,200,{
+              'content-type':'application/octet-stream',
+              'content-disposition':'attachment; filename="'+app.name+'"',
+              'content-length':app.bytes.length,
+            },app.bytes);
+          }
           const app = await require('../engines/iz2s-core/tools/prepare-sd-app.cjs').packageModule(module);
           return send(res,200,{
             'content-type':app.packed?'application/zip':'application/octet-stream',

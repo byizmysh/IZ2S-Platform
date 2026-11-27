@@ -10,8 +10,8 @@ The IZPS2 source release records inherited toolchain inputs and states that a co
 
 The native runtime has inherited build inputs outside this checkout. The current menu includes the lifecycle audit changes and the Civ7-UI shader-cache replacement fix. Removed SB4 installer and input-device firmware files are not part of the current runtime distribution; their earlier source and notices remain in Git history where applicable. The current menu build record binds its recorded sources and outputs by hash. Historical source snapshots for unchanged binaries are retained under `sources/runtime-build/`; other inherited native build records do not describe every current output. This snapshot is **not a complete corresponding-source archive for the entire native runtime and firmware**, and a clean full native rebuild is not claimed. These gaps are not resolved by including upstream links or license texts. Existing notices and source obligations remain applicable.
 
-CivSwitchLDN and CivSwitchFS runtime sources, their original notices, and locally integrated changes remain under `engines/CivSwitchLDN/` and `engines/IzCivSwitchFS/`.
+CivSwitchLDN and CivSwitchFS runtime sources, their original notices, and locally integrated changes remain under `engines/iz2sciv-network/` and `engines/iz2sciv-core/`.
 
-The complete Electron runtime kits are distributed in the Linux installation asset; Git contains their source-facing application code and notices but omits the large runtime binaries. This release contains only a Linux installation asset; Windows installers and bundled Windows host executables are excluded.
+This release contains only a Linux installation asset; Windows installers and bundled Windows host executables are excluded.
 
 See [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [AUTHORS.md](AUTHORS.md), [THIRD_PARTY.json](THIRD_PARTY.json), and [LICENSES/INDEX.md](LICENSES/INDEX.md). Publishing this snapshot does not relicense third-party code or imply that missing permission has been granted.

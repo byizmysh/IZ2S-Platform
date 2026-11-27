@@ -14,6 +14,7 @@ const {readState,writeState} = require('./pc-link-state.cjs');
 const streams = require('./pc-stream.cjs');
 const menuRelease = require('./menu-release.cjs');
 const versions = require('./installed-versions.cjs');
+const repositoryApps = require('../../../core/packages/repository-apps.cjs');
 
 const DEFAULT_FOLDER = path.join(runtime.logs(), 'pc-link');
 const MAX_PACKAGE = archive.MAX_ARCHIVE;
@@ -408,7 +409,19 @@ function bridge({secret,pcIp,pcAddresses=[pcIp],consolePort=39524,browserPort=39
           if(!app){sendStore(2);return;}
           if(queued||preparingApp){sendStore(3);return;}
           if(socket.destroyed)return;
-          await queueApplication(()=>packageModule(app),()=>!socket.destroyed,false);
+          await queueApplication(async()=>{
+            const local = await packageModule(app);
+            const release = repositoryApps.release(app.id);
+            // Keep the audited local variant when upstream and IZ2S differ.
+            if (release?.sha256 !== archive.sha(local.bytes)) return local;
+            try {
+              const {bytes} = await repositoryApps.download(app.id, {signal:AbortSignal.timeout(5500)});
+              return {...local,bytes};
+            } catch (error) {
+              console.warn('PC Link App Store: using verified local package for',app.id,error.message);
+              return local;
+            }
+          },()=>!socket.destroyed,false);
           sendStore(0);
         })().catch(error=>{
           console.error('PC Link App Store:',error.message);

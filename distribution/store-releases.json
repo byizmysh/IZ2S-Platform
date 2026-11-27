@@ -1,0 +1,27 @@
+{
+  "izpsx": {
+    "asset": "https://github.com/byizmysh/IZPSX-emulator/releases/download/v0.5.3/izpsx-emulator-0.5.3.iza",
+    "bytes": 573036,
+    "sha256": "4f6dd478ec0e9c7160935355f1cbcab24f60a39fb0b39ee47879cda6dc2d086e"
+  },
+  "izps2": {
+    "asset": "https://github.com/byizmysh/IZPS2-emulator/releases/download/v0.5.0/izps2-emulator-0.5.0.iza",
+    "bytes": 17393780,
+    "sha256": "b60159db3d2111769d1392b85ee76cd6e07a839cabee12b99e1b92474f1eafde"
+  },
+  "iz2s-cheese": {
+    "asset": "https://github.com/byizmysh/iz2s-cheese/releases/download/v0.8.7/iz2s-cheese.iza",
+    "bytes": 907512,
+    "sha256": "cc4bb45228d8218831810885927f736eab30d7705f6076b969907565a261aef7"
+  },
+  "blitbun": {
+    "asset": "https://github.com/byizmysh/BlitBun/releases/download/v1.15.8/blitbun-1.15.8.iza",
+    "bytes": 516376,
+    "sha256": "d9457fe53d4b32456a20d6d418c9bf5300acaa3418e860175cc8f9db7199cbb3"
+  },
+  "nx2-brerun": {
+    "asset": "https://github.com/byizmysh/nx2-brerun/releases/download/v0.6.0/nx2-brerun-v0.6.0.nro",
+    "bytes": 31907756,
+    "sha256": "7160371ad062c126631c84b3161661e170d6690c00dd24397996b9559b3f47a9"
+  }
+}

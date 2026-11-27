@@ -46,7 +46,7 @@ test('prebuilt import rejects missing, damaged and undeclared companions and mis
  assert.throws(()=>compat.directImage(descriptor,files.map(f=>f===metadata?{...f,bytes:Buffer.from(JSON.stringify(different))}:f)),/path/);
 });
 test('Civ7 ZIP is a complete four-app SD tree with verified resources and original binaries',async()=>{
- const {buildSdPackage}=await import('../../engines/IzCivSwitchFS/tools/sd-package.mjs');
+ const {buildSdPackage}=await import('../../engines/iz2sciv-core/tools/sd-package.mjs');
  const output=await buildSdPackage(),entries=archive.decode(output.bytes);
  const files=new Map(entries.map(f=>[f.name,f.bytes]));
  assert(entries.every(f=>f.name.startsWith('iz2s/')&&!f.name.includes('..')));

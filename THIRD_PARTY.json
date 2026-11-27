@@ -23,13 +23,6 @@
       "license": "GPL-2.0-or-later"
     },
     {
-      "id": "vacootube",
-      "name": "VacooTube",
-      "version": "1.5.7",
-      "author": "IZMYSH and upstream contributors",
-      "license": "GPL-2.0-or-later"
-    },
-    {
       "id": "iz-file-deck",
       "name": "Foldrift",
       "version": "0.3.3",
@@ -88,8 +81,8 @@
       ],
       "source": "https://github.com/Gezine/CivSwitch",
       "notices": [
-        "engines/CivSwitch/LICENSE",
-        "engines/IzCivSwitchFS/persist/LICENSE"
+        "engines/iz2sciv-shared/LICENSE",
+        "engines/iz2sciv-core/persist/LICENSE"
       ]
     },
     {
@@ -99,8 +92,8 @@
       ],
       "source": "https://github.com/ItsNerisma/CivSwitchLDN",
       "notices": [
-        "engines/CivSwitchLDN/LICENSE",
-        "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md"
+        "engines/iz2sciv-network/LICENSE",
+        "engines/iz2sciv-network/THIRD_PARTY_NOTICES.md"
       ]
     },
     {
@@ -110,8 +103,8 @@
       ],
       "source": "https://github.com/ItsNerisma/CivSwitchFS",
       "notices": [
-        "engines/IzCivSwitchFS/LICENSE-CivSwitchFS",
-        "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md"
+        "engines/iz2sciv-core/LICENSE-CivSwitchFS",
+        "engines/iz2sciv-core/THIRD_PARTY_NOTICES.md"
       ]
     },
     {
@@ -121,8 +114,8 @@
       ],
       "source": "https://github.com/s8n/CivSwitchFS-kaiHEN",
       "notices": [
-        "engines/IzCivSwitchFS/README.md",
-        "engines/IzCivSwitchFS/LICENSE"
+        "engines/iz2sciv-core/README.md",
+        "engines/iz2sciv-core/LICENSE"
       ]
     },
     {
@@ -132,7 +125,7 @@
       ],
       "source": "https://github.com/kinnay/LDN",
       "notices": [
-        "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt"
+        "engines/iz2sciv-network/LICENSES/LDN-GPL-3.0.txt"
       ]
     },
     {
@@ -147,8 +140,8 @@
         "epiccsolar (independent work, acknowledgement only)"
       ],
       "notices": [
-        "engines/IzCivSwitchFS/README.md",
-        "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md"
+        "engines/iz2sciv-core/README.md",
+        "engines/iz2sciv-core/THIRD_PARTY_NOTICES.md"
       ]
     }
   ],

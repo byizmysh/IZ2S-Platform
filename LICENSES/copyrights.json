@@ -145,1062 +145,597 @@
     "text": "Gnomovision version 69, Copyright (C) year name of author"
   },
   {
-    "path": "engines/CivSwitch/LICENSE",
+    "path": "engines/iz2sciv-shared/LICENSE",
     "line": 3,
     "text": "Copyright (c) 2026 Gezine"
   },
   {
-    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/gen-mapping/LICENSE",
-    "line": 1,
-    "text": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/resolve-uri/LICENSE",
-    "line": 1,
-    "text": "Copyright 2019 Justin Ridgewell <jridgewell@google.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/source-map/LICENSE",
-    "line": 1,
-    "text": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/sourcemap-codec/LICENSE",
-    "line": 1,
-    "text": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/@jridgewell/trace-mapping/LICENSE",
-    "line": 1,
-    "text": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/acorn/LICENSE",
-    "line": 3,
-    "text": "Copyright (C) 2012-2022 by various contributors (see AUTHORS)"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/buffer-from/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2016, 2018 Linus Unnebäck"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/commander/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/LICENSE",
-    "line": 2,
-    "text": "Copyright (c) 2009-2011, Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 58,
-    "text": "* Copyright 2009-2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 73,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 504,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 511,
-    "text": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 650,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 723,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 1217,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 1344,
-    "text": "* Copyright 2014 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 1429,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 2580,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 2697,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.debug.js",
-    "line": 2817,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 58,
-    "text": "* Copyright 2009-2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 73,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 504,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 511,
-    "text": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 650,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 723,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 1217,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 1344,
-    "text": "* Copyright 2014 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 1429,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 2580,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 2697,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/dist/source-map.js",
-    "line": 2817,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/array-set.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/base64-vlq.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/base64-vlq.js",
-    "line": 10,
-    "text": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/base64.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/binary-search.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/mapping-list.js",
-    "line": 3,
-    "text": "* Copyright 2014 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/quick-sort.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/source-map-consumer.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/source-map-generator.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/source-node.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/lib/util.js",
-    "line": 3,
-    "text": "* Copyright 2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map/source-map.js",
-    "line": 2,
-    "text": "* Copyright 2009-2011 Mozilla Foundation and contributors"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/source-map-support/LICENSE.md",
-    "line": 3,
-    "text": "Copyright (c) 2014 Evan Wallace"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/LICENSE",
-    "line": 1,
-    "text": "Copyright 2012-2018 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 20,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 417,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 4469,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 7839,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 8114,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 10126,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 12850,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 14313,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 14376,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 14702,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 15237,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 16280,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 16776,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 17123,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 17566,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 18369,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 19794,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 20481,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 24435,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/dist/bundle.min.js",
-    "line": 33802,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/ast.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/common.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/compressor-flags.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/drop-side-effect-free.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/drop-unused.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/evaluate.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/index.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/inference.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/inline.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/native-objects.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/reduce-vars.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/compress/tighten-body.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/mozilla-ast.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/output.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/parse.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/propmangle.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/scope.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/sourcemap.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/transform.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitch/installer-creator/node_modules/terser/lib/utils/index.js",
-    "line": 14,
-    "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
-  },
-  {
-    "path": "engines/CivSwitchLDN/LICENSE",
+    "path": "engines/iz2sciv-network/LICENSE",
     "line": 4,
     "text": "Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>"
   },
   {
-    "path": "engines/CivSwitchLDN/LICENSE",
+    "path": "engines/iz2sciv-network/LICENSE",
     "line": 635,
     "text": "Copyright (C) <year>  <name of author>"
   },
   {
-    "path": "engines/CivSwitchLDN/LICENSE",
+    "path": "engines/iz2sciv-network/LICENSE",
     "line": 655,
     "text": "<program>  Copyright (C) <year>  <name of author>"
   },
   {
-    "path": "engines/CivSwitchLDN/LICENSES/Gezine-MIT.txt",
+    "path": "engines/iz2sciv-network/LICENSES/Gezine-MIT.txt",
     "line": 3,
     "text": "Copyright (c) 2026 Gezine"
   },
   {
-    "path": "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt",
+    "path": "engines/iz2sciv-network/LICENSES/LDN-GPL-3.0.txt",
     "line": 4,
     "text": "Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>"
   },
   {
-    "path": "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt",
+    "path": "engines/iz2sciv-network/LICENSES/LDN-GPL-3.0.txt",
     "line": 635,
     "text": "Copyright (C) <year>  <name of author>"
   },
   {
-    "path": "engines/CivSwitchLDN/LICENSES/LDN-GPL-3.0.txt",
+    "path": "engines/iz2sciv-network/LICENSES/LDN-GPL-3.0.txt",
     "line": 655,
     "text": "<program>  Copyright (C) <year>  <name of author>"
   },
   {
-    "path": "engines/CivSwitchLDN/README.md",
+    "path": "engines/iz2sciv-network/README.md",
     "line": 109,
     "text": "CivSwitchLDN as a combined application, and the original code contributed by ItsNerisma, are licensed under the **GNU GPL version 3 only (`GPL-3.0-only`)**. See [LICENSE](LICENSE). Copyright (c) 2026 ItsNerisma."
   },
   {
-    "path": "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md",
+    "path": "engines/iz2sciv-network/THIRD_PARTY_NOTICES.md",
     "line": 5,
     "text": "also under `GPL-3.0-only`, copyright (c) 2026 ItsNerisma. The components below"
   },
   {
-    "path": "engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md",
+    "path": "engines/iz2sciv-network/THIRD_PARTY_NOTICES.md",
     "line": 12,
     "text": "- Copyright (c) 2026 Gezine."
   },
   {
-    "path": "engines/CivSwitchLDN/compress.js",
+    "path": "engines/iz2sciv-network/compress.js",
     "line": 1,
     "text": "// SPDX-License-Identifier: MIT"
   },
   {
-    "path": "engines/CivSwitchLDN/compress.js",
+    "path": "engines/iz2sciv-network/compress.js",
     "line": 2,
     "text": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
   },
   {
-    "path": "engines/CivSwitchLDN/installer/compress_stage.js",
-    "line": 2,
-    "text": "// SPDX-License-Identifier: MIT"
-  },
-  {
-    "path": "engines/CivSwitchLDN/installer/compress_stage.js",
-    "line": 3,
-    "text": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
-  },
-  {
-    "path": "engines/CivSwitchLDN/installer/install.py",
-    "line": 3,
-    "text": "# SPDX-License-Identifier: MIT"
-  },
-  {
-    "path": "engines/CivSwitchLDN/installer/install.py",
-    "line": 4,
-    "text": "# Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
-  },
-  {
-    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/gen-mapping/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/@jridgewell/gen-mapping/LICENSE",
     "line": 1,
     "text": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/resolve-uri/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/@jridgewell/resolve-uri/LICENSE",
     "line": 1,
     "text": "Copyright 2019 Justin Ridgewell <jridgewell@google.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/source-map/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/@jridgewell/source-map/LICENSE",
     "line": 1,
     "text": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/sourcemap-codec/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/@jridgewell/sourcemap-codec/LICENSE",
     "line": 1,
     "text": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/@jridgewell/trace-mapping/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/@jridgewell/trace-mapping/LICENSE",
     "line": 1,
     "text": "Copyright 2024 Justin Ridgewell <justin@ridgewell.name>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/acorn/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/acorn/LICENSE",
     "line": 3,
     "text": "Copyright (C) 2012-2022 by various contributors (see AUTHORS)"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/buffer-from/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/buffer-from/LICENSE",
     "line": 3,
     "text": "Copyright (c) 2016, 2018 Linus Unnebäck"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/commander/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/commander/LICENSE",
     "line": 3,
     "text": "Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/source-map/LICENSE",
     "line": 2,
     "text": "Copyright (c) 2009-2011, Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 58,
     "text": "* Copyright 2009-2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 73,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 504,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 511,
     "text": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 650,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 723,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 1217,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 1344,
     "text": "* Copyright 2014 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 1429,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 2580,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 2697,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.debug.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.debug.js",
     "line": 2817,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 58,
     "text": "* Copyright 2009-2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 73,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 504,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 511,
     "text": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 650,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 723,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 1217,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 1344,
     "text": "* Copyright 2014 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 1429,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 2580,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 2697,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/dist/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/dist/source-map.js",
     "line": 2817,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/array-set.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/array-set.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/base64-vlq.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/base64-vlq.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/base64-vlq.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/base64-vlq.js",
     "line": 10,
     "text": "* Copyright 2011 The Closure Compiler Authors. All rights reserved."
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/base64.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/base64.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/binary-search.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/binary-search.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/mapping-list.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/mapping-list.js",
     "line": 3,
     "text": "* Copyright 2014 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/quick-sort.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/quick-sort.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/source-map-consumer.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/source-map-consumer.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/source-map-generator.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/source-map-generator.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/source-node.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/source-node.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/lib/util.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/lib/util.js",
     "line": 3,
     "text": "* Copyright 2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map/source-map.js",
+    "path": "engines/iz2sciv-network/node_modules/source-map/source-map.js",
     "line": 2,
     "text": "* Copyright 2009-2011 Mozilla Foundation and contributors"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/source-map-support/LICENSE.md",
+    "path": "engines/iz2sciv-network/node_modules/source-map-support/LICENSE.md",
     "line": 3,
     "text": "Copyright (c) 2014 Evan Wallace"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/LICENSE",
+    "path": "engines/iz2sciv-network/node_modules/terser/LICENSE",
     "line": 1,
     "text": "Copyright 2012-2018 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 20,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 417,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 4469,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 7839,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 8114,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 10126,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 12850,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 14313,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 14376,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 14702,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 15237,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 16280,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 16776,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 17123,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 17566,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 18369,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 19794,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 20481,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 24435,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/dist/bundle.min.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/dist/bundle.min.js",
     "line": 33802,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/ast.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/ast.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/common.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/common.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/compressor-flags.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/compressor-flags.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/drop-side-effect-free.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/drop-side-effect-free.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/drop-unused.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/drop-unused.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/evaluate.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/evaluate.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/index.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/index.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/inference.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/inference.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/inline.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/inline.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/native-objects.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/native-objects.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/reduce-vars.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/reduce-vars.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/compress/tighten-body.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/compress/tighten-body.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/mozilla-ast.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/mozilla-ast.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/output.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/output.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/parse.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/parse.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/propmangle.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/propmangle.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/scope.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/scope.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/sourcemap.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/sourcemap.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/transform.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/transform.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/node_modules/terser/lib/utils/index.js",
+    "path": "engines/iz2sciv-network/node_modules/terser/lib/utils/index.js",
     "line": 14,
     "text": "Copyright 2012 (c) Mihai Bazon <mihai.bazon@gmail.com>"
   },
   {
-    "path": "engines/CivSwitchLDN/payloads/core.js",
+    "path": "engines/iz2sciv-network/payloads/core.js",
     "line": 1,
     "text": "// SPDX-License-Identifier: MIT"
   },
   {
-    "path": "engines/CivSwitchLDN/payloads/core.js",
+    "path": "engines/iz2sciv-network/payloads/core.js",
     "line": 2,
     "text": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
   },
   {
-    "path": "engines/CivSwitchLDN/payloads/helloworld.js",
-    "line": 1,
-    "text": "// SPDX-License-Identifier: MIT"
-  },
-  {
-    "path": "engines/CivSwitchLDN/payloads/helloworld.js",
-    "line": 2,
-    "text": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
-  },
-  {
-    "path": "engines/IzCivSwitchFS/LICENSE",
+    "path": "engines/iz2sciv-core/LICENSE",
     "line": 4,
     "text": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
   },
   {
-    "path": "engines/IzCivSwitchFS/LICENSE",
+    "path": "engines/iz2sciv-core/LICENSE",
     "line": 294,
     "text": "Copyright (C) <year>  <name of author>"
   },
   {
-    "path": "engines/IzCivSwitchFS/LICENSE",
+    "path": "engines/iz2sciv-core/LICENSE",
     "line": 315,
     "text": "Gnomovision version 69, Copyright (C) year name of author"
   },
   {
-    "path": "engines/IzCivSwitchFS/LICENSE-CivSwitchFS",
+    "path": "engines/iz2sciv-core/LICENSE-CivSwitchFS",
     "line": 3,
     "text": "Copyright (c) 2026 ItsNerisma"
   },
   {
-    "path": "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md",
+    "path": "engines/iz2sciv-core/THIRD_PARTY_NOTICES.md",
     "line": 12,
     "text": "- Copyright: Copyright (c) 2026 Gezine"
   },
   {
-    "path": "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md",
+    "path": "engines/iz2sciv-core/THIRD_PARTY_NOTICES.md",
     "line": 40,
     "text": "- Copyright: Copyright (c) 2026 Gezine"
   },
   {
-    "path": "engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md",
+    "path": "engines/iz2sciv-core/THIRD_PARTY_NOTICES.md",
     "line": 65,
     "text": "Copyright (c) 2026 Gezine"
   },
   {
-    "path": "engines/IzCivSwitchFS/node_modules/esbuild/LICENSE.md",
+    "path": "engines/iz2sciv-core/node_modules/esbuild/LICENSE.md",
     "line": 3,
     "text": "Copyright (c) 2020 Evan Wallace"
   },
   {
-    "path": "engines/IzCivSwitchFS/persist/LICENSE",
+    "path": "engines/iz2sciv-core/persist/LICENSE",
     "line": 3,
     "text": "Copyright (c) 2026 Gezine"
   },
   {
-    "path": "engines/IzCivSwitchFS/persist/compress_stage.js",
+    "path": "engines/iz2sciv-core/persist/compress_stage.js",
     "line": 2,
     "text": "// SPDX-License-Identifier: MIT"
   },
   {
-    "path": "engines/IzCivSwitchFS/persist/compress_stage.js",
+    "path": "engines/iz2sciv-core/persist/compress_stage.js",
     "line": 3,
     "text": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
   },
   {
-    "path": "engines/IzCivSwitchFS/persist/core.js",
+    "path": "engines/iz2sciv-core/persist/core.js",
     "line": 1,
     "text": "// SPDX-License-Identifier: MIT"
   },
   {
-    "path": "engines/IzCivSwitchFS/persist/core.js",
+    "path": "engines/iz2sciv-core/persist/core.js",
     "line": 2,
     "text": "// Copyright (c) 2026 Gezine. See LICENSES/Gezine-MIT.txt."
   },
   {
-    "path": "engines/IzCivSwitchFS/persist/installer.js",
+    "path": "engines/iz2sciv-core/persist/installer.js",
     "line": 1,
     "text": "/* SPDX-License-Identifier: MIT; copyright (c) 2026 Gezine. */"
   },
   {
-    "path": "engines/IzCivSwitchFS/persist/save-codec.js",
+    "path": "engines/iz2sciv-core/persist/save-codec.js",
     "line": 1,
     "text": "/* SPDX-License-Identifier: MIT; copyright (c) 2026 Gezine. */"
   },
   {
-    "path": "engines/IzCivSwitchFS/persist/save-fs.js",
+    "path": "engines/iz2sciv-core/persist/save-fs.js",
     "line": 1,
     "text": "/* SPDX-License-Identifier: MIT; copyright (c) 2026 Gezine. */"
   },
   {
-    "path": "engines/IzCivSwitchFS/tools/persist-build.mjs",
+    "path": "engines/iz2sciv-core/tools/persist-build.mjs",
     "line": 35,
     "text": "if (!upstreamLicense.includes(\"Copyright (c) 2026 Gezine\") ||"
   },
@@ -2626,241 +2161,6 @@
   },
   {
     "path": "modules/IZPSX/LICENSE",
-    "line": 315,
-    "text": "Gnomovision version 69, Copyright (C) year name of author"
-  },
-  {
-    "path": "modules/VacooTube/COPYRIGHT",
-    "line": 1,
-    "text": "Copyright (C) 2026 IZMYSH contributors"
-  },
-  {
-    "path": "modules/VacooTube/LICENSE",
-    "line": 4,
-    "text": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
-  },
-  {
-    "path": "modules/VacooTube/LICENSE",
-    "line": 294,
-    "text": "Copyright (C) <year>  <name of author>"
-  },
-  {
-    "path": "modules/VacooTube/LICENSE",
-    "line": 315,
-    "text": "Gnomovision version 69, Copyright (C) year name of author"
-  },
-  {
-    "path": "modules/VacooTube/THIRD_PARTY.json",
-    "line": 8,
-    "text": "\"copyright\": \"Copyright (c) 2025-2026 shy\","
-  },
-  {
-    "path": "modules/VacooTube/app/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2025-2026 shy"
-  },
-  {
-    "path": "modules/VacooTube/app/src/preload/modules/h264ify.js",
-    "line": 2,
-    "text": "//Copyright (c) 2015 erkserkserks, The MIT License (MIT)"
-  },
-  {
-    "path": "modules/VacooTube/runtime/VacooTube-arm64/LICENSE",
-    "line": 1,
-    "text": "Copyright (c) Electron contributors"
-  },
-  {
-    "path": "modules/VacooTube/runtime/VacooTube-arm64/LICENSE",
-    "line": 2,
-    "text": "Copyright (c) 2013-2020 GitHub Inc."
-  },
-  {
-    "path": "modules/VacooTube/runtime/VacooTube-x64/LICENSE.electron.txt",
-    "line": 1,
-    "text": "Copyright (c) Electron contributors"
-  },
-  {
-    "path": "modules/VacooTube/runtime/VacooTube-x64/LICENSE.electron.txt",
-    "line": 2,
-    "text": "Copyright (c) 2013-2020 GitHub Inc."
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2025-2026 shy"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/LICENSE",
-    "line": 75,
-    "text": "i.e., \"Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/LICENSE",
-    "line": 176,
-    "text": "License Agreement and CNRI's notice of copyright, i.e., \"Copyright (c)"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/LICENSE",
-    "line": 236,
-    "text": "Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam,"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/argparse.js",
-    "line": 6,
-    "text": "// Copyright (C) 2010-2020 Python Software Foundation."
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/argparse.js",
-    "line": 7,
-    "text": "// Copyright (C) 2020 argparse.js authors"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/lib/textwrap.js",
-    "line": 10,
-    "text": "// Copyright (C) 1999-2001 Gregory P. Ward."
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/lib/textwrap.js",
-    "line": 11,
-    "text": "// Copyright (C) 2002, 2003 Python Software Foundation."
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/argparse/lib/textwrap.js",
-    "line": 12,
-    "text": "// Copyright (C) 2020 argparse.js authors"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/builder-util-runtime/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2015 Loopline Systems"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/chokidar/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2012 Paul Miller (https://paulmillr.com), Elan Shanker"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/debug/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2014-2017 TJ Holowaychuk <tj@vision-media.ca>"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/debug/LICENSE",
-    "line": 4,
-    "text": "Copyright (c) 2018-2021 Josh Junon"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/debug/README.md",
-    "line": 461,
-    "text": "Copyright (c) 2014-2017 TJ Holowaychuk &lt;tj@vision-media.ca&gt;"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/debug/README.md",
-    "line": 462,
-    "text": "Copyright (c) 2018-2021 Josh Junon"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/electron-updater/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2015 Loopline Systems"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/electron-updater/node_modules/semver/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) Isaac Z. Schlueter and Contributors"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/fs-extra/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2011-2017 JP Richardson"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/fs-extra/README.md",
-    "line": 257,
-    "text": "Copyright (c) 2011-2017 [JP Richardson](https://github.com/jprichardson)"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/fs-extra/lib/fs/index.js",
-    "line": 3,
-    "text": "// Copyright (c) 2014-2016 Jonathan Ong me@jongleberry.com and Contributors"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/fs-extra/lib/mkdirs/utils.js",
-    "line": 2,
-    "text": "// Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/graceful-fs/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2011-2022 Isaac Z. Schlueter, Ben Noordhuis, and Contributors"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/js-yaml/LICENSE",
-    "line": 3,
-    "text": "Copyright (C) 2011-2015 by Vitaly Puzrin"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/jsonfile/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2012-2015, JP Richardson <jprichardson@gmail.com>"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/jsonfile/README.md",
-    "line": 230,
-    "text": "Copyright 2012-2016, JP Richardson  <jprichardson@gmail.com>"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/ms/license.md",
-    "line": 3,
-    "text": "Copyright (c) 2020 Vercel, Inc."
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/readdirp/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2012-2019 Thorsten Lorenz, Paul Miller (https://paulmillr.com)"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/readdirp/README.md",
-    "line": 118,
-    "text": "Copyright (c) 2012-2019 Thorsten Lorenz, Paul Miller (<https://paulmillr.com>)"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/string-argv/LICENSE",
-    "line": 3,
-    "text": "Copyright 2014 Anthony McCormick"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/tiny-typed-emitter/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2020 Zurab Benashvili (binier) <zura.bena@gmail.com>"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/node_modules/universalify/LICENSE",
-    "line": 3,
-    "text": "Copyright (c) 2017, Ryan Zimmerman <opensrc@ryanzim.com>"
-  },
-  {
-    "path": "modules/VacooTube/runtime/source/998cb540a8e134fb66af4ab8c45cf41dedf7e4ee41aa6c434abaf286024b8d31/src/preload/modules/h264ify.js",
-    "line": 2,
-    "text": "//Copyright (c) 2015 erkserkserks, The MIT License (MIT)"
-  },
-  {
-    "path": "modules/VacooTube/server/streaming/COPYRIGHT",
-    "line": 1,
-    "text": "Copyright (C) 2026 IZMYSH contributors"
-  },
-  {
-    "path": "modules/VacooTube/server/streaming/LICENSE",
-    "line": 4,
-    "text": "Copyright (C) 1989, 1991 Free Software Foundation, Inc.,"
-  },
-  {
-    "path": "modules/VacooTube/server/streaming/LICENSE",
-    "line": 294,
-    "text": "Copyright (C) <year>  <name of author>"
-  },
-  {
-    "path": "modules/VacooTube/server/streaming/LICENSE",
     "line": 315,
     "text": "Gnomovision version 69, Copyright (C) year name of author"
   },

@@ -35,25 +35,11 @@
     "sha256": "49c13fc49cd0f9b4cc4b045b544de073d4c67a842f188d73fbf76b09ad2f5cec"
   },
   {
-    "id": "vacootube",
-    "version": "1.5.7",
-    "sourceSha256": "5be6689420797c42d3adb6f44aa78173c0e43a07567e5b27e6796369988f1d11",
-    "bytes": 509940,
-    "sha256": "2291046770bc487b16b20704196de6bb961150c16209132268a7faf9a6cb39c2"
-  },
-  {
     "id": "blitbun",
     "version": "1.15.8",
     "sourceSha256": "0df1c6cffa8168ea2201643ebc6b6d9652e847e3f3597b0f36f6e9ad17bf29d0",
     "bytes": 516376,
     "sha256": "d9457fe53d4b32456a20d6d418c9bf5300acaa3418e860175cc8f9db7199cbb3"
-  },
-  {
-    "id": "vacootube",
-    "version": "1.5.7",
-    "sourceSha256": "5ab025084287d46c06ed468b942e436aae7c2c1ca1ee7428765e42ed2418697b",
-    "bytes": 509940,
-    "sha256": "2291046770bc487b16b20704196de6bb961150c16209132268a7faf9a6cb39c2"
   },
   {
     "id": "iz-file-deck",
@@ -105,20 +91,6 @@
     "sha256": "b1aa681670ea4c58af2c874264cf8699a8f9698d2ede5db03d2c850035961ccd"
   },
   {
-    "id": "vacootube",
-    "version": "1.5.7",
-    "sourceSha256": "9272614421b79782ffa41502293909f169afac5c32be1a6d961a677945a5b99b",
-    "bytes": 509940,
-    "sha256": "2291046770bc487b16b20704196de6bb961150c16209132268a7faf9a6cb39c2"
-  },
-  {
-    "id": "vacootube",
-    "version": "1.5.7",
-    "sourceSha256": "6ab670654a1e338aaad80ed84dc3a32eb349cb11d40445e14786c73c49ca67bb",
-    "bytes": 509940,
-    "sha256": "2291046770bc487b16b20704196de6bb961150c16209132268a7faf9a6cb39c2"
-  },
-  {
     "id": "blitbun",
     "version": "1.15.8",
     "sourceSha256": "965b2f81ad93aa00e04054958a708b48d258adbc346c92d654104a4082c2399c",
@@ -147,13 +119,6 @@
     "sha256": "d9457fe53d4b32456a20d6d418c9bf5300acaa3418e860175cc8f9db7199cbb3"
   },
   {
-    "id": "vacootube",
-    "version": "1.5.7",
-    "sourceSha256": "e88c3e41c62018a87e4bad3805ab728c8cd7d07aa29bb757ea1793e952890f5c",
-    "bytes": 509940,
-    "sha256": "2291046770bc487b16b20704196de6bb961150c16209132268a7faf9a6cb39c2"
-  },
-  {
     "id": "blitbun",
     "version": "1.15.7",
     "sourceSha256": "a29159aaee3339032ece90c6ef5f63e5711efc843da6a956a5677d6f29eece03",
@@ -166,20 +131,6 @@
     "sourceSha256": "d2cf5382bcc1793056233d8d4836a3af465085211a0559c0da24878aab8fa37b",
     "bytes": 623080,
     "sha256": "eb7db782e3e156fb5dddc7973d705a3b4dd28515b9d1be6601d59d7ebeb9b02e"
-  },
-  {
-    "id": "vacootube",
-    "version": "1.5.6",
-    "sourceSha256": "edc7a4e723ae5872bea20f36fc61c4ea9c478074c9c539c5c2705e75436176df",
-    "bytes": 624740,
-    "sha256": "9c32c47278e47ff06edb28d417687604d8c344bc5e4bb352d7f38f7673618200"
-  },
-  {
-    "id": "vacootube",
-    "version": "1.5.6",
-    "sourceSha256": "aedfe0a616ade8bfd8923e9c69fb846687a8f797dbdff7df17730af96d5fa01c",
-    "bytes": 624740,
-    "sha256": "9c32c47278e47ff06edb28d417687604d8c344bc5e4bb352d7f38f7673618200"
   },
   {
     "id": "blitbun",
@@ -208,13 +159,6 @@
     "sourceSha256": "ccba8dee4b06c813468a5e130ffe13f054fb35ec76a44b21367476182b0119ef",
     "bytes": 160696,
     "sha256": "bc3054dc595fa9d99eba9badd2304f8a1536636b42acd7b70b428fdc97b3f0d0"
-  },
-  {
-    "id": "vacootube",
-    "version": "1.5.6",
-    "sourceSha256": "5853df97dbb4f8e4040a7320585903f32b2652e646fd8862318c4e5448baf380",
-    "bytes": 624740,
-    "sha256": "9c32c47278e47ff06edb28d417687604d8c344bc5e4bb352d7f38f7673618200"
   },
   {
     "id": "iz2s-store",

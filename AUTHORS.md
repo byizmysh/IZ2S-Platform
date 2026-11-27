@@ -6,15 +6,15 @@
 
 | Author / project | Contribution | Source and retained notices |
 | --- | --- | --- |
-| Gezine / CivSwitch | Original CivSwitch and MIT-licensed inherited files | [CivSwitch](https://github.com/Gezine/CivSwitch); `engines/CivSwitch/LICENSE`, `engines/CivSwitchLDN/LICENSES/`, `engines/IzCivSwitchFS/persist/LICENSE` |
-| ItsNerisma / Nerisma | Original CivSwitchLDN (GPL-3.0) and CivSwitchFS (MIT) | [CivSwitchLDN](https://github.com/ItsNerisma/CivSwitchLDN), [CivSwitchFS](https://github.com/ItsNerisma/CivSwitchFS); `engines/CivSwitchLDN/THIRD_PARTY_NOTICES.md`, `engines/IzCivSwitchFS/LICENSE-CivSwitchFS` |
-| ave | CivSwitchFS kaiHEN port | [CivSwitchFS-kaiHEN](https://github.com/s8n/CivSwitchFS-kaiHEN); `engines/IzCivSwitchFS/README.md` |
-| Kinnay / Yannik Marchand | LDN library (GPL-3.0) and protocol research | [LDN](https://github.com/kinnay/LDN); `engines/CivSwitchLDN/LICENSES/` |
-| Slapah / Hokage | Filesystem port and research acknowledged upstream | `engines/IzCivSwitchFS/README.md`, `engines/IzCivSwitchFS/THIRD_PARTY_NOTICES.md` |
-| pepsipu; kurumuz / ouncebrew | ns2jb and kaiHEN runtime work inherited by the filesystem engine | [pepsipu/ns2jb](https://gitlab.com/pepsipu/ns2jb/), [kurumuz/ns2jb](https://gitlab.com/kurumuz/ns2jb), [kaiHEN](https://github.com/ouncebrew/kaihen); `engines/IzCivSwitchFS/LICENSE` |
-| Alula | Stability work acknowledged by CivSwitchFS | `engines/IzCivSwitchFS/README.md` |
-| civswitch-kit and civ7-fs contributors | Filesystem work acknowledged by CivSwitchFS | [civswitch-kit](https://gitee.com/mza1010/civswitch-kit), [civ7-fs](https://github.com/HerXayah/civ7-fs); `engines/IzCivSwitchFS/README.md` |
-| epiccsolar | Independent kaiHEN work acknowledged upstream; this credit does not assert that source was bundled | `engines/IzCivSwitchFS/README.md` |
+| Gezine / CivSwitch | Original CivSwitch and MIT-licensed inherited files | [CivSwitch](https://github.com/Gezine/CivSwitch); `engines/iz2sciv-shared/LICENSE`, `engines/iz2sciv-network/LICENSES/`, `engines/iz2sciv-core/persist/LICENSE` |
+| ItsNerisma / Nerisma | Original CivSwitchLDN (GPL-3.0) and CivSwitchFS (MIT) | [CivSwitchLDN](https://github.com/ItsNerisma/CivSwitchLDN), [CivSwitchFS](https://github.com/ItsNerisma/CivSwitchFS); `engines/iz2sciv-network/THIRD_PARTY_NOTICES.md`, `engines/iz2sciv-core/LICENSE-CivSwitchFS` |
+| ave | CivSwitchFS kaiHEN port | [CivSwitchFS-kaiHEN](https://github.com/s8n/CivSwitchFS-kaiHEN); `engines/iz2sciv-core/README.md` |
+| Kinnay / Yannik Marchand | LDN library (GPL-3.0) and protocol research | [LDN](https://github.com/kinnay/LDN); `engines/iz2sciv-network/LICENSES/` |
+| Slapah / Hokage | Filesystem port and research acknowledged upstream | `engines/iz2sciv-core/README.md`, `engines/iz2sciv-core/THIRD_PARTY_NOTICES.md` |
+| pepsipu; kurumuz / ouncebrew | ns2jb and kaiHEN runtime work inherited by the filesystem engine | [pepsipu/ns2jb](https://gitlab.com/pepsipu/ns2jb/), [kurumuz/ns2jb](https://gitlab.com/kurumuz/ns2jb), [kaiHEN](https://github.com/ouncebrew/kaihen); `engines/iz2sciv-core/LICENSE` |
+| Alula | Stability work acknowledged by CivSwitchFS | `engines/iz2sciv-core/README.md` |
+| civswitch-kit and civ7-fs contributors | Filesystem work acknowledged by CivSwitchFS | [civswitch-kit](https://gitee.com/mza1010/civswitch-kit), [civ7-fs](https://github.com/HerXayah/civ7-fs); `engines/iz2sciv-core/README.md` |
+| epiccsolar | Independent kaiHEN work acknowledged upstream; this credit does not assert that source was bundled | `engines/iz2sciv-core/README.md` |
 
 The original README, COPYRIGHT, LICENSE and THIRD_PARTY_NOTICES files remain with these components. MIT files, GPL-2.0 inherited runtime code and GPL-3.0 components retain their respective terms; the Platform license does not replace them.
 

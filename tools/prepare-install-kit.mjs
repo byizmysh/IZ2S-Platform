@@ -85,10 +85,10 @@ export function verifyFiles(runtime, entries) {
 }
 
 export async function prepare(panel, output) {
-  const engine = path.join(panel, 'engines/IzCivSwitchFS');
+  const engine = path.join(panel, 'engines/iz2sciv-core');
   const require = createRequire(path.join(panel, 'package.json'));
   const {parse} = require(require.resolve('acorn', {
-    paths: [path.join(panel, 'engines/CivSwitch/installer-creator')]
+    paths: [path.join(panel, 'engines/iz2sciv-network')]
   }));
   const archive = require(path.join(panel, 'core/archive.cjs'));
   const importTool = name => import(pathToFileURL(path.join(engine, 'tools', name)).href);

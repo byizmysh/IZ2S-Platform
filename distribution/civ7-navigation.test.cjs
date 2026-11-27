@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),path=require('node:path');
 const {engineAvailable}=require('../core/packages/store-catalog.cjs');
-const civ=require('../engines/IzCivSwitchFS/engine.json');
+const civ=require('../engines/iz2sciv-core/engine.json');
 const shell=require('../shells/izlauncher/shell.json');
 for(const host of ['linux-x64','linux-arm64'])test(host+': Civ7 panel and console shell are available',()=>{
  assert.equal(engineAvailable({...civ,supported:civ.platforms.includes(host)},'original'),true);

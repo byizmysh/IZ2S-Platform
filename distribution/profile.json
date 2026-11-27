@@ -12,7 +12,6 @@
   "modules": [
     "book-reader",
     "blitbun",
-    "vacootube",
     "iz-file-deck",
     "iz2s-cheese",
     "izpsx",
@@ -22,7 +21,6 @@
   "moduleDirectories": [
     "BookReader",
     "BlitBun",
-    "VacooTube",
     "Foldrift",
     "iz2s-cheese",
     "IZPSX",

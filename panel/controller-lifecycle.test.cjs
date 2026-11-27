@@ -7,7 +7,7 @@ test('Civ7 polling keeps one session and rejects removed entry points',async()=>
  const mocks={
  '../core/session/ledger.cjs':{readJson:async()=>({loaderId:'iz2s-core',variant:'izlauncher'}),saveJson:async(file,value)=>writes.push(value)},
  '../engines/index.cjs':{create:()=>({select:id=>{selected=id;return {};}})},
- '../engines/IzCivSwitchFS/session.cjs':{create:options=>{sessions++;sessionOptions=options;return session;}},
+ '../engines/iz2sciv-core/session.cjs':{create:options=>{sessions++;sessionOptions=options;return session;}},
  '../core/packages/repository.cjs':{create:async()=>({})},
  '../core/session/connections.cjs':{createConnections:async()=>({})}
  };

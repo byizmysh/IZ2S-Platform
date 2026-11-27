@@ -1186,12 +1186,13 @@ function renderLibrary() {
   const toggle=$('library-core-sd');
   if(toggle){toggle.hidden=!!state.preview;toggle.setAttribute('aria-pressed',String(!!coreSd));}
   const packages=globalThis.IZ2S_PRESENTATION?.library?.(state)||state.library;
+  const repositoryIds = state.repositoryDownloads || [];
   renderIssueList('module-errors', state.moduleErrors);
   const civ=['civswitch','civswitch-ldn','iz2sciv-core'].includes(state.platform?.loaderId);
   const available = new Set(packages.filter(pkg => pkg.supported !== false&&(!civ||pkg.session?.compatible!==false)).map(pkg => pkg.id));
   for (const id of selection) if (!available.has(id)) selection.delete(id);
   const stamp = JSON.stringify(
-    [state.platform?.sdLauncher,coreSd,state.coreLive,packages.map((p) => [p.id, p.version, p.bytes, p.name, p.icon, p.description, p.supported, p.contents, p.sd, p.session, p.format])],
+    [state.platform?.sdLauncher,coreSd,state.coreLive,repositoryIds,packages.map((p) => [p.id, p.version, p.bytes, p.name, p.icon, p.description, p.supported, p.contents, p.sd, p.session, p.format])],
   );
   if (stamp !== packageStamp) {
     packageStamp = stamp;
@@ -1283,29 +1284,33 @@ function renderLibrary() {
       const actions = element('div', 'module-actions');
       if (!pkg.sdOnly && (pkg.coreSd?.compatible || format === '.nro')) {
         const extension = format === '.nro' ? '.nro' : '.iza';
-        const caption = 'Download ' + extension;
-        const download = element('button','secondary app-download',caption);
-        download.type = 'button';
-        download.disabled = serverUnavailable;
-        download.onclick = async () => {
-          download.dataset.pending = 'true';
-          download.disabled = true;
-          setText(download,'Preparing download…');
-          try {
-            const response = await api('/api/apps/download?'+new URLSearchParams({id:pkg.id}),undefined,
-              {responseType:'response',timeoutMs:180000});
-            const filename = /^attachment; filename="([a-z0-9-]+\.(?:iza|nro))"$/.exec(
-              response.headers.get('content-disposition') || '')?.[1];
-            if (!filename?.endsWith(extension)) throw Error('The application download is invalid.');
-            saveDownload(await response.blob(),filename);
-          } catch(error) { notice(error.message); }
-          finally {
-            delete download.dataset.pending;
-            download.disabled = serverUnavailable;
-            setText(download,caption);
-          }
-        };
-        actions.append(download);
+        const sources = repositoryIds.includes(pkg.id) ? ['repository', 'local'] : ['local'];
+        for (const source of sources) {
+          const caption = source === 'repository' ? 'Download from repository' : 'Download ' + extension;
+          const download = element('button','secondary app-download',caption);
+          setText(download,caption);
+          download.type = 'button';
+          download.disabled = serverUnavailable;
+          download.onclick = async () => {
+            download.dataset.pending = 'true';
+            download.disabled = true;
+            setText(download,'Preparing download…');
+            try {
+              const response = await api('/api/apps/download?'+new URLSearchParams({id:pkg.id,source}),undefined,
+                {responseType:'response',timeoutMs:180000});
+              const filename = /^attachment; filename="([a-z0-9][a-z0-9.-]*\.(?:iza|nro))"$/.exec(
+                response.headers.get('content-disposition') || '')?.[1];
+              if (!filename?.endsWith(extension)) throw Error('The application download is invalid.');
+              saveDownload(await response.blob(),filename);
+            } catch(error) { notice(error.message); }
+            finally {
+              delete download.dataset.pending;
+              download.disabled = serverUnavailable;
+              setText(download,caption);
+            }
+          };
+          actions.append(download);
+        }
       }
       if (state.coreLive && !pkg.sdOnly && (pkg.coreSd?.compatible || format === '.nro')) {
         const install = element('button', 'primary module-configure library-install');

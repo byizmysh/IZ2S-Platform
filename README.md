@@ -16,7 +16,7 @@ IZ2S 0.34 supports Linux x64 and ARM64. The release contains these files.
 
 | Asset | Purpose |
 | --- | --- |
-| `IZ2S-0.34-linux.zip` | Contains `IZ2S-0.34-linux.tar.gz` with the PC installer and SD archive |
+| `IZ2S-0.34-linux.zip` | PC installer and SD archive |
 | `iz2sciv-core-sd.zip` | Matching console runtime, four applications and their licenses. Also available separately. |
 
 ## Requirements
@@ -31,7 +31,7 @@ Firmware, game edition and version are specific requirements; this release does 
 
 ## Start the PC panel
 
-Open `IZ2S-0.34-linux.zip` and extract the `.tar.gz` inside it into a new folder. The extracted `IZ2S-0.34-linux` folder includes `iz2sciv-core-sd.zip` next to `install.sh`.
+Extract `IZ2S-0.34-linux.zip` into a new folder. The extracted `IZ2S-0.34-linux` folder includes `iz2sciv-core-sd.zip` next to `install.sh`.
 
 **Linux:** open a terminal there and run:
 
@@ -61,7 +61,6 @@ The normal panel address is `http://127.0.0.1:39534/`. Use the URL opened or pri
 | [Foldrift](modules/Foldrift) | 0.3.3 | Yes |
 | [Book Reader](modules/BookReader) | 0.1.0 | Available separately in the PC library |
 | [BlitBun](https://github.com/byizmysh/BlitBun) | 1.15.8 | Available separately; PC media host requires Linux |
-| [VacooTube](https://github.com/byizmysh/VacooTube) | 1.5.7 | Available separately; PC media host requires Linux |
 
 In the launcher, **A** opens the selected application and **X** opens Add app. **R + L3** toggles PC Link; **L + R3** toggles FTP. L3/R3 mean clicking the left/right stick. Enabling FTP on the console and connecting the panel's FTP client are separate states.
 
@@ -87,16 +86,15 @@ Packaging checks on a PC do not prove a console launch. The full native runtime 
 - **BermTheSequel, pepsipu and kurumuz**: the ns2jb family and inherited console connection work. Exact retained origins/revisions are in the engine provenance and installer notices: [ns2jb2](https://gitlab.com/BermTheSequel/ns2jb2), [pepsipu/ns2jb](https://gitlab.com/pepsipu/ns2jb/), [kurumuz/ns2jb](https://gitlab.com/kurumuz/ns2jb).
 - **ouncebrew and contributors**: kaiHEN, libkaihen, libounce and related runtime components. Original names and notices are preserved for attribution in `engines/iz2s-core/runtime/package/licenses/` and runtime provenance. [kaiHEN](https://github.com/ouncebrew/kaihen).
 - **OunceVK, Mesa/NVK/Zink, devkitPro, switchbrew and their contributors**: graphics, native runtime and homebrew components. Individual component licenses apply; bundled texts include Mesa, libounce, libnx, nx-hbloader and nx-hbmenu.
-- **Gezine**: the original [CivSwitch](https://github.com/Gezine/CivSwitch) and related MIT-licensed files. Original notices remain in `engines/CivSwitch/LICENSE`, `engines/CivSwitchLDN/LICENSES/` and `engines/IzCivSwitchFS/`.
+- **Gezine**: the original [CivSwitch](https://github.com/Gezine/CivSwitch) and related MIT-licensed files. Original notices remain in `engines/iz2sciv-shared/LICENSE`, `engines/iz2sciv-network/LICENSES/` and `engines/iz2sciv-core/`.
 - **ItsNerisma / Nerisma**: [CivSwitchLDN](https://github.com/ItsNerisma/CivSwitchLDN) (GPL-3.0) and [CivSwitchFS](https://github.com/ItsNerisma/CivSwitchFS) (MIT), the original Civilization VII LDN and filesystem work. **ave**: the [kaiHEN port](https://github.com/s8n/CivSwitchFS-kaiHEN). These authors are distinct from IZ2S's integration work.
 - **Kinnay / Yannik Marchand**: the GPL-3.0 [LDN library](https://github.com/kinnay/LDN) and local-wireless protocol research used by CivSwitchLDN.
 - **Slapah / Hokage, pepsipu, kurumuz, Alula, civswitch-kit and civ7-fs contributors**: filesystem porting, inherited runtime work and stability improvements acknowledged by CivSwitchFS. Its upstream acknowledgements also credit **epiccsolar** for independent kaiHEN work. Exact roles and retained notices are listed in [AUTHORS.md](AUTHORS.md).
 - **misshexa66 and OunceCake contributors**: filesystem tooling. [OunceCake](https://github.com/misshexa66/OunceCake); original GPL notice retained in `core/filesystem/ouncecake/`.
-- **shy / shy1132 and VacuumTube contributors**: the MIT-licensed application underlying VacooTube. Its source copyright and license remain in `modules/VacooTube/app/`. [VacuumTube](https://github.com/shy1132/VacuumTube).
 - **hyln9 and nxhid contributors**: the Switch keyboard base. The older input-device integration is removed; its MIT, libnx and font notices remain under `LICENSES/historical-input-devices/`. [nxhid](https://github.com/hyln9/nxhid).
 - **M5Stack, lovyan03, Benoit Blanchon, Ha Thach, Espressif and Arduino contributors**: Cardputer firmware dependencies, including M5Cardputer, M5Unified, M5GFX/LovyanGFX, ArduinoJson, TinyUSB, ESP-IDF, Arduino-ESP32 and IRremote. Historical notice texts remain under `LICENSES/historical-input-devices/`; the input-device firmware is excluded from this edition.
 - **DejaVu/Bitstream font authors, Monocypher authors, GitHub Octicons authors**, and the authors of Terser, Acorn, source-map, jridgewell mapping libraries and buffer-from: typography, signature verification, artwork and runtime JavaScript processing. Original notices remain beside their components.
-- **ARMSX2, PCSX2, PCSX-ReARMed and their contributors**, plus VIXL, cubeb, SoundTouch, libchdr, fmt, ImGui, libzip, cpuinfo, simpleini, rcheevos, discord-rpc, plutosvg and plutovg authors: inherited statically linked runtime code. IZPSX and IZPS2 are included; associated native dependency license texts are retained in `LICENSES/native-linked/`. Native source coverage is described in [SOURCES.md](SOURCES.md).
+- **ARMSX2, PCSX2, PCSX-ReARMed and their contributors**, plus VIXL, cubeb, SoundTouch, libchdr, fmt, ImGui, libzip, cpuinfo, simpleini, rcheevos, discord-rpc, plutosvg and plutovg authors: inherited statically linked runtime code. IZPSX is included in the SD kit, and IZPS2 is available in the PC library; associated native dependency license texts are retained in `LICENSES/native-linked/`. Native source coverage is described in [SOURCES.md](SOURCES.md).
 - **Electron/Chromium, Node.js, Python, uv, Pillow, OpenSSH, FFmpeg and audio-stack contributors**: bundled or separately installed host dependencies. Electron's complete third-party HTML notice is preserved in each bundled runtime. Downloaded tools retain their own license terms.
 
 `LICENSE` and `COPYRIGHT` cover independently authored IZMYSH code under **GPL-2.0-or-later**. Explicit MIT components (including Foldrift and IZ2S Cheese), third-party code, fonts and prior grants retain their own licenses. This is not a blanket relicensing. See [LICENSE-SCOPE.md](LICENSE-SCOPE.md), [THIRD_PARTY.json](THIRD_PARTY.json), [AUTHORS.md](AUTHORS.md) and [LICENSES/INDEX.md](LICENSES/INDEX.md).

@@ -5,14 +5,14 @@ import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {inflateRawSync} from 'node:zlib';
 import {embeddedRuntime, verifyFiles} from './prepare-install-kit.mjs';
-import {loadIz2sRuntime} from '../engines/IzCivSwitchFS/tools/iz2s-runtime.mjs';
+import {loadIz2sRuntime} from '../engines/iz2sciv-core/tools/iz2s-runtime.mjs';
 
 const require = createRequire(import.meta.url);
-const {parse} = require('../engines/CivSwitch/installer-creator/node_modules/acorn');
+const {parse} = require('../engines/iz2sciv-network/node_modules/acorn');
 const archive = require('../core/archive.cjs');
-const stage = await fs.readFile(new URL('../engines/IzCivSwitchFS/dist/persist/standalone.js', import.meta.url), 'utf8');
+const stage = await fs.readFile(new URL('../engines/iz2sciv-core/dist/persist/standalone.js', import.meta.url), 'utf8');
 const standalone = inflateRawSync(Buffer.from(stage.match(/B64\("([A-Za-z0-9+/=]+)"\)/)[1], 'base64')).toString('ascii');
-const entries = archive.decode(await fs.readFile(new URL('../engines/IzCivSwitchFS/dist/iz2sciv-core-sd.zip', import.meta.url)));
+const entries = archive.decode(await fs.readFile(new URL('../engines/iz2sciv-core/dist/iz2sciv-core-sd.zip', import.meta.url)));
 const runtime = loadIz2sRuntime();
 
 test('actual launch image embeds exactly the SD archive runtime', () => {
@@ -44,7 +44,7 @@ test('ambiguous embedded runtime cannot silently select the first copy', () => {
 });
 
 test('actual installer writes the same save as the local export and preserves other saves', async () => {
-  const read = name => fs.readFile(new URL('../engines/IzCivSwitchFS/persist/' + name, import.meta.url));
+  const read = name => fs.readFile(new URL('../engines/iz2sciv-core/persist/' + name, import.meta.url));
   const template = new Uint8Array(await read('save_template.bin'));
   const ctx = vm.createContext({window: {}, Uint8Array, DataView, setTimeout});
   vm.runInContext((await read('save-codec.js')).toString(), ctx);

@@ -9,7 +9,7 @@ async function create({root,settings:defaults,node,preview=false}){
  const configuration={id:'pc-civ7',name:'PC ↔ Civilization VII',executionHost:'pc',inputAdapter:'none',env:{},requirements:[],setupRequired:false,ui:{checks:[{id:'server',label:'PC',icon:'i-server'},{id:'lan',label:'Console',icon:'i-switch'}]}};
  const settings={...defaults,consolePort:9026};
  const connections=await require('../core/session/connections.cjs').createConnections({root,settings,networkEnabled:!preview});
- const session=require('../engines/IzCivSwitchFS/session.cjs').create({root,settings,node,connections,configuration,preview});
+ const session=require('../engines/iz2sciv-core/session.cjs').create({root,settings,node,connections,configuration,preview});
  const catalog=require('../core/packages/store-catalog.cjs'),repository=require('../core/packages/repository.cjs');
  const library=await repository.create(root,{engine:'iz2s-core',source:'current'});
  let libraryTask,libraryValue,libraryAt=0;
