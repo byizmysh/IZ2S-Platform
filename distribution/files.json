@@ -273,8 +273,8 @@
       "executable": false
     },
     "README-0.3.4.txt": {
-      "bytes": 492,
-      "sha256": "315f208a66a0e2daf1ed8e76ff6d8417f216050dc56cec0ebfc34bc976865574",
+      "bytes": 441,
+      "sha256": "1a48221264faaaf226c94c24c3bf8971eba16a59947d631200164b03a6a42988",
       "executable": false
     },
     "README-RUN34.md": {
@@ -2403,8 +2403,8 @@
       "executable": false
     },
     "distribution/profile.json": {
-      "bytes": 947,
-      "sha256": "e5bfce15c388c2de40d4dba587a57b1fab8bbff704bdea29316af070c7eb6fa1",
+      "bytes": 948,
+      "sha256": "91e11291d051fe712fb624d1f00fe6fd7059b46c0b85c74be4d3ca93a7abf71d",
       "executable": false
     },
     "distribution/release.py": {
